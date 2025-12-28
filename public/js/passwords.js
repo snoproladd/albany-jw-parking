@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Elements
   const form =
-    document.querySelector('form[action="/submit-advanced-info"]') ||
+    document.querySelector('form[action="/submit-namePass"]') ||
     document.querySelector('#account-form') ||
     document.querySelector('form');
 

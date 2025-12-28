@@ -318,7 +318,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     try {
       console.log("Payload being sent: ", payload)
-      const resp = await fetch("/submit-phoneVer", {
+      const resp = await fetch("/submit-namePhone", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),credentials: "include"

@@ -207,7 +207,7 @@ function stopDbUpdate() {
     app.get('/email-pass', csrfProtection, (req, res) => {loadVolunteerCache(), startDbUpdate(), res.render('emailPass', { csrfToken: req.csrfToken() })});
     app.get('/nonProfile', csrfProtection, (req, res) => {loadVolunteerCache(), startDbUpdate(), res.render('nonProfile', { csrfToken: req.csrfToken() })});
     app.get('/congregationInfo', csrfProtection, (req, res) => res.render('congregationInfo', { csrfToken: req.csrfToken() }));
-    app.post('/submit-basic-info',  async (req, res) => {
+    app.post('/submit-nameEmail',  async (req, res) => {
       const  {firstName, lastName, suffix, email} = req.body;
       try {
         const row = await insertNameEmail(firstName, lastName, suffix, email);
@@ -220,7 +220,7 @@ function stopDbUpdate() {
       }
     });
 
-    app.post('/submit-advanced-info', async (req, res) => {
+    app.post('/submit-namePass', async (req, res) => {
       const { email, password } = req.body;
       try {
         const row = await insertEmailPass(email, password);
@@ -241,7 +241,7 @@ function stopDbUpdate() {
       });
     });
 
-    app.post('/submit-phoneVer', async (req, res) => {
+    app.post('/submit-namePhone', async (req, res) => {
       const userId = req.session.userId;
       if (!userId) return res.status(400).json({ success: false, message: "Session expired or user not registered." });
 

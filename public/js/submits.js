@@ -1,7 +1,7 @@
 // public/js/submits.js
 document.addEventListener("DOMContentLoaded", () => {
   const form =
-    document.querySelector('form[action="/submit-advanced-info"]');
+    document.querySelector('form[action="/submit-namePass"]');
     
   const emailInput = document.querySelector("#email");
   const confirmInput = document.querySelector("#confirm-email");
