@@ -18,6 +18,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const confirmStatus = document.querySelector("#confirm-phone-status");
   const smsRadios = document.querySelectorAll('input[name="SMSCapable"]');
   const smsError = document.getElementById("SMSCapable-error");
+  const namesDisabled =  document.querySelector("#firstName");
+  const disableNameFields = namesDisabled.dataset.disable === "true";
+   
 
   // --- IMask setup ---
   const maskOptions = { mask: "(000) 000-0000", lazy: false };
@@ -185,9 +188,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // --- Submit button logic ---
   function allFieldsFilled() {
+    const firstNameFilled = disableNameFields || firstName.value.trim() !== "";
+    const lastNameFilled = disableNameFields || lastName.value.trim() !== "";
     return (
-      firstName.value.trim() !== "" &&
-      lastName.value.trim() !== "" &&
+      firstNameFilled &&
+      lastNameFilled &&
       phoneInput.value.trim() !== "" &&
       confirmInput.value.trim() !== ""
     );

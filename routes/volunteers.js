@@ -2,7 +2,6 @@
 // routes/volunteers.js
 import express from 'express';
 import * as db from '../lib/dbSync.js';
-
 const router = express.Router();
 
 /**
@@ -32,30 +31,46 @@ router.get('/volunteers/exists', async (req, res, next) => {
  * Body: { email, password }
  * Returns 201 inserted row or 409 if already exists.
  */
+
 router.post('/volunteers', async (req, res, next) => {
   try {
+    const disableNameFields = req.query.disableNameFields === 'true'; // or from session
     const email = String(req.body?.email ?? '').trim();
-    const password = String(req.body?.password ?? '');
+    const password = String(req.body?.password ?? '').trim();
+    const firstName = String(req.body?.firstName ?? '').trim();
+    const lastName = String(req.body?.lastName ?? '').trim();
+    const suffix = String(req.body?.suffix ?? '').trim();
+    const phone = String(req.body?.phone ?? '').trim();
 
-    if (!email || !password) {
+    // ✅ Validate required fields
+    if (disableNameFields && (!email || !password)) {
       return res.status(400).json({ error: 'Email and password are required.' });
     }
+    if (!disableNameFields && (!firstName || !lastName || !phone || !email)) {
+      return res.status(400).json({ error: 'First name, last name, phone, and email are required.' });
+    }
 
-    const row = await db.insertEmailPass(email, password);
+    let row;
+    if (disableNameFields) {
+      row = await db.insertEmailPass(email, password);
+    } else {
+      row = await db.insertNameEmail(firstName, lastName, suffix, email);
+    }
 
     if (!row) {
-      // IF NOT EXISTS prevented insert => already present
-      return res.status(409).json({ error: 'Email already registered.' });
+      return res.status(409).json({ error: 'User already registered.' });
     }
 
     return res.status(201).json(row);
   } catch (err) {
     if (err?.number === 2627 || err?.number === 2601) {
-      return res.status(409).json({ error: 'Email already registered.' });
+      return res.status(409).json({ error: 'User already registered.' });
     }
     next(err);
   }
 });
+
+
 
 export default router;
 

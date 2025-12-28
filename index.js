@@ -164,7 +164,7 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 
     // ✅ Import routes and DB helpers AFTER secrets are ready
     const dbRoutes = (await import('./routes/volunteers.js')).default;
-    const { exec, insertEmailPass, insertNameAndPhone, namePhoneExists, loadVolunteerCache } = await import('./lib/dbSync.js');
+    const { exec, insertEmailPass, insertNameEmail, insertNameAndPhone, namePhoneExists, loadVolunteerCache } = await import('./lib/dbSync.js');
     await getSqlPool();
 
     // Update volunteerCache every 10sec
@@ -207,10 +207,18 @@ function stopDbUpdate() {
     app.get('/email-pass', csrfProtection, (req, res) => {loadVolunteerCache(), startDbUpdate(), res.render('emailPass', { csrfToken: req.csrfToken() })});
     app.get('/nonProfile', csrfProtection, (req, res) => {loadVolunteerCache(), startDbUpdate(), res.render('nonProfile', { csrfToken: req.csrfToken() })});
     app.get('/congregationInfo', csrfProtection, (req, res) => res.render('congregationInfo', { csrfToken: req.csrfToken() }));
-    app.post('/submit-basic-info', csrfProtection, (req, res) => {
-      res.redirect('/volunteerIn?disable=true');
+    app.post('/submit-basic-info',  async (req, res) => {
+      const  {firstName, lastName, suffix, email} = req.body;
+      try {
+        const row = await insertNameEmail(firstName, lastName, suffix, email);
+        if (!row) return res.status(409).send('Name or email already registered.');
+        req.session.userId = row.id;
+        req.session.disableNameFields = true;
+        res.redirect('/volunteerIn?disable=true');
+      } catch (err) {
+        res.status(500).send('Registration failed: ' + err.message);
+      }
     });
-
 
     app.post('/submit-advanced-info', async (req, res) => {
       const { email, password } = req.body;
