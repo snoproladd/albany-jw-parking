@@ -13,13 +13,49 @@
     <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
   </head>
-  <main>
-
-
-
-  </main>
+   <body class="min-vh-100 d-flex justify-content-center align-items-center bg-body-tertiary">
+    <main class="container body-container">
+      <div class="row justify-content-center">
+        <div class="col-12 col-md-10 col-lg-8 form-entry">
+          <!-- Banner/Card replacement for jumbotron -->
+          <section id="email-pass" class="card shadow-lg">
+            <header class="card-header text-center">
+              <h1 class="text-center mb-4">Tell us about your congregation and responsibilities.</h1>
+            </header>
+            <div class="card-body">
+              <form action="/submitCongregation" method="POST" id="account-form">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <!--Congregation Membership and assignment to convention-->                
+                <div class="mb-3">
+                  <label for="assigned" class="form-label">Are you assigned to this convention?<span class="asterix">*</span></label>
+                  <select id="assigned" name="assigned" class="form-control" required aria-describedby="assigned-status">
+                    <option value="">Select an option</option>
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                  </select>
+                  <div id="assigned-status" class="status mt-2" role="status" aria-live="polite"></div>
+                </div>
+                <div class="mb-3 d-none" id="congregation" aria-hidden="false">
+                  <label for="congregation" class="form-label">Which congregation are you assigned to?<span class="asterix">*</span></label>
+                  <select id="congregation" name = "congregation" class="form-control" required aria-describedby="congregation-status">
+                    <option value="">Select your congregation:</option>
+                    <% for (let cong = 0; cong < congregations.length; cong++) { %>
+                      <option value="<%= congregations[cong] %>"><%= congregations[cong] %></option>
+                    <% } %>
+                  </select>
+                  <div id="congregation-status" class="status mt-2" role="status" aria-live="polite"></div>
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Submit</button>
+                  <div id="submit-status" class = "status mt-2" role="status" aria-live="polite"></div>
+              </form>
+              <p class="footnote mt-3"><span class="asterix">*</span> Indicates required fields</p>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    
+    <!-- Custom JS -->
   </body>
 </html>
