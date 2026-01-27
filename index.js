@@ -14,6 +14,10 @@ import session from 'express-session';
 import csurf from 'csurf';
 import { getSqlPool } from './src/config/azureConfig.js';
 const config = await getConfig();
+import { getCongregations } from './lib/dbSync.js';
+import apiRoutes from './routes/apiRoutes.js';
+import twilio from 'twilio/lib/rest/taskrouter/v1/workspace/activity.js';
+
 
 
 
@@ -57,6 +61,7 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/api', apiRoutes);
 
 
 
@@ -163,11 +168,11 @@ process.on('SIGINT', () => shutdown('SIGINT'));
     }));
 
     // ✅ Import routes and DB helpers AFTER secrets are ready
-    const dbRoutes = (await import('./routes/volunteers.js')).default;
-    const { exec, insertEmailPass, insertNameEmail, insertNameAndPhone, namePhoneExists, loadVolunteerCache } = await import('./lib/dbSync.js');
+    const dbRoutes = (await import('./routes/apiRoutes.js')).default;
+    const { exec, insertEmailPass, insertNameEmail, insertNameAndPhone, namePhoneExists, loadVolunteerCache, congregations } = await import('./lib/dbSync.js');
     await getSqlPool();
 
-    // Update volunteerCache every 10sec
+    // Reload volunteerCache from DB every 30sec
 app.use((req, res, next) => {
   if (!req.session.userId) {
        stopDbUpdate();
@@ -185,10 +190,17 @@ function startDbUpdate() {
       } catch (err) {
         logError('Failed to refresh volunteer cache:', err);
       }
-    }, 10_000);
+    }, 30_000);
     log('DB update interval started.');
   }
 }
+
+  // Refresh volunteer in-memory cache 
+
+async function refreshVolunteerCache() {
+  const cache = await loadVolunteerCache();
+  app.locals.volunteerCache = cache;
+};
 
 function stopDbUpdate() {
   if (dbUpdateInterval) {
@@ -206,14 +218,24 @@ function stopDbUpdate() {
     app.get('/', csrfProtection, (req, res) => res.render('index', { csrfToken: req.csrfToken() }));
     app.get('/email-pass', csrfProtection, (req, res) => {loadVolunteerCache(), startDbUpdate(), res.render('emailPass', { csrfToken: req.csrfToken() })});
     app.get('/nonProfile', csrfProtection, (req, res) => {loadVolunteerCache(), startDbUpdate(), res.render('nonProfile', { csrfToken: req.csrfToken() })});
-    app.get('/congregationInfo', csrfProtection, (req, res) => res.render('congregationInfo', { csrfToken: req.csrfToken() }));
-    app.post('/submit-nameEmail',  async (req, res) => {
+    app.get('/congregationInfo', csrfProtection, async (req, res) => {
+      try{
+        const congregations  = await getCongregations();        
+      res.render('congregationInfo', { congregations, csrfToken: req.csrfToken()})}
+      catch(error) {
+        console.error("Error fetchiing congregations: ", error);
+        res.status(500).send("Internal Server Error")
+      };
+    });
+  
+      app.post('/submit-nameEmail',  async (req, res) => {
       const  {firstName, lastName, suffix, email} = req.body;
       try {
         const row = await insertNameEmail(firstName, lastName, suffix, email);
         if (!row) return res.status(409).send('Name or email already registered.');
         req.session.userId = row.id;
         req.session.disableNameFields = true;
+        await refreshVolunteerCache();
         res.redirect('/volunteerIn?disable=true');
       } catch (err) {
         res.status(500).send('Registration failed: ' + err.message);
@@ -226,6 +248,7 @@ function stopDbUpdate() {
         const row = await insertEmailPass(email, password);
         if (!row) return res.status(409).send('Email already registered.');
         req.session.userId = row.id;
+        await refreshVolunteerCache();
         res.redirect('/volunteerIn');
       } catch (err) {
         res.status(500).send('Registration failed: ' + err.message);
@@ -260,7 +283,7 @@ function stopDbUpdate() {
 
         const row = await insertNameAndPhone(userId, normalizedFirstName, normalizedLastName, normalizedPhone, normalizedSuffix, SMSCapable);
         if (!row) return res.status(409).json({ success: false, message: "Update failed. Record may not exist." });
-
+        await refreshVolunteerCache();
         return res.json({ success: true, message: "Info updated successfully", exists: false });
       } catch (err) {
         logError("Error updating volunteer info", err);

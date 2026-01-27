@@ -1,26 +1,32 @@
-// public/js/submits.js
+// public/js/formListeners.js
+
 document.addEventListener("DOMContentLoaded", () => {
-  const form =
-    document.querySelector('form[action="/submit-namePass"]');
-    
+  // -------- Forms --------
+  const form = document.querySelector('form[action="/submit-namePass"]');
+  const congForm = document.querySelector('form[action="/submitCongregation"]');
+
+  // Congregation-related elements (scoped to congForm)
+  const congGroup = congForm ? congForm.querySelector("#congregation-group") : null;
+  const congEnter = congForm ? congForm.querySelector("#congregationEnter") : null; // optional
+  const assignedButtons = congForm
+    ? congForm.querySelectorAll('input[name="congAssigned"]')
+    : null;
+
+  // Email/password elements (used on the email/pass page)
   const emailInput = document.querySelector("#email");
   const confirmInput = document.querySelector("#confirm-email");
-  const emailStatus = document.querySelector("#email-status"); // reuse your status area
-
+  const emailStatus = document.querySelector("#email-status");
   const passwordInput = document.querySelector("#password");
   const confirmPasswordInput = document.querySelector("#confirm-password");
-  const firstNameInput = document.querySelector("#firstName");
-  const lastNameInput = document.querySelector("#lastName");
-  const suffixInput = document.querySelector("#suffix");
-  const phoneInput = document.querySelector("#phone");
-//#region 
-// Submit button (fallback if no explicit type="submit")
 
-    let submitBtn = form ? form.querySelector('button[type="submit"]') : null;
-    if (!submitBtn && form)
-      submitBtn = form.querySelector("button.btn.btn-primary");
-
-    if (!form || !emailInput || !confirmInput || !emailStatus) return;
+  // ============================================================
+  // =============== EMAIL / PASSWORD FORM LOGIC ================
+  // ============================================================
+  if (form && emailInput && confirmInput && emailStatus) {
+    // Submit button (fallback if no explicit type="submit")
+    let submitBtn =
+      form.querySelector('button[type="submit"]') ||
+      form.querySelector("button.btn.btn-primary");
 
     // Local state gates (mirroring email_validation.js outcomes)
     let emailDeliverable = false; // set true only when /validate-email says deliverable
@@ -36,16 +42,19 @@ document.addEventListener("DOMContentLoaded", () => {
       emailStatus.classList.remove("loading", "success", "error");
       emailStatus.innerHTML = "";
     }
+
     function setEmailLoading(msg = "Checking...") {
       clearEmailStatus();
       emailStatus.classList.add("loading");
       emailStatus.textContent = msg;
     }
+
     function setEmailSuccess(msg = "OK") {
       clearEmailStatus();
       emailStatus.classList.add("success");
       emailStatus.textContent = msg;
     }
+
     function setEmailError(msg = "Error.") {
       clearEmailStatus();
       emailStatus.classList.add("error");
@@ -191,8 +200,10 @@ document.addEventListener("DOMContentLoaded", () => {
         setEmailLoading("Checking for existing account...");
         const exists = await checkEmailExists(email);
         if (exists === null) {
-          // Could not verify; allow submit but warn
-          setEmailError("Could not verify email at this time. Please try again.");
+          // Could not verify; block submit and warn
+          setEmailError(
+            "Could not verify email at this time. Please try again."
+          );
           e.preventDefault();
           return;
         }
@@ -204,9 +215,43 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // If you also gate on password match, let passwords.js handle that.
-      // Otherwise, allow submit    // Otherwise, allow submit to proceed to POST /api/volunteers
+      // Otherwise, allow submit to proceed to POST /submit-namePass
       setEmailSuccess("Email OK. Submitting...");
     });
-  });
-//#endregion
+  }
+
+  // ============================================================
+  // =============== CONGREGATION FORM LOGIC ====================
+  // ============================================================
+  if (
+    congForm &&
+    congGroup &&
+    assignedButtons &&
+    assignedButtons.length > 0
+  ) {
+    function updateCongVisibility() {
+      const selected = congForm.querySelector(
+        'input[name="congAssigned"]:checked'
+      );
+      if (!selected) return;
+
+      if (selected.value === "yes") {
+        // Show the congregation select group
+        congGroup.classList.remove("d-none");
+        if (congEnter) congEnter.classList.add("d-none");
+      } else if (selected.value === "no") {
+        // Hide the congregation select group and show alternate entry, if present
+        congGroup.classList.add("d-none");
+        if (congEnter) congEnter.classList.remove("d-none");
+      }
+    }
+
+    // Wire radio button change events
+    assignedButtons.forEach((radio) => {
+      radio.addEventListener("change", updateCongVisibility);
+    });
+
+    // Initialize visibility on load (handles pre-checked radio)
+    updateCongVisibility();
+  }
+});

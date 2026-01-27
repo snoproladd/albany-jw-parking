@@ -1,8 +1,9 @@
 
-// routes/volunteers.js
+// routes/apiRoutes.js
 import express from 'express';
 import * as db from '../lib/dbSync.js';
 const router = express.Router();
+import { getCongregations } from '../lib/dbSync.js';
 
 /**
  * Quick existence check used by the frontend to pre-block duplicate emails.
@@ -69,6 +70,17 @@ router.post('/volunteers', async (req, res, next) => {
     next(err);
   }
 });
+
+//congregation dropdown autocomplete
+router.get('/api/congregations', async (req,res)=>{
+  try{
+    const congregations = await getCongregations();
+    res.json(congregations);
+  }catch{
+    console.error("Error fetching congregations: ", error);
+    res.status(500).json({error: "Failed to load congregations"})
+  }
+  });
 
 
 
