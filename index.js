@@ -169,7 +169,7 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 
     // ✅ Import routes and DB helpers AFTER secrets are ready
     const dbRoutes = (await import('./routes/apiRoutes.js')).default;
-    const { exec, insertEmailPass, insertNameEmail, insertNameAndPhone, namePhoneExists, loadVolunteerCache, congregations } = await import('./lib/dbSync.js');
+    const { exec, insertEmailPass, insertNameEmail, insertNameAndPhone, namePhoneExists, loadVolunteerCache, insertCongregationInfo } = await import('./lib/dbSync.js');
     await getSqlPool();
 
     // Reload volunteerCache from DB every 30sec
@@ -228,7 +228,7 @@ function stopDbUpdate() {
       };
     });
   
-      app.post('/submit-nameEmail',  async (req, res) => {
+      app.post('/submit-nameEmail',  csrfProtection, async (req, res) => {
       const  {firstName, lastName, suffix, email} = req.body;
       try {
         const row = await insertNameEmail(firstName, lastName, suffix, email);
@@ -242,7 +242,22 @@ function stopDbUpdate() {
       }
     });
 
-    app.post('/submit-namePass', async (req, res) => {
+    app.post('/submitCongregation', csrfProtection, async (req, res) => {
+      const userId = req.session.userId;
+      if (!userId) return res.status(400).json({ success: false, message: "Session expired or user not registered." });
+      const {congAssigned, congregation, extraAttend, congregationOtherCity, congregationOtherState, congregationOtherLang} = req.body;
+      try{
+        const row = await insertCongregationInfo(userId, congAssigned, congregation, extraAttend, congregationOtherCity, congregationOtherState, congregationOtherLang);
+        if (!row) return res.status(409).json({ success: false, message: "Update failed. Record may not exist." });
+        await refreshVolunteerCache();
+        res.redirect('/spiritualInfo');
+      }catch (err) {
+        logError("Error updating volunteer info", err);
+        return res.status(500).json({ success: false, message: "Server error: " + err.message });
+      }
+    })
+
+    app.post('/submit-namePass', csrfProtection, async (req, res) => {
       const { email, password } = req.body;
       try {
         const row = await insertEmailPass(email, password);

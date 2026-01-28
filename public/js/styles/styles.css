@@ -194,8 +194,6 @@ strong, b {
 .asterix{
   color: red!important;
 }
-
-
 /* -------------------- Form Visibility -------------------- */
 .is-hidden {
   display: none !important;

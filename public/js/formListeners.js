@@ -7,10 +7,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Congregation-related elements (scoped to congForm)
   const congGroup = congForm ? congForm.querySelector("#congregation-group") : null;
-  const congEnter = congForm ? congForm.querySelector("#congregationEnter") : null; // optional
-  const assignedButtons = congForm
-    ? congForm.querySelectorAll('input[name="congAssigned"]')
-    : null;
+  const congEnter = congForm ? congForm.querySelector("#congregationEnter") : null;
+  const congSelect = congForm ? congForm.querySelector('#congregation') : null;
+  const congOtherCity = congForm ? congForm.querySelector('#congregationOtherCity') : null;
+  const congOtherState = congForm ? congForm.querySelector('#congregationOtherState') : null;
+  const congOtherLang = congForm ? congForm.querySelector('#congregationOtherLang') : null;
+  const assignedButtons = congForm ? congForm.querySelectorAll('input[name="congAssigned"]') : null;
 
   // Email/password elements (used on the email/pass page)
   const emailInput = document.querySelector("#email");
@@ -230,21 +232,51 @@ document.addEventListener("DOMContentLoaded", () => {
     assignedButtons.length > 0
   ) {
     function updateCongVisibility() {
-      const selected = congForm.querySelector(
-        'input[name="congAssigned"]:checked'
-      );
-      if (!selected) return;
+  const selected = congForm.querySelector('input[name="congAssigned"]:checked');
+  if (!selected) return;
 
-      if (selected.value === "yes") {
-        // Show the congregation select group
-        congGroup.classList.remove("d-none");
-        if (congEnter) congEnter.classList.add("d-none");
-      } else if (selected.value === "no") {
-        // Hide the congregation select group and show alternate entry, if present
-        congGroup.classList.add("d-none");
-        if (congEnter) congEnter.classList.remove("d-none");
-      }
+  if (selected.value === "yes") {
+    // Show the congregation SELECT
+    congGroup.classList.remove("d-none");
+    if (congSelect) {
+      congSelect.required = true;
     }
+
+    // Hide the "visiting from" INPUT
+    if (congEnter) {
+      congEnter.classList.add("d-none");
+    }
+    if (congOtherCity) {
+      congOtherCity.required = false;
+      congOtherCity.value = ""; // optional: clear when hidden
+    }
+    if (congOtherState) {
+      congOtherState.required = false;
+      congOtherState.value = ""; // optional: clear when hidden
+    }
+    if (congOtherLang) {
+      congOtherLang.required = false;
+      congOtherLang.value = ""; // optional: clear when hidden
+    }
+  } else if (selected.value === "no") {
+    // Hide the congregation SELECT
+    congGroup.classList.add("d-none");
+    if (congSelect) {
+      congSelect.required = false;
+      congSelect.value = ""; // optional: reset
+    }
+
+    // Show the "visiting from" INPUT
+    if (congEnter) {
+      congEnter.classList.remove("d-none");
+    }
+    if (congOtherCity) congOtherCity.required = true;
+    if (congOtherState) congOtherState.required = true;
+    if (congOtherLang) congOtherLang.required = true;
+      
+  }
+}
+
 
     // Wire radio button change events
     assignedButtons.forEach((radio) => {
