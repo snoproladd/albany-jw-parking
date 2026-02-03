@@ -637,9 +637,14 @@ process.on('SIGINT', () => shutdown('SIGINT'));
           : stamina)
       try{
         const row = await insertPersonalInfo(gender, dobirth, stamina)
-      }
-    }
-  )
+      }catch(err){
+        logError("Error updating volunteer info", err);
+          return res.status(500).json({
+            success: false,
+            message: "Server error: " + err.message
+      })
+    }}
+  );
 
 
 
