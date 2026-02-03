@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Congregation Information</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- Bootstrap CSS -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      crossorigin="anonymous"
+    />
+
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="styles/fontawesome/css/all.css" />
+
+    <!-- Custom styles -->
+    <link rel="stylesheet" type="text/css" href="styles/styles.css" />
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body
+    class="min-vh-100 d-flex justify-content-center align-items-center bg-body-tertiary"
+  >
+    <main class="container body-container">
+      <div class="row justify-content-center">
+        <div class="col-12 col-md-10 col-lg-8 form-entry">
+          <!-- Banner/Card replacement for jumbotron -->
+          <section id="email-pass" class="card shadow-lg">
+            <header class="card-header text-center">
+              <h1 class="text-center mb-4">
+                Tell us about your congregation and responsibilities.
+              </h1>
+            </header>
+
+            <div class="card-body">
+              <form action="/submitCongregation" method="POST" id="account-form">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+                <!-- #region Congregation Membership and assignment to convention -->
+                <fieldset
+                  class="border-0 p-0 mt-3"
+                  aria-describedby="congAssigned-help"
+                  aria-labelledby="congAssigned-legend"
+                >
+                  <legend
+                    id="congAssigned-legend"
+                    class="form-label mb-2"
+                  >
+                    Is your Congregation assigned to this convention?
+                    <span class="asterix">*</span>
+                  </legend>
+
+                  <div
+                    id="congAssigned-help"
+                    class="form-text mb-2"
+                  >
+                    Select <strong>Yes</strong> if your congregation is assigned
+                    to THIS Regional Convention (i.e. same language, city, and
+                    date).
+                  </div>
+
+                  <div
+                    class="d-flex flex-wrap align-items-center gap-4"
+                    role="radiogroup"
+                    aria-labelledby="congAssigned-legend"
+                    aria-describedby="congAssigned-help"
+                  >
+                    <div class="form-check">
+                      <input
+                        class="form-check-input"
+                        type="radio"
+                        name="congAssigned"
+                        id="congAssignedYes"
+                        value="yes"
+                        required
+                      />
+                      <label
+                        class="form-check-label"
+                        for="congAssignedYes"
+                      >
+                        Yes
+                      </label>
+                    </div>
+
+                    <div class="form-check">
+                      <input
+                        class="form-check-input"
+                        type="radio"
+                        name="congAssigned"
+                        id="congAssignedNo"
+                        value="no"
+                      />
+                      <label
+                        class="form-check-label"
+                        for="congAssignedNo"
+                      >
+                        No
+                      </label>
+                    </div>
+                  </div>
+
+                  <div
+                    class="invalid-feedback"
+                    id="congAssigned-error"
+                    aria-live="polite"
+                  >
+                    Please select Yes or No.
+                  </div>
+                </fieldset>
+                <!-- #endregion -->
+
+                <!-- #region Congregation select (shown only when congAssigned = "yes") -->
+                  
+                <div
+                  class="mb-3 d-none"
+                  id="congregation-group"
+                  aria-hidden="false"
+                >
+                  <label for="congregation" class="form-label">
+                    Which congregation are you assigned to?
+                    <span class="asterix">*</span>
+                  </label>
+
+                  <select
+                    id="congregation"
+                    name="congregation"
+                    class="form-control"
+                    required
+                    aria-describedby="congregation-status"
+                  >
+                    <option value="">Select your congregation:</option>
+                    <% if (congregations && congregations.length) { %>
+                      <% congregations.forEach(c => { %>
+                        <option value="<%= c %>"><%= c %></option>
+                      <% }) %>
+                    <% } else { %>
+                      <option disabled>No congregations found</option>
+                    <% } %>
+                    </select>
+                </div>
+                <!-- #endregion -->
+
+                <!-- #region Congregation enter (shown only when congAssigned = "no")-->
+                <div class="mb-3 d-none" id="congregationEnter">
+                  <label for="congregation-other" class="form-label">
+                    Which congregation are you visiting from?
+                    <span class="asterix">*</span>
+                  </label>
+                  <label for="congregationOtherCity" class="input-label">
+                    City: 
+                    <span class="asterix">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="congregationOtherCity"
+                    name="congregationOtherCity"
+                    class="form-control"
+                    placeholder="Name of City only"
+                  />
+                  <label for="congregationOtherState" class="input-label">
+                    State: 
+                    <span class="asterix">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="congregationOtherState"
+                    name="congregationOtherState"
+                    class="form-control"
+                    placeholder="Two-letter state code (i.e. 'NY')"
+                  />
+                  <label for="congregationOtherLang" class="input-label">
+                    Language: 
+                    <span class="asterix">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="congregationOtherLang"
+                    name="congregationOtherLang"
+                    class="form-control"
+                    placeholder="Language of congregation you attend"
+                  />
+                </div>
+                <!-- #endregion -->
+
+                <!-- #region Attending different convention? -->
+                <fieldset
+                  class="border-0 p-0 mt-3"
+                  aria-describedby="extraAttend-help"
+                  aria-labelledby="extraAttend-legend"
+                >
+                  <legend
+                    id="extraAttend-legend"
+                    class="form-label mb-2"
+                  >
+                    Will you be attending an additional convention this year?
+                    <span class="asterix">*</span>
+                  </legend>
+
+                  <div
+                    id="extraAttend-help"
+                    class="form-text mb-2"
+                  >
+                    Select <strong>Yes</strong> if you will be attending an additonal convention.
+                  </div>
+
+                  <div
+                    class="d-flex flex-wrap align-items-center gap-4"
+                    role="radiogroup"
+                    aria-labelledby="extraAttend-legend"
+                    aria-describedby="extraAttend-help"
+                  >
+                    <div class="form-check">
+                      <input
+                        class="form-check-input"
+                        type="radio"
+                        name="extraAttend"
+                        id="extraAttendYes"
+                        value="yes"
+                        required
+                      />
+                      <label
+                        class="form-check-label"
+                        for="extraAttendYes"
+                      >
+                        Yes
+                      </label>
+                    </div>
+
+                    <div class="form-check">
+                      <input
+                        class="form-check-input"
+                        type="radio"
+                        name="extraAttend"
+                        id="extraAttendNo"
+                        value="no"
+                      />
+                      <label
+                        class="form-check-label"
+                        for="extraAttendNo"
+                      >
+                        No
+                      </label>
+                    </div>
+                  </div>
+
+                  <div
+                    class="invalid-feedback"
+                    id="extraAttend-error"
+                    aria-live="polite"
+                  >
+                    Please select Yes or No.
+                  </div>
+                </fieldset>
+                <!-- #endregion -->   
+                <!-- submit button -->
+                <button type="submit" class="btn btn-primary w-100">
+                  Submit
+                </button>
+
+                <div
+                  id="submit-status"
+                  class="status mt-2"
+                  role="status"
+                  aria-live="polite"
+                ></div>
+              </form>
+
+              <p class="footnote mt-3">
+                <span class="asterix">*</span> Indicates required fields
+              </p>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Custom JS -->
+    <script src="/js/formListeners.js"></script>
+    <script src="/lib/autocomplete.js"></script>
+  </body>
+</html>

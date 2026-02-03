@@ -2,28 +2,54 @@
   "name": "parking",
   "version": "1.0.0",
   "description": "Express app with Kickbox email validation and Azure Key Vault integration",
-  "main": "index.js",
+  "homepage": "https://github.com/snoproladd/legendary-waffle#readme",
+  "bugs": {
+    "url": "https://github.com/snoproladd/legendary-waffle/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/snoproladd/legendary-waffle.git"
+  },
+  "license": "ISC",
+  "author": "",
   "type": "module",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib"
+  },
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js",
-    "build": "echo 'No build step needed' || exit 0"
+    "dev": "nodemon --require ./set-local-env.js index.js",
+    "build": "vite build"
   },
   "dependencies": {
     "@azure/identity": "^4.13.0",
     "@azure/keyvault-secrets": "^4.10.0",
+    "@azure/msal-common": "^15.13.3",
+    "@azure/msal-node": "^2.16.3",
     "bind": "^0.1.6",
     "body-parser": "^2.2.1",
     "build": "^0.1.4",
-    "docker": "^1.0.0",
+    "cookie": "^1.1.1",
+    "cookie-parser": "^1.4.7",
+    "csurf": "^1.2.2",
+    "docker": "^0.2.14",
+    "dotenv": "^17.2.3",
     "ejs": "^3.1.10",
     "express": "^5.2.1",
+    "express-session": "^1.18.2",
     "helmet": "^8.1.0",
+    "imask": "^7.6.1",
     "jq": "^1.7.2",
     "kickbox": "^2.0.4",
-    "path-to-regexp": "^8.3.0"
+    "mssql": "^12.2.0",
+    "path-to-regexp": "^8.3.0",
+    "twilio": "^5.10.7",
+    "uuid": "9.0.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.11"
+    "@types/cookie-parser": "^1.4.10",
+    "nodemon": "^3.1.11",
+    "vite": "^7.2.7"
   }
 }

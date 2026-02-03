@@ -28,7 +28,7 @@ jspm_packages/
 
 # Environment files
 .env
-.env.*
+
 
 # OS-specific files
 .DS_Store
@@ -52,3 +52,19 @@ docker-compose.override.yml
 
 # Azure deployment artifacts
 .scmignore
+
+# Vite builds
+public/js/*.js.map
+
+# Text files
+*.txt
+
+# scripts
+*.sh
+*.ps1
+
+#Local variable
+set_local_env.js
+
+
+
