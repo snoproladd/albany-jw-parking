@@ -63,7 +63,7 @@
                                             <input
                                                 class="form-check-input"
                                                 type="radio"
-                                                name="gender"
+                                                name="genderRaw"
                                                 id="male"
                                                 value="male"
                                                 required
@@ -77,7 +77,7 @@
                                             <input
                                                 class="form-check-input"
                                                 type="radio"
-                                                name="gender"
+                                                name="genderRaw"
                                                 id="female"
                                                 value="female"
                                             >
@@ -89,14 +89,14 @@
                                         When were you born?<span class="asterix">*</span>
                                         </legend>
                                         <div class = "mb-3">
-                                            <label for="dobirth" class="form-label ms-2">Select Date: </label>
-                                            <input type="date" class = "form-control" id="dobirth" name="dobirth" required>
+                                            <label for="dobirthRaw" class="form-label ms-2">Select Date: </label>
+                                            <input type="date" class = "form-control" id="dobirthRaw" name="dobirthRaw" required>
                                         </div>
                                         <legend id="personalInfo-legend" class="form-label mb-1">
                                         How would you rate your physical stamina?<span class="asterix">*</span>
                                         </legend>
                                         <div class = "mb-3">
-                                        <select id="stamina" name="stamina" class="form-control" required aria-describedby="stamina">
+                                        <select id="staminaRaw" name="staminaRaw" class="form-control" required aria-describedby="staminaRaw">
                                             <option value="">Rate your Stamina</option>
                                             <%let values = ["Poor", "Fair", "Average", "Good", "Excellent"]%>
                                             <% for(let i=0; i<=4; i++){ %>

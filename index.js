@@ -33,6 +33,8 @@ import { getConfig, getSqlPool } from './src/config/azureConfig.js';
 import { getCongregations } from './lib/dbSync.js';
 import apiRoutes from './routes/apiRoutes.js';
 
+import { INCOMPATIBILITIES } from './src/config/privilegeRules.js';
+
 const config = await getConfig();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -285,8 +287,10 @@ process.on('SIGINT', () => shutdown('SIGINT'));
       namePhoneExists,
       loadVolunteerCache,
       insertCongregationInfo,
-      insertSpiritualInfo
+      insertSpiritualInfo,
+      insertPersonalInfo
     } = await import('./lib/dbSync.js');
+    
 
     await getSqlPool();
     //#endregion
@@ -432,7 +436,7 @@ process.on('SIGINT', () => shutdown('SIGINT'));
         const congregations = await getCongregations();
         res.render('congregationInfo', {
           congregations,
-          csrfToken: req.csrfToken()
+          csrfToken: req.csrfToken(),
         });
       } catch (error) {
         console.error("Error fetching congregations: ", error);
@@ -449,7 +453,13 @@ process.on('SIGINT', () => shutdown('SIGINT'));
     app.get('/spiritualInfo', csrfProtection, (req, res) => {
       loadVolunteerCache();
       startDbUpdate(loadVolunteerCache, app);
-      res.render('spiritualInfo', { csrfToken: req.csrfToken() });
+      const userId = req.session.userId;
+      const volunteer = app.locals.volunteerCache[userId];
+      res.render("spiritualInfo", {
+        csrfToken: req.csrfToken(),
+        privilegeRulesJSON: JSON.stringify(INCOMPATIBILITIES),
+        gender: volunteer?.gender || null
+      });
     });
 
     /**
@@ -464,7 +474,7 @@ process.on('SIGINT', () => shutdown('SIGINT'));
       startDbUpdate(loadVolunteerCache, app);
       res.render('volunteerIn', {
         disableNameFields,
-        csrfToken: req.csrfToken()
+        csrfToken: req.csrfToken(),
       });
     });
 
@@ -624,27 +634,64 @@ process.on('SIGINT', () => shutdown('SIGINT'));
      *  Saves personal information about volunteer.
      *  Tracks Gender, DOB, and Stamina rating.
      */
-    app.post('/submitPersonal', csrfProtection, async (req, res) =>{
-      const { gender, dobirth, stamina } = req.body;
-        const genderNormal = gender.toLowerCase().trim();
-        const dobirthNormal = (typeof dobirth !== number 
-          ? parseInt(dobirth )
-          : isNaN((new Date(dobirth)).valueOf()) 
-          ? console.log("Number is not a valid date") 
-          : new Date(dobirth))
-        const staminaNormal = (isNaN(stamina) 
-          ? parseInt(stamina) 
-          : stamina)
-      try{
-        const row = await insertPersonalInfo(gender, dobirth, stamina)
-      }catch(err){
-        logError("Error updating volunteer info", err);
-          return res.status(500).json({
-            success: false,
-            message: "Server error: " + err.message
-      })
-    }}
-  );
+   app.post("/submitPersonal", csrfProtection, async (req, res) => {
+     try {
+       const userId = req.session.userId;
+       if (!userId) {
+         return res.status(400).json({
+           success: false,
+           message: "Session expired or user not registered.",
+         });
+       }
+
+       // Extract raw form values
+       const { genderRaw, dobirthRaw, staminaRaw } = req.body;
+
+       // Normalize gender
+       const gender = genderRaw?.trim().toLowerCase() || null;
+
+       // Normalize date of birth
+       const dobirth = new Date(dobirthRaw);
+       console.log("dobirthRAW: "+dobirthRaw +" dobirth: " + dobirth)
+       if (isNaN(dobirth.valueOf())) {
+         return res.status(400).json({
+           success: false,
+           message: "Invalid date of birth.",
+         });
+       }
+
+       // Normalize stamina ("1 - Fair", "4 - Good")
+       // Extract the number before the dash
+       let stamina = null;
+       if (typeof staminaRaw === "string") {
+         const num = parseInt(staminaRaw.split("-")[0].trim(), 10);
+         if (!isNaN(num)) stamina = num;
+       }
+
+       // Save to database
+       const row = await insertPersonalInfo(userId, gender, dobirth, stamina);
+        await refreshVolunteerCache(loadVolunteerCache, app);
+        res.redirect("/congregationInfo");
+
+       if (!row) {
+         return res.status(500).json({
+           success: false,
+           message: "Update failed.",
+         });
+       }
+
+       return res.json({
+         success: true,
+         message: "Personal info saved successfully.",
+       });
+     } catch (err) {
+       console.error("Error in /submitPersonal", err);
+       return res.status(500).json({
+         success: false,
+         message: "Server error: " + err.message,
+       });
+     }
+   });
 
 
 
