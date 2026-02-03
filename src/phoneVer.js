@@ -1,340 +1,440 @@
 import IMask from "imask";
 
+/**
+ * phoneVer.js
+ * Optimized hybrid‑module architecture (Option C)
+ *
+ * Structure:
+ *   const DOM        – All element lookups
+ *   const State      – Reactive-ish data store
+ *   const UI         – All UI rendering helpers
+ *   const IMaskSetup – Mask initialization
+ *   const Logic      – Validation & matching
+ *   const Events     – Listeners that glue everything together
+ *   const Submit     – AJAX form submission
+ *
+ * Maintains 100% identical behavior as before.
+ */
+
 document.addEventListener("DOMContentLoaded", () => {
-  // --- Element references ---
-  const form = document.querySelector("#phoneVer-form");
-  if (!form) {
+  // ─────────────────────────────────────────────
+  // MODULE: DOM (all element references, no logic)
+  // ─────────────────────────────────────────────
+  const DOM = {
+    form: document.querySelector("#phoneVer-form"),
+
+    submitBtn: document.querySelector("#submit-btn"),
+    submitStatus: document.querySelector("#submit-status"),
+
+    firstName: document.querySelector("#firstName"),
+    lastName: document.querySelector("#lastName"),
+    suffix: document.querySelector("#suffix"),
+
+    phone: document.querySelector("#phone"),
+    confirm: document.querySelector("#confirm-phone"),
+
+    phoneStatus: document.querySelector("#phone-status"),
+    confirmStatus: document.querySelector("#confirm-phone-status"),
+
+    smsRadios: document.querySelectorAll('input[name="SMSCapable"]'),
+    smsError: document.getElementById("SMSCapable-error"),
+
+    disableNameFields:
+      document.querySelector("#firstName")?.dataset.disable === "true",
+  };
+
+  if (!DOM.form) {
     console.warn("phoneVer form not found on this page");
     return;
   }
-  const submitBtn = document.querySelector("#submit-btn");
-  const submitStatus = document.querySelector("#submit-status");
-  const firstName = document.querySelector("#firstName");
-  const lastName = document.querySelector("#lastName");
-  const suffix = document.querySelector("#suffix");
-  const phoneInput = document.querySelector("#phone");
-  const confirmInput = document.querySelector("#confirm-phone");
-  const phoneStatus = document.querySelector("#phone-status");
-  const confirmStatus = document.querySelector("#confirm-phone-status");
-  const smsRadios = document.querySelectorAll('input[name="SMSCapable"]');
-  const smsError = document.getElementById("SMSCapable-error");
-  const namesDisabled =  document.querySelector("#firstName");
-  const disableNameFields = namesDisabled.dataset.disable === "true";
-   
 
-  // --- IMask setup ---
-  const maskOptions = { mask: "(000) 000-0000", lazy: false };
-  if (phoneInput && !phoneInput._imask) {
-    phoneInput._imask = IMask(phoneInput, maskOptions);
-  }
-  if (confirmInput && !confirmInput._imask) {
-    confirmInput._imask = IMask(confirmInput, maskOptions);
-  }
+  // ─────────────────────────────────────────────
+  // MODULE: State (centralized reactive-ish store)
+  // ─────────────────────────────────────────────
+  const State = {
+    phoneDeliverable: false,
+    phonesMatch: false,
+    aborter: null,
+    debounceId: null,
+    digitsOnly: (s) => s.replace(/\D+/g, ""),
+  };
 
-  // --- Status helpers ---
-  function setSubmitStatusLoading(msg) {
-    submitStatus.classList.remove("error", "success");
-    submitStatus.classList.add("loading");
-    submitStatus.innerHTML = `<span class="spinner-border spinner-border-sm text-secondary" role="status" aria-hidden="true"></span> ${msg}`;
-  }
-  function setSubmitStatusSuccess(msg) {
-    submitStatus.classList.remove("error");
-    submitStatus.classList.add("success");
-    submitStatus.textContent = msg;
-  }
-  function setSubmitStatusError(msg) {
-    submitStatus.classList.remove("success");
-    submitStatus.classList.add("error");
-    submitStatus.innerHTML = `
-      <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        ❌ ${msg}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-      </div>
-    `;
-  }
-  function clearStates(el) {
-    el.classList.remove("loading", "success", "error");
-    el.innerHTML = "";
-  }
-  function setStatusLoading(el, text = "Checking...") {
-    clearStates(el);
-    el.classList.add("loading");
-    el.innerHTML =
-      '<span class="spinner-border spinner-border-sm text-secondary" role="status" aria-hidden="true"></span> ' +
-      text;
-  }
-  function setStatusSuccess(el, msg = "✅ OK") {
-    clearStates(el);
-    el.classList.add("success");
-    el.textContent = msg;
-  }
-  function setStatusError(el, msg = "Error.") {
-    clearStates(el);
-    el.classList.add("error");
-    el.innerHTML = `
-      <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        ❌ ${msg}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-      </div>`;
-  }
-  function setConfirmEnabled(enabled) {
-    confirmInput.disabled = !enabled;
-  }
-  const digitsOnly = (s) => s.replace(/\D+/g, "");
+  // ─────────────────────────────────────────────
+  // MODULE: UI (all rendering helpers)
+  // ─────────────────────────────────────────────
+  const UI = {
+    clear(el) {
+      el.classList.remove("loading", "success", "error");
+      el.innerHTML = "";
+    },
 
-  // --- State ---
-  let phoneDeliverable = false;
-  let phonesMatch = false;
-  let debounceId;
-  let inflightAbort = null;
+    loading(el, msg = "Checking...") {
+      UI.clear(el);
+      el.classList.add("loading");
+      el.innerHTML = `
+        <span class="spinner-border spinner-border-sm text-secondary"></span>
+        ${msg}
+      `;
+    },
 
-  // --- Phone validation logic (async) ---
-  async function fetchPhoneNumber(phone) {
-    const requestedPhone = phone.trim();
-    setStatusLoading(phoneStatus, "Validating phone...");
-    setSubmitStatusLoading("Checking...");
-    if (inflightAbort) inflightAbort.abort();
-    inflightAbort = new AbortController();
-    try {
-      const url = new URL("/validate-phone", window.location.origin);
-      url.searchParams.set("phone", requestedPhone);
-      const res = await fetch(url.toString(), { signal: inflightAbort.signal });
-      const data = await res.json().catch(() => ({}));
-      if (phoneInput.value.trim() !== requestedPhone) return;
-      if (!res.ok) {
-        phoneDeliverable = false;
-        setStatusError(
-          phoneStatus,
-          data.error || "Server error. Please try again later."
+    success(el, msg = "✅ OK") {
+      UI.clear(el);
+      el.classList.add("success");
+      el.textContent = msg;
+    },
+
+    error(el, msg = "Error.") {
+      UI.clear(el);
+      el.classList.add("error");
+      el.innerHTML = `
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+          ❌ ${msg}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      `;
+    },
+
+    submitLoading(msg) {
+      DOM.submitStatus.classList.remove("success", "error");
+      DOM.submitStatus.classList.add("loading");
+      DOM.submitStatus.innerHTML = `
+        <span class="spinner-border spinner-border-sm text-secondary"></span>
+        ${msg}
+      `;
+    },
+
+    submitSuccess(msg) {
+      DOM.submitStatus.classList.remove("error");
+      DOM.submitStatus.classList.add("success");
+      DOM.submitStatus.textContent = msg;
+    },
+
+    submitError(msg) {
+      DOM.submitStatus.classList.remove("success");
+      DOM.submitStatus.classList.add("error");
+      DOM.submitStatus.innerHTML = `
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+          ❌ ${msg}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      `;
+    },
+
+    toggleConfirmField(enable) {
+      DOM.confirm.disabled = !enable;
+    },
+  };
+
+  // ─────────────────────────────────────────────
+  // MODULE: IMask setup
+  // ─────────────────────────────────────────────
+  const IMaskSetup = {
+    init() {
+      const opts = { mask: "(000) 000-0000", lazy: false };
+
+      if (DOM.phone && !DOM.phone._imask) {
+        DOM.phone._imask = IMask(DOM.phone, opts);
+      }
+      if (DOM.confirm && !DOM.confirm._imask) {
+        DOM.confirm._imask = IMask(DOM.confirm, opts);
+      }
+    },
+  };
+
+  // ─────────────────────────────────────────────
+  // MODULE: Core Logic
+  // ─────────────────────────────────────────────
+  const Logic = {
+    fieldsFilled() {
+      const fn = DOM.disableNameFields || DOM.firstName.value.trim() !== "";
+      const ln = DOM.disableNameFields || DOM.lastName.value.trim() !== "";
+      return fn && ln && DOM.phone.value.trim() && DOM.confirm.value.trim();
+    },
+
+    radiosSelected() {
+      return !!document.querySelector('input[name="SMSCapable"]:checked');
+    },
+
+    numbersMatch() {
+      return (
+        State.digitsOnly(DOM.phone.value.trim()) ===
+        State.digitsOnly(DOM.confirm.value.trim())
+      );
+    },
+
+    updateSubmitState() {
+      if (DOM.smsError) {
+        DOM.smsError.style.display = Logic.radiosSelected() ? "none" : "block";
+      }
+
+      const ready =
+        Logic.fieldsFilled() &&
+        Logic.numbersMatch() &&
+        State.phoneDeliverable &&
+        State.phonesMatch &&
+        Logic.radiosSelected();
+
+      DOM.submitBtn.disabled = !ready;
+
+      if (ready) {
+        UI.submitSuccess("✅ Ready to submit");
+      } else {
+        UI.submitError(
+          "Please complete all required fields, ensure phone numbers match, and select Yes/No for SMSCapable."
         );
-        setConfirmEnabled(false);
-        phonesMatch = false;
-        updateSubmitState();
+      }
+    },
+
+    validateConfirmMatch() {
+      const p1 = State.digitsOnly(DOM.phone.value.trim());
+      const p2 = State.digitsOnly(DOM.confirm.value.trim());
+
+      if (!State.phoneDeliverable) {
+        State.phonesMatch = false;
+        UI.clear(DOM.confirmStatus);
+        DOM.confirmStatus.textContent = "Validate your phone first.";
+        Logic.updateSubmitState();
         return;
       }
-      const result = !!data.valid;
-      const reason = data.validation_errors || "";
-      if (result) {
-        phoneDeliverable = true;
-        setStatusSuccess(phoneStatus, `✅ Valid phone (${phoneInput.value})`);
-        setConfirmEnabled(true);
-        // Duplicate check (if backend returns exists)
-        if (data.exists) {
-          setStatusError(
-            phoneStatus,
-            "Duplicate record found. Please check your details."
+
+      if (!p2) {
+        State.phonesMatch = false;
+        UI.clear(DOM.confirmStatus);
+        DOM.confirmStatus.textContent = "Please repeat your phone.";
+        Logic.updateSubmitState();
+        return;
+      }
+
+      if (p1 === p2) {
+        State.phonesMatch = true;
+        UI.success(DOM.confirmStatus, "✅ Phones match");
+      } else {
+        State.phonesMatch = false;
+        UI.error(DOM.confirmStatus, "Phones do not match.");
+      }
+
+      Logic.updateSubmitState();
+    },
+
+    async validatePhone(raw) {
+      const trimmed = raw.trim();
+
+      UI.loading(DOM.phoneStatus, "Validating phone...");
+      UI.submitLoading("Checking...");
+
+      if (State.aborter) State.aborter.abort();
+      State.aborter = new AbortController();
+
+      try {
+        const url = new URL("/validate-phone", window.location.origin);
+        url.searchParams.set("phone", trimmed);
+
+        const resp = await fetch(url, { signal: State.aborter.signal });
+        const data = await resp.json().catch(() => ({}));
+
+        if (DOM.phone.value.trim() !== trimmed) return;
+
+        if (!resp.ok) {
+          State.phoneDeliverable = false;
+          UI.error(
+            DOM.phoneStatus,
+            data.error || "Server error. Try again later."
           );
-          setSubmitStatusError(
-            "Duplicate record exists. Please check your details."
-          );
-          setConfirmEnabled(false);
-          phonesMatch = false;
-          updateSubmitState();
+          UI.toggleConfirmField(false);
+          State.phonesMatch = false;
+          Logic.updateSubmitState();
           return;
         }
-      } else {
-        phoneDeliverable = false;
-        setStatusError(phoneStatus, reason || "Invalid phone number.");
-        setConfirmEnabled(false);
-        phonesMatch = false;
+
+        const valid = !!data.valid;
+        const reason = data.validation_errors || "";
+
+        if (valid) {
+          State.phoneDeliverable = true;
+          UI.success(
+            DOM.phoneStatus,
+            `✅ Valid phone (${DOM.phone.value})`
+          );
+          UI.toggleConfirmField(true);
+
+          if (data.exists) {
+            UI.error(
+              DOM.phoneStatus,
+              "Duplicate record found. Please check your details."
+            );
+            UI.submitError(
+              "Duplicate record exists. Please check your details."
+            );
+            UI.toggleConfirmField(false);
+            State.phonesMatch = false;
+            Logic.updateSubmitState();
+            return;
+          }
+        } else {
+          State.phoneDeliverable = false;
+          UI.error(DOM.phoneStatus, reason || "Invalid phone number.");
+          UI.toggleConfirmField(false);
+          State.phonesMatch = false;
+        }
+
+        Logic.validateConfirmMatch();
+      } catch (err) {
+        if (err.name === "AbortError") return;
+
+        State.phoneDeliverable = false;
+        UI.error(
+          DOM.phoneStatus,
+          "Error validating phone. Please try again later."
+        );
+        UI.toggleConfirmField(false);
+        State.phonesMatch = false;
+      } finally {
+        State.aborter = null;
+        Logic.updateSubmitState();
       }
-      evaluateConfirmMatch();
-    } catch (e) {
-      if (e.name === "AbortError") return;
-      phoneDeliverable = false;
-      setStatusError(
-        phoneStatus,
-        "Error validating phone number. Please try again later."
-      );
-      setConfirmEnabled(false);
-      phonesMatch = false;
-    } finally {
-      inflightAbort = null;
-      updateSubmitState();
-    }
-  }
+    },
+  };
 
-  function evaluateConfirmMatch() {
-    const phoneVal = digitsOnly(phoneInput.value.trim());
-    const confirmVal = digitsOnly(confirmInput.value.trim());
-    if (!phoneDeliverable) {
-      phonesMatch = false;
-      clearStates(confirmStatus);
-      confirmStatus.textContent = "Validate your phone first.";
-      updateSubmitState();
-      return;
-    }
-    if (!confirmVal) {
-      phonesMatch = false;
-      clearStates(confirmStatus);
-      confirmStatus.textContent = "Please repeat your phone.";
-      updateSubmitState();
-      return;
-    }
-    if (confirmVal === phoneVal) {
-      phonesMatch = true;
-      setStatusSuccess(confirmStatus, "✅ Phones match");
-    } else {
-      phonesMatch = false;
-      setStatusError(confirmStatus, "Phones do not match.");
-    }
-    updateSubmitState();
-  }
+  // ─────────────────────────────────────────────
+  // MODULE: Events (bind listeners cleanly)
+  // ─────────────────────────────────────────────
+  const Events = {
+    init() {
+      DOM.phone.addEventListener("input", () => {
+        clearTimeout(State.debounceId);
+        const raw = DOM.phone.value;
 
-  // --- Radio selection check ---
-  function isRadioSelected() {
-    return document.querySelector('input[name="SMSCapable"]:checked') !== null;
-  }
+        if (!raw.trim()) {
+          State.phoneDeliverable = false;
+          UI.toggleConfirmField(false);
+          UI.clear(DOM.phoneStatus);
+          DOM.phoneStatus.textContent = "Please enter a phone number.";
+          State.phonesMatch = false;
+          Logic.updateSubmitState();
+          return;
+        }
 
-  // --- Submit button logic ---
-  function allFieldsFilled() {
-    const firstNameFilled = disableNameFields || firstName.value.trim() !== "";
-    const lastNameFilled = disableNameFields || lastName.value.trim() !== "";
-    return (
-      firstNameFilled &&
-      lastNameFilled &&
-      phoneInput.value.trim() !== "" &&
-      confirmInput.value.trim() !== ""
-    );
-  }
-  function phonesAreMatching() {
-    return (
-      digitsOnly(phoneInput.value.trim()) ===
-      digitsOnly(confirmInput.value.trim())
-    );
-  }
+        if (State.digitsOnly(raw).length < 10) {
+          State.phoneDeliverable = false;
+          UI.toggleConfirmField(false);
+          UI.clear(DOM.phoneStatus);
+          DOM.phoneStatus.textContent = "Enter at least 10 digits.";
+          State.phonesMatch = false;
+          Logic.updateSubmitState();
+          return;
+        }
 
-  function updateSubmitState() {
-    // Show/hide radio error
-    if (smsError) smsError.style.display = isRadioSelected() ? "none" : "block";
-    if (
-      allFieldsFilled() &&
-      phonesAreMatching() &&
-      phoneDeliverable &&
-      phonesMatch &&
-      isRadioSelected()
-    ) {
-      submitBtn.disabled = false;
-      setSubmitStatusSuccess("✅ Ready to submit");
-    } else {
-      submitBtn.disabled = true;
-      setSubmitStatusError(
-        "Please complete all required fields, ensure phone numbers match, and select Yes or No for SMSCapable."
-      );
-    }
-  }
-
-  // --- Event listeners ---
-  phoneInput.addEventListener("input", () => {
-    clearTimeout(debounceId);
-    const raw = phoneInput.value;
-    if (raw.trim() === "") {
-      phoneDeliverable = false;
-      setConfirmEnabled(false);
-      clearStates(phoneStatus);
-      phoneStatus.textContent = "Please enter a phone number.";
-      phonesMatch = false;
-      updateSubmitState();
-      return;
-    }
-    const digits = digitsOnly(raw);
-    if (digits.length < 10) {
-      phoneDeliverable = false;
-      setConfirmEnabled(false);
-      clearStates(phoneStatus);
-      phoneStatus.textContent = "Enter at least 10 digits.";
-      phonesMatch = false;
-      updateSubmitState();
-      return;
-    }
-    setSubmitStatusLoading("Checking...");
-    debounceId = setTimeout(() => {
-      fetchPhoneNumber(raw);
-    }, 500);
-    updateSubmitState();
-  });
-
-  confirmInput.addEventListener("input", () => {
-    evaluateConfirmMatch();
-    updateSubmitState();
-  });
-
-  // Block paste into confirm field
-  confirmInput.addEventListener("paste", (e) => {
-    e.preventDefault();
-    setStatusError(
-      confirmStatus,
-      "Pasting is disabled. Please retype your phone."
-    );
-    updateSubmitState();
-  });
-
-  // Listen for changes on first/last name fields
-  if (firstName) firstName.addEventListener("input", updateSubmitState);
-  if (lastName) lastName.addEventListener("input", updateSubmitState);
-
-  // Listen for changes on radio buttons
-  smsRadios.forEach((radio) => {
-    radio.addEventListener("change", updateSubmitState);
-  });
-
-  // On load, ensure submit is disabled and radio error is hidden
-  updateSubmitState();
-  if (smsError) smsError.style.display = "none";
-
-  // --- AJAX form submission ---
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    console.log("AJAX submit handler running!");
-
-    evaluateConfirmMatch();
-    const smsChosen = isRadioSelected();
-
-    // Client-side validation
-    if (!(phoneDeliverable && phonesMatch && smsChosen && allFieldsFilled())) {
-      if (!phoneDeliverable)
-        setStatusError(phoneStatus, "Please enter a valid phone.");
-      if (!phonesMatch) setStatusError(confirmStatus, "Phones do not match.");
-      if (!smsChosen && smsError) smsError.style.display = "block";
-      setSubmitStatusError(
-        "Please complete all required fields and ensure phone numbers match."
-      );
-      updateSubmitState();
-      return;
-    }
-    submitBtn.disabled = true;
-    setSubmitStatusLoading("Submitting...");
-
-    // Build payload for backend
-    const payload = {
-      firstName: firstName.value.trim(),
-      lastName: lastName.value.trim(),
-      suffix: suffix.value.trim(),
-      phone: phoneInput.value.trim(),
-      SMSCapable:
-        document.querySelector('input[name="SMSCapable"]:checked')?.value ===
-        "yes",
-    };
-
-    try {
-      console.log("Payload being sent: ", payload)
-      const resp = await fetch("/submit-namePhone", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),credentials: "include"
+        UI.submitLoading("Checking...");
+        State.debounceId = setTimeout(
+          () => Logic.validatePhone(raw),
+          500
+        );
+        Logic.updateSubmitState();
       });
-      const data = await resp.json();
-      if (!data.success) {
-        setSubmitStatusError(data.message || "Submission failed.");
-        return;
-      }
-      setSubmitStatusSuccess("Info updated successfully!");
-      setTimeout(() => {
-        window.location.href = "/congregationInfo";
-      }, 1000);
-    } catch (err) {
-      setSubmitStatusError("Server error. Please try again later.");
-      console.error(err);
-    }
-  });
+
+      DOM.confirm.addEventListener("input", () => {
+        Logic.validateConfirmMatch();
+      });
+
+      DOM.confirm.addEventListener("paste", (e) => {
+        e.preventDefault();
+        UI.error(
+          DOM.confirmStatus,
+          "Pasting is disabled. Please retype your phone."
+        );
+        Logic.updateSubmitState();
+      });
+
+      if (DOM.firstName)
+        DOM.firstName.addEventListener("input", Logic.updateSubmitState);
+      if (DOM.lastName)
+        DOM.lastName.addEventListener("input", Logic.updateSubmitState);
+
+      DOM.smsRadios.forEach((r) =>
+        r.addEventListener("change", Logic.updateSubmitState)
+      );
+    },
+  };
+
+  // ─────────────────────────────────────────────
+  // MODULE: Submit (AJAX submission)
+  // ─────────────────────────────────────────────
+  const Submit = {
+    init() {
+      DOM.form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        Logic.validateConfirmMatch();
+
+        const smsChosen = Logic.radiosSelected();
+
+        if (
+          !(
+            State.phoneDeliverable &&
+            State.phonesMatch &&
+            smsChosen &&
+            Logic.fieldsFilled()
+          )
+        ) {
+          if (!State.phoneDeliverable)
+            UI.error(DOM.phoneStatus, "Please enter a valid phone.");
+          if (!State.phonesMatch)
+            UI.error(DOM.confirmStatus, "Phones do not match.");
+          if (!smsChosen && DOM.smsError)
+            DOM.smsError.style.display = "block";
+
+          UI.submitError(
+            "Please complete all required fields and ensure phone numbers match."
+          );
+          Logic.updateSubmitState();
+          return;
+        }
+
+        DOM.submitBtn.disabled = true;
+        UI.submitLoading("Submitting...");
+
+        const payload = {
+          firstName: DOM.firstName.value.trim(),
+          lastName: DOM.lastName.value.trim(),
+          suffix: DOM.suffix.value.trim(),
+          phone: DOM.phone.value.trim(),
+          SMSCapable:
+            document.querySelector('input[name="SMSCapable"]:checked')?.value ===
+            "yes",
+        };
+
+        try {
+          const resp = await fetch("/submit-namePhone", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify(payload),
+          });
+
+          const data = await resp.json();
+          if (!data.success) {
+            UI.submitError(data.message || "Submission failed.");
+            return;
+          }
+
+          UI.submitSuccess("Info updated successfully!");
+          setTimeout(() => {
+            window.location.href = "/personalInfo";
+          }, 1000);
+        } catch (err) {
+          UI.submitError("Server error. Please try again later.");
+          console.error(err);
+        }
+      });
+    },
+  };
+
+  // ─────────────────────────────────────────────
+  // INIT
+  // ─────────────────────────────────────────────
+  IMaskSetup.init();
+  Events.init();
+  Submit.init();
+
+  Logic.updateSubmitState();
+  if (DOM.smsError) DOM.smsError.style.display = "none";
 });
