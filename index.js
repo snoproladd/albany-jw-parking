@@ -278,7 +278,7 @@ process.on('SIGINT', () => shutdown('SIGINT'));
      * Database-backed API routes and helpers.
      * These are loaded after configuration and DB connections are ready.
      */
-    const dbRoutes = (await import('./routes/apiRoutes.js')).default;
+    const dbRoutes = (await import("./routes/apiRoutes.js")).default;
     const {
       exec,
       insertEmailPass,
@@ -288,9 +288,9 @@ process.on('SIGINT', () => shutdown('SIGINT'));
       loadVolunteerCache,
       insertCongregationInfo,
       insertSpiritualInfo,
-      insertPersonalInfo
-    } = await import('./lib/dbSync.js');
-    
+      insertPersonalInfo,
+      insertNote
+    } = await import("./lib/dbSync.js");
 
     await getSqlPool();
     //#endregion
@@ -304,16 +304,18 @@ process.on('SIGINT', () => shutdown('SIGINT'));
      * - Persists user session via cookies.
      * - Used to track `userId` through registration steps.
      */
-    app.use(session({
-      secret: config.sessionSecret || 'fallback-secret',
-      resave: false,
-      saveUninitialized: false,
-      cookie: {
-        secure: false,
-        httpOnly: true,
-        naxAge: 5 * 60 * 1000 // 5 minutes in milliseconds (typo preserved from original)
-      }
-    }));
+    app.use(
+      session({
+        secret: config.sessionSecret || "fallback-secret",
+        resave: false,
+        saveUninitialized: false,
+        cookie: {
+          secure: false,
+          httpOnly: true,
+          naxAge: 5 * 60 * 1000, // 5 minutes in milliseconds (typo preserved from original)
+        },
+      }),
+    );
 
     /**
      * CSRF protection using csurf with cookie-based tokens.
@@ -324,7 +326,7 @@ process.on('SIGINT', () => shutdown('SIGINT'));
      * Per-request CSP nonce generator used by helmet's contentSecurityPolicy.
      */
     app.use((req, res, next) => {
-      res.locals.nonce = crypto.randomBytes(16).toString('base64');
+      res.locals.nonce = crypto.randomBytes(16).toString("base64");
       next();
     });
 
@@ -332,28 +334,41 @@ process.on('SIGINT', () => shutdown('SIGINT'));
      * Content Security Policy configuration using helmet.
      * Restricts script, style, image, font, and connect sources.
      */
-    app.use(helmet.contentSecurityPolicy({
-      useDefaults: true,
-      directives: {
-        "default-src": ["'self'"],
-        "script-src": [
-          "'self'",
-          "https://cdn.jsdelivr.net",
-          (req, res) => `'nonce-${res.locals.nonce}'`
-        ],
-        "style-src": [
-          "'self'",
-          "https://cdn.jsdelivr.net",
-          "https://fonts.googleapis.com",
-          (req, res) => `'nonce-${res.locals.nonce}'`
-        ],
-        "img-src": ["'self'", "data:"],
-        "font-src": ["'self'", "https://fonts.gstatic.com"],
-        "connect-src": isProd
-          ? ["'self'", "https:", "https://*.azurewebsites.net", "https://albanyjwparking.org", "https://api.kickbox.com"]
-          : ["'self'", "http://localhost:3000", "https://api.kickbox.com", "https://cdn.jsdelivr.net"]
-      }
-    }));
+    app.use(
+      helmet.contentSecurityPolicy({
+        useDefaults: true,
+        directives: {
+          "default-src": ["'self'"],
+          "script-src": [
+            "'self'",
+            "https://cdn.jsdelivr.net",
+            (req, res) => `'nonce-${res.locals.nonce}'`,
+          ],
+          "style-src": [
+            "'self'",
+            "https://cdn.jsdelivr.net",
+            "https://fonts.googleapis.com",
+            (req, res) => `'nonce-${res.locals.nonce}'`,
+          ],
+          "img-src": ["'self'", "data:"],
+          "font-src": ["'self'", "https://fonts.gstatic.com"],
+          "connect-src": isProd
+            ? [
+                "'self'",
+                "https:",
+                "https://*.azurewebsites.net",
+                "https://albanyjwparking.org",
+                "https://api.kickbox.com",
+              ]
+            : [
+                "'self'",
+                "http://localhost:3000",
+                "https://api.kickbox.com",
+                "https://cdn.jsdelivr.net",
+              ],
+        },
+      }),
+    );
     //#endregion
 
     // =========================
@@ -379,7 +394,7 @@ process.on('SIGINT', () => shutdown('SIGINT'));
     /**
      * Mount DB-backed API routes under `/api`.
      */
-    app.use('/api', dbRoutes);
+    app.use("/api", dbRoutes);
     //#endregion
 
     // =========================
@@ -391,14 +406,14 @@ process.on('SIGINT', () => shutdown('SIGINT'));
      * @description Simple health check endpoint.
      * @returns {string} "OK"
      */
-    app.get('/health', (req, res) => res.send('OK'));
+    app.get("/health", (req, res) => res.send("OK"));
 
     /**
      * @route GET /
      * @description Render the main index page with CSRF token.
      */
-    app.get('/', csrfProtection, (req, res) =>
-      res.render('index', { csrfToken: req.csrfToken() })
+    app.get("/", csrfProtection, (req, res) =>
+      res.render("index", { csrfToken: req.csrfToken() }),
     );
 
     /**
@@ -407,10 +422,10 @@ process.on('SIGINT', () => shutdown('SIGINT'));
      *  Renders email+password registration page.
      *  Also starts DB update interval and loads volunteer cache.
      */
-    app.get('/email-pass', csrfProtection, (req, res) => {
+    app.get("/email-pass", csrfProtection, (req, res) => {
       loadVolunteerCache();
       startDbUpdate(loadVolunteerCache, app);
-      res.render('emailPass', { csrfToken: req.csrfToken() });
+      res.render("emailPass", { csrfToken: req.csrfToken() });
     });
 
     /**
@@ -419,10 +434,10 @@ process.on('SIGINT', () => shutdown('SIGINT'));
      *  Renders the non-profile registration page.
      *  Also starts DB update interval and loads volunteer cache.
      */
-    app.get('/nonProfile', csrfProtection, (req, res) => {
+    app.get("/nonProfile", csrfProtection, (req, res) => {
       loadVolunteerCache();
       startDbUpdate(loadVolunteerCache, app);
-      res.render('nonProfile', { csrfToken: req.csrfToken() });
+      res.render("nonProfile", { csrfToken: req.csrfToken() });
     });
 
     /**
@@ -431,10 +446,10 @@ process.on('SIGINT', () => shutdown('SIGINT'));
      *  Renders the congregation information page.
      *  Populates the view with list of congregations from DB.
      */
-    app.get('/congregationInfo', csrfProtection, async (req, res) => {
+    app.get("/congregationInfo", csrfProtection, async (req, res) => {
       try {
         const congregations = await getCongregations();
-        res.render('congregationInfo', {
+        res.render("congregationInfo", {
           congregations,
           csrfToken: req.csrfToken(),
         });
@@ -450,15 +465,21 @@ process.on('SIGINT', () => shutdown('SIGINT'));
      *  Renders the spiritual info page (privileges, etc.).
      *  Also starts DB update interval and loads volunteer cache.
      */
-    app.get('/spiritualInfo', csrfProtection, (req, res) => {
+    app.get("/spiritualInfo", csrfProtection, (req, res) => {
       loadVolunteerCache();
       startDbUpdate(loadVolunteerCache, app);
+
       const userId = req.session.userId;
-      const volunteer = app.locals.volunteerCache[userId];
+      const volunteer = app.locals.volunteerCache[userId]; // ✅ correct variable name
+
+      console.log("userId:", userId);
+      console.log("volunteerCache:", app.locals.volunteerCache); // show full cache
+      console.log("volunteer:", volunteer); // show selected volunteer
+
       res.render("spiritualInfo", {
         csrfToken: req.csrfToken(),
         privilegeRulesJSON: JSON.stringify(INCOMPATIBILITIES),
-        gender: volunteer?.gender || null
+        gender: volunteer?.gender || null,
       });
     });
 
@@ -468,11 +489,11 @@ process.on('SIGINT', () => shutdown('SIGINT'));
      *  Main volunteer registration/landing page.
      *  Can disable name fields based on `disable=true` query param.
      */
-    app.get('/volunteerIn', csrfProtection, (req, res) => {
-      const disableNameFields = req.query.disable === 'true';
+    app.get("/volunteerIn", csrfProtection, (req, res) => {
+      const disableNameFields = req.query.disable === "true";
       loadVolunteerCache();
       startDbUpdate(loadVolunteerCache, app);
-      res.render('volunteerIn', {
+      res.render("volunteerIn", {
         disableNameFields,
         csrfToken: req.csrfToken(),
       });
@@ -484,19 +505,41 @@ process.on('SIGINT', () => shutdown('SIGINT'));
      *  Renders the personal info page (privileges, etc.).
      *  Also starts DB update interval and loads volunteer cache.
      */
-     app.get('/personalInfo', csrfProtection, (req, res) => {
+    app.get("/personalInfo", csrfProtection, (req, res) => {
       loadVolunteerCache();
       startDbUpdate(loadVolunteerCache, app);
-      res.render('personalInfo', { csrfToken: req.csrfToken() });
+      res.render("personalInfo", { csrfToken: req.csrfToken() });
     });
 
     /**
+     * @route GET /notes
+     * @description
+     *  Renders the personal info page (privileges, etc.).
+     *  Also starts DB update interval and loads volunteer cache.
+     */
+    app.get("/notes", csrfProtection, (req, res) => {
+      loadVolunteerCache();
+      startDbUpdate(loadVolunteerCache, app);
+      res.render("notes", { csrfToken: req.csrfToken() });
+    });
+    /**
+     * @route GET /formDone
+     * @description
+     *  Renders the form complete page.
+     */
+    app.get("/formDone", csrfProtection, (req, res) => {
+      loadVolunteerCache();
+      startDbUpdate(loadVolunteerCache, app);
+      res.render("formDone", { csrfToken: req.csrfToken() });
+    });
+
+   /**
      * @route GET /db-test
      * @description
      *  Test endpoint to confirm DB connection and context.
      *  Returns DB name, login, and DB user.
      */
-    app.get('/db-test', async (req, res) => {
+    app.get("/db-test", async (req, res) => {
       try {
         const tsql =
           "SELECT DB_NAME() AS db, SUSER_SNAME() AS login, USER_NAME() AS dbuser;";
@@ -518,19 +561,54 @@ process.on('SIGINT', () => shutdown('SIGINT'));
      *  Registers or associates a volunteer by name and email.
      *  Sets `userId` and flags name fields as disabled in session.
      */
-    app.post('/submit-nameEmail', csrfProtection, async (req, res) => {
+    app.post("/submit-nameEmail", csrfProtection, async (req, res) => {
       const { firstName, lastName, suffix, email } = req.body;
       try {
         const row = await insertNameEmail(firstName, lastName, suffix, email);
-        if (!row) return res.status(409).send('Name or email already registered.');
+        if (!row)
+          return res.status(409).send("Name or email already registered.");
 
         req.session.userId = row.id;
         req.session.disableNameFields = true;
 
         await refreshVolunteerCache(loadVolunteerCache, app);
-        res.redirect('/volunteerIn?disable=true');
+        res.redirect("/volunteerIn?disable=true");
       } catch (err) {
-        res.status(500).send('Registration failed: ' + err.message);
+        res.status(500).send("Registration failed: " + err.message);
+      }
+    });
+
+    /**
+     * @route POST /submitNotes
+     * @description
+     *  Saves extra notes for the current volunteer (session user).
+     */
+    app.post("/submitNotes", csrfProtection, async (req, res) => {
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(400).json({
+          success: false,
+          message: "Session expired or user not registered.",
+        });
+      }
+
+      const { note } = req.body;
+
+      try {
+        const row = await insertNote(userId, note);
+        if (!row) {
+          return res.status(409).json({
+            success: false,
+            message: "Update failed. Record may not exist.",
+          });
+        }
+        res.render("formDone");
+      } catch (err) {
+        logError("Error updating volunteer info", err);
+        return res.status(500).json({
+          success: false,
+          message: "Server error: " + err.message,
+        });
       }
     });
 
@@ -539,12 +617,12 @@ process.on('SIGINT', () => shutdown('SIGINT'));
      * @description
      *  Saves congregation-related info for the current volunteer (session user).
      */
-    app.post('/submitCongregation', csrfProtection, async (req, res) => {
+    app.post("/submitCongregation", csrfProtection, async (req, res) => {
       const userId = req.session.userId;
       if (!userId) {
         return res.status(400).json({
           success: false,
-          message: "Session expired or user not registered."
+          message: "Session expired or user not registered.",
         });
       }
 
@@ -554,7 +632,7 @@ process.on('SIGINT', () => shutdown('SIGINT'));
         extraAttend,
         congregationOtherCity,
         congregationOtherState,
-        congregationOtherLang
+        congregationOtherLang,
       } = req.body;
 
       try {
@@ -565,22 +643,22 @@ process.on('SIGINT', () => shutdown('SIGINT'));
           extraAttend,
           congregationOtherCity,
           congregationOtherState,
-          congregationOtherLang
+          congregationOtherLang,
         );
         if (!row) {
           return res.status(409).json({
             success: false,
-            message: "Update failed. Record may not exist."
+            message: "Update failed. Record may not exist.",
           });
         }
 
         await refreshVolunteerCache(loadVolunteerCache, app);
-        res.redirect('/spiritualInfo');
+        res.redirect("/spiritualInfo");
       } catch (err) {
         logError("Error updating volunteer info", err);
         return res.status(500).json({
           success: false,
-          message: "Server error: " + err.message
+          message: "Server error: " + err.message,
         });
       }
     });
@@ -591,20 +669,21 @@ process.on('SIGINT', () => shutdown('SIGINT'));
      *  Saves spiritual privileges/roles for the current volunteer.
      *  Accepts single or multiple `privileges` values.
      */
-    app.post('/submitSpiritual', csrfProtection, async (req, res) => {
+    app.post("/submitSpiritual", csrfProtection, async (req, res) => {
       const userId = req.session.userId;
       if (!userId) {
         return res.status(400).json({
           success: false,
-          message: "Session expired or user not registered."
+          message: "Session expired or user not registered.",
         });
       }
 
       const { privileges } = req.body;
-      const privilegeList =
-        Array.isArray(privileges) ? privileges :
-        privileges ? [privileges] :
-        [];
+      const privilegeList = Array.isArray(privileges)
+        ? privileges
+        : privileges
+          ? [privileges]
+          : [];
 
       console.log(privilegeList);
 
@@ -613,17 +692,17 @@ process.on('SIGINT', () => shutdown('SIGINT'));
         if (!row) {
           return res.status(409).json({
             success: false,
-            message: "Update failed. Record may not exist."
+            message: "Update failed. Record may not exist.",
           });
         }
 
         await refreshVolunteerCache(loadVolunteerCache, app);
-        res.redirect('/spiritualInfo');
+        res.redirect("/notes");
       } catch (err) {
         logError("Error updating volunteer info", err);
         return res.status(500).json({
           success: false,
-          message: "Server error: " + err.message
+          message: "Server error: " + err.message,
         });
       }
     });
@@ -634,66 +713,63 @@ process.on('SIGINT', () => shutdown('SIGINT'));
      *  Saves personal information about volunteer.
      *  Tracks Gender, DOB, and Stamina rating.
      */
-   app.post("/submitPersonal", csrfProtection, async (req, res) => {
-     try {
-       const userId = req.session.userId;
-       if (!userId) {
-         return res.status(400).json({
-           success: false,
-           message: "Session expired or user not registered.",
-         });
-       }
+    app.post("/submitPersonal", csrfProtection, async (req, res) => {
+      try {
+        const userId = req.session.userId;
+        if (!userId) {
+          return res.status(400).json({
+            success: false,
+            message: "Session expired or user not registered.",
+          });
+        }
 
-       // Extract raw form values
-       const { genderRaw, dobirthRaw, staminaRaw } = req.body;
+        // Extract raw form values
+        const { genderRaw, dobirthRaw, staminaRaw } = req.body;
 
-       // Normalize gender
-       const gender = genderRaw?.trim().toLowerCase() || null;
+        // Normalize gender
+        const gender = genderRaw?.trim().toLowerCase() || null;
 
-       // Normalize date of birth
-       const dobirth = new Date(dobirthRaw);
-       console.log("dobirthRAW: "+dobirthRaw +" dobirth: " + dobirth)
-       if (isNaN(dobirth.valueOf())) {
-         return res.status(400).json({
-           success: false,
-           message: "Invalid date of birth.",
-         });
-       }
+        // Normalize DOB
+        const dobirth = new Date(dobirthRaw);
+        if (isNaN(dobirth.valueOf())) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid date of birth.",
+          });
+        }
 
-       // Normalize stamina ("1 - Fair", "4 - Good")
-       // Extract the number before the dash
-       let stamina = null;
-       if (typeof staminaRaw === "string") {
-         const num = parseInt(staminaRaw.split("-")[0].trim(), 10);
-         if (!isNaN(num)) stamina = num;
-       }
+        // Normalize stamina
+        let stamina = null;
+        if (typeof staminaRaw === "string") {
+          const num = parseInt(staminaRaw.split("-")[0].trim(), 10);
+          if (!isNaN(num)) stamina = num;
+        }
 
-       // Save to database
-       const row = await insertPersonalInfo(userId, gender, dobirth, stamina);
+        // Save to database
+        const row = await insertPersonalInfo(userId, gender, dobirth, stamina);
+        if (!row) {
+          return res.status(500).json({
+            success: false,
+            message: "Update failed.",
+          });
+        }
+
+        // Save to session for spiritualInfo gender logic
+        req.session.gender = gender;
+
+        // Refresh cache
         await refreshVolunteerCache(loadVolunteerCache, app);
-        res.redirect("/congregationInfo");
 
-       if (!row) {
-         return res.status(500).json({
-           success: false,
-           message: "Update failed.",
-         });
-       }
-
-       return res.json({
-         success: true,
-         message: "Personal info saved successfully.",
-       });
-     } catch (err) {
-       console.error("Error in /submitPersonal", err);
-       return res.status(500).json({
-         success: false,
-         message: "Server error: " + err.message,
-       });
-     }
-   });
-
-
+        // IMPORTANT: return right after redirect
+        return res.redirect("/congregationInfo");
+      } catch (err) {
+        console.error("Error in /submitPersonal", err);
+        return res.status(500).json({
+          success: false,
+          message: "Server error: " + err.message,
+        });
+      }
+    });
 
     /**
      * @route POST /submit-namePass
@@ -701,17 +777,17 @@ process.on('SIGINT', () => shutdown('SIGINT'));
      *  Registers user using email + password credential pair.
      *  Sets `userId` in session.
      */
-    app.post('/submit-namePass', csrfProtection, async (req, res) => {
+    app.post("/submit-namePass", csrfProtection, async (req, res) => {
       const { email, password } = req.body;
       try {
         const row = await insertEmailPass(email, password);
-        if (!row) return res.status(409).send('Email already registered.');
+        if (!row) return res.status(409).send("Email already registered.");
 
         req.session.userId = row.id;
         await refreshVolunteerCache(loadVolunteerCache, app);
-        res.redirect('/volunteerIn');
+        res.redirect("/volunteerIn");
       } catch (err) {
-        res.status(500).send('Registration failed: ' + err.message);
+        res.status(500).send("Registration failed: " + err.message);
       }
     });
 
@@ -721,12 +797,12 @@ process.on('SIGINT', () => shutdown('SIGINT'));
      *  Adds/updates a volunteer's phone and normalized name info.
      *  Performs duplicate check using normalized values.
      */
-    app.post('/submit-namePhone', async (req, res) => {
+    app.post("/submit-namePhone", async (req, res) => {
       const userId = req.session.userId;
       if (!userId) {
         return res.status(400).json({
           success: false,
-          message: "Session expired or user not registered."
+          message: "Session expired or user not registered.",
         });
       }
 
@@ -736,20 +812,20 @@ process.on('SIGINT', () => shutdown('SIGINT'));
       // Normalize names
       const normalizedFirstName = firstName.trim().toLowerCase();
       const normalizedLastName = lastName.trim().toLowerCase();
-      const normalizedSuffix = suffix ? suffix.trim().toLowerCase() : '';
+      const normalizedSuffix = suffix ? suffix.trim().toLowerCase() : "";
 
       try {
         const exists = await namePhoneExists(
           normalizedFirstName,
           normalizedLastName,
           normalizedPhone,
-          normalizedSuffix
+          normalizedSuffix,
         );
         if (exists) {
           return res.json({
             success: false,
             message: "Duplicate record exists",
-            exists: true
+            exists: true,
           });
         }
 
@@ -759,12 +835,12 @@ process.on('SIGINT', () => shutdown('SIGINT'));
           normalizedLastName,
           normalizedPhone,
           normalizedSuffix,
-          SMSCapable
+          SMSCapable,
         );
         if (!row) {
           return res.status(409).json({
             success: false,
-            message: "Update failed. Record may not exist."
+            message: "Update failed. Record may not exist.",
           });
         }
 
@@ -772,13 +848,13 @@ process.on('SIGINT', () => shutdown('SIGINT'));
         return res.json({
           success: true,
           message: "Info updated successfully",
-          exists: false
+          exists: false,
         });
       } catch (err) {
         logError("Error updating volunteer info", err);
         return res.status(500).json({
           success: false,
-          message: "Server error: " + err.message
+          message: "Server error: " + err.message,
         });
       }
     });
@@ -796,39 +872,39 @@ process.on('SIGINT', () => shutdown('SIGINT'));
      *
      * @query {string} phone - Phone number in any format.
      */
-    app.get('/validate-phone', async (req, res) => {
+    app.get("/validate-phone", async (req, res) => {
       try {
-        const raw = (req.query.phone || '').toString();
-        const digits = raw.replace(/\D+/g, '');
+        const raw = (req.query.phone || "").toString();
+        const digits = raw.replace(/\D+/g, "");
         if (!digits) {
-          return res.status(400).json({ error: 'Phone number required' });
+          return res.status(400).json({ error: "Phone number required" });
         }
 
         const e164 = digits.length === 10 ? `+1${digits}` : `+${digits}`;
         const tw = await initTwilio();
         const lookup = await tw.lookups.v2.phoneNumbers(e164).fetch({
-          type: ['carrier']
+          type: ["carrier"],
         });
 
-        const carrierType = lookup?.carrier?.type || '';
-        const SMSCapableRaw = req.body?.SMSCapable;   // safe optional chaining
-        const SMSCapable = SMSCapableRaw === 'yes';   // true if yes, false otherwise          carrierType === 'mobile' || carrierType === 'voip';
+        const carrierType = lookup?.carrier?.type || "";
+        const SMSCapableRaw = req.body?.SMSCapable; // safe optional chaining
+        const SMSCapable = SMSCapableRaw === "yes"; // true if yes, false otherwise          carrierType === 'mobile' || carrierType === 'voip';
 
         return res.status(200).json({
           valid: true,
           normalized: e164,
           SMSCapable,
-          carrierType
+          carrierType,
         });
       } catch (err) {
         if (err.status === 404) {
           return res.status(200).json({
             valid: false,
-            validation_errors: 'Invalid or unrecognized phone number.'
+            validation_errors: "Invalid or unrecognized phone number.",
           });
         }
-        logError('Twilio Lookup error:', err);
-        return res.status(500).json({ error: 'Lookup failed' });
+        logError("Twilio Lookup error:", err);
+        return res.status(500).json({ error: "Lookup failed" });
       }
     });
 
@@ -840,24 +916,24 @@ process.on('SIGINT', () => shutdown('SIGINT'));
      *
      * @query {string} email - Email address to validate.
      */
-    app.get('/validate-email', async (req, res) => {
-      const email = (req.query.email || '').toString().trim();
+    app.get("/validate-email", async (req, res) => {
+      const email = (req.query.email || "").toString().trim();
       if (!email) {
         return res
           .status(400)
-          .json({ valid: false, reason: 'Please enter an email address' });
+          .json({ valid: false, reason: "Please enter an email address" });
       }
 
-      if (email.toLowerCase().endsWith('@jwpub.org')) {
-        return res.json({ result: 'invalid', reason: 'Domain not allowed' });
+      if (email.toLowerCase().endsWith("@jwpub.org")) {
+        return res.json({ result: "invalid", reason: "Domain not allowed" });
       }
 
       try {
         const result = await verifyEmail(email);
         res.json({ result: result.result, reason: result.reason });
       } catch (err) {
-        logError('Kickbox verification error:', err);
-        res.status(500).json({ error: 'Verification failed' });
+        logError("Kickbox verification error:", err);
+        res.status(500).json({ error: "Verification failed" });
       }
     });
     //#endregion
@@ -872,7 +948,7 @@ process.on('SIGINT', () => shutdown('SIGINT'));
      */
     app.use((req, res) => {
       res.status(404);
-      res.render('404', { url: req.originalUrl });
+      res.render("404", { url: req.originalUrl });
     });
     //#endregion
 
@@ -884,16 +960,15 @@ process.on('SIGINT', () => shutdown('SIGINT'));
      * Start HTTP server and initialize Twilio + SQL pool.
      */
     server.listen(PORT, HOST, () =>
-      log(`✅ Server running on http://${HOST}:${PORT}`)
+      log(`✅ Server running on http://${HOST}:${PORT}`),
     );
 
     await initTwilio();
-    log('Twilio initialized.');
+    log("Twilio initialized.");
 
     await getSqlPool();
-    log('✅ SQL pool initialized.');
+    log("✅ SQL pool initialized.");
     //#endregion
-
   } catch (err) {
     logError('❌ Failed to start server:', err);
     process.exit(1);

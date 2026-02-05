@@ -32,6 +32,10 @@
 }
 
 /* -------------------- Body & Background -------------------- */
+html{
+  overflow-y: scroll;
+}
+
 body {
   height: 100dvh;
   background: #99C3F3;
