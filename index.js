@@ -289,7 +289,7 @@ process.on('SIGINT', () => shutdown('SIGINT'));
       insertCongregationInfo,
       insertSpiritualInfo,
       insertPersonalInfo,
-      insertNote
+      insertNote,
     } = await import("./lib/dbSync.js");
 
     await getSqlPool();
@@ -523,6 +523,17 @@ process.on('SIGINT', () => shutdown('SIGINT'));
       res.render("notes", { csrfToken: req.csrfToken() });
     });
     /**
+     * @route GET /formSummary
+     * @description
+     *  Renders the summary of all data entered with links to change;.
+     *  Also starts DB update interval and loads volunteer cache.
+     */
+    app.get("/formSummary", csrfProtection, (req, res) => {
+      loadVolunteerCache();
+      startDbUpdate(loadVolunteerCache, app);
+      res.render("formSummary", { csrfToken: req.csrfToken() });
+    });
+    /**
      * @route GET /formDone
      * @description
      *  Renders the form complete page.
@@ -533,7 +544,7 @@ process.on('SIGINT', () => shutdown('SIGINT'));
       res.render("formDone", { csrfToken: req.csrfToken() });
     });
 
-   /**
+    /**
      * @route GET /db-test
      * @description
      *  Test endpoint to confirm DB connection and context.
