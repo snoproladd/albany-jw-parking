@@ -26,13 +26,12 @@ import cookieParser from 'cookie-parser';
 import session from 'express-session';
 import csurf from 'csurf';
 
-
 import { DefaultAzureCredential } from '@azure/identity';
 import { SecretClient } from '@azure/keyvault-secrets';
 
 import { getConfig, getSqlPool } from './src/config/azureConfig.js';
 import { getCongregations } from './lib/dbSync.js';
-import apiRoutes from './routes/apiRoutes.js';
+// import apiRoutes from './routes/apiRoutes.js';
 
 import { INCOMPATIBILITIES } from './src/config/privilegeRules.js';
 
@@ -88,7 +87,6 @@ if (typeof globalThis.crypto === 'undefined') {
 const vaultName = 'ApiStorage';
 const vaultUrl = `https://${vaultName}.vault.azure.net`;
 const credential = new DefaultAzureCredential();
-const secretClient = new SecretClient(vaultUrl, credential);
 // (Currently not used directly here, but likely used in getConfig / elsewhere.)
 //#endregion
 
@@ -162,18 +160,6 @@ async function verifyEmail(email, { timeoutMs = 8000 } = {}) {
 let dbUpdateInterval = null;
 
 /**
- * Refresh the in-memory volunteer cache from the database.
- *
- * @param {Function} loadVolunteerCacheFn - Function that loads the volunteer cache from DB.
- * @param {import('express').Express} appInstance - Express app instance to store cache on `locals`.
- * @returns {Promise<void>}
- */
-async function refreshVolunteerCache(loadVolunteerCacheFn, appInstance) {
-  const cache = await loadVolunteerCacheFn();
-  appInstance.locals.volunteerCache = cache;
-}
-
-/**
  * Start periodic database-backed volunteer cache updates.
  *
  * @param {Function} loadVolunteerCacheFn - Function that loads the volunteer cache from DB.
@@ -206,6 +192,27 @@ function stopDbUpdate() {
 }
 //#endregion
 
+/**
+ * Require an active draft registration and start cache lifecycle.
+ *
+ * - Redirects to /email-pass if no draft exists
+ * - Starts volunteer cache + DB refresh interval
+ *
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @returns {boolean} true if draft exists and request may continue
+ */
+function requireDraft(req, res) {
+  if (!req.session.registrationId) {
+    res.redirect("/email-pass");
+    return false;
+  }
+
+  loadVolunteerCache();
+  startDbUpdate(loadVolunteerCache, app);
+  return true;
+}
+
 //#region Early Middleware (Pre-Security / Static / JSON)
 /**
  * Host redirect middleware.
@@ -230,12 +237,6 @@ app.use(express.urlencoded({ extended: true }));
  * Static asset serving from `/public`.
  */
 app.use(express.static(path.join(__dirname, 'public')));
-
-/**
- * Initial API routes (non-DB-backed version). This gets overridden later
- * by the DB-backed copy after secrets and pools are ready.
- */
-app.use('/api', apiRoutes);
 
 /**
  * View engine configuration for EJS templates.
@@ -282,15 +283,13 @@ process.on('SIGINT', () => shutdown('SIGINT'));
     const dbRoutes = (await import("./routes/apiRoutes.js")).default;
     const {
       exec,
-      insertEmailPass,
-      insertNameEmail,
-      insertNameAndPhone,
-      namePhoneExists,
+      insertDraftEmailPass,
+      insertDraftNameEmail,
       loadVolunteerCache,
-      insertCongregationInfo,
-      insertSpiritualInfo,
-      insertPersonalInfo,
-      insertNote,
+      updateDraftPersonalInfo,
+      updateDraftCongregationInfo,
+      updateDraftNameEmail,
+      updateDraftSpiritualInfo,
     } = await import("./lib/dbSync.js");
 
     await getSqlPool();
@@ -311,9 +310,10 @@ process.on('SIGINT', () => shutdown('SIGINT'));
         resave: false,
         saveUninitialized: false,
         cookie: {
-          secure: false,
+          secure: isProd,
           httpOnly: true,
-          naxAge: 5 * 60 * 1000, // 5 minutes in milliseconds (typo preserved from original)
+          sameSite: "lax",
+          maxAge: 5 * 60 * 1000,
         },
       }),
     );
@@ -355,37 +355,21 @@ process.on('SIGINT', () => shutdown('SIGINT'));
           "font-src": ["'self'", "https://fonts.gstatic.com"],
           "connect-src": isProd
             ? [
-                "'self'",
-                "https:",
-                "https://*.azurewebsites.net",
-                "https://albanyjwparking.org",
-                "https://api.kickbox.com",
-              ]
+              "'self'",
+              "https:",
+              "https://*.azurewebsites.net",
+              "https://albanyjwparking.org",
+              "https://api.kickbox.com",
+            ]
             : [
-                "'self'",
-                "http://localhost:3000",
-                "https://api.kickbox.com",
-                "https://cdn.jsdelivr.net",
-              ],
+              "'self'",
+              "http://localhost:3000",
+              "https://api.kickbox.com",
+              "https://cdn.jsdelivr.net",
+            ],
         },
       }),
     );
-    //#endregion
-
-    // =========================
-    // Session-based DB Interval Control Middleware
-    // =========================
-    //#region DB Interval Session Watcher
-    /**
-     * Middleware to stop the volunteer DB update interval
-     * when there's no active `userId` in the session.
-     */
-    app.use((req, res, next) => {
-      if (!req.session.userId) {
-        stopDbUpdate();
-      }
-      next();
-    });
     //#endregion
 
     // =========================
@@ -418,15 +402,18 @@ process.on('SIGINT', () => shutdown('SIGINT'));
     );
 
     /**
+     * Render the email + password registration page.
+     *
+     * This page starts the registration flow but does not
+     * create any database records on its own.
+     *
      * @route GET /email-pass
-     * @description
-     *  Renders email+password registration page.
-     *  Also starts DB update interval and loads volunteer cache.
+     * @returns {void} Renders emailPass.ejs with CSRF token
      */
-    app.get("/email-pass", csrfProtection, (req, res) => {
-      loadVolunteerCache();
-      startDbUpdate(loadVolunteerCache, app);
-      res.render("emailPass", { csrfToken: req.csrfToken() });
+    app.get('/email-pass', csrfProtection, (req, res) => {
+      res.render('emailPass', {
+        csrfToken: req.csrfToken()
+      });
     });
 
     /**
@@ -436,8 +423,6 @@ process.on('SIGINT', () => shutdown('SIGINT'));
      *  Also starts DB update interval and loads volunteer cache.
      */
     app.get("/nonProfile", csrfProtection, (req, res) => {
-      loadVolunteerCache();
-      startDbUpdate(loadVolunteerCache, app);
       res.render("nonProfile", { csrfToken: req.csrfToken() });
     });
 
@@ -445,17 +430,21 @@ process.on('SIGINT', () => shutdown('SIGINT'));
      * @route GET /congregationInfo
      * @description
      *  Renders the congregation information page.
-     *  Populates the view with list of congregations from DB.
+     *  Requires an active draft registration.
+     *  Populates the view with the list of congregations from the DB.
      */
     app.get("/congregationInfo", csrfProtection, async (req, res) => {
       try {
+        if (!requireDraft(req, res)) return;
+
         const congregations = await getCongregations();
+
         res.render("congregationInfo", {
           congregations,
           csrfToken: req.csrfToken(),
         });
       } catch (error) {
-        console.error("Error fetching congregations: ", error);
+        console.error("Error rendering congregationInfo:", error);
         res.status(500).send("Internal Server Error");
       }
     });
@@ -464,18 +453,15 @@ process.on('SIGINT', () => shutdown('SIGINT'));
      * @route GET /spiritualInfo
      * @description
      *  Renders the spiritual info page (privileges, etc.).
-     *  Also starts DB update interval and loads volunteer cache.
+     *  Requires an active draft registration.
+     *  Loads volunteer cache and starts DB update interval.
      */
     app.get("/spiritualInfo", csrfProtection, (req, res) => {
-      loadVolunteerCache();
-      startDbUpdate(loadVolunteerCache, app);
+      if (!requireDraft(req, res)) return;
 
-      const userId = req.session.userId;
-      const volunteer = app.locals.volunteerCache[userId]; // ✅ correct variable name
-
-      console.log("userId:", userId);
-      console.log("volunteerCache:", app.locals.volunteerCache); // show full cache
-      console.log("volunteer:", volunteer); // show selected volunteer
+      const registrationId = req.session.registrationId;
+      const volunteer =
+        app.locals.volunteerCache?.byRegistrationId?.[registrationId] || null;
 
       res.render("spiritualInfo", {
         csrfToken: req.csrfToken(),
@@ -489,11 +475,17 @@ process.on('SIGINT', () => shutdown('SIGINT'));
      * @description
      *  Main volunteer registration/landing page.
      *  Can disable name fields based on `disable=true` query param.
+     *  Supports both draft-registered and guest entry.
      */
     app.get("/volunteerIn", csrfProtection, (req, res) => {
       const disableNameFields = req.query.disable === "true";
-      loadVolunteerCache();
-      startDbUpdate(loadVolunteerCache, app);
+      const hasActiveRegistration = Boolean(req.session.registrationId);
+
+      if (hasActiveRegistration) {
+        loadVolunteerCache();
+        startDbUpdate(loadVolunteerCache, app);
+      }
+
       res.render("volunteerIn", {
         disableNameFields,
         csrfToken: req.csrfToken(),
@@ -503,13 +495,15 @@ process.on('SIGINT', () => shutdown('SIGINT'));
     /**
      * @route GET /personalInfo
      * @description
-     *  Renders the personal info page (privileges, etc.).
-     *  Also starts DB update interval and loads volunteer cache.
+     *  Collects personal contact and address information.
+     *  Requires an active draft registration.
      */
     app.get("/personalInfo", csrfProtection, (req, res) => {
-      loadVolunteerCache();
-      startDbUpdate(loadVolunteerCache, app);
-      res.render("personalInfo", { csrfToken: req.csrfToken() });
+      if (!requireDraft(req, res)) return;
+
+      res.render("personalInfo", {
+        csrfToken: req.csrfToken(),
+      });
     });
 
     /**
@@ -519,29 +513,31 @@ process.on('SIGINT', () => shutdown('SIGINT'));
      *  Also starts DB update interval and loads volunteer cache.
      */
     app.get("/notes", csrfProtection, (req, res) => {
-      loadVolunteerCache();
-      startDbUpdate(loadVolunteerCache, app);
+      if (!requireDraft(req, res)) return;
+
       res.render("notes", { csrfToken: req.csrfToken() });
     });
+
     /**
      * @route GET /formSummary
      * @description
-     *  Renders the summary of all data entered with links to change;.
+     *  Renders the summary of all data entered with links to change.
      *  Also starts DB update interval and loads volunteer cache.
      */
     app.get("/formSummary", csrfProtection, (req, res) => {
-      loadVolunteerCache();
-      startDbUpdate(loadVolunteerCache, app);
+      if (!requireDraft(req, res)) return;
+
       res.render("formSummary", { csrfToken: req.csrfToken() });
     });
+
     /**
      * @route GET /formDone
      * @description
      *  Renders the form complete page.
      */
     app.get("/formDone", csrfProtection, (req, res) => {
-      loadVolunteerCache();
-      startDbUpdate(loadVolunteerCache, app);
+      if (!requireDraft(req, res)) return;
+
       res.render("formDone", { csrfToken: req.csrfToken() });
     });
 
@@ -555,7 +551,7 @@ process.on('SIGINT', () => shutdown('SIGINT'));
       try {
         const tsql =
           "SELECT DB_NAME() AS db, SUSER_SNAME() AS login, USER_NAME() AS dbuser;";
-        const result = await exec(tsql, (r) => {});
+        const result = await exec(tsql, () => {});
         res.json({ success: true, result });
       } catch (err) {
         res.status(500).json({ success: false, error: err.message });
@@ -568,171 +564,183 @@ process.on('SIGINT', () => shutdown('SIGINT'));
     // =========================
     //#region POST Routes
     /**
-     * @route POST /submit-nameEmail
+     * @route POST /submit-volunteerInfo
      * @description
-     *  Registers or associates a volunteer by name and email.
-     *  Sets `userId` and flags name fields as disabled in session.
+     *  Creates or updates a draft volunteer registration using
+     *  name and email (guest entry path).
+     *
+     *  - Promotes guest user into a draft registration
+     *  - Anchors session to registration_id
+     *  - Disables name fields for subsequent steps
      */
-    app.post("/submit-nameEmail", csrfProtection, async (req, res) => {
+    app.post("/submit-volunteerInfo", csrfProtection, async (req, res) => {
       const { firstName, lastName, suffix, email } = req.body;
-      try {
-        const row = await insertNameEmail(firstName, lastName, suffix, email);
-        if (!row)
-          return res.status(409).send("Name or email already registered.");
 
-        req.session.userId = row.id;
+      if (!firstName || !lastName || !email) {
+        return res.status(400).send("First name, last name, and email are required.");
+      }
+
+      try {
+        let row;
+
+        // ✅ CASE 1: No registration yet → create draft
+        if (!req.session.registrationId) {
+          row = await insertDraftNameEmail(
+            firstName,
+            lastName,
+            suffix,
+            email
+          );
+
+          if (!row) {
+            return res.status(409).send("Email already registered.");
+          }
+
+          req.session.userId = row.id;
+          req.session.registrationId = row.registration_id;
+        }
+        // ✅ CASE 2: Existing draft → update it
+        else {
+          row = await updateDraftNameEmail(
+            req.session.registrationId,
+            firstName,
+            lastName,
+            suffix,
+            email
+          );
+        }
+
+        // ✅ UX-only flags
         req.session.disableNameFields = true;
 
-        await refreshVolunteerCache(loadVolunteerCache, app);
-        res.redirect("/volunteerIn?disable=true");
+        // ✅ DO NOT refresh cache here
+        // Cache is started by GET /volunteerIn if registration exists
+
+        return res.redirect("/volunteerIn?disable=true");
+
       } catch (err) {
-        res.status(500).send("Registration failed: " + err.message);
+        console.error("submit-volunteerInfo error:", err);
+        return res.status(500).send("Registration failed.");
       }
     });
 
     /**
-     * @route POST /submitNotes
+     * @route POST /submit-congregationInfo
      * @description
-     *  Saves extra notes for the current volunteer (session user).
+     *  Saves congregation-related information for a draft registration.
+     *
+     *  Supports:
+     *   - Assigned congregation (dropdown)
+     *   - Visiting congregation (city/state/language)
+     *   - Additional convention attendance
      */
-    app.post("/submitNotes", csrfProtection, async (req, res) => {
-      const userId = req.session.userId;
-      if (!userId) {
-        return res.status(400).json({
-          success: false,
-          message: "Session expired or user not registered.",
-        });
-      }
-
-      const { note } = req.body;
-
+    app.post("/submit-congregationInfo", csrfProtection, async (req, res) => {
       try {
-        const row = await insertNote(userId, note);
-        if (!row) {
-          return res.status(409).json({
-            success: false,
-            message: "Update failed. Record may not exist.",
-          });
+        const registrationId = req.session.registrationId;
+        if (!registrationId) {
+          return res.redirect("/email-pass");
         }
-        res.render("formDone");
-      } catch (err) {
-        logError("Error updating volunteer info", err);
-        return res.status(500).json({
-          success: false,
-          message: "Server error: " + err.message,
-        });
-      }
-    });
 
-    /**
-     * @route POST /submitCongregation
-     * @description
-     *  Saves congregation-related info for the current volunteer (session user).
-     */
-    app.post("/submitCongregation", csrfProtection, async (req, res) => {
-      const userId = req.session.userId;
-      if (!userId) {
-        return res.status(400).json({
-          success: false,
-          message: "Session expired or user not registered.",
-        });
-      }
-
-      const {
-        congAssigned,
-        congregation,
-        extraAttend,
-        congregationOtherCity,
-        congregationOtherState,
-        congregationOtherLang,
-      } = req.body;
-
-      try {
-        const row = await insertCongregationInfo(
-          userId,
-          congAssigned,
-          congregation,
-          extraAttend,
+        // Raw form values
+        const {
+          congAssigned,              // "yes" | "no"
+          congregation,              // dropdown value
           congregationOtherCity,
           congregationOtherState,
           congregationOtherLang,
-        );
-        if (!row) {
-          return res.status(409).json({
-            success: false,
-            message: "Update failed. Record may not exist.",
-          });
+          extraAttend                // "yes" | "no"
+        } = req.body;
+
+        // Normalize assigned flag
+        const assignedToConv = String(congAssigned).toLowerCase() === "yes";
+
+        // Normalize extra attend flag
+        const attendExtra =
+          String(extraAttend).toLowerCase() === "yes";
+
+        // Normalize congregation value
+        let congregationValue = null;
+
+        if (assignedToConv) {
+          // Assigned to convention: must come from dropdown
+          if (!congregation) {
+            return res.status(400).send("Congregation selection is required.");
+          }
+          congregationValue = congregation;
+        } else {
+          // Visiting from another congregation: compose string
+          const city = (congregationOtherCity || "").trim();
+          const state = (congregationOtherState || "").trim().toUpperCase();
+          const lang = (congregationOtherLang || "").trim().toUpperCase();
+
+          if (!city || !state || !lang) {
+            return res.status(400).send("Visiting congregation details are required.");
+          }
+
+          congregationValue = `${city}, ${state} - ${lang}`;
         }
 
-        await refreshVolunteerCache(loadVolunteerCache, app);
-        res.redirect("/spiritualInfo");
-      } catch (err) {
-        logError("Error updating volunteer info", err);
-        return res.status(500).json({
-          success: false,
-          message: "Server error: " + err.message,
+        // Persist to DB (draft update)
+        await updateDraftCongregationInfo(registrationId, {
+          assignedToConv,
+          congregation: congregationValue,
+          attendExtra
         });
+
+        return res.redirect("/spiritualInfo");
+
+      } catch (err) {
+        console.error("submit-congregationInfo error:", err);
+        return res.status(500).send("Failed to save congregation information.");
       }
     });
 
     /**
-     * @route POST /submitSpiritual
+     * @route POST /submit-spiritualInfo
      * @description
-     *  Saves spiritual privileges/roles for the current volunteer.
+     *  Saves spiritual privileges/roles for a draft registration.
      *  Accepts single or multiple `privileges` values.
+     *  Advances last_step to 'spiritualInfo'.
      */
-    app.post("/submitSpiritual", csrfProtection, async (req, res) => {
-      const userId = req.session.userId;
-      if (!userId) {
-        return res.status(400).json({
-          success: false,
-          message: "Session expired or user not registered.",
-        });
-      }
-
-      const { privileges } = req.body;
-      const privilegeList = Array.isArray(privileges)
-        ? privileges
-        : privileges
-          ? [privileges]
-          : [];
-
-      console.log(privilegeList);
-
+    app.post("/submit-spiritualInfo", csrfProtection, async (req, res) => {
       try {
-        const row = await insertSpiritualInfo(userId, privilegeList);
-        if (!row) {
-          return res.status(409).json({
-            success: false,
-            message: "Update failed. Record may not exist.",
-          });
+        const registrationId = req.session.registrationId;
+        if (!registrationId) {
+          return res.redirect("/email-pass");
         }
 
-        await refreshVolunteerCache(loadVolunteerCache, app);
-        res.redirect("/notes");
+        const { privileges } = req.body;
+
+        // Normalize privileges to array
+        const privilegeList = Array.isArray(privileges)
+          ? privileges
+          : privileges
+            ? [privileges]
+            : [];
+
+        // Persist to DB (draft update)
+        await updateDraftSpiritualInfo(registrationId, privilegeList);
+
+        return res.redirect("/notes");
+
       } catch (err) {
-        logError("Error updating volunteer info", err);
-        return res.status(500).json({
-          success: false,
-          message: "Server error: " + err.message,
-        });
+        console.error("submit-spiritualInfo error:", err);
+        return res.status(500).send("Failed to save spiritual information.");
       }
     });
 
     /**
-     * @route POST /submitPersonal
+     * @route POST /submit-personalInfo
      * @description
-     *  Saves personal information about volunteer.
-     *  Tracks Gender, DOB, and Stamina rating.
+     *  Saves personal information for a draft volunteer registration.
+     *  Normalizes gender, DOB, and stamina.
+     *  Advances last_step to 'personalInfo'.
      */
-    app.post("/submitPersonal", csrfProtection, async (req, res) => {
+    app.post("/submit-personalInfo", csrfProtection, async (req, res) => {
       try {
-        const userId = req.session.userId;
-        if (!userId) {
-          return res.status(400).json({
-            success: false,
-            message: "Session expired or user not registered.",
-          });
+        const registrationId = req.session.registrationId;
+        if (!registrationId) {
+          return res.redirect("/email-pass");
         }
 
         // Extract raw form values
@@ -742,12 +750,13 @@ process.on('SIGINT', () => shutdown('SIGINT'));
         const gender = genderRaw?.trim().toLowerCase() || null;
 
         // Normalize DOB
-        const dobirth = new Date(dobirthRaw);
-        if (isNaN(dobirth.valueOf())) {
-          return res.status(400).json({
-            success: false,
-            message: "Invalid date of birth.",
-          });
+        let dobirth = null;
+        if (dobirthRaw) {
+          const parsed = new Date(dobirthRaw);
+          if (isNaN(parsed.valueOf())) {
+            return res.status(400).send("Invalid date of birth.");
+          }
+          dobirth = parsed;
         }
 
         // Normalize stamina
@@ -757,117 +766,61 @@ process.on('SIGINT', () => shutdown('SIGINT'));
           if (!isNaN(num)) stamina = num;
         }
 
-        // Save to database
-        const row = await insertPersonalInfo(userId, gender, dobirth, stamina);
-        if (!row) {
-          return res.status(500).json({
-            success: false,
-            message: "Update failed.",
-          });
-        }
+        // Save to database (draft update)
+        await updateDraftPersonalInfo(registrationId, {
+          gender,
+          dateOfBirth: dobirth,
+          stamina
+        });
 
-        // Save to session for spiritualInfo gender logic
+        // Optional UX-only session hint (DB is authoritative)
         req.session.gender = gender;
 
-        // Refresh cache
-        await refreshVolunteerCache(loadVolunteerCache, app);
-
-        // IMPORTANT: return right after redirect
         return res.redirect("/congregationInfo");
+
       } catch (err) {
-        console.error("Error in /submitPersonal", err);
-        return res.status(500).json({
-          success: false,
-          message: "Server error: " + err.message,
-        });
+        console.error("submit-personalInfo error:", err);
+        return res.status(500).send("Server error.");
       }
     });
 
     /**
-     * @route POST /submit-namePass
-     * @description
-     *  Registers user using email + password credential pair.
-     *  Sets `userId` in session.
+     * Handle initial registration submission (email + password).
+     *
+     * - Creates a new draft volunteer record
+     * - Anchors the session to registration_id
+     * - Advances flow to the next step (volunteerIn)
+     *
+     * @route POST /submit-emailPass
+     * @param {string} req.body.email - User email address
+     * @param {string} req.body.password - Raw password
+     * @returns {void} Redirects to /volunteerIn on success
      */
-    app.post("/submit-namePass", csrfProtection, async (req, res) => {
+    app.post('/submit-emailPass', csrfProtection, async (req, res) => {
       const { email, password } = req.body;
-      try {
-        const row = await insertEmailPass(email, password);
-        if (!row) return res.status(409).send("Email already registered.");
 
-        req.session.userId = row.id;
-        await refreshVolunteerCache(loadVolunteerCache, app);
-        res.redirect("/volunteerIn");
-      } catch (err) {
-        res.status(500).send("Registration failed: " + err.message);
-      }
-    });
-
-    /**
-     * @route POST /submit-namePhone
-     * @description
-     *  Adds/updates a volunteer's phone and normalized name info.
-     *  Performs duplicate check using normalized values.
-     */
-    app.post("/submit-namePhone", async (req, res) => {
-      const userId = req.session.userId;
-      if (!userId) {
-        return res.status(400).json({
-          success: false,
-          message: "Session expired or user not registered.",
-        });
+      if (!email || !password) {
+        return res.status(400).send('Email and password are required.');
       }
 
-      const { phone, firstName, lastName, suffix, SMSCapable } = req.body;
-      const normalizedPhone = phone ? phone.replace(/\D+/g, "") : null;
-
-      // Normalize names
-      const normalizedFirstName = firstName.trim().toLowerCase();
-      const normalizedLastName = lastName.trim().toLowerCase();
-      const normalizedSuffix = suffix ? suffix.trim().toLowerCase() : "";
-
       try {
-        const exists = await namePhoneExists(
-          normalizedFirstName,
-          normalizedLastName,
-          normalizedPhone,
-          normalizedSuffix,
-        );
-        if (exists) {
-          return res.json({
-            success: false,
-            message: "Duplicate record exists",
-            exists: true,
-          });
-        }
-
-        const row = await insertNameAndPhone(
-          userId,
-          normalizedFirstName,
-          normalizedLastName,
-          normalizedPhone,
-          normalizedSuffix,
-          SMSCapable,
-        );
+        const row = await insertDraftEmailPass(email, password);
         if (!row) {
-          return res.status(409).json({
-            success: false,
-            message: "Update failed. Record may not exist.",
-          });
+          return res.status(500).send('Failed to create registration.');
         }
 
-        await refreshVolunteerCache(loadVolunteerCache, app);
-        return res.json({
-          success: true,
-          message: "Info updated successfully",
-          exists: false,
-        });
+        // Anchor session to durable registration
+        req.session.userId = row.id;
+        req.session.registrationId = row.registration_id;
+
+        // Optional UX-only cache
+        req.session.formCache = { email };
+
+        return res.redirect('/volunteerIn');
+
       } catch (err) {
-        logError("Error updating volunteer info", err);
-        return res.status(500).json({
-          success: false,
-          message: "Server error: " + err.message,
-        });
+        console.error('submit-emailPass error:', err);
+        return res.status(500).send('Registration failed.');
       }
     });
     //#endregion
@@ -900,7 +853,7 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 
         const carrierType = lookup?.carrier?.type || "";
         const SMSCapableRaw = req.body?.SMSCapable; // safe optional chaining
-        const SMSCapable = SMSCapableRaw === "yes"; // true if yes, false otherwise          carrierType === 'mobile' || carrierType === 'voip';
+        const SMSCapable = SMSCapableRaw === "yes"; // true if yes, false otherwise
 
         return res.status(200).json({
           valid: true,

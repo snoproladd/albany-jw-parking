@@ -23,7 +23,6 @@
   --Background: #f9fafb;
   --TextDark: #111827;
   --TextLight: #ffffff;
-  --SolidBack: #4D525D;
 
   /* Responsive font sizes using clamp(min, preferred, max) */
   --fs-h1: clamp(2rem, 5vw, 5rem);
@@ -33,27 +32,23 @@
 }
 
 /* -------------------- Body & Background -------------------- */
-html{
-  overflow-y: scroll;
-}
-
 body {
-  min-height: 100dvh;
-  background: var(--SolidBack);
+  height: 100dvh;
+  background: #99C3F3;
+  background: linear-gradient(59deg, var(--TextDark), var(--TextLight) 50%);
   background-attachment: fixed;
   font-family: 'Archivo', sans-serif;
   color: var(--TextDark);
 }
 
-
-
 /* -------------------- Jumbo Sections -------------------- */
 
 .bg-body-tertiary {
   background-image: url('../images/parking-lot.jpg');
-  background-size:cover;
+  background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
+  /* remove: height: inherit; */
 }
 
 
@@ -61,6 +56,7 @@ body {
   display: flex;
   align-items: center;      /* vertical center */
   justify-content: center;  /* horizontal center */
+         /* comfortable viewport height */
   padding: 3rem 0;          /* breathing room (matches py-5 idea) */
 }
 
@@ -94,17 +90,6 @@ body {
   border-style: hidden;
   background-color: var(--TextLight);
   opacity: 75%;
-}
-
-/* -------------------Summary Background ------------------ */
-.summary {
-  background-color: var(--SolidBack);
-  border: hidden;
-  border-radius: 10px;
-  padding: 20px;
-  margin-top: 20px;
-  margin-bottom: 20px;
-  width: 75%;
 }
 
 /* -------------------- Header -------------------- */
@@ -147,7 +132,7 @@ strong, b {
 
 /* -------------------- Feature Showcase -------------------- */
 .feature-showcase {
-  background-color: var(--SolidBack);
+  background-color: var(--Background);
   opacity: 75%;
   border: hidden;
   border-radius: 5px;
@@ -166,7 +151,7 @@ strong, b {
 }
 
 .footer-text {
-  background-color: var(--SolidBack);
+  background-color: var(--Background);
   opacity: 75%;
   padding-left: 10px;
   padding-bottom: 3px;
@@ -209,12 +194,19 @@ strong, b {
 .asterix{
   color: red!important;
 }
+
+
 /* -------------------- Form Visibility -------------------- */
 .is-hidden {
   display: none !important;
 }
 
 
+/* styles.css
+body.bg-body-tertiary {
+  /* uses Bootstrap 5 variable */
+ /* background-color: var(--bs-body-bg);} */
+ 
 
 .asterix {
   color: var(--bs-danger);

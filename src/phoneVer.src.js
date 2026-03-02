@@ -16,6 +16,9 @@ import IMask from "imask";
  * Maintains 100% identical behavior as before.
  */
 
+const csrfToken =
+  document.querySelector('input[name="_csrf"]')?.value;
+
 document.addEventListener("DOMContentLoaded", () => {
   // ─────────────────────────────────────────────
   // MODULE: DOM (all element references, no logic)
@@ -403,12 +406,16 @@ document.addEventListener("DOMContentLoaded", () => {
         };
 
         try {
-          const resp = await fetch("/submit-namePhone", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify(payload),
-          });
+          const resp = await fetch("/submit-volunteerInfo", {
+              method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-CSRF-Token": csrfToken
+                },
+                body: JSON.stringify(w),
+                credentials: "include"
+              });
+
 
           const data = await resp.json();
           if (!data.success) {

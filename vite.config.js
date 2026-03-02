@@ -14,7 +14,7 @@ export default defineConfig({
     rollupOptions: {
       // Declare explicit entry points so Vite/ Rollup names the file predictably
       input: {
-        phoneVer: 'src/phoneVer.js',
+        phoneVer: 'src/phoneVer.src.js',
       },
       output: {
         // Ensure stable file name (no content hash) so CSP stays simple

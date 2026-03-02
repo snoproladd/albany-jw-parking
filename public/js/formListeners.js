@@ -2,7 +2,7 @@
 
 document.addEventListener("DOMContentLoaded", () => {
   // -------- Forms --------
-  const form = document.querySelector('form[action="/submit-namePass"]');
+  const form = document.querySelector('form[action="/submit-emailPass"]');
   const congForm = document.querySelector('form[action="/submitCongregation"]');
 
   // Congregation-related elements (scoped to congForm)
@@ -220,7 +220,7 @@ if (form && emailInput && confirmInput && emailStatus) {
       return;
     }
 
-    // Otherwise, allow submit to proceed to POST /submit-namePass
+    // Otherwise, allow submit to proceed to POST /submit-emailPass
     setEmailSuccess("Email OK. Submitting...");
   });
 }
