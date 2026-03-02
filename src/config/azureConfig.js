@@ -14,7 +14,7 @@
 // ============================================================
 
 //#region Imports
-import dotenv from 'dotenv';
+import dotenv from 'dotenv/config';
 import { DefaultAzureCredential } from '@azure/identity';
 import { SecretClient } from '@azure/keyvault-secrets';
 import {
@@ -24,7 +24,6 @@ import {
   healthProbe as _healthProbe
 } from '../../lib/sql.js';
 
-dotenv.config();
 //#endregion
 
 //#region Logging Helpers
