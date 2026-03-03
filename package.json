@@ -19,8 +19,7 @@
   },
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon --require ./set-local-env.js index.js",
-    "build": "vite build"
+    "dev": "nodemon --require ./set-local-env.js index.js"
   },
   "dependencies": {
     "@azure/identity": "^4.13.0",

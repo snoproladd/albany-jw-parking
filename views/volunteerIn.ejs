@@ -24,16 +24,16 @@
             <!-- Name Fields -->
             <div class="mb-3">
                 <label for="firstName" class="form-label <%= disableNameFields ? 'd-none' : '' %>">First Name:<span class="asterix">*</span></label>
-                <input type="text" id="firstName" data-disable="<%= disableNameFields %>"name="firstName" class="form-control <%= disableNameFields ? 'd-none' : '' %>" <%= disableNameFields ? '' : 'required' %>>
+                <input type="text" id="firstName" data-disable="<%= disableNameFields %>"name="firstName" aria-describedby="firstName-status"class="form-control <%= disableNameFields ? 'd-none' : '' %>" <%= disableNameFields ? '' : 'required' %>>
                 <label for="lastName" class="form-label <%= disableNameFields ? 'd-none' : '' %>">Last Name:<span class="asterix">*</span></label>
-                <input type="text" id="lastName" name="lastName" class="form-control <%= disableNameFields ? 'd-none' : '' %>" <%= disableNameFields ? '' : 'required' %>>
+                <input type="text" id="lastName" name="lastName" aria-describedby="lastName-status" class="form-control <%= disableNameFields ? 'd-none' : '' %>" <%= disableNameFields ? '' : 'required' %>>
                 <label for="suffix" class="form-label <%= disableNameFields ? 'd-none' : '' %>">Suffix (if any):</label>
                 <input type="text" id="suffix" name="suffix"class="form-control <%= disableNameFields ? 'd-none' : '' %>"<%= disableNameFields ? '' : '' %>>
             </div>
             <!-- Cell Phone Field -->
             <div class="mb-3">
               <label for="phone" class="form-label">Phone:<span class="asterix">*</span></label>
-              <input type="text" id="phone" name="phone" class="form-control" placeholder="(xxx) xxx-xxxx" inputmode="numeric" aria-describedby="phone-status" required>
+              <input type="text" id="phone" name="phone" aria-describedby="phone-status" class="form-control" placeholder="(xxx) xxx-xxxx" inputmode="numeric" aria-describedby="phone-status" required>
               <label for="confirm-phone" class="form-label mt-3">Confirm Phone:<span class="asterix">*</span></label>
               <input type="text" id="confirm-phone" name="confirm-phone" class="form-control" disabled placeholder="(xxx) xxx-xxxx" inputmode="numeric" aria-describedby="confirm-phone-status" required>
               <div id="phone-status" class="status mt-2" role="status" aria-live="polite"></div>
@@ -77,8 +77,9 @@
 
 
 
+<script src="/js/phoneVer.js"></script>
 
-<script src="/js/phoneVer.js" ></script>
+<script src="/js/formListeners.js"></script>
 
   <!-- Custom JS -->
 </body>

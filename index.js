@@ -1,6 +1,87 @@
 // =========================
 // index.js - Main Server
 // =========================
+/**
+ * ============================================================
+ * REGISTRATION FLOW CONTRACT (AUTHORITATIVE)
+ * ============================================================
+ *
+ * The volunteer registration lifecycle is DRAFT‑BASED.
+ * Each step OWNS specific fields and MUST NOT overwrite
+ * fields owned by earlier steps unless explicitly allowed.
+ *
+ * ------------------------------------------------------------
+ * STEP 1: /submit-emailPass
+ * ------------------------------------------------------------
+ * Creates draft with:
+ *   - email
+ *   - passwordHash / auth fields
+ *   - accountType = 'registered'
+ *
+ * ------------------------------------------------------------
+ * STEP 1b: /submit-nonProfileInfo
+ * ------------------------------------------------------------
+ * Creates or updates draft with:
+ *   - firstName
+ *   - lastName
+ *   - suffix
+ *   - email
+ *   - accountType = 'non-registered'
+ *
+ * After this step:
+ *   - name fields are LOCKED (disableNameFields = true)
+ *
+ * ------------------------------------------------------------
+ * STEP 2: /submit-volunteerInfo
+ * ------------------------------------------------------------
+ * Updates:
+ *   - phone
+ *   - smsCapable
+ *
+ * Conditionally updates names ONLY if name fields are editable.
+ * Must NOT overwrite names for non‑profile flow.
+ *
+ * ------------------------------------------------------------
+ * STEP 3: /submit-personalInfo
+ * ------------------------------------------------------------
+ * Updates:
+ *   - gender
+ *   - dateOfBirth
+ *   - stamina
+ *
+ * ------------------------------------------------------------
+ * STEP 4: /submit-congregation
+ * ------------------------------------------------------------
+ * Updates:
+ *   - congregation assignment
+ *   - visiting congregation details
+ *
+ * ------------------------------------------------------------
+ * STEP 5: /submitSpiritual
+ * ------------------------------------------------------------
+ * Updates:
+ *   - privilege flags
+ *
+ * ------------------------------------------------------------
+ * STEP 6: /submitNotes
+ * ------------------------------------------------------------
+ * Updates:
+ *   - notes
+ *
+ * ------------------------------------------------------------
+ * DUPLICATE RULES (SUBMIT‑TIME ONLY)
+ * ------------------------------------------------------------
+ * - Email must be unique
+ * - (firstName + lastName + suffix) must be unique
+ * - Phone number must be unique
+ *
+ * Duplicate checks MUST:
+ *   - be server‑side
+ *   - self‑exclude by registrationId
+ *   - return field‑specific errors
+ *
+ * ============================================================
+ */
 
 import http from "http";
 import express from "express";
@@ -157,11 +238,15 @@ process.on("SIGTERM", shutdown);
       insertDraftEmailPass,
       insertDraftNameEmail,
       updateDraftNameEmail,
-      updateDraftPhone,
+      updateDraftNamePhone,
       updateDraftPersonalInfo,
       updateDraftCongregationInfo,
       updateDraftSpiritualInfo,
-      loadVolunteerCache
+      loadVolunteerCache,
+      updateDraftNotes,
+      emailExists,
+      nameExists,
+      phoneExists
     } = await import("./lib/dbSync.js");
 
     await getSqlPool();
@@ -211,6 +296,19 @@ process.on("SIGTERM", shutdown);
         },
       })
     );
+
+  function requireRegistration(req, res, next) {
+  if (!req.session.registrationId) {
+    // Create new one for guest or expired flow
+    req.session.registrationId = crypto.randomUUID();
+    req.session.disableNameFields = true; // Guest path only
+  }
+  next();
+  }
+  app.use("/volunteerIn", requireRegistration);
+  app.use("/congregationInfo", requireRegistration);
+  app.use("/submit-nonProfileInfo", requireRegistration);
+  app.use("/submit-volunteerInfo", requireRegistration);
   function requireDraft(req, res) {
     if (!req.session.registrationId) {
       res.redirect("/email-pass");
@@ -264,12 +362,19 @@ process.on("SIGTERM", shutdown);
     });
 
     app.get("/volunteerIn", csrfProtection, (req, res) => {
+      // Option A logic: name editability determined by query param
       const disableNameFields = req.query.disable === "true";
+
+      // Save this for the POST route
+      req.session.disableNameFields = disableNameFields;
+
       const hasActiveRegistration = Boolean(req.session.registrationId);
+
       if (hasActiveRegistration) {
         loadVolunteerCache();
         startDbUpdate(loadVolunteerCache, app);
       }
+
       res.render("volunteerIn", {
         disableNameFields,
         hasActiveRegistration,
@@ -287,9 +392,9 @@ process.on("SIGTERM", shutdown);
       res.render("notes", { csrfToken: req.csrfToken() });
     });
 
-    app.get("/formSummary", csrfProtection, (req, res) => {
+    app.get("/volunteerSummary", csrfProtection, (req, res) => {
       if (!requireDraft(req, res)) return;
-      res.render("formSummary", { csrfToken: req.csrfToken() });
+      res.render("volunteerSummary", { csrfToken: req.csrfToken() });
     });
 
     app.get("/formDone", csrfProtection, (req, res) => {
@@ -300,55 +405,135 @@ process.on("SIGTERM", shutdown);
     // ========================================================
     // POST Routes
     // ========================================================
-    app.post("/submit-nonProfile", csrfProtection, async (req, res) => {
-      const { firstName, lastName, suffix, email } = req.body;
+    
+app.post("/submit-nonProfileInfo", csrfProtection, async (req, res) => {
+  try {
+    const { firstName, lastName, suffix, email } = req.body;
 
-      if (!firstName || !lastName || !email) {
-        return res.status(400).send(
-          "First name, last name, and email are required."
-        );
+    // ------------------------------------------------------------
+    // Basic required-field validation
+    // ------------------------------------------------------------
+    if (!firstName || !lastName || !email) {
+      return res.status(400).json({
+        success: false,
+        fieldErrors: {
+          form: "First name, last name, and email are required."
+        }
+      });
+    }
+
+    const registrationId = req.session.registrationId || null;
+    const errors = {};
+
+    // ------------------------------------------------------------
+    // Duplicate detection (submit-time only, self-excluding)
+    // ------------------------------------------------------------
+    if (await emailExists(email, registrationId)) {
+      errors.email = "This email address is already registered.";
+    }
+
+    if (await nameExists(firstName, lastName, suffix, registrationId)) {
+      errors.name = "A volunteer with this name already exists.";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      return res.status(409).json({
+        success: false,
+        fieldErrors: errors
+      });
+    }
+
+    // ------------------------------------------------------------
+    // Create or update draft (SAFE, guest-compatible)
+    // ------------------------------------------------------------
+    let row = null;
+
+    if (registrationId) {
+      // Try updating existing draft
+      row = await updateDraftNameEmail(
+        registrationId,
+        firstName,
+        lastName,
+        suffix,
+        email
+      );
+
+      // ❗ Critical fix: If no row exists for this ID → stale session
+      if (!row) {
+        return res.status(400).json({
+          success: false,
+          fieldErrors: {
+            form: "Your session expired. Please restart the registration."
+          }
+        });
+      }
+    } else {
+      // Create new draft (first-time non-profile entry)
+      row = await insertDraftNameEmail(
+        firstName,
+        lastName,
+        suffix,
+        email
+      );
+
+      if (!row) {
+        return res.status(500).json({
+          success: false,
+          fieldErrors: {
+            form: "Failed to create registration."
+          }
+        });
       }
 
-      try {
-        let row;
+      req.session.userId = row.id;
+      req.session.registrationId = row.registration_id;
+    }
 
-        if (!req.session.registrationId) {
-          row = await insertDraftNameEmail(
-            firstName,
-            lastName,
-            suffix,
-            email
-          );
+    // ------------------------------------------------------------
+    // Lock name fields for later steps
+    // ------------------------------------------------------------
+    req.session.disableNameFields = true;
 
-          if (!row) {
-            return res.status(409).send("Email already registered.");
-          }
+    // ------------------------------------------------------------
+    // Render next page: /volunteerIn (Option A rules apply)
+    // ------------------------------------------------------------
+    loadVolunteerCache();
+    startDbUpdate(loadVolunteerCache, app);
 
-          req.session.userId = row.id;
-          req.session.registrationId = row.registration_id;
-        } else {
-          row = await updateDraftNameEmail(
-            req.session.registrationId,
-            firstName,
-            lastName,
-            suffix,
-            email
-          );
+    return res.render("volunteerIn", {
+      disableNameFields: true,       // Option A - name fields locked AFTER nonProfile
+      hasActiveRegistration: true,
+      csrfToken: req.csrfToken(),
+    });
 
-          if (!row) {
-            return res.status(400).send(
-              "Invalid or expired registration. Please restart."
-            );
-          }
-        }
-
-        req.session.disableNameFields = true;
-        return res.redirect("/volunteerIn?disable=true");
-      } catch (err) {
-        console.error("submit-nonProfile error:", err);
-        return res.status(500).send("Registration failed.");
+  } catch (err) {
+    console.error("submit-nonProfileInfo error:", err);
+    return res.status(500).json({
+      success: false,
+      fieldErrors: {
+        form: "Registration failed due to a server error."
       }
     });
+  }
+});
+
+app.post("/submitNotes", csrfProtection, async (req, res) => {
+  try {
+    const registrationId = req.session.registrationId;
+    if (!registrationId) {
+      return res.redirect("/email-pass");
+    }
+
+    const notes = (req.body.notes || "").trim();
+    await updateDraftNotes(registrationId, notes);
+
+    return res.redirect("/volunteerSummary");
+  } catch (err) {
+    console.error("submitNotes error:", err);
+    return res.status(500).send("Failed to save extra notes.");
+  }
+});
+
 
     app.post("/submitCongregation", csrfProtection, async (req, res) => {
       try {
@@ -425,120 +610,154 @@ process.on("SIGTERM", shutdown);
       }
     });
 
-    app.post("/submit-volunteerInfo", csrfProtection, async (req, res) => {
-      // Delete later
-      
-        console.log("▶ submit-volunteerInfo ENTER", {
-            body: req.body,
-            registrationId: req.session.registrationId,
-            csrfHeader: req.headers["x-csrf-token"]
-          })
-          //
+app.post("/submit-volunteerInfo", csrfProtection, async (req, res) => {
+  try {
+    const { firstName, lastName, suffix, phone, SMSCapable } = req.body;
 
-      const { firstName, lastName, phone, SMSCapable } = req.body;
+    // Option A: editability determined by GET /volunteerIn
+    const namesEditable = !req.session.disableNameFields;
+    const registrationId = req.session.registrationId;
 
-      if (!firstName || !lastName || !phone) {
-        return res.status(400).json({
-          success: false,
-          message: "First name, last name, and phone are required."
-        });
+    // ------------------------------------------------------------
+    // Required-field validation
+    // ------------------------------------------------------------
+    if ((namesEditable && (!firstName || !lastName)) || !phone) {
+      return res.status(400).json({
+        success: false,
+        fieldErrors: {
+          form: "First name, last name, and phone are required."
+        }
+      });
+    }
+
+    if (!registrationId) {
+      return res.status(400).json({
+        success: false,
+        fieldErrors: {
+          form: "No active registration. Please start again."
+        }
+      });
+    }
+
+    // ------------------------------------------------------------
+    // Duplicate detection (submit-time only, self-excluding)
+    // ------------------------------------------------------------
+    const errors = {};
+
+    if (namesEditable) {
+      if (await nameExists(firstName, lastName, suffix, registrationId)) {
+        errors.name = "A volunteer with this name already exists.";
       }
+    }
 
-      try {
-        if (!req.session.registrationId) {
-          return res.status(400).json({
-            success: false,
-            message: "No active registration. Please start again."
-          });
+    if (await phoneExists(phone, registrationId)) {
+      errors.phone = "This phone number is already registered.";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      return res.status(409).json({
+        success: false,
+        fieldErrors: errors
+      });
+    }
+
+    // ------------------------------------------------------------
+    // Persist data (Option A logic)
+    // ------------------------------------------------------------
+    const row = await updateDraftNamePhone(
+      registrationId,
+      namesEditable ? firstName : null,
+      namesEditable ? lastName : null,
+      namesEditable ? suffix : null,
+      phone,
+      SMSCapable
+    );
+
+    if (!row) {
+      return res.status(400).json({
+        success: false,
+        fieldErrors: {
+          form: "Invalid or expired registration. Please restart."
         }
+      });
+    }
 
-        const row = await updateDraftPhone(
-          req.session.registrationId,
-          phone,
-          SMSCapable
-        );
+    // Success
+    return res.json({ success: true });
 
-        if (!row) {
-          return res.status(400).json({
-            success: false,
-            message: "Invalid or expired registration. Please restart."
-          });
-        }
-
-        return res.json({ success: true });
-      } catch (err) {
-        console.error("submit-volunteerInfo error:", err);
-        return res.status(500).json({
-          success: false,
-          message: "Failed to update phone information."
-        });
-      }
-    });
-
-    app.post("/submit-personalInfo", csrfProtection, async (req, res) => {
-      try {
-        const registrationId = req.session.registrationId;
-        if (!registrationId) {
-          return res.redirect("/email-pass");
-        }
-
-        const { genderRaw, dobirthRaw, staminaRaw } = req.body;
-
-        const gender = genderRaw?.trim().toLowerCase() || null;
-
-        let dobirth = null;
-        if (dobirthRaw) {
-          const parsed = new Date(dobirthRaw);
-          if (isNaN(parsed.valueOf())) {
-            return res.status(400).send("Invalid date of birth.");
-          }
-          dobirth = parsed;
-        }
-
-        let stamina = null;
-        if (typeof staminaRaw === "string") {
-          const num = parseInt(staminaRaw.split("-")[0].trim(), 10);
-          if (!isNaN(num)) stamina = num;
-        }
-
-        await updateDraftPersonalInfo(registrationId, {
-          gender,
-          dobirth: dobirth,
-          stamina
-        });
-
-        req.session.gender = gender;
-
-        return res.redirect("/congregationInfo");
-      } catch (err) {
-        console.error("submit-personalInfo error:", err);
-        return res.status(500).send("Server error.");
+  } catch (err) {
+    console.error("submit-volunteerInfo error:", err);
+    return res.status(500).json({
+      success: false,
+      fieldErrors: {
+        form: "Failed to update phone information."
       }
     });
+  }
+});
+app.post("/submit-personalInfo", csrfProtection, async (req, res) => {
+  try {
+    const registrationId = req.session.registrationId;
+    if (!registrationId) {
+      return res.redirect("/email-pass");
+    }
 
-    app.post("/submit-emailPass", csrfProtection, async (req, res) => {
-      const { email, password } = req.body;
+    const { genderRaw, dobirthRaw, staminaRaw } = req.body;
 
-      if (!email || !password) {
-        return res.status(400).send("Email and password are required.");
+    const gender = genderRaw?.trim().toLowerCase() || null;
+
+    let dobirth = null;
+    if (dobirthRaw) {
+      const parsed = new Date(dobirthRaw);
+      if (isNaN(parsed.valueOf())) {
+        return res.status(400).send("Invalid date of birth.");
       }
+      dobirth = parsed;
+    }
 
-      try {
-        const row = await insertDraftEmailPass(email, password);
-        if (!row) {
-          return res.status(500).send("Failed to create registration.");
-        }
+    let stamina = null;
+    if (typeof staminaRaw === "string") {
+      const num = parseInt(staminaRaw.split("-")[0].trim(), 10);
+      if (!isNaN(num)) stamina = num;
+    }
 
-        req.session.userId = row.id;
-        req.session.registrationId = row.registration_id;
-        req.session.formCache = { email };
-
-        return res.redirect("/volunteerIn");
-      } catch (err) {
-        console.error("submit-emailPass error:", err);
-        return res.status(500).send("Registration failed.");
-      }
+    await updateDraftPersonalInfo(registrationId, {
+      gender,
+      dobirth: dobirth,
+      stamina
     });
+
+    req.session.gender = gender;
+
+    return res.redirect("/congregationInfo");
+  } catch (err) {
+    console.error("submit-personalInfo error:", err);
+    return res.status(500).send("Server error.");
+  }
+});
+app.post("/submit-emailPass", csrfProtection, async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).send("Email and password are required.");
+  }
+
+  try {
+    const row = await insertDraftEmailPass(email, password);
+    if (!row) {
+      return res.status(500).send("Failed to create registration.");
+    }
+
+    req.session.userId = row.id;
+    req.session.registrationId = row.registration_id;
+    req.session.formCache = { email };
+
+    return res.redirect("/volunteerIn");
+  } catch (err) {
+    console.error("submit-emailPass error:", err);
+    return res.status(500).send("Registration failed.");
+  }
+});
 
     // ========================================================
     // Validation Endpoints

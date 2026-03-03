@@ -189,7 +189,8 @@
 <!-- Custom JS -->
 <script nonce="<%= nonce %>">
   window.USER_GENDER = "<%= gender %>";
-  window.PRIVILEGE_RULES = <%- privilegeRulesJSON %>;
+  window.PRIVILEGE_RULES = 
+  <%- privilegeRulesJSON %>;
 </script>
 <script nonce="<%= nonce %>" src="/js/privilegeEnforcer.js"></script>
 
