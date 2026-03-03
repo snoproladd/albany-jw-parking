@@ -407,17 +407,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
         try {
           const resp = await fetch("/submit-volunteerInfo", {
-              method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "X-CSRF-Token": csrfToken
-                },
-                body: JSON.stringify(w),
-                credentials: "include"
-              });
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRF-Token": csrfToken
+            },
+            body: JSON.stringify(payload),
+            credentials: "include"
+          });
 
 
-          const data = await resp.json();
+          let data;
+          const contentType = resp.headers.get("content-type") || "";
+
+          if (contentType.includes("application/json")) {
+            data = await resp.json();
+          } else {
+            const text = await resp.text();
+            throw new Error(text || "Invalid server response");
+          }
           if (!data.success) {
             UI.submitError(data.message || "Submission failed.");
             return;
