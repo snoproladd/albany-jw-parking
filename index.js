@@ -246,7 +246,8 @@ process.on("SIGTERM", shutdown);
       updateDraftNotes,
       emailExists,
       nameExists,
-      phoneExists
+      phoneExists,
+      markDraftCompleted,
     } = await import("./lib/dbSync.js");
 
     await getSqlPool();
@@ -262,7 +263,7 @@ process.on("SIGTERM", shutdown);
           sameSite: "lax",
           maxAge: 5 * 60 * 1000,
         },
-      })
+      }),
     );
 
     const csrfProtection = csurf({ cookie: true });
@@ -291,33 +292,43 @@ process.on("SIGTERM", shutdown);
           "img-src": ["'self'", "data:"],
           "font-src": ["'self'", "https://fonts.gstatic.com"],
           "connect-src": isProd
-            ? ["'self'", "https:", "https://api.kickbox.com","https://cdn.jsdelivr.net"]
-            : ["'self'", "http://localhost:3000", "https://api.kickbox.com","https://cdn.jsdelivr.net"],
+            ? [
+                "'self'",
+                "https:",
+                "https://api.kickbox.com",
+                "https://cdn.jsdelivr.net",
+              ]
+            : [
+                "'self'",
+                "http://localhost:3000",
+                "https://api.kickbox.com",
+                "https://cdn.jsdelivr.net",
+              ],
         },
-      })
+      }),
     );
 
-  function requireRegistration(req, res, next) {
-  if (!req.session.registrationId) {
-    // Create new one for guest or expired flow
-    req.session.registrationId = crypto.randomUUID();
-    req.session.disableNameFields = true; // Guest path only
-  }
-  next();
-  }
-  app.use("/volunteerIn", requireRegistration);
-  app.use("/congregationInfo", requireRegistration);
-  app.use("/submit-nonProfileInfo", requireRegistration);
-  app.use("/submit-volunteerInfo", requireRegistration);
-  function requireDraft(req, res) {
-    if (!req.session.registrationId) {
-      res.redirect("/email-pass");
-      return false;
+    function requireRegistration(req, res, next) {
+      if (!req.session.registrationId) {
+        // Create new one for guest or expired flow
+        req.session.registrationId = crypto.randomUUID();
+        req.session.disableNameFields = true; // Guest path only
+      }
+      next();
     }
-    loadVolunteerCache();
-    startDbUpdate(loadVolunteerCache, app);
-    return true;
-  }
+    app.use("/volunteerIn", requireRegistration);
+    app.use("/congregationInfo", requireRegistration);
+    app.use("/submit-nonProfileInfo", requireRegistration);
+    app.use("/submit-volunteerInfo", requireRegistration);
+    function requireDraft(req, res) {
+      if (!req.session.registrationId) {
+        res.redirect("/email-pass");
+        return false;
+      }
+      loadVolunteerCache();
+      startDbUpdate(loadVolunteerCache, app);
+      return true;
+    }
 
     // ========================================================
     // API Routes
@@ -330,15 +341,15 @@ process.on("SIGTERM", shutdown);
     app.get("/health", (req, res) => res.send("OK"));
 
     app.get("/", csrfProtection, (req, res) =>
-      res.render("index", { csrfToken: req.csrfToken() })
+      res.render("index", { csrfToken: req.csrfToken() }),
     );
 
     app.get("/email-pass", csrfProtection, (req, res) =>
-      res.render("emailPass", { csrfToken: req.csrfToken() })
+      res.render("emailPass", { csrfToken: req.csrfToken() }),
     );
 
     app.get("/nonProfile", csrfProtection, (req, res) =>
-      res.render("nonProfile", { csrfToken: req.csrfToken() })
+      res.render("nonProfile", { csrfToken: req.csrfToken() }),
     );
 
     app.get("/congregationInfo", csrfProtection, async (req, res) => {
@@ -346,14 +357,15 @@ process.on("SIGTERM", shutdown);
       const congregations = await getCongregations();
       res.render("congregationInfo", {
         congregations,
-        csrfToken: req.csrfToken()
+        csrfToken: req.csrfToken(),
       });
     });
 
     app.get("/spiritualInfo", csrfProtection, (req, res) => {
       if (!requireDraft(req, res)) return;
       const regId = req.session.registrationId;
-      const volunteer = app.locals.volunteerCache?.byRegistrationId?.[regId] || null;
+      const volunteer =
+        app.locals.volunteerCache?.byRegistrationId?.[regId] || null;
       res.render("spiritualInfo", {
         csrfToken: req.csrfToken(),
         privilegeRulesJSON: JSON.stringify(INCOMPATIBILITIES),
@@ -392,9 +404,47 @@ process.on("SIGTERM", shutdown);
       res.render("notes", { csrfToken: req.csrfToken() });
     });
 
-    app.get("/volunteerSummary", csrfProtection, (req, res) => {
+    app.get("/volunteerSummary", csrfProtection, async (req, res) => {
+      // Ensure there is an active draft and the cache is running
       if (!requireDraft(req, res)) return;
-      res.render("volunteerSummary", { csrfToken: req.csrfToken() });
+
+      try {
+        const registrationId = req.session.registrationId;
+
+        // Current volunteer draft from the in-memory cache
+        const cache = app.locals.volunteerCache;
+        const volunteer = cache?.byRegistrationId?.[registrationId] || null;
+
+        if (!volunteer) {
+          // Stale or missing draft – treat like a not-found registration
+          return res.status(404).render("404", { url: req.originalUrl });
+        }
+
+        // Congregation list for the dropdown
+        const congregations = await getCongregations();
+
+        // Name-lock state from the session (set earlier in the flow)
+        const disableNameFields = !!req.session.disableNameFields;
+
+        // Gender: session override, then DB value
+        const gender =
+          typeof req.session.gender === "string"
+            ? req.session.gender
+            : volunteer.gender || null;
+
+        // Render the in-place editing summary view
+        res.render("formSummary", {
+          volunteer,
+          congregations,
+          csrfToken: req.csrfToken(),
+          privilegeRulesJSON: JSON.stringify(INCOMPATIBILITIES),
+          gender,
+          disableNameFields,
+        });
+      } catch (err) {
+        logError("Error rendering /volunteerSummary:", err);
+        res.status(500).send("Internal Server Error");
+      }
     });
 
     app.get("/formDone", csrfProtection, (req, res) => {
@@ -405,135 +455,128 @@ process.on("SIGTERM", shutdown);
     // ========================================================
     // POST Routes
     // ========================================================
-    
-app.post("/submit-nonProfileInfo", csrfProtection, async (req, res) => {
-  try {
-    const { firstName, lastName, suffix, email } = req.body;
 
-    // ------------------------------------------------------------
-    // Basic required-field validation
-    // ------------------------------------------------------------
-    if (!firstName || !lastName || !email) {
-      return res.status(400).json({
-        success: false,
-        fieldErrors: {
-          form: "First name, last name, and email are required."
+    app.post("/submit-nonProfileInfo", csrfProtection, async (req, res) => {
+      try {
+        const { firstName, lastName, suffix, email } = req.body;
+
+        // ------------------------------------------------------------
+        // Basic required-field validation
+        // ------------------------------------------------------------
+        if (!firstName || !lastName || !email) {
+          return res.status(400).json({
+            success: false,
+            fieldErrors: {
+              form: "First name, last name, and email are required.",
+            },
+          });
         }
-      });
-    }
 
-    const registrationId = req.session.registrationId || null;
-    const errors = {};
+        const registrationId = req.session.registrationId || null;
+        const errors = {};
 
-    // ------------------------------------------------------------
-    // Duplicate detection (submit-time only, self-excluding)
-    // ------------------------------------------------------------
-    if (await emailExists(email, registrationId)) {
-      errors.email = "This email address is already registered.";
-    }
+        // ------------------------------------------------------------
+        // Duplicate detection (submit-time only, self-excluding)
+        // ------------------------------------------------------------
+        if (await emailExists(email, registrationId)) {
+          errors.email = "This email address is already registered.";
+        }
 
-    if (await nameExists(firstName, lastName, suffix, registrationId)) {
-      errors.name = "A volunteer with this name already exists.";
-    }
+        if (await nameExists(firstName, lastName, suffix, registrationId)) {
+          errors.name = "A volunteer with this name already exists.";
+        }
 
-    if (Object.keys(errors).length > 0) {
-      return res.status(409).json({
-        success: false,
-        fieldErrors: errors
-      });
-    }
+        if (Object.keys(errors).length > 0) {
+          return res.status(409).json({
+            success: false,
+            fieldErrors: errors,
+          });
+        }
 
-    // ------------------------------------------------------------
-    // Create or update draft (SAFE, guest-compatible)
-    // ------------------------------------------------------------
-    let row = null;
+        // ------------------------------------------------------------
+        // Create or update draft (SAFE, guest-compatible)
+        // ------------------------------------------------------------
+        let row = null;
 
-    if (registrationId) {
-      // Try updating existing draft
-      row = await updateDraftNameEmail(
-        registrationId,
-        firstName,
-        lastName,
-        suffix,
-        email
-      );
+        if (registrationId) {
+          // Try updating existing draft
+          row = await updateDraftNameEmail(
+            registrationId,
+            firstName,
+            lastName,
+            suffix,
+            email,
+          );
 
-      // ❗ Critical fix: If no row exists for this ID → stale session
-      if (!row) {
-        return res.status(400).json({
-          success: false,
-          fieldErrors: {
-            form: "Your session expired. Please restart the registration."
+          // ❗ Critical fix: If no row exists for this ID → stale session
+          if (!row) {
+            return res.status(400).json({
+              success: false,
+              fieldErrors: {
+                form: "Your session expired. Please restart the registration.",
+              },
+            });
           }
-        });
-      }
-    } else {
-      // Create new draft (first-time non-profile entry)
-      row = await insertDraftNameEmail(
-        firstName,
-        lastName,
-        suffix,
-        email
-      );
+        } else {
+          // Create new draft (first-time non-profile entry)
+          row = await insertDraftNameEmail(firstName, lastName, suffix, email);
 
-      if (!row) {
+          if (!row) {
+            return res.status(500).json({
+              success: false,
+              fieldErrors: {
+                form: "Failed to create registration.",
+              },
+            });
+          }
+
+          req.session.userId = row.id;
+          req.session.registrationId = row.registration_id;
+        }
+
+        // ------------------------------------------------------------
+        // Lock name fields for later steps
+        // ------------------------------------------------------------
+        req.session.disableNameFields = true;
+
+        // ------------------------------------------------------------
+        // Render next page: /volunteerIn (Option A rules apply)
+        // ------------------------------------------------------------
+        loadVolunteerCache();
+        startDbUpdate(loadVolunteerCache, app);
+
+        return res.render("volunteerIn", {
+          disableNameFields: true, // Option A - name fields locked AFTER nonProfile
+          hasActiveRegistration: true,
+          csrfToken: req.csrfToken(),
+        });
+      } catch (err) {
+        console.error("submit-nonProfileInfo error:", err);
         return res.status(500).json({
           success: false,
           fieldErrors: {
-            form: "Failed to create registration."
-          }
+            form: "Registration failed due to a server error.",
+          },
         });
       }
-
-      req.session.userId = row.id;
-      req.session.registrationId = row.registration_id;
-    }
-
-    // ------------------------------------------------------------
-    // Lock name fields for later steps
-    // ------------------------------------------------------------
-    req.session.disableNameFields = true;
-
-    // ------------------------------------------------------------
-    // Render next page: /volunteerIn (Option A rules apply)
-    // ------------------------------------------------------------
-    loadVolunteerCache();
-    startDbUpdate(loadVolunteerCache, app);
-
-    return res.render("volunteerIn", {
-      disableNameFields: true,       // Option A - name fields locked AFTER nonProfile
-      hasActiveRegistration: true,
-      csrfToken: req.csrfToken(),
     });
 
-  } catch (err) {
-    console.error("submit-nonProfileInfo error:", err);
-    return res.status(500).json({
-      success: false,
-      fieldErrors: {
-        form: "Registration failed due to a server error."
+    app.post("/submitNotes", csrfProtection, async (req, res) => {
+      try {
+        const registrationId = req.session.registrationId;
+        if (!registrationId) {
+          return res.redirect("/email-pass");
+        }
+
+        const notes = (req.body.notes || "").trim();
+        await updateDraftNotes(registrationId, notes);
+
+        return res.redirect("/volunteerSummary");
+      } catch (err) {
+        console.error("submitNotes error:", err);
+        return res.status(500).send("Failed to save extra notes.");
       }
     });
-  }
-});
-
-app.post("/submitNotes", csrfProtection, async (req, res) => {
-  try {
-    const registrationId = req.session.registrationId;
-    if (!registrationId) {
-      return res.redirect("/email-pass");
-    }
-
-    const notes = (req.body.notes || "").trim();
-    await updateDraftNotes(registrationId, notes);
-
-    return res.redirect("/volunteerSummary");
-  } catch (err) {
-    console.error("submitNotes error:", err);
-    return res.status(500).send("Failed to save extra notes.");
-  }
-});
-
 
     app.post("/submitCongregation", csrfProtection, async (req, res) => {
       try {
@@ -548,7 +591,7 @@ app.post("/submitNotes", csrfProtection, async (req, res) => {
           congregationOtherCity,
           congregationOtherState,
           congregationOtherLang,
-          extraAttend
+          extraAttend,
         } = req.body;
 
         const assignedToConv = String(congAssigned).toLowerCase() === "yes";
@@ -567,7 +610,9 @@ app.post("/submitNotes", csrfProtection, async (req, res) => {
           const lang = (congregationOtherLang || "").trim().toUpperCase();
 
           if (!city || !state || !lang) {
-            return res.status(400).send("Visiting congregation details are required.");
+            return res
+              .status(400)
+              .send("Visiting congregation details are required.");
           }
 
           congregationValue = `${city}, ${state} - ${lang}`;
@@ -576,13 +621,43 @@ app.post("/submitNotes", csrfProtection, async (req, res) => {
         await updateDraftCongregationInfo(registrationId, {
           assignedToConv,
           congregation: congregationValue,
-          attendExtra
+          attendExtra,
         });
 
         return res.redirect("/spiritualInfo");
       } catch (err) {
         console.error("submit-congregationInfo error:", err);
         return res.status(500).send("Failed to save congregation information.");
+      }
+    });
+
+    app.post("/submitSummary", csrfProtection, async (req, res) => {
+      try {
+        const registrationId = req.session.registrationId;
+        if (!registrationId) {
+          return res.redirect("/email-pass");
+        }
+
+        // Mark this draft as "completed"
+        const ok = await markDraftCompleted(registrationId);
+
+        if (!ok) {
+          // No rows changed → stale or invalid registration_id
+          return res
+            .status(400)
+            .send("Your registration could not be finalized. Please restart.");
+        }
+
+        // Stop cache refreshing (optional but recommended)
+        stopDbUpdate();
+
+        // Destroy session and redirect to the final page
+        req.session.destroy(() => {
+          return res.redirect("/formDone");
+        });
+      } catch (err) {
+        console.error("submitSummary error:", err);
+        return res.status(500).send("Failed to finalize registration.");
       }
     });
 
@@ -610,154 +685,153 @@ app.post("/submitNotes", csrfProtection, async (req, res) => {
       }
     });
 
-app.post("/submit-volunteerInfo", csrfProtection, async (req, res) => {
-  try {
-    const { firstName, lastName, suffix, phone, SMSCapable } = req.body;
+    app.post("/submit-volunteerInfo", csrfProtection, async (req, res) => {
+      try {
+        const { firstName, lastName, suffix, phone, SMSCapable } = req.body;
 
-    // Option A: editability determined by GET /volunteerIn
-    const namesEditable = !req.session.disableNameFields;
-    const registrationId = req.session.registrationId;
+        // Option A: editability determined by GET /volunteerIn
+        const namesEditable = !req.session.disableNameFields;
+        const registrationId = req.session.registrationId;
 
-    // ------------------------------------------------------------
-    // Required-field validation
-    // ------------------------------------------------------------
-    if ((namesEditable && (!firstName || !lastName)) || !phone) {
-      return res.status(400).json({
-        success: false,
-        fieldErrors: {
-          form: "First name, last name, and phone are required."
+        // ------------------------------------------------------------
+        // Required-field validation
+        // ------------------------------------------------------------
+        if ((namesEditable && (!firstName || !lastName)) || !phone) {
+          return res.status(400).json({
+            success: false,
+            fieldErrors: {
+              form: "First name, last name, and phone are required.",
+            },
+          });
         }
-      });
-    }
 
-    if (!registrationId) {
-      return res.status(400).json({
-        success: false,
-        fieldErrors: {
-          form: "No active registration. Please start again."
+        if (!registrationId) {
+          return res.status(400).json({
+            success: false,
+            fieldErrors: {
+              form: "No active registration. Please start again.",
+            },
+          });
         }
-      });
-    }
 
-    // ------------------------------------------------------------
-    // Duplicate detection (submit-time only, self-excluding)
-    // ------------------------------------------------------------
-    const errors = {};
+        // ------------------------------------------------------------
+        // Duplicate detection (submit-time only, self-excluding)
+        // ------------------------------------------------------------
+        const errors = {};
 
-    if (namesEditable) {
-      if (await nameExists(firstName, lastName, suffix, registrationId)) {
-        errors.name = "A volunteer with this name already exists.";
-      }
-    }
-
-    if (await phoneExists(phone, registrationId)) {
-      errors.phone = "This phone number is already registered.";
-    }
-
-    if (Object.keys(errors).length > 0) {
-      return res.status(409).json({
-        success: false,
-        fieldErrors: errors
-      });
-    }
-
-    // ------------------------------------------------------------
-    // Persist data (Option A logic)
-    // ------------------------------------------------------------
-    const row = await updateDraftNamePhone(
-      registrationId,
-      namesEditable ? firstName : null,
-      namesEditable ? lastName : null,
-      namesEditable ? suffix : null,
-      phone,
-      SMSCapable
-    );
-
-    if (!row) {
-      return res.status(400).json({
-        success: false,
-        fieldErrors: {
-          form: "Invalid or expired registration. Please restart."
+        if (namesEditable) {
+          if (await nameExists(firstName, lastName, suffix, registrationId)) {
+            errors.name = "A volunteer with this name already exists.";
+          }
         }
-      });
-    }
 
-    // Success
-    return res.json({ success: true });
+        if (await phoneExists(phone, registrationId)) {
+          errors.phone = "This phone number is already registered.";
+        }
 
-  } catch (err) {
-    console.error("submit-volunteerInfo error:", err);
-    return res.status(500).json({
-      success: false,
-      fieldErrors: {
-        form: "Failed to update phone information."
+        if (Object.keys(errors).length > 0) {
+          return res.status(409).json({
+            success: false,
+            fieldErrors: errors,
+          });
+        }
+
+        // ------------------------------------------------------------
+        // Persist data (Option A logic)
+        // ------------------------------------------------------------
+        const row = await updateDraftNamePhone(
+          registrationId,
+          namesEditable ? firstName : null,
+          namesEditable ? lastName : null,
+          namesEditable ? suffix : null,
+          phone,
+          SMSCapable,
+        );
+
+        if (!row) {
+          return res.status(400).json({
+            success: false,
+            fieldErrors: {
+              form: "Invalid or expired registration. Please restart.",
+            },
+          });
+        }
+
+        // Success
+        return res.json({ success: true });
+      } catch (err) {
+        console.error("submit-volunteerInfo error:", err);
+        return res.status(500).json({
+          success: false,
+          fieldErrors: {
+            form: "Failed to update phone information.",
+          },
+        });
       }
     });
-  }
-});
-app.post("/submit-personalInfo", csrfProtection, async (req, res) => {
-  try {
-    const registrationId = req.session.registrationId;
-    if (!registrationId) {
-      return res.redirect("/email-pass");
-    }
+    app.post("/submit-personalInfo", csrfProtection, async (req, res) => {
+      try {
+        const registrationId = req.session.registrationId;
+        if (!registrationId) {
+          return res.redirect("/email-pass");
+        }
 
-    const { genderRaw, dobirthRaw, staminaRaw } = req.body;
+        const { genderRaw, dobirthRaw, staminaRaw } = req.body;
 
-    const gender = genderRaw?.trim().toLowerCase() || null;
+        const gender = genderRaw?.trim().toLowerCase() || null;
 
-    let dobirth = null;
-    if (dobirthRaw) {
-      const parsed = new Date(dobirthRaw);
-      if (isNaN(parsed.valueOf())) {
-        return res.status(400).send("Invalid date of birth.");
+        let dobirth = null;
+        if (dobirthRaw) {
+          const parsed = new Date(dobirthRaw);
+          if (isNaN(parsed.valueOf())) {
+            return res.status(400).send("Invalid date of birth.");
+          }
+          dobirth = parsed;
+        }
+
+        let stamina = null;
+        if (typeof staminaRaw === "string") {
+          const num = parseInt(staminaRaw.split("-")[0].trim(), 10);
+          if (!isNaN(num)) stamina = num;
+        }
+
+        await updateDraftPersonalInfo(registrationId, {
+          gender,
+          dobirth: dobirth,
+          stamina,
+        });
+
+        req.session.gender = gender;
+
+        return res.redirect("/congregationInfo");
+      } catch (err) {
+        console.error("submit-personalInfo error:", err);
+        return res.status(500).send("Server error.");
       }
-      dobirth = parsed;
-    }
-
-    let stamina = null;
-    if (typeof staminaRaw === "string") {
-      const num = parseInt(staminaRaw.split("-")[0].trim(), 10);
-      if (!isNaN(num)) stamina = num;
-    }
-
-    await updateDraftPersonalInfo(registrationId, {
-      gender,
-      dobirth: dobirth,
-      stamina
     });
+    app.post("/submit-emailPass", csrfProtection, async (req, res) => {
+      const { email, password } = req.body;
 
-    req.session.gender = gender;
+      if (!email || !password) {
+        return res.status(400).send("Email and password are required.");
+      }
 
-    return res.redirect("/congregationInfo");
-  } catch (err) {
-    console.error("submit-personalInfo error:", err);
-    return res.status(500).send("Server error.");
-  }
-});
-app.post("/submit-emailPass", csrfProtection, async (req, res) => {
-  const { email, password } = req.body;
+      try {
+        const row = await insertDraftEmailPass(email, password);
+        if (!row) {
+          return res.status(500).send("Failed to create registration.");
+        }
 
-  if (!email || !password) {
-    return res.status(400).send("Email and password are required.");
-  }
+        req.session.userId = row.id;
+        req.session.registrationId = row.registration_id;
+        req.session.formCache = { email };
 
-  try {
-    const row = await insertDraftEmailPass(email, password);
-    if (!row) {
-      return res.status(500).send("Failed to create registration.");
-    }
-
-    req.session.userId = row.id;
-    req.session.registrationId = row.registration_id;
-    req.session.formCache = { email };
-
-    return res.redirect("/volunteerIn");
-  } catch (err) {
-    console.error("submit-emailPass error:", err);
-    return res.status(500).send("Registration failed.");
-  }
-});
+        return res.redirect("/volunteerIn");
+      } catch (err) {
+        console.error("submit-emailPass error:", err);
+        return res.status(500).send("Registration failed.");
+      }
+    });
 
     // ========================================================
     // Validation Endpoints
@@ -798,20 +872,20 @@ app.post("/submit-emailPass", csrfProtection, async (req, res) => {
       if (!email) {
         return res.status(400).json({
           valid: false,
-          reason: "Please enter an email address"
+          reason: "Please enter an email address",
         });
       }
       if (email.toLowerCase().endsWith("@jwpub.org")) {
         return res.json({
           result: "invalid",
-          reason: "Domain not allowed"
+          reason: "Domain not allowed",
         });
       }
       try {
         const result = await verifyEmail(email);
         res.json({
           result: result.result,
-          reason: result.reason
+          reason: result.reason,
         });
       } catch (err) {
         logError("Kickbox verification error:", err);
@@ -831,11 +905,10 @@ app.post("/submit-emailPass", csrfProtection, async (req, res) => {
     // Start Server
     // ========================================================
     server.listen(PORT, HOST, () =>
-      log(`✅ Server running on http://${HOST}:${PORT}`)
+      log(`✅ Server running on http://${HOST}:${PORT}`),
     );
 
     await initTwilio();
-
   } catch (err) {
     logError("❌ Failed to start server:", err);
     process.exit(1);

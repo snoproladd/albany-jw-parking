@@ -1,191 +1,765 @@
-    <head>
-        <title>Form Summary</title>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+<!-- views/formSummary.ejs -->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Review Your Information</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-        <!-- Bootstrap CSS -->
-        <link
-            href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
-            rel="stylesheet"
-            crossorigin="anonymous"
-        />
+    <!-- Bootstrap CSS -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+      integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
+      crossorigin="anonymous"
+    />
 
-        <!-- FontAwesome -->
-        <link rel="stylesheet" href="styles/fontawesome/css/fontawesome.min.css" />
-        <link rel="stylesheet" href="styles/fontawesome/css/all.css" />
+    <!-- Site styles -->
+    <link rel="stylesheet" href="/styles/styles.css" />
 
-        <!-- Custom styles -->
-        <link rel="stylesheet" type="text/css" href="styles/styles.css" />
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
+  </head>
 
-        <!-- Google Fonts -->
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap"
-            rel="stylesheet"
-        />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap"
-            rel="stylesheet"
-        />
-    </head>
-    <body class="min-vh-100 summary">
-        <main class="container">
-            <section id="hero" class="bg-body-tertiary ">
-                <div class="container vh-50">
-                    <div class="hero-text-contain d-flex flex-column text-center align-items-center justify-content-between h-100 ">
-                    <h1 class="text-body-emphasis hero-heading p-3">
-                        Form Summary
-                    </h1>
+  <!-- Centered card, no white site header -->
+  <body class="min-vh-100 d-flex justify-content-center align-items-center bg-body-tertiary">
+    <main class="container">
+      <div class="row justify-content-center">
+        <!-- Wider column to reduce wrapping -->
+        <div class="col-12 col-lg-10 col-xl-9">
+          <section id="summary-card" class="card shadow-lg">
+            <header class="card-header text-center">
+              <h1 class="h2 my-2">Review Your Information</h1>
+              <p class="mb-0 text-muted">
+                Edit any section below, then confirm to finish your registration.
+              </p>
+            </header>
 
-                    <h2 class="mt-4 text-body-emphasis hero-subheading p-3">
-                        Please review the information you entered below. If you need to make any changes, click the "Edit Information" button to return to the form.
-                    </h2>
-
-                    </div>
+            <div class="card-body">
+              <% if (!volunteer) { %>
+                <div class="alert alert-warning" role="alert">
+                  We couldn't find registration data for your session. Please restart the registration.
                 </div>
-            </section>
+                <a href="/email-password" class="btn btn-primary">
+                  Restart Registration
+                </a>
+              <% } else { %>
+                <!-- Make sure we can enforce name-lock & privilege rules -->
 
-            <section id="form-summary" class="py-5">
-                <div class="container">
-                    <div class="col-md-7 col-lg-8">
-                        <h4 class="mb-3">Billing address</h4>
-                        <form class="needs-validation" novalidate="">
-                            <div class="row g-3">
-                                <div class="col-sm-6">
-                                    <label for="firstName" class="form-label">First name</label>
-                                    <input type="text" class="form-control" id="firstName" placeholder="" value="" required="">
-                                    <div class="invalid-feedback">
-                                        Valid first name is required.
-                                    </div>
-                                </div>
-                                <div class="col-sm-6">
-                                    <label for="lastName" class="form-label">Last name</label>
-                                    <input type="text" class="form-control" id="lastName" placeholder="" value="" required="">
-                                    <div class="invalid-feedback">
-                                        Valid last name is required.
-                                    </div>
-                                </div>
-                                <div class="col-12">
-                                    <label for="username" class="form-label">Username</label>
-                                    <div class="input-group has-validation">
-                                        <span class="input-group-text">@</span>
-                                        <input type="text" class="form-control" id="username" placeholder="Username" required="">
-                                        <div class="invalid-feedback">
-                                            Your username is required.
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-12">
-                                    <label for="email" class="form-label">Email <span class="text-muted">(Optional)</span></label>
-                                    <input type="email" class="form-control" id="email" placeholder="you@example.com">
-                                    <div class="invalid-feedback">
-                                        Please enter a valid email address for shipping updates.
-                                    </div>
-                                </div>
-                                <div class="col-12">
-                                    <label for="address" class="form-label">Address</label>
-                                    <input type="text" class="form-control" id="address" placeholder="1234 Main St" required="">
-                                    <div class="invalid-feedback">
-                                        Please enter your shipping address.
-                                    </div>
-                                </div>
-                                <div class="col-12">
-                                    <label for="address2" class="form-label">Address 2 <span class="text-muted">(Optional)</span></label>
-                                    <input type="text" class="form-control" id="address2" placeholder="Apartment or suite">
-                                </div>
-                                <div class="col-md-5">
-                                    <label for="country" class="form-label">Country</label>
-                                    <select class="form-select" id="country" required="">
-                                        <option value="">Choose...</option>
-                                        <option>United States</option>
-                                    </select>
-                                    <div class="invalid-feedback">
-                                        Please select a valid country.
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <label for="state" class="form-label">State</label>
-                                    <select class="form-select" id="state" required="">
-                                        <option value="">Choose...</option>
-                                        <option>California</option>
-                                    </select>
-                                    <div class="invalid-feedback">
-                                        Please provide a valid state.
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="zip" class="form-label">Zip</label>
-                                    <input type="text" class="form-control" id="zip" placeholder="" required="">
-                                    <div class="invalid-feedback">
-                                        Zip code required.
-                                    </div>
-                                </div>
+                <% 
+                  // Pre-parse visiting congregation bits if not assigned
+                  let visitingCity = '';
+                  let visitingState = '';
+                  let visitingLang = '';
+                  if (volunteer.assignedToConv === false && volunteer.congregation) {
+                    const raw = volunteer.congregation;
+                    const dashIndex = raw.lastIndexOf('-');
+                    if (dashIndex !== -1) {
+                      const left = raw.slice(0, dashIndex).trim(); // City, ST
+                      visitingLang = raw.slice(dashIndex + 1).trim();
+                      const commaIndex = left.lastIndexOf(',');
+                      if (commaIndex !== -1) {
+                        visitingCity = left.slice(0, commaIndex).trim();
+                        visitingState = left.slice(commaIndex + 1).trim();
+                      } else {
+                        visitingCity = left;
+                      }
+                    }
+                  }
+
+                  // DOB for <input type="date">
+                  let dobValue = '';
+                  if (volunteer.dobirth) {
+                    const d = new Date(volunteer.dobirth);
+                    if (!isNaN(d.valueOf())) {
+                      const y = d.getFullYear();
+                      const m = String(d.getMonth() + 1).padStart(2, '0');
+                      const day = String(d.getDate()).padStart(2, '0');
+                      dobValue = `${y}-${m}-${day}`;
+                    }
+                  }
+                %>
+
+                <!-- Single form for the whole summary. We'll intercept submit in JS,
+                     call the step routes via fetch(), then submit this form to /submitSummary. -->
+                <form action="/submitSummary" id="summary-form" novalidate>
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                  <input type="hidden" id="summary-csrf" value="<%= csrfToken %>" />
+                  <input
+                    type="hidden"
+                    id="summary-gender"
+                    value="<%= gender || (volunteer.gender || '') %>"
+                  />
+
+                  <!-- privilege rules for client-side logic -->
+                  <% if (privilegeRulesJSON) { %>
+                    <script id="privilege-rules-json" type="application/json">
+                      <%- privilegeRulesJSON %>
+                    </script>
+                  <% } %>
+
+                  <!-- ===================================================== -->
+                  <!-- Accordion -->
+                  <!-- ===================================================== -->
+                  <div class="accordion" id="summaryAccordion">
+                    <!-- CONTACT -->
+                    <div class="accordion-item">
+                      <h2 class="accordion-header" id="headingContact">
+                        <button
+                          class="accordion-button"
+                          type="button"
+                          data-bs-toggle="collapse"
+                          data-bs-target="#collapseContact"
+                          aria-expanded="true"
+                          aria-controls="collapseContact"
+                        >
+                          Contact
+                        </button>
+                      </h2>
+                      <div
+                        id="collapseContact"
+                        class="accordion-collapse collapse show"
+                        aria-labelledby="headingContact"
+                        data-bs-parent="#summaryAccordion"
+                      >
+                        <div class="accordion-body">
+                          <div class="d-flex justify-content-end mb-2">
+                            <button
+                              type="button"
+                              class="btn btn-outline-secondary btn-sm summary-edit-btn"
+                              data-section="contact"
+                            >
+                              EDIT
+                            </button>
+                          </div>
+
+                          <div class="row row-cols-1 row-cols-md-2 g-3">
+                            <!-- First Name -->
+                            <div class="col">
+                              <label for="firstName" class="form-label small text-muted text-nowrap">
+                                First Name
+                              </label>
+                              <input
+                                type="text"
+                                id="firstName"
+                                name="firstName"
+                                class="form-control"
+                                value="<%= volunteer.firstName || '' %>"
+                                <%= disableNameFields ? 'readonly' : '' %>
+                              />
                             </div>
-                            <hr class="my-4">
-                            <div class="form-check">
-                                <input type="checkbox" class="form-check-input" id="same-address">
-                                <label class="form-check-label" for="same-address">Shipping address is the same as my billing address</label>
+
+                            <!-- Last Name -->
+                            <div class="col">
+                              <label for="lastName" class="form-label small text-muted text-nowrap">
+                                Last Name
+                              </label>
+                              <input
+                                type="text"
+                                id="lastName"
+                                name="lastName"
+                                class="form-control"
+                                value="<%= volunteer.lastName || '' %>"
+                                <%= disableNameFields ? 'readonly' : '' %>
+                              />
                             </div>
-                            <div class="form-check">
-                                <input type="checkbox" class="form-check-input" id="save-info">
-                                <label class="form-check-label" for="save-info">Save this information for next time</label>
+
+                            <!-- Suffix -->
+                            <div class="col">
+                              <label for="suffix" class="form-label small text-muted text-nowrap">
+                                Suffix
+                              </label>
+                              <input
+                                type="text"
+                                id="suffix"
+                                name="suffix"
+                                class="form-control"
+                                value="<%= volunteer.suffix || '' %>"
+                                <%= disableNameFields ? 'readonly' : '' %>
+                              />
                             </div>
-                            <hr class="my-4">
-                            <h4 class="mb-3">Payment</h4>
-                            <div class="my-3">
-                                <div class="form-check">
-                                    <input id="credit" name="paymentMethod" type="radio" class="form-check-input" checked="" required="">
-                                    <label class="form-check-label" for="credit">Credit card</label>
-                                </div>
-                                <div class="form-check">
-                                    <input id="debit" name="paymentMethod" type="radio" class="form-check-input" required="">
-                                    <label class="form-check-label" for="debit">Debit card</label>
-                                </div>
-                                <div class="form-check">
-                                    <input id="paypal" name="paymentMethod" type="radio" class="form-check-input" required="">
-                                    <label class="form-check-label" for="paypal">PayPal</label>
-                                </div>
+
+                            <!-- Email (read-only) -->
+                            <div class="col">
+                              <label class="form-label small text-muted text-nowrap">
+                                Email
+                              </label>
+                              <input
+                                type="email"
+                                class="form-control"
+                                value="<%= volunteer.email || '' %>"
+                                readonly
+                              />
+                              <div class="form-text">
+                                Email changes must be handled through the initial sign-in step.
+                              </div>
                             </div>
-                            <div class="row gy-3">
-                                <div class="col-md-6">
-                                    <label for="cc-name" class="form-label">Name on card</label>
-                                    <input type="text" class="form-control" id="cc-name" placeholder="" required="">
-                                    <small class="text-muted">Full name as displayed on card</small>
-                                    <div class="invalid-feedback">
-                                        Name on card is required
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="cc-number" class="form-label">Credit card number</label>
-                                    <input type="text" class="form-control" id="cc-number" placeholder="" required="">
-                                    <div class="invalid-feedback">
-                                        Credit card number is required
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="cc-expiration" class="form-label">Expiration</label>
-                                    <input type="text" class="form-control" id="cc-expiration" placeholder="" required="">
-                                    <div class="invalid-feedback">
-                                        Expiration date required
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="cc-cvv" class="form-label">CVV</label>
-                                    <input type="text" class="form-control" id="cc-cvv" placeholder="" required="">
-                                    <div class="invalid-feedback">
-                                        Security code required
-                                    </div>
-                                </div>
+
+                            <!-- Password (never shown) -->
+                            <div class="col">
+                              <label class="form-label small text-muted text-nowrap">
+                                Password
+                              </label>
+                              <input
+                                type="password"
+                                class="form-control"
+                                value="********"
+                                readonly
+                              />
+                              <div class="form-text">
+                                Password is securely stored and not displayed.
+                              </div>
                             </div>
-                            <hr class="my-4">
-                            <button class="w-100 btn btn-primary btn-lg" type="submit">Continue to checkout</button>
-                        </form>
+
+                            <!-- Phone -->
+                            <div class="col">
+                              <label for="phone" class="form-label small text-muted text-nowrap">
+                                Phone
+                              </label>
+                              <input
+                                type="text"
+                                id="phone"
+                                name="phone"
+                                class="form-control"
+                                placeholder="(xxx) xxx-xxxx"
+                                value="<%= volunteer.phone || '' %>"
+                              />
+                              <div id="contact-phone-error" class="invalid-feedback d-none"></div>
+                            </div>
+
+                            <!-- SMS Capable -->
+                            <div class="col">
+                              <fieldset class="border-0 p-0 mt-1">
+                                <legend class="form-label small text-muted mb-1">
+                                  Can you receive text messages at this number?
+                                </legend>
+                                <div class="d-flex flex-wrap align-items-center gap-3">
+                                  <div class="form-check">
+                                    <input
+                                      class="form-check-input"
+                                      type="radio"
+                                      name="SMSCapable"
+                                      id="sms-yes"
+                                      value="yes"
+                                      <%= volunteer.SMSCapable === true ? 'checked' : '' %>
+                                    />
+                                    <label class="form-check-label" for="sms-yes">Yes</label>
+                                  </div>
+                                  <div class="form-check">
+                                    <input
+                                      class="form-check-input"
+                                      type="radio"
+                                      name="SMSCapable"
+                                      id="sms-no"
+                                      value="no"
+                                      <%= volunteer.SMSCapable === false ? 'checked' : '' %>
+                                    />
+                                    <label class="form-check-label" for="sms-no">No</label>
+                                  </div>
+                                </div>
+                                <div id="contact-sms-error" class="invalid-feedback d-none"></div>
+                              </fieldset>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                </div>
-            </section>
-        </main>
 
-        <!-- Bootstrap JS -->
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    </body>
+                    <!-- PERSONAL INFO -->
+                    <div class="accordion-item">
+                      <h2 class="accordion-header" id="headingPersonal">
+                        <button
+                          class="accordion-button collapsed"
+                          type="button"
+                          data-bs-toggle="collapse"
+                          data-bs-target="#collapsePersonal"
+                          aria-expanded="false"
+                          aria-controls="collapsePersonal"
+                        >
+                          Personal Info
+                        </button>
+                      </h2>
+                      <div
+                        id="collapsePersonal"
+                        class="accordion-collapse collapse"
+                        aria-labelledby="headingPersonal"
+                        data-bs-parent="#summaryAccordion"
+                      >
+                        <div class="accordion-body">
+                          <div class="d-flex justify-content-end mb-2">
+                            <button
+                              type="button"
+                              class="btn btn-outline-secondary btn-sm summary-edit-btn"
+                              data-section="personal"
+                            >
+                              EDIT
+                            </button>
+                          </div>
+
+                          <div class="row row-cols-1 row-cols-md-2 g-3">
+                            <!-- Date of Birth -->
+                            <div class="col">
+                              <label for="dobirthRaw" class="form-label small text-muted text-nowrap">
+                                Date of Birth
+                              </label>
+                              <input
+                                type="date"
+                                id="dobirthRaw"
+                                name="dobirthRaw"
+                                class="form-control"
+                                value="<%= dobValue %>"
+                              />
+                            </div>
+
+                            <!-- Gender -->
+                            <div class="col">
+                              <label for="genderRaw" class="form-label small text-muted text-nowrap">
+                                Gender
+                              </label>
+                              <select
+                                id="genderRaw"
+                                name="genderRaw"
+                                class="form-select"
+                              >
+                                <option value="" <%= !volunteer.gender ? 'selected' : '' %>>
+                                  Select...
+                                </option>
+                                <option
+                                  value="male"
+                                  <%= (volunteer.gender || '').toLowerCase() === 'male' ? 'selected' : '' %>
+                                >
+                                  Male
+                                </option>
+                                <option
+                                  value="female"
+                                  <%= (volunteer.gender || '').toLowerCase() === 'female' ? 'selected' : '' %>
+                                >
+                                  Female
+                                </option>
+                              </select>
+                            </div>
+
+                            <!-- Stamina -->
+                            <div class="col">
+                              <label for="staminaRaw" class="form-label small text-muted text-nowrap">
+                                Stamina (1–10)
+                              </label>
+                              <input
+                                type="number"
+                                id="staminaRaw"
+                                name="staminaRaw"
+                                class="form-control"
+                                min="1"
+                                max="10"
+                                value="<%= typeof volunteer.stamina === 'number' ? volunteer.stamina : '' %>"
+                              />
+                            </div>
+                          </div>
+                          <div id="personal-error" class="invalid-feedback d-none mt-2"></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- CONG INFO -->
+                    <div class="accordion-item">
+                      <h2 class="accordion-header" id="headingCong">
+                        <button
+                          class="accordion-button collapsed"
+                          type="button"
+                          data-bs-toggle="collapse"
+                          data-bs-target="#collapseCong"
+                          aria-expanded="false"
+                          aria-controls="collapseCong"
+                        >
+                          Congregation Info
+                        </button>
+                      </h2>
+                      <div
+                        id="collapseCong"
+                        class="accordion-collapse collapse"
+                        aria-labelledby="headingCong"
+                        data-bs-parent="#summaryAccordion"
+                      >
+                        <div class="accordion-body">
+                          <div class="d-flex justify-content-end mb-2">
+                            <button
+                              type="button"
+                              class="btn btn-outline-secondary btn-sm summary-edit-btn"
+                              data-section="congregation"
+                            >
+                              EDIT
+                            </button>
+                          </div>
+
+                          <!-- Assigned to convention? -->
+                          <fieldset class="mb-3">
+                            <legend class="form-label small text-muted mb-1">
+                              Congregation assigned to this convention?
+                            </legend>
+                            <div class="d-flex flex-wrap gap-3">
+                              <div class="form-check">
+                                <input
+                                  class="form-check-input"
+                                  type="radio"
+                                  name="congAssigned"
+                                  id="congAssigned-yes"
+                                  value="yes"
+                                  <%= volunteer.assignedToConv === true ? 'checked' : '' %>
+                                />
+                                <label class="form-check-label" for="congAssigned-yes">
+                                  Yes
+                                </label>
+                              </div>
+                              <div class="form-check">
+                                <input
+                                  class="form-check-input"
+                                  type="radio"
+                                  name="congAssigned"
+                                  id="congAssigned-no"
+                                  value="no"
+                                  <%= volunteer.assignedToConv === false ? 'checked' : '' %>
+                                />
+                                <label class="form-check-label" for="congAssigned-no">
+                                  No
+                                </label>
+                              </div>
+                            </div>
+                          </fieldset>
+
+                          <!-- Assigned congregation dropdown -->
+                          <div
+                            id="cong-assigned-block"
+                            class="mb-3"
+                          >
+                            <label for="congregation" class="form-label small text-muted">
+                              Congregation belonging to
+                            </label>
+                            <select
+                              id="congregation"
+                              name="congregation"
+                              class="form-select"
+                            >
+                              <option value="">Select congregation...</option>
+                              <% if (Array.isArray(congregations)) { %>
+                                <% congregations.forEach(c => { %>
+                                  <option
+                                    value="<%= c.name %>"
+                                    <%= (volunteer.assignedToConv && volunteer.congregation === c.name) ? 'selected' : '' %>
+                                  >
+                                    <%= c.name %>
+                                  </option>
+                                <% }); %>
+                              <% } %>
+                            </select>
+                          </div>
+
+                          <!-- Visiting congregation details -->
+                          <div id="cong-visiting-block" class="mb-3">
+                            <div class="row row-cols-1 row-cols-md-3 g-3">
+                              <div class="col">
+                                <label
+                                  for="congregationOtherCity"
+                                  class="form-label small text-muted text-nowrap"
+                                >
+                                  Visiting City
+                                </label>
+                                <input
+                                  type="text"
+                                  id="congregationOtherCity"
+                                  name="congregationOtherCity"
+                                  class="form-control"
+                                  value="<%= visitingCity %>"
+                                />
+                              </div>
+                              <div class="col">
+                                <label
+                                  for="congregationOtherState"
+                                  class="form-label small text-muted text-nowrap"
+                                >
+                                  State
+                                </label>
+                                <input
+                                  type="text"
+                                  id="congregationOtherState"
+                                  name="congregationOtherState"
+                                  class="form-control"
+                                  maxlength="2"
+                                  value="<%= visitingState %>"
+                                />
+                              </div>
+                              <div class="col">
+                                <label
+                                  for="congregationOtherLang"
+                                  class="form-label small text-muted text-nowrap"
+                                >
+                                  Language
+                                </label>
+                                <input
+                                  type="text"
+                                  id="congregationOtherLang"
+                                  name="congregationOtherLang"
+                                  class="form-control"
+                                  value="<%= visitingLang %>"
+                                />
+                              </div>
+                            </div>
+                            <div class="form-text mt-1">
+                              Used when you are attending from another congregation.
+                            </div>
+                          </div>
+
+                          <!-- Attending extra? -->
+                          <fieldset class="mb-2">
+                            <legend class="form-label small text-muted mb-1">
+                              Attending another session?
+                            </legend>
+                            <div class="d-flex flex-wrap gap-3">
+                              <div class="form-check">
+                                <input
+                                  class="form-check-input"
+                                  type="radio"
+                                  name="extraAttend"
+                                  id="extraAttend-yes"
+                                  value="yes"
+                                  <%= volunteer.attendExtra === true ? 'checked' : '' %>
+                                />
+                                <label class="form-check-label" for="extraAttend-yes">
+                                  Yes
+                                </label>
+                              </div>
+                              <div class="form-check">
+                                <input
+                                  class="form-check-input"
+                                  type="radio"
+                                  name="extraAttend"
+                                  id="extraAttend-no"
+                                  value="no"
+                                  <%= volunteer.attendExtra === false ? 'checked' : '' %>
+                                />
+                                <label class="form-check-label" for="extraAttend-no">
+                                  No
+                                </label>
+                              </div>
+                            </div>
+                          </fieldset>
+
+                          <div id="cong-error" class="invalid-feedback d-none mt-2"></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- SPIRITUAL INFO -->
+                    <div class="accordion-item">
+                      <h2 class="accordion-header" id="headingSpiritual">
+                        <button
+                          class="accordion-button collapsed"
+                          type="button"
+                          data-bs-toggle="collapse"
+                          data-bs-target="#collapseSpiritual"
+                          aria-expanded="false"
+                          aria-controls="collapseSpiritual"
+                        >
+                          Spiritual Info
+                        </button>
+                      </h2>
+                      <div
+                        id="collapseSpiritual"
+                        class="accordion-collapse collapse"
+                        aria-labelledby="headingSpiritual"
+                        data-bs-parent="#summaryAccordion"
+                      >
+                        <div class="accordion-body">
+                          <div class="d-flex justify-content-end mb-2">
+                            <button
+                              type="button"
+                              class="btn btn-outline-secondary btn-sm summary-edit-btn"
+                              data-section="spiritual"
+                            >
+                              EDIT
+                            </button>
+                          </div>
+
+                          <!-- Ministry -->
+                          <h3 class="h6 text-uppercase text-muted mb-2">
+                            Ministry
+                          </h3>
+                          <div class="row row-cols-1 row-cols-md-3 g-3 mb-3">
+                            <div class="col">
+                              <div class="form-check">
+                                <input
+                                  class="form-check-input privilege-checkbox"
+                                  type="checkbox"
+                                  id="priv-auxPioneer"
+                                  name="privileges"
+                                  value="auxPioneer"
+                                  <%= volunteer.auxPioneer ? 'checked' : '' %>
+                                />
+                                <label class="form-check-label" for="priv-auxPioneer">
+                                  Auxiliary Pioneer
+                                </label>
+                              </div>
+                            </div>
+                            <div class="col">
+                              <div class="form-check">
+                                <input
+                                  class="form-check-input privilege-checkbox"
+                                  type="checkbox"
+                                  id="priv-regPioneer"
+                                  name="privileges"
+                                  value="regPioneer"
+                                  <%= volunteer.regPioneer ? 'checked' : '' %>
+                                />
+                                <label class="form-check-label" for="priv-regPioneer">
+                                  Regular Pioneer
+                                </label>
+                              </div>
+                            </div>
+                            <div class="col">
+                              <div class="form-check">
+                                <input
+                                  class="form-check-input privilege-checkbox"
+                                  type="checkbox"
+                                  id="priv-specPioneer"
+                                  name="privileges"
+                                  value="specPioneer"
+                                  <%= volunteer.specPioneer ? 'checked' : '' %>
+                                />
+                                <label class="form-check-label" for="priv-specPioneer">
+                                  Special Pioneer / Missionary
+                                </label>
+                              </div>
+                            </div>
+                          </div>
+
+                          <!-- Congregation privileges -->
+                          <h3 class="h6 text-uppercase text-muted mb-2">
+                            Congregation
+                          </h3>
+                          <div class="row row-cols-1 row-cols-md-2 g-3 mb-3">
+                            <div class="col">
+                              <div class="form-check">
+                                <input
+                                  class="form-check-input privilege-checkbox"
+                                  type="checkbox"
+                                  id="priv-minServ"
+                                  name="privileges"
+                                  value="minServ"
+                                  <%= volunteer.minServ ? 'checked' : '' %>
+                                />
+                                <label class="form-check-label" for="priv-minServ">
+                                  Ministerial Servant
+                                </label>
+                              </div>
+                            </div>
+                            <div class="col">
+                              <div class="form-check">
+                                <input
+                                  class="form-check-input privilege-checkbox"
+                                  type="checkbox"
+                                  id="priv-elder"
+                                  name="privileges"
+                                  value="elder"
+                                  <%= volunteer.elder ? 'checked' : '' %>
+                                />
+                                <label class="form-check-label" for="priv-elder">
+                                  Elder
+                                </label>
+                              </div>
+                            </div>
+                          </div>
+
+                          <!-- Special Full-Time -->
+                          <h3 class="h6 text-uppercase text-muted mb-2">
+                            Special Full-Time Service
+                          </h3>
+                          <div class="row row-cols-1 g-3 mb-2">
+                            <div class="col">
+                              <div class="form-check">
+                                <input
+                                  class="form-check-input privilege-checkbox"
+                                  type="checkbox"
+                                  id="priv-sfs"
+                                  name="privileges"
+                                  value="sfs"
+                                  <%= volunteer.sfs ? 'checked' : '' %>
+                                />
+                                <label class="form-check-label" for="priv-sfs">
+                                  Special Full-Time Service
+                                </label>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div id="spiritual-error" class="invalid-feedback d-none mt-2"></div>
+                          <p class="text-muted small mb-0 mt-1">
+                            Privileges follow the same compatibility rules as on the Spiritual Info page, including gender-based restrictions.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Overall status + actions -->
+                  <div
+                    id="summary-status"
+                    class="status mt-3"
+                    role="status"
+                    aria-live="polite"
+                  ></div>
+
+                  <div class="d-flex flex-wrap justify-content-between gap-2 mt-3">
+                    <a href="/notes" class="btn btn-outline-secondary">
+                      Back
+                    </a>
+
+                    <div class="btn-group" role="group">
+                      <button
+                        type="button"
+                        id="print-summary"
+                        class="btn btn-outline-secondary"
+                      >
+                        Print
+                      </button>
+                      <button
+                        type="submit"
+                        id="final-submit"
+                        class="btn btn-success"
+                      >
+                        Confirm &amp; Finish
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              <% } %>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <!-- Bootstrap JS -->
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-vmwqF4gqP3s3QGJfKf0PclFQbN1kZk7M0z8G3P5GmQ1E7H9TqgH2xk9Qy2u5uG5h"
+      crossorigin="anonymous"
+    ></script>
+
+    <!-- Summary JS (client-side save orchestration) -->
+    <script
+      src="/js/formSummary.js"
+      nonce="<%= nonce %>"
+    ></script>
+
+    <!-- Summary JS (client-side save orchestration) -->
+    <script src="/js/formSummary.js"></script>
+  </body>
+</html>
