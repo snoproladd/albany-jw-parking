@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>New User Setup</title>
+    <title>Login</title>
    <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
@@ -24,17 +24,13 @@
               <h1 class="text-center mb-4">Start Creating Your Profile</h1>
             </header>
             <div class="card-body">
-              <form action="/submit-emailPass" method="POST" id="account-form">
+              <form action="/login" method="POST" id="account-form">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <!-- Email Fields -->
                 <div class="mb-3">
                   <label for="email" class="form-label">Email:<span class="asterix">*</span></label>
                   <input type="email" id="email" name="email" class="form-control" placeholder="Enter your email" required aria-describedby="email-status">
-                  <div id="email-status" class="status mt-2" role="status" aria-live="polite"></div>
-                  <label for="confirm-email" class="form-label">Confirm Email:<span class="asterix">*</span></label>
-                  <input type="email" id="confirm-email" name="confirm-email" class="form-control" placeholder="Confirm your email" required aria-describedby="confirm-email-status">
-                  <div id="confirm-email-status" class="status mt-2" role="status" aria-live="polite"></div>
-                </div>
+                 </div>
                 <!-- Password Fields -->
                 <div class="mb-3 d-none" id="passwords" hidden aria-hidden="true">
                   <label for="password" class="form-label">Create a password:<span class="asterix">*</span></label>
@@ -45,15 +41,26 @@
                       <i class="far fa-eye"></i>
                     </button>
                   </div>
-                  <div id="password-status" class="status mt-2" role="status" aria-live="polite"></div>
-                  <label for="confirm-password" class="form-label">Confirm password:<span class="asterix">*</span></label>
-                  <input type="password" id="confirm-password" name="confirm-password" class="form-control" placeholder="Confirm your password" required aria-describedby="passwords-matched-status">
-                  <div id="passwords-matched-status" class="status mt-2" role="status" aria-live="polite"></div>
                 </div>
                 <button type="submit" class="btn btn-primary w-100">Submit</button>
                   <div id="submit-status" class = "status mt-2" role="status" aria-live="polite"></div>
-              </form>
-              <p class="footnote mt-3"><span class="asterix">*</span> Indicates required fields</p>
+              <div class="d-flex flex-wrap justify-content-between gap-2 mt-3">
+                    <div class="btn-group gap-5" role="group">
+                      <button
+                        type="button"
+                        id="forgot-password"
+                        class="btn btn-outline-secondary">
+                        Forgot Password
+                      </button>
+                      <button
+                        type="submit"
+                        id="final-submit"
+                        class="btn btn-success">
+                        Submit
+                      </button>
+                    </div>
+                  </div>
+                </form>
             </div>
           </section>
         </div>

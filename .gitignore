@@ -66,5 +66,7 @@ public/js/*.js.map
 #Local variable
 set_local_env.js
 
-
+#bootstrap
+public/js/*.min.js
+public/styles/*.min.css
 

@@ -23,8 +23,6 @@
   --Background: #f9fafb;
   --TextDark: #111827;
   --TextLight: #ffffff;
-
-  /* Responsive font sizes using clamp(min, preferred, max) */
   --fs-h1: clamp(2rem, 5vw, 5rem);
   --fs-h2: clamp(1.75rem, 4vw, 2.75rem);
   --fs-h3: clamp(1.5rem, 3vw, 2rem);
@@ -34,129 +32,111 @@
 /* -------------------- Body & Background -------------------- */
 body {
   height: 100dvh;
-  background: #99C3F3;
   background: linear-gradient(59deg, var(--TextDark), var(--TextLight) 50%);
   background-attachment: fixed;
-  font-family: 'Archivo', sans-serif;
+  font-family: "Archivo", sans-serif;
   color: var(--TextDark);
 }
 
-/* -------------------- Jumbo Sections -------------------- */
-
 .bg-body-tertiary {
-  background-image: url('../images/parking-lot.jpg');
+  background-image: url("../images/parking-lot.jpg");
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  /* remove: height: inherit; */
 }
 
-
+/* -------------------- Hero -------------------- */
 #hero {
   display: flex;
-  align-items: center;      /* vertical center */
-  justify-content: center;  /* horizontal center */
-         /* comfortable viewport height */
-  padding: 3rem 0;          /* breathing room (matches py-5 idea) */
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 0;
 }
-
 
 .hero-heading,
 .hero-subheading {
   background-color: var(--TextLight);
-  opacity: 75%;
+  opacity: 0.75;
   width: 75%;
-  margin-left: auto;
-  margin-right: auto;   /* centers the block horizontally */
+  margin: 0 auto;
   border-radius: 10px;
-  border-style: hidden;
 }
-
-
-
-
-
-.hero-text-contain {
-  width: 100%;
-  text-align: center;
-  height: 100%;
-}
-
-
 
 .hero-subheading {
   width: 66%;
   border-radius: 20px;
-  border-style: hidden;
-  background-color: var(--TextLight);
-  opacity: 75%;
 }
 
 /* -------------------- Header -------------------- */
 .header {
-  border: var(--Primary);
   border-radius: 10px;
   border-style: solid;
   text-align: center;
-  color: var(--TextDark);
   background-color: var(--Primary);
-}
-.header-link{
-  font-size: 16pt;
+  color: var(--TextLight);
 }
 
 /* -------------------- Typography -------------------- */
-h1, h2, h3, h4, h5, h6 {
-  font-family: 'Georama', sans-serif;
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: "Georama", sans-serif;
   color: var(--Primary);
 }
 
-h1 { font-weight: 700; }
-h2, h3 { font-weight: 600; }
-h4, h5, h6 { font-weight: 500; }
-
-p, li {
-  font-family: 'Archivo', sans-serif;
-  font-weight: 400;
-  color: var(--TextDark);
+h1 {
+  font-weight: 700;
 }
 
-strong, b {
+h2,
+h3 {
+  font-weight: 600;
+}
+
+h4,
+h5,
+h6 {
   font-weight: 500;
 }
-.btn{
+
+p,
+li {
+  font-family: "Archivo", sans-serif;
+  font-weight: 400;
+}
+
+strong,
+b {
+  font-weight: 500;
+}
+
+/* -------------------- Buttons -------------------- */
+.btn {
   font-size: 15pt;
-  padding:5px;
+  padding: 5px;
   font-weight: 300;
 }
 
 /* -------------------- Feature Showcase -------------------- */
 .feature-showcase {
   background-color: var(--Background);
-  opacity: 75%;
-  border: hidden;
+  opacity: 0.75;
   border-radius: 5px;
   padding: 4px;
   font-weight: 700;
 }
 
+.feature-icon {
+  max-width: 100px;
+  max-height: 100px;
+  background-color: transparent;
+}
+
 .feature-icon-small {
   background-color: transparent;
-  width: 100px;
-}
-
-.feature-icon {
-  width: 100px;
-  background-color: transparent;
-}
-
-.footer-text {
-  background-color: var(--Background);
-  opacity: 75%;
-  padding-left: 10px;
-  padding-bottom: 3px;
-  width: fit-content;
-  margin: 0;
 }
 
 /* -------------------- Form & Validation -------------------- */
@@ -179,40 +159,469 @@ strong, b {
   font-weight: 600;
 }
 
-/* Spinner inherits Bootstrap styles */
 .spinner-border {
   vertical-align: middle;
 }
-.alert {
-  transition: opacity 0.3s ease-in-out;
-}
-.form-label{
+
+.form-label,
+.accordion-button {
   font-weight: 600;
-  text-align: left;
   word-wrap: break-word;
 }
-.asterix{
-  color: red!important;
-}
-
-
-/* -------------------- Form Visibility -------------------- */
-.is-hidden {
-  display: none !important;
-}
-
-
-/* styles.css
-body.bg-body-tertiary {
-  /* uses Bootstrap 5 variable */
- /* background-color: var(--bs-body-bg);} */
- 
 
 .asterix {
   color: var(--bs-danger);
   margin-left: 0.25rem;
 }
-.form-entry{
+
+/* -------------------- Form visibility -------------------- */
+.is-hidden {
+  display: none !important;
+}
+
+/* -------------------- EmailPass card style -------------------- */
+.form-entry {
   max-width: 400px;
-  opacity: 75%;
+  opacity: 0.75;
+}
+
+/* -------------------- Summary Page Styling -------------------- */
+
+/* Frosted-glass card, matching emailPass */
+#summary-card {
+  max-width: 800px;
+  margin: 0 auto;
+  background: rgba(255, 255, 255, 0.80);
+  backdrop-filter: blur(6px);
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: none;
+}
+
+/* Accordion header */
+.accordion-button {
+  font-family: "Georama", sans-serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--Primary);
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Accordion body spacing */
+.accordion-body {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  background-color: var(--Background);
+  opacity: 0.8;
+}
+
+.accordion-item {
+  background-color: var(--Background);
+  opacity: 0.8;
+}
+
+/* SUMMARY CARD: override translucency so children (e.g. dropdowns) are fully opaque */
+#summary-card .accordion-body,
+#summary-card .accordion-item {
+  opacity: 1;
+}
+
+/* Inputs match emailPass */
+#summary-card input,
+#summary-card select,
+#summary-card textarea {
+  border-radius: 6px;
+  height: 40px;
+  font-size: 0.95rem;
+}
+
+/* Headers match emailPass */
+#summary-card h1,
+#summary-card h2,
+#summary-card h3 {
+  color: var(--Primary);
+  font-weight: 700;
+}
+
+/* Edit buttons */
+.summary-edit-btn {
+  font-size: 0.8rem;
+  padding: 3px 8px;
+}
+
+/* Confirm & Finish button */
+#final-submit {
+  width: 160px;
+  background: var(--Secondary);
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 6px 12px;
+}
+
+/* Back button */
+#summary-card a.btn-outline-secondary {
+  border-radius: 6px;
+  font-size: 0.95rem;
+}
+
+/* Locked summary sections */
+.accordion-body.summary-locked input:not([readonly]),
+.accordion-body.summary-locked select,
+.accordion-body.summary-locked textarea {
+  pointer-events: none;
+  background-color: var(--Background);
+  opacity: 0.75;
+}
+
+.accordion-body.summary-locked .form-check-input {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.accordion-body.summary-locked .form-check-label,
+.accordion-body.summary-locked .form-label {
+  opacity: 0.75;
+}
+
+/* ------------------------------------------------------------------ */
+/* CONGREGATION AUTOCOMPLETE DROPDOWN                                 */
+/* ------------------------------------------------------------------ */
+
+#congregation-combobox-list.dropdown-menu {
+  background-color: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.15) !important;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+  z-index: 1000;
+  /* above accordion content but within summary card */
+}
+
+/* ============================================================
+   BUTTON GLOW + FOCUS-RING EFFECTS (THEME ALIGNED)
+   ============================================================ */
+
+/* Shared glow transition */
+.summary-edit-btn,
+.summary-save-btn,
+#print-summary,
+#final-submit {
+  transition: all 0.2s ease, box-shadow 0.25s ease;
+  position: relative;
+  outline: none !important;
+}
+
+/* ------------------------------------------------------------
+   EDIT BUTTON (Primary Glow)
+   ------------------------------------------------------------ */
+.summary-edit-btn {
+  background: var(--Primary);
+  color: var(--TextLight) !important;
+  border: none;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 6px;
+}
+
+.summary-edit-btn:hover {
+  box-shadow: 0 0 10px rgba(30, 58, 138, 0.6);
+  /* primary glow */
+  transform: translateY(-1px);
+}
+
+.summary-edit-btn:focus-visible {
+  box-shadow:
+    0 0 0 3px rgba(255, 255, 255, 0.9),
+    0 0 0 6px rgba(30, 58, 138, 0.8);
+  /* double-ring focus */
+}
+
+/* ------------------------------------------------------------
+   SAVE BUTTON (Accent Glow)
+   ------------------------------------------------------------ */
+.summary-save-btn {
+  background: var(--Accent);
+  color: var(--TextLight) !important;
+  border: none;
+  font-weight: 600;
+  padding: 4px 14px;
+  border-radius: 6px;
+}
+
+.summary-save-btn:hover {
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.6);
+  /* accent glow */
+  transform: translateY(-1px);
+}
+
+.summary-save-btn:focus-visible {
+  box-shadow:
+    0 0 0 3px rgba(255, 255, 255, 0.9),
+    0 0 0 6px rgba(245, 158, 11, 0.8);
+  /* double-ring focus */
+}
+
+/* ------------------------------------------------------------
+   PRINT BUTTON (Outline Primary Glow)
+   ------------------------------------------------------------ */
+#print-summary {
+  background: transparent;
+  border: 2px solid var(--Primary);
+  color: var(--Primary);
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 6px 16px;
+}
+
+#print-summary:hover {
+  background: var(--Primary);
+  color: var(--TextLight) !important;
+  box-shadow: 0 0 10px rgba(30, 58, 138, 0.5);
+  transform: translateY(-1px);
+}
+
+#print-summary:focus-visible {
+  box-shadow:
+    0 0 0 3px rgba(255, 255, 255, 0.9),
+    0 0 0 6px rgba(30, 58, 138, 0.8);
+}
+
+/* ------------------------------------------------------------
+   CONFIRM & FINISH BUTTON (Secondary Glow)
+   ------------------------------------------------------------ */
+#final-submit {
+  background: var(--Secondary) !important;
+  color: var(--TextLight);
+  font-weight: 700;
+  padding: 8px 22px;
+  border-radius: 6px;
+  border: none;
+}
+
+#final-submit:hover {
+  background: #1e4ed8 !important;
+  /* slightly darker */
+  box-shadow: 0 0 12px rgba(37, 99, 235, 0.6);
+  /* secondary glow */
+  transform: translateY(-1px);
+}
+
+#final-submit:focus-visible {
+  box-shadow:
+    0 0 0 3px rgba(255, 255, 255, 0.9),
+    0 0 0 6px rgba(37, 99, 235, 0.8);
+}
+
+/* ===========================================================
+   PRINT-FRIENDLY VIEW (8.5x11 Portrait, simplified layout)
+   =========================================================== */
+@media print {
+
+  /* Remove ALL backgrounds, gradients, and images */
+  body,
+  html {
+    background: #ffffff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  body.bg-body-tertiary {
+    background: #ffffff !important;
+  }
+
+  /* Remove card blur & transparency */
+  #summary-card {
+    background: #ffffff !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  /* Remove card header background */
+  .card-header {
+    background: #ffffff !important;
+    border: none !important;
+  }
+
+  /* Hide anything UI-only */
+  nav,
+  .btn,
+  .summary-edit-btn,
+  #print-summary,
+  .btn-group,
+  .accordion-button::after {
+    display: none !important;
+  }
+
+  /* Flatten the accordion into plain sections */
+  .accordion-button {
+    background: none !important;
+    box-shadow: none !important;
+    font-size: 1.25rem !important;
+    margin-top: 1rem;
+  }
+
+  .accordion-button:not(.collapsed) {
+    color: #000 !important;
+  }
+
+  .accordion-collapse {
+    display: block !important;
+    height: auto !important;
+    visibility: visible !important;
+  }
+
+  /* Remove section opacity */
+  .accordion-body,
+  .accordion-item {
+    opacity: 1 !important;
+    background: #ffffff !important;
+    border: none !important;
+    page-break-inside: avoid;
+  }
+
+  /* Clean inputs for printing */
+  input,
+  select,
+  textarea {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    font-size: 1rem;
+  }
+
+  /* Replace form fields with plain text look if you want */
+  input[readonly],
+  input[disabled],
+  textarea[readonly] {
+    color: #000 !important;
+  }
+
+  /* Page Layout: Fit on 8.5 x 11 */
+  @page {
+    size: Letter portrait;
+    margin: 0.5in;
+  }
+
+  /* A little spacing between sections */
+  #summary-card section,
+  .accordion-item {
+    margin-bottom: .5rem !important;
+  }
+
+  /* Hide dropdown menus, autocompletes */
+  #congregation-combobox-list {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Prevent awkward page breaks */
+  h2,
+  h3,
+  .accordion-header,
+  .accordion-body {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+/* -----------------------------------------------------------
+   Tighter vertical spacing for print layout
+   ----------------------------------------------------------- */
+
+/* Reduce space between accordion "sections" */
+.accordion-item {
+  margin-bottom: 0.5rem !important;
+  padding-bottom: 0 !important;
+}
+
+/* Reduce spacing inside each section body */
+.accordion-body {
+  padding-top: 0.25rem !important;
+  padding-bottom: 0.25rem !important;
+}
+
+/* Reduce spacing between label + form fields */
+.accordion-body .form-label,
+.accordion-body label {
+  margin-bottom: 0.1rem !important;
+}
+
+/* Reduce vertical spacing between each form row */
+.row,
+.row .col {
+  margin-bottom: 0.35rem !important;
+  padding-bottom: 0 !important;
+}
+
+/* Tighten line-height for compact text */
+#summary-card,
+.accordion-body,
+.accordion-item,
+label,
+input,
+select,
+textarea {
+  line-height: 1.15 !important;
+}
+
+/* Clean, tighter spacing for notes/textarea */
+textarea {
+  margin-top: 0.25rem !important;
+  margin-bottom: 0 !important;
+}
+
+/* Reduce spacing between subsection headers */
+.accordion-button {
+  margin-top: 0.25rem !important;
+  margin-bottom: 0.25rem !important;
+  padding: 0 !important;
+
+}
+/* Generic way: force-hide scrollbar visuals */
+* {
+  scrollbar-width: none !important;
+  /* Firefox */
+}
+
+*::-webkit-scrollbar {
+  display: none !important;
+  /* Chrome, Edge, Safari */
+}
+
+/* Specifically hide scrollbars in accordion area */
+#summary-card .accordion {
+  overflow: visible !important;
+}
+
+/* Also remove scrollbars from body if shown */
+body,
+html {
+  overflow: visible !important;
+}
+}
+
+/* ===========================================================
+   Accordion responsive scrolling
+   =========================================================== */
+
+/* Vertical scroll when the summary is too long */
+#summary-card .accordion {
+  max-height: 75vh;
+  overflow-y: auto;
+}
+
+/* Horizontal scroll below Bootstrap "sm" breakpoint */
+@media (max-width: 576px) {
+  #summary-card .accordion {
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  /* Ensure accordion items don’t wrap awkwardly */
+  #summary-card .accordion-item {
+    display: inline-block;
+    min-width: 90%;
+    vertical-align: top;
+  }
 }

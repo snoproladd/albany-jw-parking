@@ -3,31 +3,30 @@
 <html lang="en">
   <head>
     <title>Review Your Information</title>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <!-- Bootstrap CSS -->
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
-      integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
-      crossorigin="anonymous"
-    />
+    <!-- Bootstrap CSS (local, matches rest of site) -->
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css">
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css">
 
     <!-- Site styles -->
-    <link rel="stylesheet" href="/styles/styles.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css">
 
     <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
       href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap"
       rel="stylesheet"
-    />
+    >
     <link
       href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap"
       rel="stylesheet"
-    />
+    >
   </head>
 
   <!-- Centered card, no white site header -->
@@ -39,7 +38,7 @@
           <section id="summary-card" class="card shadow-lg">
             <header class="card-header text-center">
               <h1 class="h2 my-2">Review Your Information</h1>
-              <p class="mb-0 text-muted">
+              <p class="mb-0 text-">
                 Edit any section below, then confirm to finish your registration.
               </p>
             </header>
@@ -53,8 +52,6 @@
                   Restart Registration
                 </a>
               <% } else { %>
-                <!-- Make sure we can enforce name-lock & privilege rules -->
-
                 <% 
                   // Pre-parse visiting congregation bits if not assigned
                   let visitingCity = '';
@@ -89,16 +86,15 @@
                   }
                 %>
 
-                <!-- Single form for the whole summary. We'll intercept submit in JS,
-                     call the step routes via fetch(), then submit this form to /submitSummary. -->
+                <!-- Single form for the whole summary -->
                 <form action="/submitSummary" id="summary-form" novalidate>
-                  <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
-                  <input type="hidden" id="summary-csrf" value="<%= csrfToken %>" />
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input type="hidden" id="summary-csrf" value="<%= csrfToken %>">
                   <input
                     type="hidden"
                     id="summary-gender"
                     value="<%= gender || (volunteer.gender || '') %>"
-                  />
+                  >
 
                   <!-- privilege rules for client-side logic -->
                   <% if (privilegeRulesJSON) { %>
@@ -145,7 +141,7 @@
                           <div class="row row-cols-1 row-cols-md-2 g-3">
                             <!-- First Name -->
                             <div class="col">
-                              <label for="firstName" class="form-label small text-muted text-nowrap">
+                              <label for="firstName" class="form-label small text-nowrap">
                                 First Name
                               </label>
                               <input
@@ -154,8 +150,8 @@
                                 name="firstName"
                                 class="form-control"
                                 value="<%= volunteer.firstName || '' %>"
-                                <%= disableNameFields ? 'readonly' : '' %>
-                              />
+                                readonly
+                              >
                             </div>
 
                             <!-- Last Name -->
@@ -169,8 +165,8 @@
                                 name="lastName"
                                 class="form-control"
                                 value="<%= volunteer.lastName || '' %>"
-                                <%= disableNameFields ? 'readonly' : '' %>
-                              />
+                                readonly
+                              >
                             </div>
 
                             <!-- Suffix -->
@@ -184,8 +180,8 @@
                                 name="suffix"
                                 class="form-control"
                                 value="<%= volunteer.suffix || '' %>"
-                                <%= disableNameFields ? 'readonly' : '' %>
-                              />
+                                readonly
+                              >
                             </div>
 
                             <!-- Email (read-only) -->
@@ -198,7 +194,7 @@
                                 class="form-control"
                                 value="<%= volunteer.email || '' %>"
                                 readonly
-                              />
+                              >
                               <div class="form-text">
                                 Email changes must be handled through the initial sign-in step.
                               </div>
@@ -214,7 +210,7 @@
                                 class="form-control"
                                 value="********"
                                 readonly
-                              />
+                              >
                               <div class="form-text">
                                 Password is securely stored and not displayed.
                               </div>
@@ -232,7 +228,8 @@
                                 class="form-control"
                                 placeholder="(xxx) xxx-xxxx"
                                 value="<%= volunteer.phone || '' %>"
-                              />
+                                readonly
+                              >
                               <div id="contact-phone-error" class="invalid-feedback d-none"></div>
                             </div>
 
@@ -242,6 +239,7 @@
                                 <legend class="form-label small text-muted mb-1">
                                   Can you receive text messages at this number?
                                 </legend>
+
                                 <div class="d-flex flex-wrap align-items-center gap-3">
                                   <div class="form-check">
                                     <input
@@ -250,10 +248,11 @@
                                       name="SMSCapable"
                                       id="sms-yes"
                                       value="yes"
-                                      <%= volunteer.SMSCapable === true ? 'checked' : '' %>
-                                    />
+                                      <%= volunteer.smsCapable === true ? 'checked' : '' %>
+                                    >
                                     <label class="form-check-label" for="sms-yes">Yes</label>
                                   </div>
+
                                   <div class="form-check">
                                     <input
                                       class="form-check-input"
@@ -261,11 +260,12 @@
                                       name="SMSCapable"
                                       id="sms-no"
                                       value="no"
-                                      <%= volunteer.SMSCapable === false ? 'checked' : '' %>
-                                    />
+                                      <%= volunteer.smsCapable === false ? 'checked' : '' %>
+                                    >
                                     <label class="form-check-label" for="sms-no">No</label>
                                   </div>
                                 </div>
+
                                 <div id="contact-sms-error" class="invalid-feedback d-none"></div>
                               </fieldset>
                             </div>
@@ -317,7 +317,7 @@
                                 name="dobirthRaw"
                                 class="form-control"
                                 value="<%= dobValue %>"
-                              />
+                              >
                             </div>
 
                             <!-- Gender -->
@@ -353,15 +353,24 @@
                               <label for="staminaRaw" class="form-label small text-muted text-nowrap">
                                 Stamina (1–10)
                               </label>
-                              <input
-                                type="number"
+                              <select
                                 id="staminaRaw"
                                 name="staminaRaw"
-                                class="form-control"
-                                min="1"
-                                max="10"
-                                value="<%= typeof volunteer.stamina === 'number' ? volunteer.stamina : '' %>"
-                              />
+                                class="form-select"
+                                required
+                              >
+                                <option value="">Rate your stamina</option>
+
+                                <% const values = ["Poor", "Fair", "Average", "Good", "Excellent"]; %>
+                                <% for (let i = 0; i < values.length; i++) { %>
+                                  <option
+                                    value="<%= i + 1 %>"
+                                    <%= volunteer.stamina === (i + 1) ? "selected" : "" %>
+                                  >
+                                    <%= `${i + 1} - ${values[i]}` %>
+                                  </option>
+                                <% } %>
+                              </select>
                             </div>
                           </div>
                           <div id="personal-error" class="invalid-feedback d-none mt-2"></div>
@@ -414,7 +423,7 @@
                                   id="congAssigned-yes"
                                   value="yes"
                                   <%= volunteer.assignedToConv === true ? 'checked' : '' %>
-                                />
+                                >
                                 <label class="form-check-label" for="congAssigned-yes">
                                   Yes
                                 </label>
@@ -427,7 +436,7 @@
                                   id="congAssigned-no"
                                   value="no"
                                   <%= volunteer.assignedToConv === false ? 'checked' : '' %>
-                                />
+                                >
                                 <label class="form-check-label" for="congAssigned-no">
                                   No
                                 </label>
@@ -436,10 +445,7 @@
                           </fieldset>
 
                           <!-- Assigned congregation dropdown -->
-                          <div
-                            id="cong-assigned-block"
-                            class="mb-3"
-                          >
+                          <div id="cong-assigned-block" class="mb-3">
                             <label for="congregation" class="form-label small text-muted">
                               Congregation belonging to
                             </label>
@@ -449,13 +455,14 @@
                               class="form-select"
                             >
                               <option value="">Select congregation...</option>
+
                               <% if (Array.isArray(congregations)) { %>
                                 <% congregations.forEach(c => { %>
                                   <option
-                                    value="<%= c.name %>"
-                                    <%= (volunteer.assignedToConv && volunteer.congregation === c.name) ? 'selected' : '' %>
+                                    value="<%= c %>"
+                                    <%= (volunteer.assignedToConv && volunteer.congregation === c) ? 'selected' : '' %>
                                   >
-                                    <%= c.name %>
+                                    <%= c %>
                                   </option>
                                 <% }); %>
                               <% } %>
@@ -478,7 +485,7 @@
                                   name="congregationOtherCity"
                                   class="form-control"
                                   value="<%= visitingCity %>"
-                                />
+                                >
                               </div>
                               <div class="col">
                                 <label
@@ -494,7 +501,7 @@
                                   class="form-control"
                                   maxlength="2"
                                   value="<%= visitingState %>"
-                                />
+                                >
                               </div>
                               <div class="col">
                                 <label
@@ -509,7 +516,7 @@
                                   name="congregationOtherLang"
                                   class="form-control"
                                   value="<%= visitingLang %>"
-                                />
+                                >
                               </div>
                             </div>
                             <div class="form-text mt-1">
@@ -531,7 +538,7 @@
                                   id="extraAttend-yes"
                                   value="yes"
                                   <%= volunteer.attendExtra === true ? 'checked' : '' %>
-                                />
+                                >
                                 <label class="form-check-label" for="extraAttend-yes">
                                   Yes
                                 </label>
@@ -544,7 +551,7 @@
                                   id="extraAttend-no"
                                   value="no"
                                   <%= volunteer.attendExtra === false ? 'checked' : '' %>
-                                />
+                                >
                                 <label class="form-check-label" for="extraAttend-no">
                                   No
                                 </label>
@@ -571,6 +578,7 @@
                           Spiritual Info
                         </button>
                       </h2>
+
                       <div
                         id="collapseSpiritual"
                         class="accordion-collapse collapse"
@@ -578,6 +586,7 @@
                         data-bs-parent="#summaryAccordion"
                       >
                         <div class="accordion-body">
+
                           <div class="d-flex justify-content-end mb-2">
                             <button
                               type="button"
@@ -588,13 +597,14 @@
                             </button>
                           </div>
 
-                          <!-- Ministry -->
-                          <h3 class="h6 text-uppercase text-muted mb-2">
-                            Ministry
-                          </h3>
-                          <div class="row row-cols-1 row-cols-md-3 g-3 mb-3">
+                          <!-- NEW 3‑COLUMN LAYOUT -->
+                          <div class="row row-cols-1 row-cols-md-3 g-4">
+
+                            <!-- COLUMN 1: Ministry -->
                             <div class="col">
-                              <div class="form-check">
+                              <h3 class="h6 text-uppercase text-muted mb-2">Ministry</h3>
+
+                              <div class="form-check mb-2">
                                 <input
                                   class="form-check-input privilege-checkbox"
                                   type="checkbox"
@@ -602,14 +612,13 @@
                                   name="privileges"
                                   value="auxPioneer"
                                   <%= volunteer.auxPioneer ? 'checked' : '' %>
-                                />
+                                >
                                 <label class="form-check-label" for="priv-auxPioneer">
                                   Auxiliary Pioneer
                                 </label>
                               </div>
-                            </div>
-                            <div class="col">
-                              <div class="form-check">
+
+                              <div class="form-check mb-2">
                                 <input
                                   class="form-check-input privilege-checkbox"
                                   type="checkbox"
@@ -617,14 +626,13 @@
                                   name="privileges"
                                   value="regPioneer"
                                   <%= volunteer.regPioneer ? 'checked' : '' %>
-                                />
+                                >
                                 <label class="form-check-label" for="priv-regPioneer">
                                   Regular Pioneer
                                 </label>
                               </div>
-                            </div>
-                            <div class="col">
-                              <div class="form-check">
+
+                              <div class="form-check mb-2">
                                 <input
                                   class="form-check-input privilege-checkbox"
                                   type="checkbox"
@@ -632,21 +640,18 @@
                                   name="privileges"
                                   value="specPioneer"
                                   <%= volunteer.specPioneer ? 'checked' : '' %>
-                                />
+                                >
                                 <label class="form-check-label" for="priv-specPioneer">
                                   Special Pioneer / Missionary
                                 </label>
                               </div>
                             </div>
-                          </div>
 
-                          <!-- Congregation privileges -->
-                          <h3 class="h6 text-uppercase text-muted mb-2">
-                            Congregation
-                          </h3>
-                          <div class="row row-cols-1 row-cols-md-2 g-3 mb-3">
+                            <!-- COLUMN 2: Congregation -->
                             <div class="col">
-                              <div class="form-check">
+                              <h3 class="h6 text-uppercase text-muted mb-2">Congregation</h3>
+
+                              <div class="form-check mb-2">
                                 <input
                                   class="form-check-input privilege-checkbox"
                                   type="checkbox"
@@ -654,14 +659,13 @@
                                   name="privileges"
                                   value="minServ"
                                   <%= volunteer.minServ ? 'checked' : '' %>
-                                />
+                                >
                                 <label class="form-check-label" for="priv-minServ">
                                   Ministerial Servant
                                 </label>
                               </div>
-                            </div>
-                            <div class="col">
-                              <div class="form-check">
+
+                              <div class="form-check mb-2">
                                 <input
                                   class="form-check-input privilege-checkbox"
                                   type="checkbox"
@@ -669,21 +673,18 @@
                                   name="privileges"
                                   value="elder"
                                   <%= volunteer.elder ? 'checked' : '' %>
-                                />
+                                >
                                 <label class="form-check-label" for="priv-elder">
                                   Elder
                                 </label>
                               </div>
                             </div>
-                          </div>
 
-                          <!-- Special Full-Time -->
-                          <h3 class="h6 text-uppercase text-muted mb-2">
-                            Special Full-Time Service
-                          </h3>
-                          <div class="row row-cols-1 g-3 mb-2">
+                            <!-- COLUMN 3: Special Full-Time -->
                             <div class="col">
-                              <div class="form-check">
+                              <h3 class="h6 text-uppercase text-muted mb-2">Special Full-Time Service</h3>
+
+                              <div class="form-check mb-2">
                                 <input
                                   class="form-check-input privilege-checkbox"
                                   type="checkbox"
@@ -691,22 +692,69 @@
                                   name="privileges"
                                   value="sfs"
                                   <%= volunteer.sfs ? 'checked' : '' %>
-                                />
+                                >
                                 <label class="form-check-label" for="priv-sfs">
                                   Special Full-Time Service
                                 </label>
                               </div>
                             </div>
-                          </div>
+
+                          </div> <!-- end row -->
 
                           <div id="spiritual-error" class="invalid-feedback d-none mt-2"></div>
-                          <p class="text-muted small mb-0 mt-1">
-                            Privileges follow the same compatibility rules as on the Spiritual Info page, including gender-based restrictions.
-                          </p>
                         </div>
                       </div>
                     </div>
-                  </div>
+                    <!-- NOTES -->
+                    <div class="accordion-item">
+                      <h2 class="accordion-header" id="headingNotes">
+                        <button
+                          class="accordion-button collapsed"
+                          type="button"
+                          data-bs-toggle="collapse"
+                          data-bs-target="#collapseNotes"
+                          aria-expanded="false"
+                          aria-controls="collapseNotes"
+                        >
+                          Additional Notes
+                        </button>
+                      </h2>
+
+                      <div
+                        id="collapseNotes"
+                        class="accordion-collapse collapse"
+                        aria-labelledby="headingNotes"
+                        data-bs-parent="#summaryAccordion"
+                      >
+                        <div class="accordion-body">
+
+                          <div class="d-flex justify-content-end mb-2">
+                            <button
+                              type="button"
+                              class="btn btn-outline-secondary btn-sm summary-edit-btn"
+                              data-section="notes"
+                            >
+                              EDIT
+                            </button>
+                          </div>
+
+                          <div class="mb-3">
+                            <label for="notes" class="form-label small text-muted">
+                              Additional Notes
+                            </label>
+                            <textarea
+                              id="notes"
+                              name="notes"
+                              class="form-control"
+                              rows="4"
+                            ><%= volunteer.notes || '' %></textarea>
+                          </div>
+
+                          <div id="notes-error" class="invalid-feedback d-none mt-2"></div>
+                        </div>
+                      </div>
+                    </div>
+
 
                   <!-- Overall status + actions -->
                   <div
@@ -716,12 +764,8 @@
                     aria-live="polite"
                   ></div>
 
-                  <div class="d-flex flex-wrap justify-content-between gap-2 mt-3">
-                    <a href="/notes" class="btn btn-outline-secondary">
-                      Back
-                    </a>
-
-                    <div class="btn-group" role="group">
+                  <div class="d-flex flex-wrap justify-content-between align-content-center gap-2 mt-3">
+                    <div class="btn-group gap-5" role="group">
                       <button
                         type="button"
                         id="print-summary"
@@ -746,20 +790,13 @@
       </div>
     </main>
 
-    <!-- Bootstrap JS -->
-    <script
-      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
-      integrity="sha384-vmwqF4gqP3s3QGJfKf0PclFQbN1kZk7M0z8G3P5GmQ1E7H9TqgH2xk9Qy2u5uG5h"
-      crossorigin="anonymous"
-    ></script>
+    <!-- Bootstrap JS bundle -->
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
 
     <!-- Summary JS (client-side save orchestration) -->
     <script
       src="/js/formSummary.js"
       nonce="<%= nonce %>"
     ></script>
-
-    <!-- Summary JS (client-side save orchestration) -->
-    <script src="/js/formSummary.js"></script>
   </body>
 </html>
