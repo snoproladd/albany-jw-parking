@@ -6,7 +6,7 @@
 // - Applies privilege rules (via shared enforcer or local fallback)
 // - Orchestrates final form submission (including disabled inputs)
 // - Provides a print-friendly view
-// - Implements a combobox-style congregation autocomplete over a <select>
+// - Implements a combobox-style congregation autocomplete over a <select>;
 // -----------------------------------------------------------------------------
 
 (() => {
@@ -23,7 +23,7 @@
     initEditMode(form);
     initCongAssignedToggle(form);
     initPrivilegeRulesForSummary(form);
-    initSubmitHandler(form);
+    initSummarySubmit(form);      // NEW: modal + AJAX save + success redirect
     initPrintHandler();
     initCongregationCombobox();
   });
@@ -60,7 +60,51 @@
 
         // Toggle button label between EDIT / SAVE
         btn.textContent = nextEditingState ? "SAVE" : "EDIT";
+
+        // If everything is now saved, clear any submit warning toast/status
+        const rootEl = document.getElementById("formSummaryRoot");
+        if (rootEl && allSectionsNotEditing(rootEl)) {
+          const toast = document.getElementById("submit-status");
+          if (toast) toast.innerHTML = "";
+        }
       });
+    });
+  }
+
+  /* =====================================================
+   * EDIT MODE MONITORING
+   * ===================================================== */
+
+  /**
+   * Returns true if all accordion sections are in non-editing (locked) state.
+   * @param {HTMLElement} root - The root container (formSummaryRoot).
+   */
+  function allSectionsNotEditing(root) {
+    const containers = root.querySelectorAll(".accordion-body");
+    return Array.from(containers).every(
+      (container) => container.dataset.editing === "false",
+    );
+  }
+
+  /* =====================================================
+   * EDIT MODE HIGHLIGHTING
+   * ===================================================== */
+
+  /**
+   * Highlights all sections still in EDIT mode by adding a red border.
+   * @param {HTMLElement} root - The root container (formSummaryRoot).
+   */
+  function highlightEditingSections(root) {
+    const containers = root.querySelectorAll(".accordion-body");
+
+    containers.forEach((container) => {
+      const isEditing = container.dataset.editing === "true";
+
+      if (isEditing) {
+        container.classList.add("border", "border-danger");
+      } else {
+        container.classList.remove("border", "border-danger");
+      }
     });
   }
 
@@ -68,12 +112,6 @@
    * CONGREGATION ASSIGNED / VISITING TOGGLE
    * ===================================================== */
 
-  /**
-   * Wires up the "Congregation assigned" radios to toggle visibility
-   * between assigned and visiting blocks.
-   *
-   * @param {HTMLFormElement} form - The summary form element.
-   */
   function initCongAssignedToggle(form) {
     const assignedRadios = form.querySelectorAll('input[name="congAssigned"]');
     if (!assignedRadios.length) return;
@@ -82,11 +120,6 @@
     const visitingBlock = document.getElementById("cong-visiting-block");
     if (!assignedBlock && !visitingBlock) return;
 
-    /**
-     * Updates which block is visible based on the selected radio.
-     * "yes" => show assigned block, hide visiting block.
-     * anything else => hide assigned block, show visiting block.
-     */
     const updateCongBlocks = () => {
       const checked = form.querySelector('input[name="congAssigned"]:checked');
       if (!checked) return;
@@ -104,25 +137,14 @@
     assignedRadios.forEach((r) =>
       r.addEventListener("change", updateCongBlocks),
     );
-    // Apply correct visibility on initial load
-    updateCongBlocks();
+    updateCongBlocks(); // initial state
   }
 
   /* =====================================================
    * PRIVILEGE RULES (DELEGATE TO SHARED ENFORCER)
    * ===================================================== */
 
-  /**
-   * Initializes privilege rule enforcement on the summary page.
-   *
-   * Preference:
-   * 1. Use a shared helper window.initPrivilegeEnforcer from privilegeEnforcer.js
-   * 2. Fallback to local inline privilege rules if helper is not present
-   *
-   * @param {HTMLFormElement} form - The summary form element.
-   */
   function initPrivilegeRulesForSummary(form) {
-    // Preferred path: use shared enforcer if available
     if (typeof window.initPrivilegeEnforcer === "function") {
       window.initPrivilegeEnforcer({
         form,
@@ -134,23 +156,13 @@
       return;
     }
 
-    // Fallback path: use legacy inline logic
     console.warn(
-      "initPrivilegeEnforcer not found. " +
-        "Ensure privilegeEnforcer.js is loaded on the summary page.",
+      "initPrivilegeEnforcer not found. Ensure privilegeEnforcer.js is loaded on the summary page.",
     );
     initInlinePrivilegeRulesFallback(form);
   }
 
-  /**
-   * Fallback implementation of privilege rules.
-   * This logic mirrors the existing behavior until the shared enforcer
-   * is fully wired across all pages.
-   *
-   * @param {HTMLFormElement} form - The summary form element.
-   */
   function initInlinePrivilegeRulesFallback(form) {
-    // Ensure window.PRIVILEGE_RULES is populated from inline JSON if needed
     if (!window.PRIVILEGE_RULES) {
       const rulesScript = document.getElementById("privilege-rules-json");
       if (rulesScript) {
@@ -168,7 +180,6 @@
     if (!window.PRIVILEGE_RULES) return;
 
     /** @type {Record<string, string[]>} */
-    // eslint-disable-next-line no-undef
     const rules = window.PRIVILEGE_RULES;
     const boxes = form.querySelectorAll(".privilege-checkbox");
     if (!boxes.length) return;
@@ -176,13 +187,6 @@
     const genderSelect = document.getElementById("genderRaw");
     const hiddenGender = document.getElementById("summary-gender");
 
-    /**
-     * Resolves the current gender value from either:
-     * - visible select (#genderRaw), or
-     * - hidden input (#summary-gender)
-     *
-     * @returns {string} lower-cased gender key used in rules mapping.
-     */
     function getCurrentGender() {
       return (
         (genderSelect && genderSelect.value) ||
@@ -191,21 +195,12 @@
       ).toLowerCase();
     }
 
-    /**
-     * Applies privilege rules:
-     * 1. Re-enables all checkboxes
-     * 2. Disables incompatible privileges based on currently selected privileges
-     * 3. Disables gender-restricted privileges based on current gender
-     */
     function applyPrivilegeRules() {
-      // Start by enabling everything, then selectively disable
       boxes.forEach((b) => {
         b.disabled = false;
       });
 
       const gender = getCurrentGender();
-
-      // 1) Incompatibilities based on selected privileges
       const selected = [...boxes].filter((b) => b.checked).map((b) => b.value);
 
       selected.forEach((p) => {
@@ -219,7 +214,6 @@
         });
       });
 
-      // 2) Gender-based restrictions
       if (rules[gender]) {
         rules[gender].forEach((disable) => {
           const target = form.querySelector(
@@ -232,121 +226,140 @@
       }
     }
 
-    // Re-apply rules when any privilege checkbox changes
     boxes.forEach((b) => b.addEventListener("change", applyPrivilegeRules));
-
-    // Re-apply when gender changes on this page
     if (genderSelect) {
       genderSelect.addEventListener("change", applyPrivilegeRules);
     }
-
-    // Initial application on page load
     applyPrivilegeRules();
   }
 
   /* =====================================================
-   * FINAL SUBMIT ORCHESTRATION
+   * FINAL SUBMIT ORCHESTRATION (MODAL + AJAX + SUCCESS)
    * ===================================================== */
 
   /**
-   * Wires the submit handler for the summary form, including
-   * CSRF handling and network error reporting.
-   *
-   * @param {HTMLFormElement} form - The summary form element.
+   * Wires the summary page submit behavior:
+   * - "Confirm & Finish" button opens confirm modal (if all sections saved)
+   * - "Yes, Save & Finish" in modal posts to /submitSummary via AJAX
+   * - Shows success modal and redirects to "/" after 5 seconds
    */
-  function initSubmitHandler(form) {
-    const csrf = document.getElementById("summary-csrf")?.value;
-    if (!csrf) {
-      console.warn("CSRF token (#summary-csrf) not found for summary form.");
+  function initSummarySubmit(form) {
+    const root = document.getElementById("formSummaryRoot");
+
+    const csrf =
+      document.getElementById("summary-csrf")?.value ||
+      document.querySelector('input[name="_csrf"]')?.value ||
+      "";
+
+    const finalButton = document.getElementById("final-submit");
+    const yesButton = document.getElementById("yesSaveBtn");
+    const statusEl = document.getElementById("submit-status");
+
+    const confirmModalEl = document.getElementById("confirmSaveModal") ||
+      document.getElementById("summaryConfirmModal");
+    const successModalEl = document.getElementById("summarySuccessModal");
+
+    if (!finalButton || !yesButton || !confirmModalEl || !root || !csrf) {
+      // if any essential elements are missing, don't wire this behavior
       return;
     }
 
-    form.addEventListener("submit", (e) => {
-      e.preventDefault();
-      handleSubmit(form, csrf);
+    const confirmModal = new bootstrap.Modal(confirmModalEl);
+    const successModal =
+      successModalEl && new bootstrap.Modal(successModalEl);
+
+    function setStatus(message, type = "warning") {
+      if (!statusEl) return;
+      statusEl.innerHTML = `
+        <div class="alert alert-${type} alert-dismissible fade show mt-3" role="alert">
+          ${message}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      `;
+    }
+
+    function clearStatus() {
+      if (statusEl) statusEl.innerHTML = "";
+    }
+
+    // "Confirm & Finish" button → check edit state, show confirm modal
+    finalButton.addEventListener("click", () => {
+      clearStatus();
+      if (!allSectionsNotEditing(root)) {
+        highlightEditingSections(root);
+        setStatus(
+          "Please save all sections in the summary before finishing.",
+          "warning",
+        );
+        return;
+      }
+      confirmModal.show();
+    });
+
+    // "Yes, Save & Finish" button → AJAX POST to /submitSummary
+    yesButton.addEventListener("click", async () => {
+      clearStatus();
+      confirmModal.hide();
+
+      // Build JSON payload from form (if backend uses body-parser / JSON)
+      const formData = new FormData(form);
+      const body = {};
+      formData.forEach((v, k) => {
+        body[k] = v;
+      });
+
+      try {
+        const resp = await fetch("/submitSummary", {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-Token": csrf,
+          },
+          body: JSON.stringify(body),
+        });
+
+        const data = await resp.json().catch(() => ({}));
+
+        if (!resp.ok || !data.success) {
+          setStatus(
+            data.message ||
+              "There was a problem finalizing your registration. Please try again.",
+            "danger",
+          );
+          return;
+        }
+
+        // Success: show success modal (if present) and redirect after 5s
+        if (successModal) {
+          successModal.show();
+        }
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 5000);
+      } catch (err) {
+        console.error("Error submitting summary:", err);
+        setStatus(
+          "A server error occurred while saving your registration. Please try again.",
+          "danger",
+        );
+      }
     });
   }
 
-  /**
-   * Handles the form submission:
-   * - Temporarily enables disabled fields so their values are included in FormData
-   * - Performs a POST to /submitSummary with CSRF header
-   * - Shows error messages on failure, redirects to /confirmation on success
-   *
-   * @param {HTMLFormElement} form - The summary form element.
-   * @param {string} csrf - CSRF token value.
-   * @returns {Promise<void>}
-   */
-  async function handleSubmit(form, csrf) {
-    // Temporarily enable all disabled fields so their values are included
-    /** @type {HTMLElement[]} */
-    const temporarilyEnabled = [];
-    form
-      .querySelectorAll("input:disabled, select:disabled, textarea:disabled")
-      .forEach((el) => {
-        el.disabled = false;
-        temporarilyEnabled.push(el);
-      });
-
-    const payload = new FormData(form);
-
-    // Restore disabled state once payload is prepared
-    temporarilyEnabled.forEach((el) => {
-      el.disabled = true;
-    });
-
-    let res;
-    try {
-      res = await fetch("/submitSummary", {
-        method: "POST",
-        headers: { "X-CSRF-Token": csrf },
-        body: payload,
-      });
-    } catch (err) {
-      console.error("Network error submitting summary:", err);
-      showStatus(
-        "A network error occurred while saving your information. Please try again.",
-        false,
-      );
-      return;
-    }
-
-    if (!res.ok) {
-      // Optionally: parse JSON error details here if backend provides them
-      showStatus(
-        "There was a problem saving your information. Please review highlighted sections.",
-        false,
-      );
-      return;
-    }
-
-    // On success, navigate to confirmation page
-    window.location.href = "/confirmation";
-  }
-
-  /**
-   * Updates the status message area on the summary page.
-   *
-   * @param {string} message - Text to display to the user.
-   * @param {boolean} isSuccess - Whether this represents a success or error state.
-   */
-  function showStatus(message, isSuccess) {
-    const statusEl = document.getElementById("summary-status");
-    if (!statusEl) return;
-
-    statusEl.textContent = message;
-    statusEl.classList.toggle("success", !!isSuccess);
-    statusEl.classList.toggle("error", !isSuccess);
-  }
+  /* =====================================================
+   * LEGACY SUBMIT (NOT USED ANYMORE)
+   * (Kept for reference; no longer wired because we use initSummarySubmit)
+   * ===================================================== */
+  // function initSubmitHandler(form) { ... }
+  // function handleSubmit(form, csrf) { ... }
+  // function showStatus(message, isSuccess) { ... }
+  // (Left out intentionally to avoid double-submit behavior)
 
   /* =====================================================
    * PRINT
    * ===================================================== */
 
-  /**
-   * Initializes the print handler by expanding all accordions
-   * and calling window.print() when the print button is clicked.
-   */
   function initPrintHandler() {
     const btn = document.getElementById("print-summary");
     if (!btn) return;
@@ -359,7 +372,7 @@
       window.print();
     });
   }
-  // Utility to collapse all accordion items
+
   function collapseAllAccordions() {
     const accordions = document.querySelectorAll(".accordion-collapse.show");
     accordions.forEach((el) => {
@@ -368,7 +381,6 @@
     });
   }
 
-  // Expand all for printing, then collapse afterward
   window.onbeforeprint = () => {
     document.querySelectorAll(".accordion-collapse").forEach((el) => {
       const bsCollapse = bootstrap.Collapse.getOrCreateInstance(el);
@@ -380,7 +392,6 @@
     collapseAllAccordions();
   };
 
-  // Extra safety fallback for WebKit
   window.matchMedia("print").addEventListener("change", (e) => {
     if (!e.matches) collapseAllAccordions();
   });
@@ -389,19 +400,6 @@
    * CONGREGATION AUTOCOMPLETE COMBOBOX (KEEP <SELECT>)
    * ===================================================== */
 
-  /**
-   * Initializes a combobox-style autocomplete for the congregation field.
-   *
-   * - Keeps <select id="congregation"> as the actual submitted value
-   * - Creates a text input (#congregation-combobox) for searching
-   * - Uses a Bootstrap .dropdown-menu (#congregation-combobox-list) for suggestions
-   * - Populates options from:
-   *     1) /api/congregations (primary)
-   *     2) Fallback to existing <option> tags in the select
-   * - Supports:
-   *     - Highlighting matched text
-   *     - Keyboard navigation (ArrowUp / ArrowDown / Enter / Escape)
-   */
   function initCongregationCombobox() {
     /** @type {HTMLSelectElement | null} */
     const select = /** @type {HTMLSelectElement | null} */ (
@@ -415,39 +413,28 @@
     // Guard against double initialization
     if (wrapper.querySelector("#congregation-combobox")) return;
 
-    // Make the wrapper the positioning context for the dropdown
     wrapper.style.position = "relative";
 
-    // Create the visible text input
     const input = document.createElement("input");
     input.type = "text";
     input.id = "congregation-combobox";
     input.className = "form-control mb-1";
     input.autocomplete = "off";
     input.placeholder = "Start typing to search congregations...";
-
-    // Insert the combo box input BEFORE the select
     wrapper.insertBefore(input, select);
 
-    // Hide the original select but keep it in the DOM so it submits normally
     select.classList.add("d-none");
 
-    // Create the dropdown container for suggestions
     const list = document.createElement("div");
     list.id = "congregation-combobox-list";
     list.className = "dropdown-menu w-100";
     wrapper.appendChild(list);
 
-    /**
-     * All congregations available from the select element.
-     * Each option is normalized to { value, label }.
-     * @type {{ value: string; label: string }[]}
-     */
     let options = extractOptionsFromSelect(select);
 
     function extractOptionsFromSelect(sel) {
       return Array.from(sel.options)
-        .filter((opt) => opt.value) // skip placeholder
+        .filter((opt) => opt.value)
         .map((opt) => ({
           value: opt.value,
           label: opt.text,
@@ -466,12 +453,10 @@
       }
     }
 
-    // Fetch congregations from /api/congregations and replace options if successful
     (async function hydrateOptionsFromApi() {
       try {
         const res = await fetch("/api/congregations");
-        if (!res.ok) return; // fallback to existing options
-
+        if (!res.ok) return;
         const data = await res.json().catch(() => []);
         if (Array.isArray(data) && data.length > 0) {
           options = data.map((c) => ({
@@ -487,7 +472,6 @@
       }
     })();
 
-    // Initialize input with currently selected congregation (if any)
     const selectedOption = select.options[select.selectedIndex];
     if (selectedOption && selectedOption.value) {
       input.value = selectedOption.text;
@@ -571,7 +555,6 @@
       }, 300);
     }
 
-    // Input events
     input.addEventListener("input", debouncedRender);
     input.addEventListener("focus", () => {
       if (input.value.trim()) {
@@ -580,11 +563,9 @@
     });
 
     input.addEventListener("blur", () => {
-      // Slight delay so clicks on the list still register
       setTimeout(closeList, 150);
     });
 
-    // Keyboard navigation for the dropdown
     input.addEventListener("keydown", (e) => {
       const items = list.querySelectorAll(".suggestion-item");
       if (!items.length) return;
@@ -617,36 +598,17 @@
       }
     });
 
-    // Click outside to close (list lives in wrapper)
     document.addEventListener("click", (e) => {
       if (!wrapper.contains(e.target)) {
         closeList();
       }
     });
   }
-  // Utility to collapse all accordion items
-  function collapseAllAccordions() {
-    const accordions = document.querySelectorAll(".accordion-collapse.show");
-    accordions.forEach((el) => {
-      const bsCollapse = bootstrap.Collapse.getOrCreateInstance(el);
-      bsCollapse.hide();
-    });
-  }
 
-  // Expand all for printing, then collapse afterward
-  window.onbeforeprint = () => {
-    document.querySelectorAll(".accordion-collapse").forEach((el) => {
-      const bsCollapse = bootstrap.Collapse.getOrCreateInstance(el);
-      bsCollapse.show();
-    });
-  };
-
-  window.onafterprint = () => {
-    collapseAllAccordions();
-  };
-
-  // Extra safety fallback for WebKit
-  window.matchMedia("print").addEventListener("change", (e) => {
-    if (!e.matches) collapseAllAccordions();
-  });
+  // ===================================================
+  // 🔥 EXPOSE FUNCTIONS ON window FOR OTHER SCRIPTS
+  // ===================================================
+  window.allSectionsNotEditing = allSectionsNotEditing;
+  window.highlightEditingSections = highlightEditingSections;
+  window.initSummaryEditMode = initEditMode;
 })();

@@ -44,7 +44,7 @@ export function createRegistrationRouter(deps) {
     emailExists,
     nameExists,
     phoneExists,
-    markDraftCompleted,
+    markDraftCompleted
   } = db;
 
   const router = express.Router();
@@ -525,21 +525,64 @@ export function createRegistrationRouter(deps) {
   // ------------------------------------------------------------
 
   router.post("/submitSummary", csrfProtection, async (req, res) => {
+    const regId = req.session.registrationId;
+    const isJson = req.is("application/json");
+
     try {
-      const regId = req.session.registrationId;
-      if (!regId) return res.redirect("/email-pass");
+      if (!regId) {
+        if (isJson) {
+          return res.status(400).json({
+            success: false,
+            message: "No active registration. Please start again.",
+          });
+        }
+        return res.redirect("/email-pass");
+      }
 
       const ok = await markDraftCompleted(regId);
       if (!ok) {
+        if (isJson) {
+          return res.status(400).json({
+            success: false,
+            message:
+              "Your registration could not be finalized. Please restart the process.",
+          });
+        }
         return res
           .status(400)
           .send("Your registration could not be finalized. Please restart.");
       }
 
+      // Stop background DB updater for this app instance
       stopDbUpdate();
-      req.session.destroy(() => res.redirect("/formDone"));
+
+      // Destroy session, then respond appropriately
+      req.session.destroy((err) => {
+        if (err) {
+          console.error("Error destroying session after summary:", err);
+        }
+
+        if (isJson) {
+          // ✅ JSON response for modal+toast+client redirect
+          return res.json({
+            success: true,
+            redirectUrl: "/", // client JS will redirect here after 5 seconds
+          });
+        }
+
+        // ✅ Non-JS fallback: redirect to "formDone" page
+        return res.redirect("/formDone");
+      });
     } catch (err) {
       console.error("submitSummary error:", err);
+
+      if (isJson) {
+        return res.status(500).json({
+          success: false,
+          message: "Failed to finalize registration due to a server error.",
+        });
+      }
+
       return res.status(500).send("Failed to finalize registration.");
     }
   });

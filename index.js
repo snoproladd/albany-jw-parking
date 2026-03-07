@@ -34,7 +34,7 @@ import {
   phoneExists,
   loadVolunteerCache,
   markDraftCompleted,
-  getCongregations,
+  getCongregations
 } from "./lib/dbSync.js";
 
 const config = await getConfig();

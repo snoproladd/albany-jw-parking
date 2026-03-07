@@ -284,6 +284,18 @@ b {
 .accordion-body.summary-locked .form-label {
   opacity: 0.75;
 }
+/* ============================================================
+   FIX: Keep checkboxes square on Summary Page
+   ============================================================ */
+
+#summary-card input[type="checkbox"] {
+  width: 18px;                 /* Bootstrap default */
+  height: 18px;                /* Square */
+  border-radius: 4px;          /* optional: keep Bootstrap squared style */
+  padding: 0 !important;
+  margin-top: 0.35rem !important; /* aligns in row */
+  vertical-align: middle;
+}
 
 /* ------------------------------------------------------------------ */
 /* CONGREGATION AUTOCOMPLETE DROPDOWN                                 */
@@ -599,6 +611,35 @@ body,
 html {
   overflow: visible !important;
 }
+
+/* Hide modals completely */
+  #summaryConfirmModal,
+  #summarySuccessModal {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    width: 0 !important;
+    overflow: hidden !important;
+  }
+
+  /* Hide modal dialog + content */
+  #summaryConfirmModal .modal-dialog,
+  #summarySuccessModal .modal-dialog,
+  #summaryConfirmModal .modal-content,
+  #summarySuccessModal .modal-content {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Hide Bootstrap modal backdrop */
+  .modal-backdrop {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    background: none !important;
+  }
+
 }
 
 /* ===========================================================
@@ -624,4 +665,80 @@ html {
     min-width: 90%;
     vertical-align: top;
   }
+}
+/* ============================================================
+   SUMMARY PAGE MODAL STYLE PATCH — VARIABLE-BASED
+   Matches Albany JW Parking color system
+   ============================================================ */
+
+/* Base modal formatting */
+#summaryConfirmModal .modal-content,
+#summarySuccessModal .modal-content {
+  border-radius: 0.75rem;                     /* matches rounded-3 */
+  border: 1px solid rgba(0, 0, 0, 0.1);       /* subtle border like your cards */
+  box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15);  /* consistent card shadow */
+  background-color: var(--TextLight);         /* white background */
+}
+
+/* Modal header */
+#summaryConfirmModal .modal-header,
+#summarySuccessModal .modal-header {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+  padding: 0.75rem 1rem;
+  background-color: var(--Background);        /* same as accordion bodies */
+  color: var(--Primary);
+}
+
+/* Success modal header uses success green */
+#summarySuccessModal .modal-header {
+  background-color: var(--Secondary) !important; /* using your blue secondary */
+  color: var(--TextLight) !important;
+}
+
+/* Modal titles */
+#summaryConfirmModal .modal-title,
+#summarySuccessModal .modal-title {
+  font-weight: 600;
+  font-family: "Georama", sans-serif;
+  color: var(--Primary);
+}
+
+/* Modal body */
+#summaryConfirmModal .modal-body,
+#summarySuccessModal .modal-body {
+  padding: 1rem 1.25rem;
+  font-size: 1rem;
+  color: var(--TextDark);
+  line-height: 1.4;
+  background-color: var(--TextLight);
+}
+
+/* Modal footer */
+#summaryConfirmModal .modal-footer,
+#summarySuccessModal .modal-footer {
+  border-top: 1px solid rgba(0, 0, 0, 0.15);
+  padding: 0.75rem 1rem;
+  background-color: var(--Background);
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+/* Buttons */
+#summaryConfirmModal .btn,
+#summarySuccessModal .btn {
+  padding: 0.45rem 1.1rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+}
+
+/* Success modal border matches theme */
+#summarySuccessModal .modal-content.border-success {
+  border-color: var(--Secondary) !important; /* using your theme blue */
+}
+
+/* Backdrop tint */
+.modal-backdrop.show {
+  opacity: 0.40 !important;
+  background-color: var(--TextDark) !important;
 }
