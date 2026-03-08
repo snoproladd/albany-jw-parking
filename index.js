@@ -1,7 +1,6 @@
 // =========================
 // index.js - Main Server
 // =========================
-
 import http from "http";
 import express from "express";
 import path, { dirname } from "path";
@@ -11,6 +10,8 @@ import crypto from "crypto";
 import cookieParser from "cookie-parser";
 import session from "express-session";
 import csurf from "csurf";
+import { RedisStore } from "connect-redis";
+import { createClient } from "redis";
 
 import { getConfig, getSqlPool } from "./src/config/azureConfig.js";
 import { INCOMPATIBILITIES } from "./src/config/privilegeRules.js";
@@ -34,7 +35,7 @@ import {
   phoneExists,
   loadVolunteerCache,
   markDraftCompleted,
-  getCongregations
+  getCongregations,
 } from "./lib/dbSync.js";
 
 const config = await getConfig();
@@ -178,6 +179,11 @@ app.use(
   }),
 );
 
+// When behind Azure App Service (TLS termination), trust proxy so secure cookies work
+if (isProd) {
+  app.set("trust proxy", 1);
+}
+
 // ============================================================
 // Startup wrapper
 // ============================================================
@@ -192,19 +198,50 @@ const server = http.createServer(app);
     // Session middleware
     // -------------------------
 
-    app.use(
-      session({
-        secret: config.sessionSecret || "fallback",
-        resave: false,
-        saveUninitialized: false,
-        cookie: {
-          secure: isProd,
-          httpOnly: true,
-          sameSite: "lax",
-          maxAge: 5 * 60 * 1000, // 5 min
-        },
-      }),
-    );
+    const sessionSecret =
+      config.sessionSecret || process.env.SESSION_SECRET || "fallback-secret";
+
+    const sessionOptions = {
+      secret: sessionSecret,
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        secure: isProd, // true in prod (behind HTTPS)
+        httpOnly: true,
+        sameSite: "lax",
+        maxAge: 5 * 60 * 1000, // 5 min
+      },
+    };
+
+    if (isProd) {
+      const redisUrl = config.REDIS_URL || process.env.REDIS_URL;
+      if (!redisUrl) {
+        logError(
+          "REDIS_URL is not configured in production. Cannot initialize Redis session store.",
+        );
+        process.exit(1);
+      }
+
+      const redisClient = createClient({ url: redisUrl });
+
+      redisClient.on("error", (err) => {
+        logError("Redis Client Error:", err);
+      });
+
+      await redisClient.connect();
+      log("Redis client connected.");
+
+      sessionOptions.store = new RedisStore({
+        client: redisClient,
+        prefix: "sess:",
+      });
+      log("Redis session store initialized.");
+    } else {
+      // Dev-only: in-memory store is fine
+      log("Using in-memory session store (development).");
+    }
+
+    app.use(session(sessionOptions));
 
     const csrfProtection = csurf({ cookie: true });
 
@@ -242,15 +279,11 @@ const server = http.createServer(app);
         logError,
       }),
     );
+
     // ========================================================
     // Validation Endpoints (Kickbox / Twilio)
     // ========================================================
 
-    /**
-     * Validate an email address via Kickbox.
-     *
-     * @route GET /validate-email
-     */
     app.get("/validate-email", async (req, res) => {
       const email = (req.query.email || "").toString().trim();
       if (!email) {
@@ -270,7 +303,6 @@ const server = http.createServer(app);
 
       try {
         const result = await verifyEmail(email);
-        // Kickbox returns { result: "deliverable" | "undeliverable" | "risky" | "unknown", reason: string }
         res.json({
           result: result.result,
           reason: result.reason,
@@ -281,11 +313,6 @@ const server = http.createServer(app);
       }
     });
 
-    /**
-     * Validate a phone number via Twilio Lookup.
-     *
-     * @route GET /validate-phone
-     */
     app.get("/validate-phone", async (req, res) => {
       try {
         const raw = (req.query.phone || "").toString();

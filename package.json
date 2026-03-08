@@ -30,6 +30,7 @@
     "body-parser": "^2.2.1",
     "bootstrap": "^5.3.8",
     "build": "^0.1.4",
+    "connect-redis": "^9.0.0",
     "cookie": "^1.1.1",
     "cookie-parser": "^1.4.7",
     "csurf": "^1.2.2",
@@ -44,6 +45,7 @@
     "kickbox": "^2.0.4",
     "mssql": "^12.2.0",
     "path-to-regexp": "^8.3.0",
+    "redis": "^5.11.0",
     "twilio": "^5.10.7",
     "uuid": "9.0.0"
   },
