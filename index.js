@@ -66,19 +66,24 @@ function maskRedisUrl(url) {
 
 // Build redis URL from either REDIS_URL (direct) or VALKEY_HOST + VALKEY_PASSWORD
 function resolveRedisUrl() {
+  // Prefer VALKEY_* (VM Valkey / Key Vault-based config)
   const valkeyHost = process.env.VALKEY_HOST;
   const valkeyPassword = process.env.VALKEY_PASSWORD;
+  const valkeyPort = process.env.VALKEY_PORT || 6379;
 
   if (valkeyHost && valkeyPassword) {
     const encPwd = encodeURIComponent(valkeyPassword);
-    return `redis://:${encPwd}@${valkeyHost}:6379`;
+    // IMPORTANT: no username here; just :password
+    return `redis://:${encPwd}@${valkeyHost}:${valkeyPort}`;
   }
 
+  // Fallback: REDIS_URL (for other environments / legacy)
   const directRedisUrl = config.REDIS_URL || process.env.REDIS_URL;
   if (directRedisUrl) return directRedisUrl;
 
   return null;
 }
+;
 
 // ============================================================
 // Crypto Polyfill
@@ -274,9 +279,6 @@ const server = http.createServer(app);
         prefix: "sess:",
       });
       log("Redis session store initialized.");
-    } else {
-      // Dev-only: in-memory store is fine
-      log("Using in-memory session store (development).");
     }
 
     app.use(session(sessionOptions));
