@@ -219,7 +219,6 @@ if (isProd) {
 // ============================================================
 // Startup wrapper
 // ============================================================
-const RedisStore = connectRedis(session);
 const server = http.createServer(app);
 
 (async () => {
