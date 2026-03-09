@@ -66,21 +66,18 @@ function maskRedisUrl(url) {
 
 // Build redis URL from either REDIS_URL (direct) or VALKEY_HOST + VALKEY_PASSWORD
 function resolveRedisUrl() {
-  // Preferred override (direct URL). Keep if you want quick testing.
-  const directRedisUrl = config.REDIS_URL || process.env.REDIS_URL;
-  if (directRedisUrl) return directRedisUrl;
-
-  // Recommended: Key Vault provides VALKEY_PASSWORD via App Service Key Vault reference.
   const valkeyHost = process.env.VALKEY_HOST;
   const valkeyPassword = process.env.VALKEY_PASSWORD;
 
-  if (!valkeyHost || !valkeyPassword) {
-    return null;
+  if (valkeyHost && valkeyPassword) {
+    const encPwd = encodeURIComponent(valkeyPassword);
+    return `redis://:${encPwd}@${valkeyHost}:6379`;
   }
 
-  // Encode password to avoid URL parsing issues with special characters (e.g. $)
-  const encPwd = encodeURIComponent(valkeyPassword);
-  return `redis://:${encPwd}@${valkeyHost}:6379`;
+  const directRedisUrl = config.REDIS_URL || process.env.REDIS_URL;
+  if (directRedisUrl) return directRedisUrl;
+
+  return null;
 }
 
 // ============================================================
