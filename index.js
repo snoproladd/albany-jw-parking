@@ -11,8 +11,9 @@ import crypto from "crypto";
 import cookieParser from "cookie-parser";
 import session from "express-session";
 import csurf from "csurf";
+import { RedisStore } from "connect-redis"; // ⬅️ use named export
 import { createClient } from "redis";
-import connectRedis from "connect-redis";
+
 
 import { getConfig, getSqlPool } from "./src/config/azureConfig.js";
 import { INCOMPATIBILITIES } from "./src/config/privilegeRules.js";
