@@ -1,6 +1,7 @@
 // =========================
 // index.js - Main Server
 // =========================
+
 import http from "http";
 import express from "express";
 import path, { dirname } from "path";
@@ -10,7 +11,6 @@ import crypto from "crypto";
 import cookieParser from "cookie-parser";
 import session from "express-session";
 import csurf from "csurf";
-import { RedisStore } from "connect-redis";
 import { createClient } from "redis";
 
 import { getConfig, getSqlPool } from "./src/config/azureConfig.js";
@@ -53,6 +53,34 @@ function log(...args) {
 }
 function logError(...args) {
   console.error(`[${new Date().toISOString()}] [index.js]`, ...args);
+}
+
+// Mask credentials in logs (redis://:password@host -> redis://:***@host)
+function maskRedisUrl(url) {
+  try {
+    return url.replace(/:(?:[^@]*)@/, ":***@");
+  } catch {
+    return "<redacted>";
+  }
+}
+
+// Build redis URL from either REDIS_URL (direct) or VALKEY_HOST + VALKEY_PASSWORD
+function resolveRedisUrl() {
+  // Preferred override (direct URL). Keep if you want quick testing.
+  const directRedisUrl = config.REDIS_URL || process.env.REDIS_URL;
+  if (directRedisUrl) return directRedisUrl;
+
+  // Recommended: Key Vault provides VALKEY_PASSWORD via App Service Key Vault reference.
+  const valkeyHost = process.env.VALKEY_HOST;
+  const valkeyPassword = process.env.VALKEY_PASSWORD;
+
+  if (!valkeyHost || !valkeyPassword) {
+    return null;
+  }
+
+  // Encode password to avoid URL parsing issues with special characters (e.g. $)
+  const encPwd = encodeURIComponent(valkeyPassword);
+  return `redis://:${encPwd}@${valkeyHost}:6379`;
 }
 
 // ============================================================
@@ -214,15 +242,28 @@ const server = http.createServer(app);
     };
 
     if (isProd) {
-      const redisUrl = config.REDIS_URL || process.env.REDIS_URL;
+      const redisUrl = resolveRedisUrl();
       if (!redisUrl) {
         logError(
-          "REDIS_URL is not configured in production. Cannot initialize Redis session store.",
+          "Redis config missing. Set either REDIS_URL or (VALKEY_HOST and VALKEY_PASSWORD).",
+          {
+            hasREDIS_URL: Boolean(config.REDIS_URL || process.env.REDIS_URL),
+            hasVALKEY_HOST: Boolean(process.env.VALKEY_HOST),
+            hasVALKEY_PASSWORD: Boolean(process.env.VALKEY_PASSWORD),
+          },
         );
         process.exit(1);
       }
 
-      const redisClient = createClient({ url: redisUrl });
+      log("Connecting to Redis/Valkey at:", maskRedisUrl(redisUrl));
+
+      const redisClient = createClient({
+        url: redisUrl,
+        socket: {
+          connectTimeout: 8000,
+          keepAlive: 5000,
+        },
+      });
 
       redisClient.on("error", (err) => {
         logError("Redis Client Error:", err);
