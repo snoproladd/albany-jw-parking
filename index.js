@@ -12,6 +12,7 @@ import cookieParser from "cookie-parser";
 import session from "express-session";
 import csurf from "csurf";
 import { createClient } from "redis";
+import connectRedis from "connect-redis";
 
 import { getConfig, getSqlPool } from "./src/config/azureConfig.js";
 import { INCOMPATIBILITIES } from "./src/config/privilegeRules.js";
@@ -217,7 +218,7 @@ if (isProd) {
 // ============================================================
 // Startup wrapper
 // ============================================================
-
+const RedisStore = connectRedis(session);
 const server = http.createServer(app);
 
 (async () => {
