@@ -1,0 +1,7 @@
+mcs.metadata:
+  componentName: https://pagespeed.web.dev/
+  description: This knowledge source searches information on the web found in https://pagespeed.web.dev/ website
+kind: KnowledgeSourceConfiguration
+source:
+  kind: PublicSiteSearchSource
+  site: https://pagespeed.web.dev/

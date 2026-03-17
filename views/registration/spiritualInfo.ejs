@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Spiritual Information</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+
+  <body
+    class="min-vh-100 d-flex justify-content-center align-items-center bg-body-tertiary entry-body"
+  >
+    <main class="container body-container">
+      <div class="row justify-content-center">
+        <div class="col-12 col-md-10 col-lg-8 form-entry">
+
+          <section id="spiritual-info-card" class="card shadow-lg entry-card">
+            <header class="card-header text-center">
+              <h1 class="text-center mb-4">
+                Tell us about your organization privileges and roles.
+              </h1>
+              <p class="footnote mt-3">
+                <span class="asterix">*</span> Indicates required fields
+              </p>
+            </header>
+
+            <!-- ============================================================
+                 CARD BODY
+                 ============================================================ -->
+            <div class="card-body">
+
+              <!-- FORM WRAPS ONLY THE CONTENT INSIDE THE CARD BODY -->
+              <form action="/submitSpiritual" method="POST" id="account-form">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+                <!-- ============================================================
+                     PRIVILEGES SECTION
+                     ============================================================ -->
+                <fieldset
+                  id="privilegesSection"
+                  class="border-0 p-0 mt-3 scroll-section"
+                >
+                  <legend class="form-label mb-3">
+                    Do you have any of the following privileges?<br />
+                    (Check all that apply)
+                    <span class="asterix">*</span>
+                  </legend>
+
+                  <!-- Ministry -->
+                  <div class="mb-3">
+                    <div class="form-label ms-2 mb-1">Ministry</div>
+
+                    <div class="form-check ms-5 mb-3">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        name="privileges[]"
+                        id="auxPioneer"
+                        value="auxPioneer"
+                        data-privilege="auxPioneer"
+                      />
+                      <label class="form-check-label" for="auxPioneer">
+                        Auxiliary Pioneer (including continuous)
+                      </label>
+                    </div>
+
+                    <div class="form-check ms-5">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        name="privileges[]"
+                        id="regPioneer"
+                        value="regPioneer"
+                        data-privilege="regPioneer"
+                      />
+                      <label class="form-check-label" for="regPioneer">
+                        Regular Pioneer
+                      </label>
+                    </div>
+
+                    <div class="form-check ms-5">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        name="privileges[]"
+                        id="specPioneer"
+                        value="specPioneer"
+                        data-privilege="specPioneer"
+                      />
+                      <label class="form-check-label" for="specPioneer">
+                        Special Pioneer
+                      </label>
+                    </div>
+                  </div>
+
+                  <!-- Congregation -->
+                  <div class="mb-3">
+                    <div class="form-label ms-2 mb-1">Congregation</div>
+
+                    <div class="form-check ms-5">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        name="privileges[]"
+                        id="minServ"
+                        value="minServ"
+                        data-privilege="minServ"
+                      />
+                      <label class="form-check-label" for="minServ">
+                        Ministerial Servant
+                      </label>
+                    </div>
+
+                    <div class="form-check ms-5">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        name="privileges[]"
+                        id="elder"
+                        value="elder"
+                        data-privilege="elder"
+                      />
+                      <label class="form-check-label" for="elder">
+                        Elder
+                      </label>
+                    </div>
+                  </div>
+
+                  <!-- Other -->
+                  <div class="mb-4">
+                    <div class="form-label ms-2 mb-1">Other</div>
+
+                    <div class="form-check ms-5">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        name="privileges[]"
+                        id="sfs"
+                        value="sfs"
+                        data-privilege="sfs"
+                      />
+                      <label class="form-check-label" for="sfs">
+                        Special Full-Time Servant
+                      </label>
+                    </div>
+                  </div>
+
+                </fieldset>
+              </form>
+              <!-- END FORM -->
+
+            </div> <!-- end card-body -->
+
+
+            <!-- ============================================================
+                 STICKY FOOTER (OUTSIDE FORM)
+                 ============================================================ -->
+            <div class="scroll-section sticky-action">
+
+              <!-- Section-specific inline status (for auto-scroll mapping) -->
+              <div id="section-status" class="w-100">
+                <div id="privilegesStatus" class="status"></div>
+              </div>
+
+              <!-- Submit-result toast (shown only on submit failure) -->
+              <div id="submitStatus" class="status mt-2"></div>
+
+              <!-- Button stays outside form — formListeners.js will submit -->
+              <button
+                type="submit"
+                class="btn btn-primary w-100 mt-1"
+                id="submitBtn"
+              >
+                Submit
+              </button>
+
+              
+            </div>
+
+          </section>
+
+        </div>
+      </div>
+    </main>
+
+    <!-- Required Scripts -->
+    <script src="/js/formListeners.js"></script>
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>

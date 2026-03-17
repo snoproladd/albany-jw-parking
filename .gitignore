@@ -70,3 +70,5 @@ set_local_env.js
 public/js/*.min.js
 public/styles/*.min.css
 
+website_package.json
+

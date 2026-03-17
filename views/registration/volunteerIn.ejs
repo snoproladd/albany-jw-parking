@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>New Volunteer Information</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" href="/styles/styles.css" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+
+  <body
+    class="min-vh-100 d-flex justify-content-center align-items-center bg-body-tertiary entry-body"
+  >
+    <main class="container body-container">
+      <div class="row justify-content-center">
+        <div class="col-12 col-md-10 col-lg-8 form-entry">
+
+          <section id="contactInfoCard" class="card shadow-lg entry-card">
+            <header class="card-header text-center">
+              <h1 class="text-center mb-4">Contact Information</h1>
+              <p class="footnote mt-2">
+                <span class="asterix">*</span> Indicates required fields
+              </p>
+            </header>
+
+            <!-- 👇 FORM wraps body + sticky footer -->
+            <form action="/submit-volunteerInfo" method="POST" id="phoneVer-form">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+              <div class="card-body">
+                <!-- ============================================================
+                     SECTION 1 — Names Section
+                     ============================================================ -->
+                <div id="namesSection" class="scroll-section mb-3">
+                  <label
+                    for="firstName"
+                    class="form-label <%= disableNameFields ? 'd-none' : '' %>"
+                  >
+                    First Name:<span class="asterix">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="firstName"
+                    data-disable="<%= disableNameFields %>"
+                    name="firstName"
+                    class="form-control <%= disableNameFields ? 'd-none' : '' %>"
+                    aria-describedby="firstNameStatus"
+                    <%= disableNameFields ? '' : 'required' %>
+                  />
+
+                  <label
+                    for="lastName"
+                    class="form-label mt-3 <%= disableNameFields ? 'd-none' : '' %>"
+                  >
+                    Last Name:<span class="asterix">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="lastName"
+                    name="lastName"
+                    class="form-control <%= disableNameFields ? 'd-none' : '' %>"
+                    aria-describedby="lastNameStatus"
+                    <%= disableNameFields ? '' : 'required' %>
+                  />
+
+                  <label
+                    for="suffix"
+                    class="form-label mt-3 <%= disableNameFields ? 'd-none' : '' %>"
+                  >
+                    Suffix (if any):
+                  </label>
+                  <input
+                    type="text"
+                    id="suffix"
+                    name="suffix"
+                    class="form-control <%= disableNameFields ? 'd-none' : '' %>"
+                  />
+                </div>
+
+                <!-- ============================================================
+                     SECTION 2 — Phone Section
+                     ============================================================ -->
+                <div id="phoneSection" class="scroll-section mb-3">
+                  <label for="phone" class="form-label">
+                    Phone:<span class="asterix">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="phone"
+                    name="phone"
+                    class="form-control"
+                    placeholder="(xxx) xxx-xxxx"
+                    inputmode="numeric"
+                    aria-describedby="phoneStatus"
+                    required
+                  />
+
+                  <label for="confirmPhone" class="form-label mt-3">
+                    Confirm Phone:<span class="asterix">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="confirmPhone"
+                    name="confirmPhone"
+                    class="form-control"
+                    placeholder="(xxx) xxx-xxxx"
+                    inputmode="numeric"
+                    aria-describedby="confirmPhoneStatus"
+                    disabled
+                    required
+                  />
+
+                  <!-- SMS Capable -->
+                  <fieldset
+                    class="border-0 p-0 mt-3"
+                    aria-describedby="SMSCapable-help"
+                    aria-labelledby="SMSCapable-legend"
+                  >
+                    <legend id="SMSCapable-legend" class="form-label mb-2">
+                      Can you receive text messages at this number?
+                      <span class="asterix">*</span>
+                    </legend>
+
+                    <div id="SMSCapable-help" class="form-text mb-2">
+                      Select <strong>Yes</strong> if your device can receive text messages.
+                    </div>
+
+                    <div
+                      class="d-flex flex-wrap align-items-center gap-4"
+                      role="radiogroup"
+                    >
+                      <div class="form-check">
+                        <input
+                          class="form-check-input"
+                          type="radio"
+                          name="SMSCapable"
+                          id="SMSCapable-yes"
+                          value="yes"
+                          required
+                        />
+                        <label class="form-check-label" for="SMSCapable-yes">
+                          Yes
+                        </label>
+                      </div>
+
+                      <div class="form-check">
+                        <input
+                          class="form-check-input"
+                          type="radio"
+                          name="SMSCapable"
+                          id="SMSCapable-no"
+                          value="no"
+                        />
+                        <label class="form-check-label" for="SMSCapable-no">
+                          No
+                        </label>
+                      </div>
+                    </div>
+
+                    <div
+                      class="invalid-feedback"
+                      id="SMSCapable-error"
+                      aria-live="polite"
+                    >
+                      Please select Yes or No.
+                    </div>
+                  </fieldset>
+                </div>
+              </div> <!-- end card-body -->
+
+              <!-- ============================================================
+                   UNIFIED STICKY FOOTER (Statuses + Submit)
+                   ============================================================ -->
+              <div class="scroll-section sticky-action">
+                <div id="section-status" class="w-100">
+                  <!-- Name statuses -->
+                  <div id="firstNameStatus" class="status"></div>
+                  <div id="lastNameStatus" class="status"></div>
+
+                  <!-- Phone statuses (camelCase, since you've updated phoneVer.js) -->
+                  <div id="phoneStatus" class="status"></div>
+                  <div id="confirmPhoneStatus" class="status"></div>
+                </div>
+
+                <div id="submitStatus" class="status mt-2"></div>
+
+                <button
+                  type="submit"
+                  class="btn btn-primary w-100 mt-1"
+                  id="submitBtn"
+                >
+                  Submit
+                </button>
+
+                <p class="footnote mt-2">
+                  <span class="asterix">*</span> Indicates required fields
+                </p>
+              </div>
+            </form>
+          </section>
+
+        </div>
+      </div>
+    </main>
+
+    <!-- Custom JS -->
+    <script src="/js/phoneVer.js"></script>
+    <script src="/js/formListeners.js"></script>
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>

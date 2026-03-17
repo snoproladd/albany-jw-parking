@@ -210,8 +210,8 @@ b {
 
 /* Accordion body spacing */
 .accordion-body {
-  padding-top: 0.75rem;
-  padding-bottom: 0.75rem;
+  padding-top: 0.2rem;
+  padding-bottom: 0.25rem;
   background-color: var(--Background);
   opacity: 0.8;
 }
@@ -266,8 +266,9 @@ b {
   font-size: 0.95rem;
 }
 
-/* Locked summary sections */
-.accordion-body.summary-locked input:not([readonly]),
+/* Locked summary sections (Summary + My Account)
+   When a section is not in EDIT mode, prevent interactions */
+.accordion-body.summary-locked input,
 .accordion-body.summary-locked select,
 .accordion-body.summary-locked textarea {
   pointer-events: none;
@@ -371,6 +372,15 @@ b {
     0 0 0 3px rgba(255, 255, 255, 0.9),
     0 0 0 6px rgba(245, 158, 11, 0.8);
   /* double-ring focus */
+}
+/* Hide Save button by default inside any section */
+.accordion-body .summary-save-btn {
+  display: none;
+}
+
+/* Show Save button only when section is in editing mode */
+.accordion-body[data-editing="true"] .summary-save-btn {
+  display: inline-block !important;
 }
 
 /* ------------------------------------------------------------
@@ -520,7 +530,7 @@ b {
   /* A little spacing between sections */
   #summary-card section,
   .accordion-item {
-    margin-bottom: .5rem !important;
+    margin-bottom: .2rem !important;
   }
 
   /* Hide dropdown menus, autocompletes */
@@ -741,4 +751,547 @@ html {
 .modal-backdrop.show {
   opacity: 0.40 !important;
   background-color: var(--TextDark) !important;
+}
+
+/* ============================================================
+   MOBILE FIXES (My Account + Summary)
+   Reduce padding, margins, width overflow, and enforce wrapping
+   ============================================================ */
+
+@media (max-width: 576px) {
+
+  /* Reduce container padding to prevent horizontal scroll */
+  .container,
+  #formSummaryRoot {
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+
+  /* Tighter card body so content fits small screens */
+  #summary-card {
+    padding: 0.75rem !important;
+    margin: 0 !important;
+  }
+
+  /* Accordion: remove inline-block forced scroll */
+  #summary-card .accordion,
+  #accountAccordion,
+  #summaryAccordion {
+    white-space: normal !important;
+    overflow-x: hidden !important;
+    /* no horizontal scroll */
+  }
+
+  #summary-card .accordion-item,
+  #accountAccordion .accordion-item,
+  #summaryAccordion .accordion-item {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  /* Fix row wrapping properly */
+  .accordion-body .row,
+  .accordion-body .row>[class^="col"] {
+    flex: 1 1 100% !important;
+    /* full width on mobile */
+    max-width: 100% !important;
+  }
+
+  /* Tighten spacing */
+  .accordion-body {
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+
+  /* Inputs shrink to screen width */
+  input.form-control,
+  select.form-select,
+  textarea.form-control {
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Radio/check groups break nicely */
+  .d-flex.gap-3,
+  .d-flex.gap-4 {
+    flex-wrap: wrap !important;
+    gap: 0.75rem !important;
+  }
+
+  /* Reduce button sizes and spacing */
+  .summary-edit-btn,
+  .summary-save-btn,
+  #finalize-changes,
+  #print-summary,
+  #final-submit {
+    font-size: 0.85rem !important;
+    padding: 4px 10px !important;
+  }
+
+  /* Finalize button area spacing */
+  .text-end.mt-4 {
+    margin-top: 1rem !important;
+  }
+}
+
+/* Optional mid-size patch for small tablets */
+@media (max-width: 768px) {
+  #summary-card {
+    padding: 1rem !important;
+  }
+}
+
+/* ============================================================
+   CARD VERTICAL SCROLLING (for all summary/myAccount-like pages)
+   Prevent the WHOLE PAGE from scrolling and bouncing,
+   while the card interior scrolls smoothly
+   ============================================================ */
+
+@media (max-width: 768px) {
+
+  /* Make the main body fixed and prevent large bounces */
+  body.bg-body-tertiary {
+    overflow: hidden !important;
+  }
+
+  /* Card becomes a scrollable region */
+  #summary-card {
+    max-height: 85vh !important;
+    /* fills most of screen */
+    overflow-y: auto !important;
+    /* vertical scroll inside card */
+    padding-bottom: 2rem !important;
+    -webkit-overflow-scrolling: touch;
+    /* smooth iOS scrolling */
+  }
+
+  /* Prevent card header from scrolling off-screen too quickly */
+  #summary-card .card-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(6px);
+  }
+
+  /* Accordion scroll inside card, not page */
+  #summary-card .accordion {
+    overflow-y: visible !important;
+  }
+}
+
+@media (max-width: 480px) {
+  #summary-card {
+    max-height: 90vh !important;
+  }
+}
+/* ============================================================
+   GLOBAL: Stabilize status/toast areas (prevent page bounce)
+   ============================================================ */
+
+#submitStatus,
+#finalize-status,
+#emailStatus,
+#confirmEmailStatus,
+#phoneStatus,
+#confirmPhoneStatus,
+#nonProfile-next-status,
+#password-status,
+#passwords-matched-status,
+.status-area,
+.status {
+  min-height: 48px;
+  /* reserve space */
+  display: flex !important;
+  align-items: center !important;
+  overflow: hidden !important;
+}
+
+.status-fade {
+  animation: fadeIn 0.25s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+/* ============================================================
+   GLOBAL: Card vertical scrolling for all form-entry card pages
+   ============================================================ */
+
+@media (max-width: 768px) {
+
+  /* Freeze background scroll, scroll only inside card */
+  body.bg-body-tertiary {
+    overflow: hidden !important;
+  }
+
+  /* ANY card used on form pages becomes scrollable */
+  .card.shadow-lg,
+  #summary-card,
+  #email-pass,
+  #non-profile,
+  #contact-info {
+    max-height: 85vh !important;
+    overflow-y: auto !important;
+    padding-bottom: 1.5rem !important;
+    -webkit-overflow-scrolling: touch !important;
+    /* iOS smooth scroll */
+  }
+
+  /* Keep headers visible while scrolling */
+  .card-header {
+    position: sticky !important;
+    top: 0;
+    z-index: 100;
+    background: rgba(255, 255, 255, 0.9) !important;
+    backdrop-filter: blur(4px);
+  }
+
+  /* Inputs always fit the screen */
+  input.form-control,
+  select.form-select,
+  textarea.form-control {
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Ensure rows/columns wrap correctly on tiny screens */
+  .row,
+  .row>[class^="col"] {
+    flex: 1 1 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Radio/check groups break cleanly */
+  .d-flex.gap-3,
+  .d-flex.gap-4 {
+    flex-wrap: wrap !important;
+    gap: 0.75rem !important;
+  }
+
+  /* Reduce default Bootstrap container padding */
+  .container.body-container {
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+}
+
+
+/* Extra-small screens (older phones) */
+@media (max-width: 480px) {
+
+  .card.shadow-lg,
+  #summary-card {
+    max-height: 90vh !important;
+  }
+}
+
+/* ============================================================
+   MOBILE: Sticky bottom action buttons (Submit / Finalize)
+   ============================================================ */
+
+@media (max-width: 576px) {
+
+  .sticky-action {
+    position: sticky;
+    bottom: 0;
+    z-index: 300;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(6px);
+    padding: 0.75rem;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
+  }
+
+  .sticky-action button {
+    width: 100%;
+    font-size: 1rem !important;
+    padding: 10px !important;
+  }
+}
+
+/* ============================================================
+   MOBILE: Slimmer input heights + spacing
+   ============================================================ */
+
+@media (max-width: 576px) {
+
+  input.form-control,
+  select.form-select,
+  textarea.form-control {
+    height: 34px !important;
+    font-size: 0.9rem !important;
+    padding: 4px 8px !important;
+  }
+
+  textarea.form-control {
+    min-height: 90px !important;
+    height: auto !important;
+  }
+
+  label.form-label,
+  .input-label {
+    margin-bottom: 0.25rem !important;
+    font-size: 0.9rem !important;
+  }
+
+  .form-check-label {
+    font-size: 0.9rem !important;
+  }
+
+  .form-check-input {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+/* ============================================================
+   MOBILE: Center cards & form containers
+   ============================================================ */
+@media (max-width: 576px) {
+
+  .body-container,
+  .form-entry,
+  .card.shadow-lg,
+  #summary-card {
+    margin-left: auto !important;
+    margin-right: auto !important;
+    max-width: 95% !important;
+    /* stays centered */
+  }
+
+  /* Ensure full-width rows do not push layout */
+  .row.justify-content-center {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  /* Center the accordion inside the card */
+  .accordion,
+  #accountAccordion,
+  #summaryAccordion {
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+}
+
+/* ============================================================
+   MOBILE: Keep status/toast above sticky actions
+   ============================================================ */
+@media (max-width: 576px) {
+
+  /* Reserve space above sticky button */
+  .sticky-action+#submitStatus,
+  .sticky-action+#finalize-status,
+  .sticky-action+.status {
+    margin-bottom: 70px !important;
+  }
+
+  /* Let the status area float just above the sticky bar */
+  #submitStatus,
+  #finalize-status,
+  .status {
+    position: relative;
+    z-index: 310 !important;
+    /* above sticky button */
+  }
+}
+
+.status-fade {
+  animation: slideDown 0.25s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================================
+   NEW APP PATCH — DO NOT MODIFY EXISTING CSS ABOVE THIS LINE
+   Implements:
+   - .entry-card support
+   - Sticky entry-card headers (H1)
+   - Card-body scroll container for entry pages (E2)
+   - Sticky submit inside card-body (B1)
+   - Toast spacing above sticky button
+   - Auto-scroll safe padding
+   - Does NOT override summary-card behavior
+   ============================================================ */
+
+/* ----------------------------------------------
+   ENTRY PAGE CARD STRUCTURE
+   ---------------------------------------------- */
+.entry-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 12px;
+}
+
+/* Sticky header for entry pages */
+.entry-card .card-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(5px);
+}
+
+/* Entry card-body scroll container */
+.entry-card .card-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 5.5rem;
+  /* make room for sticky submit */
+  scroll-padding-top: 80px;
+  /* for auto-focus scroll */
+}
+
+/* ----------------------------------------------
+   Sticky submit INSIDE card-body (B1)
+   ---------------------------------------------- */
+.entry-card .sticky-action {
+  position: sticky;
+  bottom: 0;
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(6px);
+  padding: 0.75rem;
+  box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.07);
+}
+
+/* Buttons inside sticky footer */
+.entry-card .sticky-action button {
+  width: 100%;
+  font-size: 1rem;
+}
+
+/* ----------------------------------------------
+   ALIGN TOAST MESSAGES ABOVE STICKY SUBMIT
+   ---------------------------------------------- */
+@media (max-width: 576px) {
+
+  .entry-card .sticky-action+.status,
+  .entry-card .sticky-action+#submitStatus,
+  .entry-card .sticky-action+#finalize-status {
+    margin-bottom: 70px !important;
+  }
+
+  .entry-card .status,
+  .entry-card #submitStatus,
+  .entry-card #finalize-status {
+    position: relative;
+    z-index: 101;
+  }
+}
+
+/* ----------------------------------------------
+   MOBILE ENTRY PAGE CENTERING
+   ---------------------------------------------- */
+@media (max-width: 576px) {
+  .entry-card {
+    max-width: 95% !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+}
+
+/* ----------------------------------------------
+   SLIMMER INPUTS ON MOBILE (DO NOT REMOVE ORIGINALS)
+   ---------------------------------------------- */
+@media (max-width: 576px) {
+
+  .entry-card input.form-control,
+  .entry-card select.form-select,
+  .entry-card textarea.form-control {
+    height: 34px !important;
+    font-size: 0.9rem !important;
+    padding: 4px 8px !important;
+  }
+
+  .entry-card textarea.form-control {
+    min-height: 90px !important;
+  }
+}
+
+/* ----------------------------------------------
+   PREVENT BODY BOUNCE ON ENTRY PAGES ONLY
+   (summary pages scroll normally)
+   ---------------------------------------------- */
+@media (max-width: 768px) {
+  body.entry-body.bg-body-tertiary {
+    overflow: hidden !important;
+  }
+}
+
+/* ============================================================
+   FIX: Override legacy scroll rules so entry pages scroll ONLY
+   inside .card-body (correct container for auto-scroll JS)
+   ============================================================ */
+
+.entry-card {
+  overflow: hidden !important;
+  /* card should NOT scroll */
+  max-height: unset !important;
+  /* remove legacy height */
+}
+
+.entry-card .card-body {
+  overflow-y: auto !important;
+  /* THIS is the scroll */
+  max-height: 85vh !important;
+  /* controls scroll space */
+  -webkit-overflow-scrolling: touch !important;
+}
+
+/* Only top-level status containers reserve height; individual .status do not */
+#submitStatus,
+#finalize-status,
+#section-status,
+#nonProfile-next-status,
+.status-area {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Individual status messages: no min-height so hidden/empty ones collapse */
+.status {
+  font-size: 14px;
+  margin-top: 5px;
+}
+
+.status {
+  display: none !important;
+  min-height: 0 !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.status.show-status {
+  display: block !important;
+  min-height: auto !important;
+  margin-top: 6px !important;
 }

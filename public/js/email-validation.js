@@ -1,12 +1,13 @@
 // public/js/email-validation.js
 // -----------------------------------------------------------------------------
-// Email validation controller for the account / email step AND the nonProfile step:
+// Email validation controller for the account / email step AND the nonProfile step AND My Account:
 // - Kickbox-backed deliverability validation via /validate-email
 // - Domain blocking (jwpub.org)
-// - Confirm-email exact match gate
+// - confirmEmail exact match gate (emailPass & nonProfile)
 // - Duplicate email check via /api/volunteers/exists
 // - On emailPass page: shows/hides password section once email gates are satisfied
 // - On nonProfile page: provides the same live validation UX without owning submit
+// - On My Account page: email-only validation; allows unchanged email; no confirm/emailPass gating
 // -----------------------------------------------------------------------------
 
 (() => {
@@ -14,64 +15,85 @@
 
   document.addEventListener("DOMContentLoaded", initEmailValidation);
 
+  /**
+   * Initialize email validation for:
+   * - Email/pass registration
+   * - Non-profile registration
+   * - My Account contact section
+   */
   function initEmailValidation() {
-    // Detect which form we are on
     /** @type {HTMLFormElement | null} */
-    const emailPassForm = /** @type {HTMLFormElement | null} */ (
-      document.querySelector('form[action="/submit-emailPass"]')
+    const emailPassForm = document.querySelector(
+      'form[action="/submit-emailPass"]',
     );
     /** @type {HTMLFormElement | null} */
-    const nonProfileForm = /** @type {HTMLFormElement | null} */ (
-      document.querySelector('form[action="/submit-nonProfileInfo"]')
+    const nonProfileForm = document.querySelector(
+      'form[action="/submit-nonProfileInfo"]',
+    );
+    /** @type {HTMLFormElement | null} */
+    const myAccountContactForm = document.querySelector(
+      'form[action="/my-account/update/contact"]',
     );
 
     /** @type {HTMLFormElement | null} */
-    const form = emailPassForm || nonProfileForm;
+    const form = emailPassForm || nonProfileForm || myAccountContactForm;
 
-    const emailInput = /** @type {HTMLInputElement | null} */ (
-      document.querySelector("#email")
-    );
-    const emailStatus = /** @type {HTMLElement | null} */ (
-      document.querySelector("#email-status")
-    );
-    const confirmInput = /** @type {HTMLInputElement | null} */ (
-      document.querySelector("#confirm-email")
-    );
-    const confirmStatus = /** @type {HTMLElement | null} */ (
-      document.querySelector("#confirm-email-status")
-    );
-    const passwordsDiv = /** @type {HTMLElement | null} */ (
-      document.querySelector("#passwords")
-    );
-
-    // If key elements missing, do nothing
-    if (
-      !form ||
-      !emailInput ||
-      !emailStatus ||
-      !confirmInput ||
-      !confirmStatus
-    ) {
-      return;
-    }
+    /** @type {HTMLInputElement | null} */
+    const emailInput = document.querySelector("#email");
+    /** @type {HTMLElement | null} */
+    const emailStatus = document.querySelector("#emailStatus");
+    /** @type {HTMLInputElement | null} */
+    const confirmInput = document.querySelector("#confirmEmail");
+    /** @type {HTMLElement | null} */
+    const confirmStatus = document.querySelector("#confirmEmailStatus");
+    /** @type {HTMLElement | null} */
+    const passwordsDiv = document.querySelector("#passwords");
 
     const isEmailPass = !!emailPassForm;
     const isNonProfile = !!nonProfileForm;
+    const isMyAccount = !!myAccountContactForm;
+
+    // If My Account: only need email + status
+    if (isMyAccount) {
+      if (!emailInput || !emailStatus) return;
+    } else {
+      // EmailPass & NonProfile need full stack
+      if (
+        !form ||
+        !emailInput ||
+        !emailStatus ||
+        !confirmInput ||
+        !confirmStatus
+      ) {
+        return;
+      }
+    }
 
     // Accessibility
     emailStatus.setAttribute("role", "status");
     emailStatus.setAttribute("aria-live", "polite");
-    confirmStatus.setAttribute("role", "status");
-    confirmStatus.setAttribute("aria-live", "polite");
+    if (!isMyAccount && confirmStatus) {
+      confirmStatus.setAttribute("role", "status");
+      confirmStatus.setAttribute("aria-live", "polite");
+    }
 
     /* ------------------------------------------------------------------------
      * Helper functions
      * --------------------------------------------------------------------- */
 
+    /**
+     * Clear loading/success/error classes on status element.
+     * @param {HTMLElement} el
+     */
     const clearStates = (el) => {
       el.classList.remove("loading", "success", "error");
     };
 
+    /**
+     * Show loading spinner status.
+     * @param {HTMLElement} el
+     * @param {string} [text="Checking..."]
+     */
     const setStatusLoading = (el, text = "Checking...") => {
       clearStates(el);
       el.classList.add("loading");
@@ -80,12 +102,22 @@
         text;
     };
 
+    /**
+     * Show success text.
+     * @param {HTMLElement} el
+     * @param {string} [msg="✅ OK"]
+     */
     const setStatusSuccess = (el, msg = "✅ OK") => {
       clearStates(el);
       el.classList.add("success");
       el.textContent = msg;
     };
 
+    /**
+     * Show error text as alert.
+     * @param {HTMLElement} el
+     * @param {string} [msg="Error."]
+     */
     const setStatusError = (el, msg = "Error.") => {
       clearStates(el);
       el.classList.add("error");
@@ -96,12 +128,20 @@
         </div>`;
     };
 
+    /**
+     * Enable or disable confirmEmail field (registration only).
+     * @param {boolean} enabled
+     */
     const setConfirmEnabled = (enabled) => {
+      if (!confirmInput) return;
       confirmInput.disabled = !enabled;
     };
 
+    /**
+     * Show/hide password section (emailPass page only).
+     * @param {boolean} show
+     */
     function showPasswords(show) {
-      // Only relevant on emailPass page; on nonProfile, passwordsDiv is usually null
       if (!passwordsDiv) return;
 
       const shouldHide = !show;
@@ -113,9 +153,8 @@
         "input, select, textarea, button",
       );
       interactive.forEach((el) => {
-        /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement} */ (
-          el
-        ).disabled = shouldHide;
+        /** @type {HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement|HTMLButtonElement} */
+        (el).disabled = shouldHide;
       });
     }
 
@@ -127,30 +166,37 @@
     let emailDeliverable = false;
     /** @type {boolean} */
     let emailsMatch = false;
-    /** @type {number | undefined} */
+    /** @type {number|undefined} */
     let debounceId;
-    /** @type {boolean | null} */
+    /** @type {boolean|null} */
     let emailTaken = null;
-    /** @type {number | undefined} */
+    /** @type {number|undefined} */
     let dupDebounceId;
 
     // Expose for nonProfile submit gating if needed
-    window.__emailValidationState = {
-      get emailDeliverable() {
-        return emailDeliverable;
-      },
-      get emailsMatch() {
-        return emailsMatch;
-      },
-      get emailTaken() {
-        return emailTaken;
-      },
-    };
+    if (!isMyAccount) {
+      /** @type {any} */
+      (window).__emailValidationState = {
+        get emailDeliverable() {
+          return emailDeliverable;
+        },
+        get emailsMatch() {
+          return emailsMatch;
+        },
+        get emailTaken() {
+          return emailTaken;
+        },
+      };
+    }
 
     /* ============================================================
-     * Primary email validation (Kickbox-backed)
+     * Primary email validation (Kickbox-backed) – Registration flows
      * ============================================================ */
 
+    /**
+     * Validate email address using Kickbox (registration flows).
+     * @param {string} email
+     */
     async function validateEmail(email) {
       const requestedEmail = email.trim();
       setStatusLoading(emailStatus, "Checking email...");
@@ -172,12 +218,12 @@
         const res = await fetch(
           `/validate-email?email=${encodeURIComponent(requestedEmail)}`,
         );
-        console.log(res)
+        /** @type {{result?:string,reason?:string,error?:string}} */
         const data = await res.json().catch(() => ({}));
         const reason = data.reason || "";
 
         // Ignore stale responses
-        if (emailInput.value.trim() !== requestedEmail) return;
+        if (emailInput && emailInput.value.trim() !== requestedEmail) return;
 
         if (!res.ok) {
           setStatusError(
@@ -217,7 +263,9 @@
           showPasswords(false);
         }
 
-        evaluateConfirmMatch();
+        if (!isMyAccount) {
+          evaluateConfirmMatch();
+        }
       } catch (err) {
         console.error("validateEmail error:", err);
         emailDeliverable = false;
@@ -233,9 +281,14 @@
     }
 
     /* ============================================================
-     * Duplicate email check (/api/volunteers/exists)
+     * Duplicate email check (/api/volunteers/exists) – Registration flows
      * ============================================================ */
 
+    /**
+     * Check whether the given email is already registered (registration flows).
+     * @param {string} email
+     * @returns {Promise<boolean|null>} true if taken, false if not, null on error
+     */
     async function checkEmailDuplicate(email) {
       const normalized = email.trim().toLowerCase();
       if (!normalized) {
@@ -248,6 +301,7 @@
           `/api/volunteers/exists?email=${encodeURIComponent(normalized)}`,
           { credentials: "include" },
         );
+        /** @type {{exists?:boolean,error?:string}} */
         const data = await resp.json().catch(() => ({}));
 
         if (!resp.ok) {
@@ -282,10 +336,15 @@
     }
 
     /* ============================================================
-     * Confirm email exact match gate
+     * Confirm email exact match gate (Registration flows)
      * ============================================================ */
 
+    /**
+     * Evaluate confirmEmail matching gates for registration.
+     */
     function evaluateConfirmMatch() {
+      if (!confirmInput || !confirmStatus || !emailInput) return;
+
       const emailVal = emailInput.value.trim();
       const confirmVal = confirmInput.value.trim();
 
@@ -326,25 +385,136 @@
     }
 
     /* ============================================================
+     * My Account – email-only validation
+     * ============================================================ */
+
+    /**
+     * Validate email in My Account mode (no confirm, allow unchanged).
+     * @param {string} email
+     */
+    async function validateEmailMyAccount(email) {
+      if (!emailInput || !emailStatus) return;
+
+      const requested = email.trim().toLowerCase();
+      const original = emailInput.dataset.currentEmail?.toLowerCase() || "";
+
+      // If unchanged → valid
+      if (requested === original) {
+        emailInput.dataset.validEmail = "true";
+        setStatusSuccess(emailStatus, "✓ Email unchanged");
+        return;
+      }
+
+      // Block jwpub
+      if (requested.endsWith("@jwpub.org")) {
+        setStatusError(emailStatus, "Emails from @jwpub.org are not allowed.");
+        emailInput.dataset.validEmail = "false";
+        return;
+      }
+
+      setStatusLoading(emailStatus, "Checking email…");
+
+      try {
+        const res = await fetch(
+          `/validate-email?email=${encodeURIComponent(requested)}`,
+        );
+        /** @type {{result?:string,reason?:string,error?:string}} */
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok || !data.result) {
+          setStatusError(emailStatus, data.error || "Email validation error.");
+          emailInput.dataset.validEmail = "false";
+          return;
+        }
+
+        const result = String(data.result).toLowerCase();
+
+        if (result !== "deliverable") {
+          setStatusError(
+            emailStatus,
+            data.reason || "Email is not deliverable.",
+          );
+          emailInput.dataset.validEmail = "false";
+          return;
+        }
+
+        // Duplicate (excluding own email)
+        const dupResp = await fetch(
+          `/api/volunteers/exists?email=${encodeURIComponent(requested)}`,
+          { credentials: "include" },
+        );
+        /** @type {{exists?:boolean,error?:string}} */
+        const dupData = await dupResp.json().catch(() => ({}));
+
+        if (!dupResp.ok) {
+          setStatusError(
+            emailStatus,
+            dupData.error || "Could not verify email.",
+          );
+          emailInput.dataset.validEmail = "false";
+          return;
+        }
+
+        if (dupData.exists && requested !== original) {
+          setStatusError(
+            emailStatus,
+            "Another account already uses this email.",
+          );
+          emailInput.dataset.validEmail = "false";
+          return;
+        }
+
+        // VALID
+        setStatusSuccess(emailStatus, "✓ Email looks good");
+        emailInput.dataset.validEmail = "true";
+      } catch (err) {
+        console.error("validateEmailMyAccount error:", err);
+        setStatusError(
+          emailStatus,
+          "Could not validate email. Please try again.",
+        );
+        emailInput.dataset.validEmail = "false";
+      }
+    }
+
+    /* ============================================================
      * Event wiring
      * ============================================================ */
 
-    // Prevent Tab into confirm before email is validated
-    confirmInput.addEventListener("keydown", (e) => {
-      if (e.key === "Tab" && !emailDeliverable) {
-        e.preventDefault();
-        emailInput.focus();
-        confirmStatus.textContent = "Validate your email first.";
-      }
-    });
+    // Prevent Tab into confirm before email is validated (registration)
+    if (!isMyAccount && confirmInput && confirmStatus) {
+      confirmInput.addEventListener("keydown", (e) => {
+        if (e.key === "Tab" && !emailDeliverable) {
+          e.preventDefault();
+          emailInput?.focus();
+          confirmStatus.textContent = "Validate your email first.";
+        }
+      });
+    }
 
-    emailInput.addEventListener("input", () => {
+    emailInput?.addEventListener("input", () => {
       clearTimeout(debounceId);
       clearTimeout(dupDebounceId);
 
       const email = emailInput.value.trim();
       emailTaken = null;
 
+      // MY ACCOUNT MODE
+      if (isMyAccount) {
+        if (!email) {
+          emailStatus.textContent = "";
+          emailInput.dataset.validEmail = "false";
+          return;
+        }
+
+        debounceId = window.setTimeout(() => {
+          void validateEmailMyAccount(email);
+        }, 500);
+
+        return; // skip registration logic
+      }
+
+      // REGISTRATION MODES
       if (email === "") {
         emailDeliverable = false;
         emailStatus.dataset.deliverable = "false";
@@ -372,19 +542,18 @@
       }, 500);
     });
 
-    confirmInput.addEventListener("input", evaluateConfirmMatch);
+    if (!isMyAccount && confirmInput) {
+      confirmInput.addEventListener("input", evaluateConfirmMatch);
+    }
 
     /* ============================================================
-     * Submit gating
-     *  - EmailPass page: block submit until all gates satisfied
-     *  - NonProfile page: DO NOT block; AJAX handler owns submit
+     * Submit gating (registration only)
      * ============================================================ */
 
-    if (isEmailPass) {
+    if (isEmailPass && form) {
       form.addEventListener("submit", (e) => {
-        const email = emailInput.value.trim().toLowerCase();
+        const email = emailInput?.value.trim().toLowerCase() || "";
 
-        // Block jwpub at submit too
         if (email.endsWith("@jwpub.org")) {
           e.preventDefault();
           setStatusError(
@@ -415,11 +584,8 @@
           );
           return;
         }
-
-        // If emailTaken === false AND all gates OK:
-        // allow native submit to /submit-emailPass (passwords.js enforces password constraints).
       });
     }
-    // if isNonProfile: no submit handler here; initNonProfileForm() handles AJAX submit
+    // NonProfile: submit gating handled in initNonProfileForm()
   }
 })();

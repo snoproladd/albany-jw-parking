@@ -1,0 +1,7 @@
+mcs.metadata:
+  componentName: https://developer.mozilla.org/
+  description: This knowledge source searches information on the web found in https://developer.mozilla.org/ website
+kind: KnowledgeSourceConfiguration
+source:
+  kind: PublicSiteSearchSource
+  site: https://developer.mozilla.org/

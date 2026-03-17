@@ -1,0 +1,89 @@
+<!-- notes.ejs -->
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Extra Information</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Georama:wght@100..900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@100..900&display=swap" rel="stylesheet" />
+  </head>
+
+  <body
+    class="min-vh-100 d-flex justify-content-center align-items-center bg-body-tertiary entry-body"
+  >
+    <main class="container body-container">
+      <div class="row justify-content-center">
+        <div class="col-12 col-md-10 col-lg-8 form-entry">
+
+          <section id="notesCard" class="card shadow-lg entry-card">
+            <header class="card-header text-center">
+              <h1 class="text-center mb-1">Extra Information</h1>
+              <h2 class="text-center mb-2">
+                Use this space for anything not covered in the previous questions.
+              </h2>
+            </header>
+
+            <div class="card-body">
+              <form action="/submitNotes" method="POST" id="account-form">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+                <!-- ============================================================
+                     NOTES SECTION
+                     ============================================================ -->
+                <div id="notesSection" class="scroll-section mb-3">
+                  <label for="notes" class="form-label">Additional Notes</label>
+                  <textarea
+                    class="form-control form-control-lg"
+                    id="notes"
+                    name="notes"
+                    rows="5"
+                    placeholder="Enter notes here..."
+                    aria-describedby="notesStatus"
+                  ></textarea>
+                </div>
+
+              </form>
+            </div>
+
+            <!-- ============================================================
+                 UNIFIED STICKY FOOTER (statuses + submit)
+                 ============================================================ -->
+            <div class="scroll-section sticky-action">
+
+              <!-- Section-specific statuses -->
+              <div id="section-status" class="w-100">
+                <div id="notesStatus" class="status"></div>
+              </div>
+
+              <!-- Submit status -->
+              <div
+                id="submitStatus"
+                class="status mt-2"
+                role="status"
+                aria-live="polite"
+              ></div>
+
+              <button type="submit" class="btn btn-primary w-100 mt-1">
+                Submit
+              </button>
+            </div>
+
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/formListeners.js"></script>
+  </body>
+</html>

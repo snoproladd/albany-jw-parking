@@ -3,18 +3,19 @@
 // Phone verification controller (standalone — no IMask, no bundler)
 // - Formats user input into (XXX) XXX-XXXX
 // - Phone deliverability check via /validate-phone
-// - Duplicate number check (exists flag in API)
-// - Confirms re-typed value matches
-// - Gated submit button + SMSCapable selection requirement
+// - Duplicate number check (exists flag in API) for registration flow
+// - Confirms re-typed value matches (registration flow)
+// - Gated submit button + SMSCapable selection requirement (registration flow)
 // - Accessible status output for phone + confirm fields
+// - My Account: single-field phone validation (unchanged phone is allowed)
 // -----------------------------------------------------------------------------
 
 (() => {
   "use strict";
 
-  /* ==========================================================================
-   * Utilities
-   * ======================================================================= */
+  /* ========================================================================== */
+  /* Utilities                                                                  */
+  /* ========================================================================== */
 
   /**
    * Extract digits from a string.
@@ -27,7 +28,6 @@
 
   /**
    * Formats a North American 10-digit phone number into (XXX) XXX-XXXX.
-   *
    * @param {string} raw
    * @returns {string}
    */
@@ -41,61 +41,88 @@
     return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
   }
 
-  /* ==========================================================================
-   * Main initializer (invoked on DOM ready)
-   * ======================================================================= */
-  document.addEventListener("DOMContentLoaded", initPhoneVerification);
+  /* ========================================================================== */
+  /* DOMContentLoaded Bootstrap                                                */
+  /* ========================================================================== */
 
+  document.addEventListener("DOMContentLoaded", () => {
+    initPhoneVerification(); // registration flow (#phoneSection form)
+    initMyAccountPhoneValidation(); // My Account flow (/my-account/update/contact)
+  });
   /**
-   * Initializes phone verification, matching, and submission gating.
-   * If #phoneVer-form is not present, the script safely no-ops.
+   * Registration Flow: #phoneSection form
+   * - Validates phone using /validate-phone
+   * - Checks duplicates
+   * - Confirms confirmPhone
+   * - Gated by SMSCapable radios
    */
   function initPhoneVerification() {
-    const csrfToken =
-      /** @type {HTMLInputElement | null} */ (
-        document.querySelector('input[name="_csrf"]')
-      )?.value || "";
+    /** @type {HTMLInputElement | null} */
+    const csrfInput = document.querySelector('input[name="_csrf"]');
+    const csrfToken = csrfInput?.value || "";
 
-    /* DOM ELEMENTS -------------------------------------------------------- */
     const DOM = {
-      form: document.querySelector("#phoneVer-form"),
+      /** @type {HTMLFormElement | null} */
+      form: document.querySelector("#phoneSection"),
 
-      submitBtn: document.querySelector("#submit-btn"),
-      submitStatus: document.querySelector("#submit-status"),
+      /** @type {HTMLButtonElement | null} */
+      submitBtn: document.querySelector("#submitBtn"),
+      /** @type {HTMLElement | null} */
+      submitStatus: document.querySelector("#submitStatus"),
 
+      /** @type {HTMLInputElement | null} */
       firstName: document.querySelector("#firstName"),
+      /** @type {HTMLInputElement | null} */
       lastName: document.querySelector("#lastName"),
+      /** @type {HTMLInputElement | null} */
       suffix: document.querySelector("#suffix"),
 
+      /** @type {HTMLInputElement | null} */
       phone: document.querySelector("#phone"),
-      confirm: document.querySelector("#confirm-phone"),
+      /** @type {HTMLInputElement | null} */
+      confirm: document.querySelector("#confirmPhone"),
 
-      phoneStatus: document.querySelector("#phone-status"),
-      confirmStatus: document.querySelector("#confirm-phone-status"),
+      /** @type {HTMLElement | null} */
+      phoneStatus: document.querySelector("#phoneStatus"),
+      /** @type {HTMLElement | null} */
+      confirmStatus: document.querySelector("#confirmPhoneStatus"),
 
+      /** @type {NodeListOf<HTMLInputElement>} */
       smsRadios: document.querySelectorAll('input[name="SMSCapable"]'),
-      smsError: document.getElementById("SMSCapable-error"),
+      /** @type {HTMLElement | null} */
+      smsError: document.getElementById("SMSCapableError"),
 
+      /** @type {boolean} */
       disableNameFields:
         document.querySelector("#firstName")?.dataset.disable === "true",
     };
 
-    // If form is missing, page doesn’t require phone verification logic.
-    if (!DOM.form) return;
+    if (
+      !DOM.form ||
+      !DOM.submitBtn ||
+      !DOM.submitStatus ||
+      !DOM.phone ||
+      !DOM.confirm ||
+      !DOM.phoneStatus ||
+      !DOM.confirmStatus
+    ) {
+      return;
+    }
 
-    /* STATE --------------------------------------------------------------- */
     const State = {
+      /** @type {boolean} */
       phoneDeliverable: false,
+      /** @type {boolean} */
       phonesMatch: false,
+      /** @type {AbortController | null} */
       aborter: null,
-      debounceId: null,
+      /** @type {number | undefined} */
+      debounceId: undefined,
     };
-
-    /* UI HELPERS ---------------------------------------------------------- */
 
     const UI = {
       /**
-       * Remove all status classes and clear innerHTML.
+       * Clear status element.
        * @param {HTMLElement} el
        */
       clear(el) {
@@ -104,7 +131,7 @@
       },
 
       /**
-       * Sets a loading state.
+       * Loading state.
        * @param {HTMLElement} el
        * @param {string} [msg="Checking..."]
        */
@@ -118,7 +145,7 @@
       },
 
       /**
-       * Success with plain checkmark text.
+       * Success state.
        * @param {HTMLElement} el
        * @param {string} [msg="✅ OK"]
        */
@@ -129,7 +156,7 @@
       },
 
       /**
-       * Error with a Bootstrap alert wrapper.
+       * Error state.
        * @param {HTMLElement} el
        * @param {string} [msg="Error."]
        */
@@ -145,7 +172,7 @@
       },
 
       /**
-       * Loading message for the submit-status box.
+       * Submit loading state.
        * @param {string} msg
        */
       submitLoading(msg) {
@@ -158,7 +185,7 @@
       },
 
       /**
-       * Submit success message.
+       * Submit success state.
        * @param {string} msg
        */
       submitSuccess(msg) {
@@ -168,7 +195,7 @@
       },
 
       /**
-       * Submit error message.
+       * Submit error state.
        * @param {string} msg
        */
       submitError(msg) {
@@ -183,7 +210,7 @@
       },
 
       /**
-       * Enables or disables the confirm-phone field.
+       * Enable or disable confirm field.
        * @param {boolean} enable
        */
       toggleConfirmField(enable) {
@@ -191,27 +218,27 @@
       },
     };
 
-    /* LOGIC --------------------------------------------------------------- */
     const Logic = {
       /**
-       * Returns true if required fields (first, last, phone, confirm) are filled.
+       * @returns {boolean}
        */
       fieldsFilled() {
-        const fn = DOM.disableNameFields || DOM.firstName.value.trim() !== "";
-        const ln = DOM.disableNameFields || DOM.lastName.value.trim() !== "";
-
-        return fn && ln && DOM.phone.value.trim() && DOM.confirm.value.trim();
+        const fn = DOM.disableNameFields || !!DOM.firstName?.value.trim();
+        const ln = DOM.disableNameFields || !!DOM.lastName?.value.trim();
+        return (
+          fn && ln && !!DOM.phone.value.trim() && !!DOM.confirm.value.trim()
+        );
       },
 
       /**
-       * Returns true if one of SMSCapable radios is selected.
+       * @returns {boolean}
        */
       radiosSelected() {
         return !!document.querySelector('input[name="SMSCapable"]:checked');
       },
 
       /**
-       * Exact match check of raw digits from phone + confirm.
+       * @returns {boolean}
        */
       numbersMatch() {
         return (
@@ -220,9 +247,6 @@
         );
       },
 
-      /**
-       * Handles submit button gating + overall readiness status.
-       */
       updateSubmitState() {
         if (DOM.smsError) {
           DOM.smsError.style.display = Logic.radiosSelected()
@@ -243,15 +267,11 @@
           UI.submitSuccess("✅ Ready to submit");
         } else {
           UI.submitError(
-            "Please complete all required fields, ensure phone numbers match, and select Yes/No for SMSCapable.",
+            "Please complete all required fields.",
           );
         }
       },
 
-      /**
-       * Confirms phone # re-entry matches exactly.
-       * Updates confirm-status, gating, and submit state.
-       */
       validateConfirmMatch() {
         const p1 = digitsOnly(DOM.phone.value.trim());
         const p2 = digitsOnly(DOM.confirm.value.trim());
@@ -284,13 +304,7 @@
       },
 
       /**
-       * Validates phone using backend API:
-       *   GET /validate-phone?phone=<raw>
-       *
-       * - Checks deliverability
-       * - Checks duplicates via `exists` flag in API
-       * - Updates confirm availability + status UI
-       *
+       * Validate phone using /validate-phone.
        * @param {string} raw
        */
       async validatePhone(raw) {
@@ -306,10 +320,12 @@
           const url = new URL("/validate-phone", window.location.origin);
           url.searchParams.set("phone", trimmed);
 
-          const resp = await fetch(url, { signal: State.aborter.signal });
+          const resp = await fetch(url.toString(), {
+            signal: State.aborter.signal,
+          });
+          /** @type {{valid?:boolean,exists?:boolean,validation_errors?:string,error?:string}} */
           const data = await resp.json().catch(() => ({}));
 
-          // If user typed more while request was in-flight, discard
           if (DOM.phone.value.trim() !== trimmed) return;
 
           if (!resp.ok) {
@@ -352,7 +368,7 @@
 
           Logic.validateConfirmMatch();
         } catch (err) {
-          if (err.name !== "AbortError") {
+          if (/** @type {any} */ (err).name !== "AbortError") {
             State.phoneDeliverable = false;
             UI.error(DOM.phoneStatus, "Error validating phone.");
             UI.toggleConfirmField(false);
@@ -365,10 +381,8 @@
       },
     };
 
-    /* EVENT BINDING -------------------------------------------------------- */
     const Events = {
       init() {
-        // User typing in primary phone field
         DOM.phone.addEventListener("input", () => {
           const formatted = formatPhone(DOM.phone.value);
           DOM.phone.value = formatted;
@@ -376,7 +390,6 @@
           clearTimeout(State.debounceId);
           const raw = DOM.phone.value;
 
-          // Basic checks before API call
           if (!raw.trim()) {
             State.phoneDeliverable = false;
             UI.toggleConfirmField(false);
@@ -406,14 +419,12 @@
           Logic.updateSubmitState();
         });
 
-        // Confirm-phone typing
         DOM.confirm.addEventListener("input", () => {
           const formatted = formatPhone(DOM.confirm.value);
           DOM.confirm.value = formatted;
           Logic.validateConfirmMatch();
         });
 
-        // Disable paste for confirm-phone
         DOM.confirm.addEventListener("paste", (e) => {
           e.preventDefault();
           UI.error(
@@ -423,25 +434,163 @@
           Logic.updateSubmitState();
         });
 
-        // First/last name inputs update readiness
-        if (DOM.firstName)
-          DOM.firstName.addEventListener("input", Logic.updateSubmitState);
-        if (DOM.lastName)
-          DOM.lastName.addEventListener("input", Logic.updateSubmitState);
+        DOM.firstName?.addEventListener("input", Logic.updateSubmitState);
+        DOM.lastName?.addEventListener("input", Logic.updateSubmitState);
 
-        // SMSCapable radios
         DOM.smsRadios.forEach((r) =>
           r.addEventListener("change", Logic.updateSubmitState),
         );
       },
     };
 
-    // INIT
     Events.init();
     Logic.updateSubmitState();
-
-    // Hide sms error initially
     if (DOM.smsError) DOM.smsError.style.display = "none";
   }
-})();
 
+  /**
+   * My Account Flow: /my-account/update/contact
+   * - Single phone field
+   * - Allows unchanged phone
+   * - Uses /validate-phone + exists flag
+   * - Sets dataset.validPhone for gating
+   */
+  function initMyAccountPhoneValidation() {
+    /** @type {HTMLFormElement | null} */
+    const form = document.querySelector(
+      'form[action="/my-account/update/contact"]',
+    );
+    /** @type {HTMLInputElement | null} */
+    const phoneInput = document.querySelector("#phone");
+    /** @type {HTMLElement | null} */
+    const phoneStatus = document.querySelector("#phoneStatus");
+
+    if (!form || !phoneInput || !phoneStatus) return;
+
+    const originalDigits = digitsOnly(phoneInput.dataset.currentPhone || "");
+    /** @type {number | undefined} */
+    let debounceId;
+
+    function clearStatus() {
+      phoneStatus.classList.remove("loading", "success", "error");
+      phoneStatus.innerHTML = "";
+    }
+
+    /**
+     * @param {string} [msg="Checking phone…"]
+     */
+    function setStatusLoading(msg = "Checking phone…") {
+      phoneStatus.classList.remove("success", "error");
+      phoneStatus.classList.add("loading");
+      phoneStatus.innerHTML = `
+        <span class="spinner-border spinner-border-sm text-secondary" role="status"></span>
+        ${msg}
+      `;
+    }
+
+    /**
+     * @param {string} [msg="✓ Phone looks good"]
+     */
+    function setStatusSuccess(msg = "✓ Phone looks good") {
+      phoneStatus.classList.remove("loading", "error");
+      phoneStatus.classList.add("success");
+      phoneStatus.textContent = msg;
+    }
+
+    /**
+     * @param {string} [msg="Invalid phone"]
+     */
+    function setStatusError(msg = "Invalid phone") {
+      phoneStatus.classList.remove("loading", "success");
+      phoneStatus.classList.add("error");
+      phoneStatus.innerHTML = `
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+          ❌ ${msg}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>`;
+    }
+
+    /**
+     * Validate My Account phone.
+     * @param {string} raw
+     */
+    async function validateMyAccountPhone(raw) {
+      const phone = raw.trim();
+      const digits = digitsOnly(phone);
+
+      if (!digits) {
+        clearStatus();
+        phoneInput.dataset.validPhone = "false";
+        return;
+      }
+
+      if (digits === originalDigits) {
+        setStatusSuccess("✓ Phone unchanged");
+        phoneInput.dataset.validPhone = "true";
+        return;
+      }
+
+      if (digits.length < 10) {
+        setStatusError("Enter at least 10 digits.");
+        phoneInput.dataset.validPhone = "false";
+        return;
+      }
+
+      setStatusLoading();
+
+      try {
+        const url = new URL("/validate-phone", window.location.origin);
+        url.searchParams.set("phone", phone);
+
+        const resp = await fetch(url.toString());
+        /** @type {{valid?:boolean,exists?:boolean,formatted?:string,validation_errors?:string,error?:string}} */
+        const data = await resp.json().catch(() => ({}));
+
+        if (phoneInput.value.trim() !== raw.trim()) return;
+
+        if (!resp.ok || !data.valid) {
+          setStatusError(
+            data.validation_errors || data.error || "Phone not valid.",
+          );
+          phoneInput.dataset.validPhone = "false";
+          return;
+        }
+
+        if (data.formatted) {
+          phoneInput.value = data.formatted;
+        }
+
+        if (data.exists && digits !== originalDigits) {
+          setStatusError("Another account already uses this phone number.");
+          phoneInput.dataset.validPhone = "false";
+          return;
+        }
+
+        setStatusSuccess();
+        phoneInput.dataset.validPhone = "true";
+      } catch (err) {
+        console.error("MyAccount phone validation error:", err);
+        setStatusError("Phone validation failed. Try again.");
+        phoneInput.dataset.validPhone = "false";
+      }
+    }
+
+    phoneInput.addEventListener("input", () => {
+      clearTimeout(debounceId);
+
+      const formatted = formatPhone(phoneInput.value);
+      phoneInput.value = formatted;
+      const raw = phoneInput.value;
+
+      if (!raw.trim()) {
+        clearStatus();
+        phoneInput.dataset.validPhone = "false";
+        return;
+      }
+
+      debounceId = window.setTimeout(() => {
+        void validateMyAccountPhone(raw);
+      }, 500);
+    });
+  }
+})();

@@ -1,4 +1,3 @@
-// =========================
 // index.js - Main Server
 // =========================
 
@@ -11,9 +10,8 @@ import crypto from "crypto";
 import cookieParser from "cookie-parser";
 import session from "express-session";
 import csurf from "csurf";
-import { RedisStore } from "connect-redis"; // ⬅️ use named export
+import { RedisStore } from "connect-redis";
 import { createClient } from "redis";
-
 
 import { getConfig, getSqlPool } from "./src/config/azureConfig.js";
 import { INCOMPATIBILITIES } from "./src/config/privilegeRules.js";
@@ -21,6 +19,7 @@ import { INCOMPATIBILITIES } from "./src/config/privilegeRules.js";
 // Routers
 import { createRegistrationRouter } from "./routes/registrationRoutes.js";
 import apiRoutes from "./routes/apiRoutes.js";
+import { loginRouter } from "./routes/accountRoutes.js";
 
 // Database helpers
 import {
@@ -40,6 +39,7 @@ import {
   getCongregations,
 } from "./lib/dbSync.js";
 
+// Resolve paths
 const config = await getConfig();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -50,14 +50,24 @@ const PORT = process.env.PORT || config.PORT || (isProd ? 80 : 3000);
 const HOST = "0.0.0.0";
 
 // Logging helpers
+/**
+ * @param {...any} args
+ */
 function log(...args) {
   console.log(`[${new Date().toISOString()}] [index.js]`, ...args);
 }
+/**
+ * @param {...any} args
+ */
 function logError(...args) {
   console.error(`[${new Date().toISOString()}] [index.js]`, ...args);
 }
 
 // Mask credentials in logs (redis://:password@host -> redis://:***@host)
+/**
+ * @param {string} url
+ * @returns {string}
+ */
 function maskRedisUrl(url) {
   try {
     return url.replace(/:(?:[^@]*)@/, ":***@");
@@ -67,33 +77,33 @@ function maskRedisUrl(url) {
 }
 
 // Build redis URL from either REDIS_URL (direct) or VALKEY_HOST + VALKEY_PASSWORD
+/**
+ * @returns {string | null}
+ */
 function resolveRedisUrl() {
-  // Prefer VALKEY_* (VM Valkey / Key Vault-based config)
   const valkeyHost = process.env.VALKEY_HOST;
   const valkeyPassword = process.env.VALKEY_PASSWORD;
   const valkeyPort = process.env.VALKEY_PORT || 6379;
 
   if (valkeyHost && valkeyPassword) {
     const encPwd = encodeURIComponent(valkeyPassword);
-    // IMPORTANT: no username here; just :password
     return `redis://:${encPwd}@${valkeyHost}:${valkeyPort}`;
   }
 
-  // Fallback: REDIS_URL (for other environments / legacy)
   const directRedisUrl = config.REDIS_URL || process.env.REDIS_URL;
   if (directRedisUrl) return directRedisUrl;
 
   return null;
 }
-;
 
 // ============================================================
-// Crypto Polyfill
+// Crypto Polyfill (for environments without globalThis.crypto)
 // ============================================================
 
 if (typeof globalThis.crypto === "undefined") {
   import("crypto")
     .then(({ webcrypto, default: cjsCrypto }) => {
+      // @ts-ignore
       globalThis.crypto = webcrypto ?? cjsCrypto;
     })
     .catch((err) => logError("Failed to load crypto:", err));
@@ -103,7 +113,13 @@ if (typeof globalThis.crypto === "undefined") {
 // Twilio
 // ============================================================
 
+/** @type {import("twilio").Twilio | undefined} */
 let twClient;
+
+/**
+ * Initialize Twilio client if necessary.
+ * @returns {Promise<import("twilio").Twilio>}
+ */
 async function initTwilio() {
   if (!twClient) {
     const mod = await import("twilio");
@@ -117,6 +133,12 @@ async function initTwilio() {
 // Kickbox email verification
 // ============================================================
 
+/**
+ * Verify email via Kickbox API.
+ * @param {string} email
+ * @param {{timeoutMs?:number}} [options]
+ * @returns {Promise<any>}
+ */
 async function verifyEmail(email, { timeoutMs = 8000 } = {}) {
   if (!config.KICKBOX_API_KEY) throw new Error("KICKBOX_API_KEY missing");
 
@@ -146,8 +168,14 @@ async function verifyEmail(email, { timeoutMs = 8000 } = {}) {
 // Volunteer Cache Auto-Refresh
 // ============================================================
 
+/** @type {NodeJS.Timeout | null} */
 let dbUpdateInterval = null;
 
+/**
+ * Start periodic volunteer cache refresh.
+ * @param {() => Promise<any>} loadFn
+ * @param {import("express").Express} appInstance
+ */
 function startDbUpdate(loadFn, appInstance) {
   if (!dbUpdateInterval) {
     dbUpdateInterval = setInterval(async () => {
@@ -160,6 +188,9 @@ function startDbUpdate(loadFn, appInstance) {
   }
 }
 
+/**
+ * Stop periodic volunteer cache refresh.
+ */
 function stopDbUpdate() {
   if (dbUpdateInterval) {
     clearInterval(dbUpdateInterval);
@@ -177,7 +208,13 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public")));
 
 app.set("view engine", "ejs");
-app.set("views", path.join(__dirname, "views"));
+app.set("views", [
+  path.join(__dirname, "views"),
+  path.join(__dirname, "views/registration"),
+  path.join(__dirname, "views/partials"),
+  path.join(__dirname, "views/errors"),
+  path.join(__dirname, "views/authentication_and_accounts"),
+]);
 
 // CSP nonce middleware
 app.use((req, res, next) => {
@@ -211,7 +248,7 @@ app.use(
   }),
 );
 
-// When behind Azure App Service (TLS termination), trust proxy so secure cookies work
+// When behind Azure App Service (TLS termination), trust proxy
 if (isProd) {
   app.set("trust proxy", 1);
 }
@@ -219,6 +256,7 @@ if (isProd) {
 // ============================================================
 // Startup wrapper
 // ============================================================
+
 const server = http.createServer(app);
 
 (async () => {
@@ -232,15 +270,16 @@ const server = http.createServer(app);
     const sessionSecret =
       config.sessionSecret || process.env.SESSION_SECRET || "fallback-secret";
 
+    /** @type {session.SessionOptions} */
     const sessionOptions = {
       secret: sessionSecret,
       resave: false,
       saveUninitialized: false,
       cookie: {
-        secure: isProd, // true in prod (behind HTTPS)
+        secure: isProd,
         httpOnly: true,
         sameSite: "lax",
-        maxAge: 5 * 60 * 1000, // 5 min
+        maxAge: 5 * 60 * 1000,
       },
     };
 
@@ -255,6 +294,7 @@ const server = http.createServer(app);
             hasVALKEY_PASSWORD: Boolean(process.env.VALKEY_PASSWORD),
           },
         );
+        // eslint-disable-next-line no-process-exit
         process.exit(1);
       }
 
@@ -321,6 +361,9 @@ const server = http.createServer(app);
       }),
     );
 
+    // Login + My Account router
+    app.use("/", loginRouter({ csrfProtection, logError }));
+
     // ========================================================
     // Validation Endpoints (Kickbox / Twilio)
     // ========================================================
@@ -334,7 +377,6 @@ const server = http.createServer(app);
         });
       }
 
-      // Block jwpub.org at the API level too
       if (email.toLowerCase().endsWith("@jwpub.org")) {
         return res.json({
           result: "invalid",
@@ -374,6 +416,7 @@ const server = http.createServer(app);
           carrierType: lookup?.carrier?.type || "",
         });
       } catch (err) {
+        // @ts-ignore Twilio errors often have status
         if (err.status === 404) {
           return res.json({
             valid: false,
@@ -386,7 +429,7 @@ const server = http.createServer(app);
     });
 
     // ========================================================
-    // Health check & 404
+    // Health & 404
     // ========================================================
 
     app.get("/health", (req, res) => res.send("OK"));
@@ -407,6 +450,7 @@ const server = http.createServer(app);
     await initTwilio();
   } catch (err) {
     logError("Failed to start server:", err);
+    // eslint-disable-next-line no-process-exit
     process.exit(1);
   }
 })();

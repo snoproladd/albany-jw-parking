@@ -1,0 +1,33 @@
+﻿displayName: Cody
+schemaName: ca_agent
+accessControlPolicy: ChatbotReaders
+authenticationMode: Integrated
+authenticationTrigger: Always
+configuration:
+  channels:
+    - channelId: MsTeams
+
+    - channelId: Microsoft365Copilot
+
+  settings:
+    GenerativeActionsEnabled: true
+
+  isAgentConnectable: true
+  publishOnImport: true
+  gPTSettings:
+    defaultSchemaName: ca_agent.gpt.default
+
+  isLightweightBot: false
+  aISettings:
+    useModelKnowledge: true
+    isFileAnalysisEnabled: true
+    isSemanticSearchEnabled: true
+    contentModeration: Medium
+    optInUseLatestModels: true
+
+  recognizer:
+    kind: GenerativeAIRecognizer
+
+publishedOn: 2026-03-13T14:35:28.0000000Z
+template: default-2.1.0
+language: 1033

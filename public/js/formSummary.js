@@ -6,24 +6,20 @@
 // - Applies privilege rules (via shared enforcer or local fallback)
 // - Orchestrates final form submission (including disabled inputs)
 // - Provides a print-friendly view
-// - Implements a combobox-style congregation autocomplete over a <select>;
+// - Implements a combobox-style congregation autocomplete over a <select>
 // -----------------------------------------------------------------------------
 
 (() => {
   "use strict";
 
-  /**
-   * Entry point for the summary page.
-   * Runs once on DOMContentLoaded and wires up all summary-specific behavior.
-   */
   document.addEventListener("DOMContentLoaded", () => {
     const form = document.getElementById("summary-form");
-    if (!form) return; // Safeguard: do nothing if this script runs on a non-summary page
+    if (!form) return;
 
     initEditMode(form);
     initCongAssignedToggle(form);
     initPrivilegeRulesForSummary(form);
-    initSummarySubmit(form);      // NEW: modal + AJAX save + success redirect
+    initSummarySubmit(form);
     initPrintHandler();
     initCongregationCombobox();
   });
@@ -32,12 +28,6 @@
    * EDIT MODE TOGGLING (LOCK BY DEFAULT)
    * ===================================================== */
 
-  /**
-   * Initializes the "EDIT/SAVE" toggle behavior for each summary section.
-   * Sections start in a locked state (read-only, controlled via CSS).
-   *
-   * @param {HTMLFormElement} root - The summary form element.
-   */
   function initEditMode(root) {
     const buttons = root.querySelectorAll(".summary-edit-btn");
 
@@ -45,7 +35,6 @@
       const container = btn.closest(".accordion-body");
       if (!container) return;
 
-      // Initial state: locked by default
       container.dataset.editing = "false";
       container.classList.add("summary-locked");
       btn.textContent = "EDIT";
@@ -54,17 +43,48 @@
         const isEditing = container.dataset.editing === "true";
         const nextEditingState = !isEditing;
 
-        // Update the editing flag and CSS lock class
+        // -------------------------------------------------------------
+        // VALIDATION BEFORE ALLOWING SAVE
+        // -------------------------------------------------------------
+        if (isEditing && !nextEditingState) {
+          // <<< User clicked SAVE >>>
+
+          // EMAIL gate
+          const emailInput = container.querySelector("#email");
+          if (emailInput && emailInput.dataset.validEmail === "false") {
+            alert("Please fix the email address before saving.");
+            return; // Do NOT exit edit mode
+          }
+
+          // PHONE gate
+          const phoneInput = container.querySelector("#phone");
+          if (phoneInput && phoneInput.dataset.validPhone === "false") {
+            alert("Please correct the phone number before saving.");
+            return; // Do NOT exit edit mode
+          }
+
+          // ---------------------------------------------------------
+          // AUTO-COLLAPSE THIS ACCORDION SECTION AFTER SAVE
+          // ---------------------------------------------------------
+          const collapseEl = container.closest(".accordion-collapse");
+          if (collapseEl && typeof bootstrap !== "undefined") {
+            const bsCollapse = bootstrap.Collapse.getOrCreateInstance(
+              collapseEl,
+              { toggle: false },
+            );
+            bsCollapse.hide();
+          }
+        }
+        // -------------------------------------------------------------
+
+        // Toggle editing state + visual lock
         container.dataset.editing = String(nextEditingState);
         container.classList.toggle("summary-locked", !nextEditingState);
-
-        // Toggle button label between EDIT / SAVE
         btn.textContent = nextEditingState ? "SAVE" : "EDIT";
 
-        // If everything is now saved, clear any submit warning toast/status
         const rootEl = document.getElementById("formSummaryRoot");
         if (rootEl && allSectionsNotEditing(rootEl)) {
-          const toast = document.getElementById("submit-status");
+          const toast = document.getElementById("submitStatus");
           if (toast) toast.innerHTML = "";
         }
       });
@@ -75,10 +95,6 @@
    * EDIT MODE MONITORING
    * ===================================================== */
 
-  /**
-   * Returns true if all accordion sections are in non-editing (locked) state.
-   * @param {HTMLElement} root - The root container (formSummaryRoot).
-   */
   function allSectionsNotEditing(root) {
     const containers = root.querySelectorAll(".accordion-body");
     return Array.from(containers).every(
@@ -90,10 +106,6 @@
    * EDIT MODE HIGHLIGHTING
    * ===================================================== */
 
-  /**
-   * Highlights all sections still in EDIT mode by adding a red border.
-   * @param {HTMLElement} root - The root container (formSummaryRoot).
-   */
   function highlightEditingSections(root) {
     const containers = root.querySelectorAll(".accordion-body");
 
@@ -137,11 +149,11 @@
     assignedRadios.forEach((r) =>
       r.addEventListener("change", updateCongBlocks),
     );
-    updateCongBlocks(); // initial state
+    updateCongBlocks();
   }
 
   /* =====================================================
-   * PRIVILEGE RULES (DELEGATE TO SHARED ENFORCER)
+   * PRIVILEGE RULES HANDLING
    * ===================================================== */
 
   function initPrivilegeRulesForSummary(form) {
@@ -156,9 +168,7 @@
       return;
     }
 
-    console.warn(
-      "initPrivilegeEnforcer not found. Ensure privilegeEnforcer.js is loaded on the summary page.",
-    );
+    console.warn("initPrivilegeEnforcer not found. Using fallback.");
     initInlinePrivilegeRulesFallback(form);
   }
 
@@ -169,17 +179,13 @@
         try {
           window.PRIVILEGE_RULES = JSON.parse(rulesScript.textContent);
         } catch (err) {
-          console.error(
-            "Failed to parse privilegeRulesJSON on summary page:",
-            err,
-          );
+          console.error("Privilege rule JSON parse failed:", err);
         }
       }
     }
 
     if (!window.PRIVILEGE_RULES) return;
 
-    /** @type {Record<string, string[]>} */
     const rules = window.PRIVILEGE_RULES;
     const boxes = form.querySelectorAll(".privilege-checkbox");
     if (!boxes.length) return;
@@ -188,17 +194,11 @@
     const hiddenGender = document.getElementById("summary-gender");
 
     function getCurrentGender() {
-      return (
-        (genderSelect && genderSelect.value) ||
-        (hiddenGender && hiddenGender.value) ||
-        ""
-      ).toLowerCase();
+      return (genderSelect?.value || hiddenGender?.value || "").toLowerCase();
     }
 
     function applyPrivilegeRules() {
-      boxes.forEach((b) => {
-        b.disabled = false;
-      });
+      boxes.forEach((b) => (b.disabled = false));
 
       const gender = getCurrentGender();
       const selected = [...boxes].filter((b) => b.checked).map((b) => b.value);
@@ -227,22 +227,14 @@
     }
 
     boxes.forEach((b) => b.addEventListener("change", applyPrivilegeRules));
-    if (genderSelect) {
-      genderSelect.addEventListener("change", applyPrivilegeRules);
-    }
+    genderSelect?.addEventListener("change", applyPrivilegeRules);
     applyPrivilegeRules();
   }
 
   /* =====================================================
-   * FINAL SUBMIT ORCHESTRATION (MODAL + AJAX + SUCCESS)
+   * SUMMARY FINAL SUBMISSION
    * ===================================================== */
 
-  /**
-   * Wires the summary page submit behavior:
-   * - "Confirm & Finish" button opens confirm modal (if all sections saved)
-   * - "Yes, Save & Finish" in modal posts to /submitSummary via AJAX
-   * - Shows success modal and redirects to "/" after 5 seconds
-   */
   function initSummarySubmit(form) {
     const root = document.getElementById("formSummaryRoot");
 
@@ -253,20 +245,19 @@
 
     const finalButton = document.getElementById("final-submit");
     const yesButton = document.getElementById("yesSaveBtn");
-    const statusEl = document.getElementById("submit-status");
+    const statusEl = document.getElementById("submitStatus");
 
-    const confirmModalEl = document.getElementById("confirmSaveModal") ||
+    const confirmModalEl =
+      document.getElementById("confirmSaveModal") ||
       document.getElementById("summaryConfirmModal");
     const successModalEl = document.getElementById("summarySuccessModal");
 
     if (!finalButton || !yesButton || !confirmModalEl || !root || !csrf) {
-      // if any essential elements are missing, don't wire this behavior
       return;
     }
 
     const confirmModal = new bootstrap.Modal(confirmModalEl);
-    const successModal =
-      successModalEl && new bootstrap.Modal(successModalEl);
+    const successModal = successModalEl && new bootstrap.Modal(successModalEl);
 
     function setStatus(message, type = "warning") {
       if (!statusEl) return;
@@ -282,7 +273,6 @@
       if (statusEl) statusEl.innerHTML = "";
     }
 
-    // "Confirm & Finish" button → check edit state, show confirm modal
     finalButton.addEventListener("click", () => {
       clearStatus();
       if (!allSectionsNotEditing(root)) {
@@ -296,17 +286,13 @@
       confirmModal.show();
     });
 
-    // "Yes, Save & Finish" button → AJAX POST to /submitSummary
     yesButton.addEventListener("click", async () => {
       clearStatus();
       confirmModal.hide();
 
-      // Build JSON payload from form (if backend uses body-parser / JSON)
       const formData = new FormData(form);
       const body = {};
-      formData.forEach((v, k) => {
-        body[k] = v;
-      });
+      formData.forEach((v, k) => (body[k] = v));
 
       try {
         const resp = await fetch("/submitSummary", {
@@ -330,10 +316,10 @@
           return;
         }
 
-        // Success: show success modal (if present) and redirect after 5s
         if (successModal) {
           successModal.show();
         }
+
         setTimeout(() => {
           window.location.href = "/";
         }, 5000);
@@ -348,16 +334,7 @@
   }
 
   /* =====================================================
-   * LEGACY SUBMIT (NOT USED ANYMORE)
-   * (Kept for reference; no longer wired because we use initSummarySubmit)
-   * ===================================================== */
-  // function initSubmitHandler(form) { ... }
-  // function handleSubmit(form, csrf) { ... }
-  // function showStatus(message, isSuccess) { ... }
-  // (Left out intentionally to avoid double-submit behavior)
-
-  /* =====================================================
-   * PRINT
+   * PRINT LOGIC
    * ===================================================== */
 
   function initPrintHandler() {
@@ -365,7 +342,6 @@
     if (!btn) return;
 
     btn.addEventListener("click", () => {
-      // Ensure all content is visible when printing
       document
         .querySelectorAll(".accordion-collapse")
         .forEach((a) => a.classList.add("show"));
@@ -397,20 +373,16 @@
   });
 
   /* =====================================================
-   * CONGREGATION AUTOCOMPLETE COMBOBOX (KEEP <SELECT>)
+   * CONGREGATION AUTOCOMPLETE COMBOBOX
    * ===================================================== */
 
   function initCongregationCombobox() {
     /** @type {HTMLSelectElement | null} */
-    const select = /** @type {HTMLSelectElement | null} */ (
-      document.getElementById("congregation")
-    );
+    const select = document.getElementById("congregation");
     if (!select) return;
 
     const wrapper = select.parentElement;
     if (!wrapper) return;
-
-    // Guard against double initialization
     if (wrapper.querySelector("#congregation-combobox")) return;
 
     wrapper.style.position = "relative";
@@ -465,10 +437,7 @@
           }));
         }
       } catch (err) {
-        console.error(
-          "Error fetching congregations from /api/congregations:",
-          err,
-        );
+        console.error("Error fetching congregations:", err);
       }
     })();
 
@@ -477,14 +446,9 @@
       input.value = selectedOption.text;
     }
 
-    const closeList = () => {
-      list.classList.remove("show");
-    };
-
+    const closeList = () => list.classList.remove("show");
     const openList = () => {
-      if (list.children.length > 0) {
-        list.classList.add("show");
-      }
+      if (list.children.length > 0) list.classList.add("show");
     };
 
     function escapeRegex(text) {
@@ -599,16 +563,131 @@
     });
 
     document.addEventListener("click", (e) => {
-      if (!wrapper.contains(e.target)) {
-        closeList();
-      }
+      if (!wrapper.contains(e.target)) closeList();
     });
   }
 
   // ===================================================
-  // 🔥 EXPOSE FUNCTIONS ON window FOR OTHER SCRIPTS
+  // EXPOSE FUNCTIONS
   // ===================================================
   window.allSectionsNotEditing = allSectionsNotEditing;
   window.highlightEditingSections = highlightEditingSections;
   window.initSummaryEditMode = initEditMode;
 })();
+
+document.addEventListener("DOMContentLoaded", () => {
+  const finalizeBtn = /** @type {HTMLButtonElement | null} */ (
+    document.getElementById("finalize-changes")
+  );
+  const finalizeStatus = /** @type {HTMLElement | null} */ (
+    document.getElementById("finalize-status")
+  );
+  const root = /** @type {HTMLElement | null} */ (
+    document.getElementById("formSummaryRoot")
+  );
+
+  if (!finalizeBtn || !root || !finalizeStatus) return;
+
+  /**
+   * Update the enabled/disabled state of the "Finalize Changes" button.
+   *
+   * The button is enabled only when **no** accordion section is in edit mode.
+   * This relies on `allSectionsNotEditing`, which checks `data-editing`
+   * on each `.accordion-body` inside `root`.
+   *
+   * @returns {void}
+   */
+  function updateFinalizeState() {
+    finalizeBtn.disabled = !window.allSectionsNotEditing(root);
+  }
+
+  // Run once on load
+  updateFinalizeState();
+
+  /**
+   * Handle clicks inside the summary root.
+   * When an edit/save button is clicked, we wait briefly for the
+   * UI to update (`data-editing`, button text), then recalc state.
+   */
+  root.addEventListener("click", (event) => {
+    const target = /** @type {HTMLElement} */ (event.target);
+    if (target.classList.contains("summary-edit-btn")) {
+      // Give the click handler a tick to flip data-editing, then update.
+      window.setTimeout(updateFinalizeState, 20);
+    }
+  });
+
+  /**
+   * POST the finalize request to the server.
+   *
+   * @async
+   * @returns {Promise<void>}
+   */
+  async function handleFinalizeClick() {
+    finalizeStatus.innerHTML = "";
+
+    // Guard: all sections must be out of edit mode
+    if (!window.allSectionsNotEditing(root)) {
+      finalizeStatus.innerHTML = `
+        <div class="alert alert-warning">
+          Please save all sections before finalizing your changes.
+        </div>
+      `;
+      return;
+    }
+
+    finalizeBtn.disabled = true;
+    finalizeBtn.textContent = "Saving...";
+
+    const csrfInput = /** @type {HTMLInputElement | null} */ (
+      document.querySelector('input[name="_csrf"]')
+    );
+    const csrfToken = csrfInput?.value || "";
+
+    try {
+      const response = await fetch("/my-account/finalize", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": csrfToken,
+        },
+        body: JSON.stringify({}), // no body needed now, uses session user
+      });
+
+      /** @type {{ success?: boolean; message?: string }} */
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || !data.success) {
+        finalizeStatus.innerHTML = `
+          <div class="alert alert-danger">
+            ${data.message || "There was a problem saving your changes."}
+          </div>
+        `;
+        finalizeBtn.textContent = "Finalize Changes";
+        finalizeBtn.disabled = false;
+        return;
+      }
+
+      finalizeStatus.innerHTML = `
+        <div class="alert alert-success">
+          Your changes have been finalized successfully.
+        </div>
+      `;
+      finalizeBtn.textContent = "Saved ✓";
+    } catch (error) {
+      console.error("Error finalizing changes:", error);
+      finalizeStatus.innerHTML = `
+        <div class="alert alert-danger">
+          A server error occurred while finalizing your changes. Please try again.
+        </div>
+      `;
+      finalizeBtn.textContent = "Finalize Changes";
+      finalizeBtn.disabled = false;
+    }
+  }
+
+  finalizeBtn.addEventListener("click", () => {
+    void handleFinalizeClick();
+  });
+});
