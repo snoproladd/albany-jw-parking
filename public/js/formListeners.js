@@ -114,7 +114,6 @@
   <div class="alert alert-${type} alert-dismissible fade show mt-3" role="alert">
     <i class="bi bi-exclamation-triangle-fill me-2"></i>
     ${message}
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
   </div>`;
   }
 

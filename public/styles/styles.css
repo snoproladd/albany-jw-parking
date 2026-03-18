@@ -140,24 +140,7 @@ b {
 }
 
 /* -------------------- Form & Validation -------------------- */
-.status {
-  font-size: 14px;
-  margin-top: 5px;
-}
 
-.status.loading {
-  color: #555;
-}
-
-.status.success {
-  color: green;
-  font-weight: 600;
-}
-
-.status.error {
-  color: red;
-  font-weight: 600;
-}
 
 .spinner-border {
   vertical-align: middle;
@@ -285,16 +268,21 @@ b {
 .accordion-body.summary-locked .form-label {
   opacity: 0.75;
 }
+
 /* ============================================================
    FIX: Keep checkboxes square on Summary Page
    ============================================================ */
 
 #summary-card input[type="checkbox"] {
-  width: 18px;                 /* Bootstrap default */
-  height: 18px;                /* Square */
-  border-radius: 4px;          /* optional: keep Bootstrap squared style */
+  width: 18px;
+  /* Bootstrap default */
+  height: 18px;
+  /* Square */
+  border-radius: 4px;
+  /* optional: keep Bootstrap squared style */
   padding: 0 !important;
-  margin-top: 0.35rem !important; /* aligns in row */
+  margin-top: 0.35rem !important;
+  /* aligns in row */
   vertical-align: middle;
 }
 
@@ -373,6 +361,7 @@ b {
     0 0 0 6px rgba(245, 158, 11, 0.8);
   /* double-ring focus */
 }
+
 /* Hide Save button by default inside any section */
 .accordion-body .summary-save-btn {
   display: none;
@@ -547,82 +536,84 @@ b {
     break-inside: avoid;
     page-break-inside: avoid;
   }
-/* -----------------------------------------------------------
+
+  /* -----------------------------------------------------------
    Tighter vertical spacing for print layout
    ----------------------------------------------------------- */
 
-/* Reduce space between accordion "sections" */
-.accordion-item {
-  margin-bottom: 0.5rem !important;
-  padding-bottom: 0 !important;
-}
+  /* Reduce space between accordion "sections" */
+  .accordion-item {
+    margin-bottom: 0.5rem !important;
+    padding-bottom: 0 !important;
+  }
 
-/* Reduce spacing inside each section body */
-.accordion-body {
-  padding-top: 0.25rem !important;
-  padding-bottom: 0.25rem !important;
-}
+  /* Reduce spacing inside each section body */
+  .accordion-body {
+    padding-top: 0.25rem !important;
+    padding-bottom: 0.25rem !important;
+  }
 
-/* Reduce spacing between label + form fields */
-.accordion-body .form-label,
-.accordion-body label {
-  margin-bottom: 0.1rem !important;
-}
+  /* Reduce spacing between label + form fields */
+  .accordion-body .form-label,
+  .accordion-body label {
+    margin-bottom: 0.1rem !important;
+  }
 
-/* Reduce vertical spacing between each form row */
-.row,
-.row .col {
-  margin-bottom: 0.35rem !important;
-  padding-bottom: 0 !important;
-}
+  /* Reduce vertical spacing between each form row */
+  .row,
+  .row .col {
+    margin-bottom: 0.35rem !important;
+    padding-bottom: 0 !important;
+  }
 
-/* Tighten line-height for compact text */
-#summary-card,
-.accordion-body,
-.accordion-item,
-label,
-input,
-select,
-textarea {
-  line-height: 1.15 !important;
-}
+  /* Tighten line-height for compact text */
+  #summary-card,
+  .accordion-body,
+  .accordion-item,
+  label,
+  input,
+  select,
+  textarea {
+    line-height: 1.15 !important;
+  }
 
-/* Clean, tighter spacing for notes/textarea */
-textarea {
-  margin-top: 0.25rem !important;
-  margin-bottom: 0 !important;
-}
+  /* Clean, tighter spacing for notes/textarea */
+  textarea {
+    margin-top: 0.25rem !important;
+    margin-bottom: 0 !important;
+  }
 
-/* Reduce spacing between subsection headers */
-.accordion-button {
-  margin-top: 0.25rem !important;
-  margin-bottom: 0.25rem !important;
-  padding: 0 !important;
+  /* Reduce spacing between subsection headers */
+  .accordion-button {
+    margin-top: 0.25rem !important;
+    margin-bottom: 0.25rem !important;
+    padding: 0 !important;
 
-}
-/* Generic way: force-hide scrollbar visuals */
-* {
-  scrollbar-width: none !important;
-  /* Firefox */
-}
+  }
 
-*::-webkit-scrollbar {
-  display: none !important;
-  /* Chrome, Edge, Safari */
-}
+  /* Generic way: force-hide scrollbar visuals */
+  * {
+    scrollbar-width: none !important;
+    /* Firefox */
+  }
 
-/* Specifically hide scrollbars in accordion area */
-#summary-card .accordion {
-  overflow: visible !important;
-}
+  *::-webkit-scrollbar {
+    display: none !important;
+    /* Chrome, Edge, Safari */
+  }
 
-/* Also remove scrollbars from body if shown */
-body,
-html {
-  overflow: visible !important;
-}
+  /* Specifically hide scrollbars in accordion area */
+  #summary-card .accordion {
+    overflow: visible !important;
+  }
 
-/* Hide modals completely */
+  /* Also remove scrollbars from body if shown */
+  body,
+  html {
+    overflow: visible !important;
+  }
+
+  /* Hide modals completely */
   #summaryConfirmModal,
   #summarySuccessModal {
     display: none !important;
@@ -676,6 +667,7 @@ html {
     vertical-align: top;
   }
 }
+
 /* ============================================================
    SUMMARY PAGE MODAL STYLE PATCH — VARIABLE-BASED
    Matches Albany JW Parking color system
@@ -684,10 +676,14 @@ html {
 /* Base modal formatting */
 #summaryConfirmModal .modal-content,
 #summarySuccessModal .modal-content {
-  border-radius: 0.75rem;                     /* matches rounded-3 */
-  border: 1px solid rgba(0, 0, 0, 0.1);       /* subtle border like your cards */
-  box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15);  /* consistent card shadow */
-  background-color: var(--TextLight);         /* white background */
+  border-radius: 0.75rem;
+  /* matches rounded-3 */
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  /* subtle border like your cards */
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, .15);
+  /* consistent card shadow */
+  background-color: var(--TextLight);
+  /* white background */
 }
 
 /* Modal header */
@@ -695,13 +691,15 @@ html {
 #summarySuccessModal .modal-header {
   border-bottom: 1px solid rgba(0, 0, 0, 0.15);
   padding: 0.75rem 1rem;
-  background-color: var(--Background);        /* same as accordion bodies */
+  background-color: var(--Background);
+  /* same as accordion bodies */
   color: var(--Primary);
 }
 
 /* Success modal header uses success green */
 #summarySuccessModal .modal-header {
-  background-color: var(--Secondary) !important; /* using your blue secondary */
+  background-color: var(--Secondary) !important;
+  /* using your blue secondary */
   color: var(--TextLight) !important;
 }
 
@@ -744,7 +742,8 @@ html {
 
 /* Success modal border matches theme */
 #summarySuccessModal .modal-content.border-success {
-  border-color: var(--Secondary) !important; /* using your theme blue */
+  border-color: var(--Secondary) !important;
+  /* using your theme blue */
 }
 
 /* Backdrop tint */
@@ -887,31 +886,12 @@ html {
     max-height: 90vh !important;
   }
 }
+
 /* ============================================================
    GLOBAL: Stabilize status/toast areas (prevent page bounce)
    ============================================================ */
 
-#submitStatus,
-#finalize-status,
-#emailStatus,
-#confirmEmailStatus,
-#phoneStatus,
-#confirmPhoneStatus,
-#nonProfile-next-status,
-#password-status,
-#passwords-matched-status,
-.status-area,
-.status {
-  min-height: 48px;
-  /* reserve space */
-  display: flex !important;
-  align-items: center !important;
-  overflow: hidden !important;
-}
 
-.status-fade {
-  animation: fadeIn 0.25s ease-out;
-}
 
 @keyframes fadeIn {
   from {
@@ -1094,23 +1074,9 @@ html {
 
   /* Reserve space above sticky button */
   .sticky-action+#submitStatus,
-  .sticky-action+#finalize-status,
-  .sticky-action+.status {
+  .sticky-action+#finalize-status {
     margin-bottom: 70px !important;
   }
-
-  /* Let the status area float just above the sticky bar */
-  #submitStatus,
-  #finalize-status,
-  .status {
-    position: relative;
-    z-index: 310 !important;
-    /* above sticky button */
-  }
-}
-
-.status-fade {
-  animation: slideDown 0.25s ease-out;
 }
 
 @keyframes slideDown {
@@ -1191,13 +1157,11 @@ html {
    ---------------------------------------------- */
 @media (max-width: 576px) {
 
-  .entry-card .sticky-action+.status,
   .entry-card .sticky-action+#submitStatus,
   .entry-card .sticky-action+#finalize-status {
     margin-bottom: 70px !important;
   }
 
-  .entry-card .status,
   .entry-card #submitStatus,
   .entry-card #finalize-status {
     position: relative;
@@ -1264,34 +1228,297 @@ html {
   -webkit-overflow-scrolling: touch !important;
 }
 
-/* Only top-level status containers reserve height; individual .status do not */
-#submitStatus,
-#finalize-status,
-#section-status,
-#nonProfile-next-status,
-.status-area {
+
+/* -----------------------------------------------------------
+   FIX: Password row wrapping + eye clickability
+   ----------------------------------------------------------- */
+
+/* Keep lock + password + eye on one line (no wrapping ever) */
+.password-group {
+  display: flex !important;
+  /* override Bootstrap's input-group */
+  flex-wrap: nowrap !important;
+  /* prevent wrapping on narrow screens */
+  position: relative;
+  z-index: 10;
+  /* above status overlays */
+  box-sizing: border-box !important;
+}
+
+/* Password input should shrink gracefully on mobile */
+.password-group .form-control {
+  flex: 1 1 auto;
+  /* take available width */
+  min-width: 0 !important;
+  /* allow shrinking instead of wrapping */
+  width: 100%;
+  /* ensures proper flex fit */
+  box-sizing: border-box !important;
+}
+
+/* Lock icon + eye icon stay fixed size */
+.password-group .input-group-text {
+  flex: 0 0 auto !important;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  overflow: hidden;
+  align-items: center;
+  white-space: nowrap;
+  box-sizing: border-box !important;
 }
 
-/* Individual status messages: no min-height so hidden/empty ones collapse */
-.status {
-  font-size: 14px;
-  margin-top: 5px;
+/* Ensure the eye button is clickable and styled */
+.togglePasswordBtn {
+  cursor: pointer;
+  z-index: 11;
+  /* sits above input and status areas */
 }
 
-.status {
-  display: none !important;
-  min-height: 0 !important;
-  height: auto !important;
-  margin: 0 !important;
-  padding: 0 !important;
+/* Prevent status overlays from blocking taps on password group */
+#password-status,
+#passwords-matched-status {
+  pointer-events: none !important;
+  /* allow click-through */
+  z-index: 1 !important;
+  /* behind password-group */
 }
 
-.status.show-status {
+#password-status,
+#passwords-matched-status {
+  pointer-events: none !important;
+}
+
+
+
+
+/* Only #submitStatus remains the toast container */
+/* #submitStatus {
+  position: relative !important;
+  z-index: 300 !important;
+  min-height: 48px !important;
   display: block !important;
-  min-height: auto !important;
-  margin-top: 6px !important;
+} */
+/* Toast container (submit-level only) */
+#submitStatus {
+  min-height: 48px;
 }
+
+/* 2) FIX PASSWORD ROW WRAPPING AND SHRINKING ON SMALL DEVICES */
+/* Keep lock + password + eye on one line (no wrapping) */
+.password-group {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+}
+
+/* Let the input shrink instead of wrapping */
+.password-group .form-control {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  /* critical for iPhone SE */
+}
+
+/* Icons stay fixed size */
+.password-group .input-group-text {
+  flex: 0 0 auto !important;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box !important;
+}
+
+/* Ensure the eye button is clickable */
+.togglePasswordBtn {
+  cursor: pointer;
+  pointer-events: auto !important;
+  z-index: 10;
+}
+
+/* 3) ALLOW EYE BUTTON TO RECEIVE TOUCH EVENTS (fixes toggle) */
+#password-status,
+#passwords-matched-status {
+  pointer-events: none !important;
+}
+
+/* ============================================================
+   INPUT FEEDBACK NORMALIZATION
+   Make error messages the same size + style as success messages
+   ============================================================ */
+
+.invalid-feedback,
+.valid-feedback {
+  padding: 0 !important;
+  margin-top: 4px !important;
+  border: none !important;
+  background: none !important;
+  border-radius: 0 !important;
+
+  font-size: 0.9rem !important;
+  font-weight: 600 !important;
+  /* match success */
+  line-height: 1.2 !important;
+}
+
+/* Remove Bootstrap's block-level alert look */
+.is-invalid~.invalid-feedback {
+  display: block !important;
+}
+
+.is-valid~.valid-feedback {
+  display: block !important;
+}
+
+/* Keep colors but ditch the heavy alert box */
+.invalid-feedback {
+  color: #d9534f !important;
+  /* Bootstrap danger text */
+}
+
+.valid-feedback {
+  color: #198754 !important;
+  /* Bootstrap success text */
+}
+
+.invalid-feedback i,
+.valid-feedback i {
+  font-size: 1rem !important;
+  margin-right: 5px !important;
+}
+
+/* ============================================================
+   SUBTLE BACKGROUND STYLE FOR INLINE INPUT FEEDBACK
+   (Matches frosted card aesthetic; replaces alert-like blocks)
+   ============================================================ */
+
+.valid-feedback,
+.invalid-feedback {
+  display: block !important;
+  padding: 6px 12px !important;
+  margin-top: 6px !important;
+  border-radius: 8px !important;
+  font-size: 0.9rem !important;
+  font-weight: 600 !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Soft green success block */
+.valid-feedback {
+  background: rgba(209, 231, 221, 0.55) !important;
+  /* subtle green */
+  color: #0f5132 !important;
+  /* Bootstrap green-900 */
+  border: 1px solid rgba(25, 135, 84, 0.28) !important;
+}
+
+/* Soft red error block */
+.invalid-feedback {
+  background: rgba(248, 215, 218, 0.50) !important;
+  /* subtle red */
+  color: #842029 !important;
+  /* Bootstrap red-900 */
+  border: 1px solid rgba(132, 32, 41, 0.25) !important;
+}
+
+/* Ensure icons inside feedback match size & alignment */
+.valid-feedback i,
+.invalid-feedback i {
+  margin-right: 6px !important;
+  font-size: 1rem !important;
+  vertical-align: middle !important;
+}
+
+/* Inline input feedback */
+.inputStatus {
+  font-size: 0.9rem;
+  margin-top: 6px;
+  display: block;
+}
+
+/* Success */
+.inputStatus.success {
+  background: rgba(209, 231, 221, 0.55);
+  color: #0f5132;
+  border: 1px solid rgba(25, 135, 84, 0.28);
+  padding: 6px 12px;
+  border-radius: 8px;
+}
+
+/* Error */
+.inputStatus.error {
+  background: rgba(248, 215, 218, 0.50);
+  color: #842029;
+  border: 1px solid rgba(132, 32, 41, 0.25);
+  padding: 6px 12px;
+  border-radius: 8px;
+}
+
+
+
+/**************************************************************
+ FINAL PATCH — Input feedback + password row
+**************************************************************/
+
+/* Inline input feedback */
+.inputStatus {
+  font-size: 0.75rem;
+  margin-top: 2px;
+  display: block;
+}
+
+/* Success */
+.inputStatus.success {
+  background: rgba(209, 231, 221, 0.55);
+  color: #0f5132;
+  border: 1px solid rgba(25, 135, 84, 0.28);
+  padding: 6px 12px;
+  border-radius: 8px;
+}
+
+/* Error */
+.inputStatus.error {
+  background: rgba(248, 215, 218, 0.50);
+  color: #842029;
+  border: 1px solid rgba(132, 32, 41, 0.25);
+  padding: 6px 12px;
+  border-radius: 8px;
+}
+
+/* Keep submitStatus as toast container only */
+#submitStatus {
+  min-height: 36px;
+  font-size: .75rem
+}
+
+/* Password row never wraps */
+.password-group {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+}
+
+.password-group .form-control {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.password-group .input-group-text {
+  flex: 0 0 auto !important;
+  display: flex !important;
+  align-items: center !important;
+  box-sizing: border-box !important;
+}
+
+.togglePasswordBtn {
+  cursor: pointer;
+}
+
+/* ============================================================
+   Toast close button: move to top-right
+   ============================================================ */
+
+#submitStatus .alert {
+  position: absolute !important;
+  padding-right: 2.5rem !important;
+  /* space so text doesn't hit the button */
+}
+
