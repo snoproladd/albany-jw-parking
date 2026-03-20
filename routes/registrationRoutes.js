@@ -439,11 +439,18 @@ export function createRegistrationRouter(deps) {
       let congregationValue = null;
 
       if (assignedToConv) {
-        if (!congregation) {
+        // 🔒 Normalize and validate congregation from dropdown
+        const congregationTrimmed = (congregation || "").trim();
+
+        // Block empty or whitespace-only values
+        if (!congregationTrimmed) {
           return res.status(400).send("Congregation selection is required.");
+          // (Optional: instead of .send, you could re-render the form with an error)
         }
-        congregationValue = congregation;
+
+        congregationValue = congregationTrimmed;
       } else {
+        // Visiting congregation path
         const city = (congregationOtherCity || "").trim();
         const state = (congregationOtherState || "").trim().toUpperCase();
         const lang = (congregationOtherLang || "").trim().toUpperCase();

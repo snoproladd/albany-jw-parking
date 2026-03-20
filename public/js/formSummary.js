@@ -62,6 +62,73 @@
             alert("Please correct the phone number before saving.");
             return; // Do NOT exit edit mode
           }
+          // -------------------------------------------------------------
+          // CONGREGATION gate — ONLY when saving the congregation section
+          // -------------------------------------------------------------
+          const isCongSection =
+            container.closest("#summary-congregation") !== null;
+
+          if (isCongSection) {
+            const assignedChecked = container.querySelector(
+              'input[name="congAssigned"]:checked',
+            );
+            const assignedYes = assignedChecked?.value === "yes";
+
+            if (assignedYes) {
+              // Assigned congregation → validate the VISIBLE combobox input
+              const comboInput = container.querySelector(
+                "#congregation-combobox",
+              );
+              const displayValue = comboInput?.value.trim() || "";
+
+              if (!displayValue) {
+                alert(
+                  "Please select your congregation before saving this section.",
+                );
+                return; // STOP SAVE — keep accordion open, stay in edit mode
+              }
+
+              // (Optional but recommended) sync the hidden <select> if needed:
+              // If user typed something that matches an existing option,
+              // make sure select.value matches. This keeps backend aligned
+              // with what they see in the combobox.
+              const select = container.querySelector("#congregation");
+              if (select) {
+                const matchingOption = Array.from(select.options).find(
+                  (opt) =>
+                    opt.text === displayValue || opt.value === displayValue,
+                );
+                if (matchingOption) {
+                  select.value = matchingOption.value;
+                }
+                // If no option matches, you can decide to:
+                // - leave select as-is (use last valid value), or
+                // - treat as invalid and block save.
+                // For now we just require non-empty and keep previous selection.
+              }
+            } else {
+              // Visiting congregation → must fill all 3 fields
+              const city =
+                container
+                  .querySelector("#congregationOtherCity")
+                  ?.value?.trim() || "";
+              const state =
+                container
+                  .querySelector("#congregationOtherState")
+                  ?.value?.trim() || "";
+              const lang =
+                container
+                  .querySelector("#congregationOtherLang")
+                  ?.value?.trim() || "";
+
+              if (!city || !state || !lang) {
+                alert(
+                  "Please complete all visiting congregation fields (City, State, and Language) before saving this section.",
+                );
+                return; // STOP SAVE — keep accordion open, stay in edit mode
+              }
+            }
+          }
 
           // ---------------------------------------------------------
           // AUTO-COLLAPSE THIS ACCORDION SECTION AFTER SAVE

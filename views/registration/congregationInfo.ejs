@@ -106,14 +106,16 @@
                     class="form-control"
                     required
                   >
-                    <option value="">Select your congregation:</option>
-                    <% if (congregations && congregations.length) { %>
-                      <% congregations.forEach(c => { %>
-                        <option value="<%= c %>"><%= c %></option>
-                      <% }) %>
-                    <% } else { %>
-                      <option disabled>No congregations found</option>
-                    <% } %>
+                 <option value="">Select your congregation:</option>
+                  <% if (congregations && congregations.length) { %>
+                    <% congregations
+                        .filter(c => c && c.trim() !== "")
+                        .forEach(c => { %>
+                          <option value="<%= c %>"><%= c %></option>
+                    <% }) %>
+                  <% } else { %>
+                    <option disabled>No congregations found</option>
+                  <% } %>
                   </select>
                 </div>
 

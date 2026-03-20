@@ -299,7 +299,7 @@
                     </div>
 
                     <!-- CONGREGATION INFO -->
-                    <div class="accordion-item">
+                    <div class="accordion-item" id="summary-congregation">
                       <h2 class="accordion-header" id="headingCong">
                         <button class="accordion-button collapsed"
                           type="button"
@@ -351,20 +351,29 @@
                               </div>
                             </div>
                           </fieldset>
-
-                          <!-- Assigned congregation list -->
+                         <!-- Assigned congregation list -->
                           <div id="cong-assigned-block" class="mb-3">
                             <label class="form-label small">Congregation belonging to</label>
-                            <select id="congregation" name="congregation" class="form-select">
-                              <option value="">Select congregation...</option>
+
+                            <select id="congregation" name="congregation" class="form-select" required>
+
+                              <!-- Disabled placeholder: cannot be re-selected -->
+                              <option value="" disabled 
+                                <%= !volunteer.congregation || volunteer.congregation.trim() === "" ? "selected" : "" %>>
+                                Select congregation...
+                              </option>
 
                               <% if (Array.isArray(congregations)) { %>
-                                <% congregations.forEach(c => { %>
-                                  <option value="<%= c %>" <%= volunteer.assignedToConv && volunteer.congregation === c ? 'selected' : '' %>>
-                                    <%= c %>
-                                  </option>
-                                <% }); %>
+                                <% congregations
+                                    .filter(c => c && c.trim() !== "")  // REMOVE blanks
+                                    .forEach(c => { %>
+                                      <option value="<%= c %>" 
+                                        <%= volunteer.assignedToConv && volunteer.congregation === c ? 'selected' : '' %>>
+                                        <%= c %>
+                                      </option>
+                                <% }) %>
                               <% } %>
+
                             </select>
                           </div>
 
