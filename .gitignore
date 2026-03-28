@@ -74,3 +74,5 @@ website_package.json
 
 #claude repos
 parking/
+.claude/
+
