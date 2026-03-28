@@ -76,3 +76,6 @@ website_package.json
 parking/
 .claude/
 
+
+# Claude worktrees
+.claude/
