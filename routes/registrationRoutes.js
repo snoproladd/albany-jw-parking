@@ -297,7 +297,7 @@ export function createRegistrationRouter(deps) {
       console.log("[payload]", req.body);
       console.log("[session BEFORE]", req.session);
 
-      const { firstName, lastName, suffix, phone, SMSCapable } = req.body;
+      const { firstName, lastName, suffix, phone, SMSCapable, whatsappid } = req.body;
       const namesEditable = !req.session.disableNameFields;
       const regId = req.session.registrationId;
 
@@ -345,6 +345,7 @@ export function createRegistrationRouter(deps) {
         namesEditable ? suffix : null,
         phone,
         SMSCapable,
+        whatsappid
       );
 
       if (!row) {

@@ -4,12 +4,11 @@
 // - Shared field feedback helpers (valid/invalid states)
 // - Global form toast messaging
 // - Server-side field error application
-// - Email/password step: email uniqueness + domain rules
-// - Congregation step: assigned vs visiting branch logic
 // - Non-profile info submit (AJAX)
-// - Volunteer info submit (AJAX)
+// - Volunteer info submit (AJAX, incl. WhatsApp ID)
+// - Congregation step: assigned vs visiting branch logic
 // - Summary submit (requires all sections saved, then shows modal)
-// - My Account: section save confirmation + email/phone validation gating
+// - Entry pages: sticky submit + auto-scroll on mobile
 // -----------------------------------------------------------------------------
 
 (() => {
@@ -21,6 +20,7 @@
 
   /**
    * Clear validation feedback for a specific field.
+   * NOTE: Looks for a status element with id `${fieldId}-status`.
    * @param {string} fieldId
    */
   function clearFieldStatus(fieldId) {
@@ -102,6 +102,7 @@
 
   /**
    * Show a global toast message in #submitStatus.
+   * Only used for submit-level failures or warnings.
    * @param {string} message
    * @param {"danger"|"warning"|"success"} [type="danger"]
    */
@@ -111,7 +112,7 @@
     if (!submitStatus) return;
 
     submitStatus.innerHTML = `
-  <div class="alert alert-${type} alert-dismissible fade show mt-3" role="alert">
+  <div class="alert alert-${type} fade show mt-3" role="alert">
     <i class="bi bi-exclamation-triangle-fill me-2"></i>
     ${message}
   </div>`;
@@ -138,263 +139,58 @@
     if (fieldErrors.email) setFieldError("email", fieldErrors.email);
     if (fieldErrors.phone) setFieldError("phone", fieldErrors.phone);
 
-    /** @type {string[]} */
-    const lines = [];
-    if (fieldErrors.phone) lines.push("Phone number already exists.");
-    if (fieldErrors.name)
-      lines.push("Name already exists; try adding a suffix.");
-
-    if (fieldErrors.form) {
-      lines.length = 0;
-      lines.push(fieldErrors.form);
-    }
-
     if (fieldErrors.form) {
       showFormToast(fieldErrors.form, "danger");
     }
   }
 
   /* ============================================================
-   * =============== DOMContentLoaded ENTRYPOINT ================
-   * ============================================================ */
-
-  document.addEventListener("DOMContentLoaded", () => {
-    /** @type {HTMLInputElement | null} */
-    const csrfTokenInput = document.querySelector('input[name="_csrf"]');
-    const csrfToken = csrfTokenInput?.value || "";
-
-    initEmailPasswordForm();
-    initCongregationForm();
-    initNonProfileForm(csrfToken);
-    initVolunteerInfoForm(csrfToken);
-    initSummarySubmit();
-  });
-
-  /* ============================================================
    * =============== EMAIL / PASSWORD FORM LOGIC ================
    * ============================================================ */
 
+  /**
+   * Initialize email/password form submit gate (emailPass.ejs).
+   * Prevents double-submits while letting email-validation.js and
+   * passwords.js control whether the submit is allowed.
+   */
   function initEmailPasswordForm() {
-    /**
-     * NOTE: updated from legacy /submit-namePass to /submit-emailPass
-     * so this now targets the emailPass.ejs form.
-     */
     /** @type {HTMLFormElement | null} */
     const emailPassForm = document.querySelector(
       'form[action="/submit-emailPass"]',
     );
-    /** @type {HTMLInputElement | null} */
-    const emailInput = document.querySelector("#email");
-    /** @type {HTMLInputElement | null} */
-    const confirmInput = document.querySelector("#confirmEmail");
-    /** @type {HTMLElement | null} */
-    const emailStatus = document.querySelector("#emailStatus");
-    /** @type {HTMLInputElement | null} */
-    const passwordInput = document.querySelector("#password");
-    /** @type {HTMLInputElement | null} */
-    const confirmPasswordInput = document.querySelector("#confirmPassword");
+    if (!emailPassForm) return;
 
-    if (!emailPassForm || !emailInput || !confirmInput || !emailStatus) return;
-
+    // Prefer sticky submit button inside the entry card, fall back to any submit button
     /** @type {HTMLButtonElement | null} */
-    let submitBtn =
-      emailPassForm.querySelector('button[type="submit"]') ||
-      emailPassForm.querySelector("button.btn.btn-primary");
+    const stickySubmitBtn =
+      document.querySelector(
+        "#emailPassCard .sticky-action button[type='submit']",
+      ) || emailPassForm.querySelector('button[type="submit"]');
 
-    /** @type {boolean} */
-    let emailDeliverable = false;
-    /** @type {boolean} */
-    let emailsMatch = false;
-    /** @type {boolean|null} */
-    let emailTaken = null;
-    /** @type {string} */
-    let lastCheckedEmail = "";
-    /** @type {number|undefined} */
-    let debounceId;
-    /** @type {AbortController|null} */
-    let existsAbortController = null;
+    let isSubmitting = false;
 
-    function clearEmailStatus() {
-      emailStatus.classList.remove("loading", "success", "error");
-      emailStatus.innerHTML = "";
-    }
-
-    /**
-     * @param {string} [msg="Checking..."]
-     */
-    function setEmailLoading(msg = "Checking...") {
-      clearEmailStatus();
-      emailStatus.classList.add("loading");
-      emailStatus.textContent = msg;
-    }
-
-    /**
-     * @param {string} [msg="OK"]
-     */
-    function setEmailSuccess(msg = "OK") {
-      clearEmailStatus();
-      emailStatus.classList.add("success");
-      emailStatus.textContent = msg;
-    }
-
-    /**
-     * @param {string} [msg="Error."]
-     */
-    function setEmailError(msg = "Error.") {
-      clearEmailStatus();
-      emailStatus.classList.add("error");
-      emailStatus.textContent = msg;
-    }
-
-    /**
-     * Check if an email already exists in the system.
-     * @param {string} email
-     * @returns {Promise<boolean|null>} true = taken, false = not taken, null = unknown
-     */
-    async function checkEmailExists(email) {
-      const normalized = email.trim().toLowerCase();
-      if (!normalized) {
-        emailTaken = null;
-        return false;
-      }
-      if (lastCheckedEmail === normalized && emailTaken !== null) {
-        return emailTaken;
-      }
-
-      if (existsAbortController) {
-        existsAbortController.abort();
-      }
-      existsAbortController = new AbortController();
-
-      try {
-        const url = `/api/volunteers/exists?email=${encodeURIComponent(
-          normalized,
-        )}`;
-        const res = await fetch(url, { signal: existsAbortController.signal });
-        /** @type {{exists?:boolean}} */
-        const data = await res.json().catch(() => ({}));
-
-        if (!res.ok) {
-          emailTaken = null;
-          lastCheckedEmail = normalized;
-          return null;
-        }
-
-        emailTaken = !!data.exists;
-        lastCheckedEmail = normalized;
-        return emailTaken;
-      } catch {
-        emailTaken = null;
-        lastCheckedEmail = normalized;
-        return null;
-      }
-    }
-
-    /**
-     * @param {string} email
-     * @returns {boolean}
-     */
-    function isEmailBlocked(email) {
-      return String(email).trim().toLowerCase().endsWith("@jwpub.org");
-    }
-
-    /**
-     * @param {string} a
-     * @param {string} b
-     * @returns {boolean}
-     */
-    function emailsEqual(a, b) {
-      return String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
-    }
-
-    function reevaluateEmailGates() {
-      const email = emailInput.value.trim();
-      const confirm = confirmInput.value.trim();
-
-      if (isEmailBlocked(email)) {
-        emailDeliverable = false;
-        emailsMatch = false;
-        emailTaken = null;
-        setEmailError("Emails from @jwpub.org are not allowed.");
+    emailPassForm.addEventListener("submit", (e) => {
+      // If we've already allowed a submit to go out, block any further submits
+      if (isSubmitting) {
+        e.preventDefault();
         return;
       }
 
-      emailsMatch = !!email && !!confirm && emailsEqual(email, confirm);
-
-      const deliverableAttr = emailStatus.dataset?.deliverable;
-      if (deliverableAttr === "true") {
-        emailDeliverable = true;
-      } else if (deliverableAttr === "false") {
-        emailDeliverable = false;
-      } else {
-        emailDeliverable = /\S+@\S+\.\S+/.test(email);
-      }
-
-      if (emailDeliverable && emailsMatch) {
-        if (debounceId) clearTimeout(debounceId);
-        debounceId = window.setTimeout(() => void checkEmailExists(email), 300);
-      }
-    }
-
-    function maybePreloadDuringPasswordTyping() {
-      const email = emailInput.value.trim();
-      if (emailDeliverable && emailsMatch && emailTaken === null) {
-        void checkEmailExists(email);
-      }
-    }
-
-    emailInput.addEventListener("input", reevaluateEmailGates);
-    confirmInput.addEventListener("input", reevaluateEmailGates);
-    if (passwordInput)
-      passwordInput.addEventListener("input", maybePreloadDuringPasswordTyping);
-    if (confirmPasswordInput)
-      confirmPasswordInput.addEventListener(
-        "input",
-        maybePreloadDuringPasswordTyping,
-      );
-
-    emailPassForm.addEventListener("submit", async (e) => {
-      const email = emailInput.value.trim();
-      const confirm = confirmInput.value.trim();
-
-      if (isEmailBlocked(email)) {
-        e.preventDefault();
-        setEmailError("Emails from @jwpub.org are not allowed.");
-        return;
-      }
-
-      emailsMatch = emailsEqual(email, confirm);
-      if (!(emailDeliverable && emailsMatch)) {
-        e.preventDefault();
-        setEmailError(
-          "Please validate your email and ensure both entries match.",
-        );
-        return;
-      }
-
-      if (emailTaken === null || lastCheckedEmail !== email.toLowerCase()) {
-        e.preventDefault();
-        setEmailLoading("Checking for existing account...");
-        const exists = await checkEmailExists(email);
-        if (exists === null) {
-          setEmailError("Could not verify email. Try again.");
+      // Defer until other submit listeners (email-validation.js, passwords.js)
+      // have had a chance to call preventDefault() if needed.
+      setTimeout(() => {
+        // If someone prevented the default (e.g., invalid email or password),
+        // do NOT mark as submitting; let the user fix and try again.
+        if (e.defaultPrevented) {
           return;
         }
-        if (!exists) {
-          emailTaken = false;
-          setEmailSuccess("Email OK. Submitting...");
-          emailPassForm.submit();
-          return;
+
+        // At this point, the form is truly submitting; gate double-submits.
+        isSubmitting = true;
+        if (stickySubmitBtn) {
+          stickySubmitBtn.disabled = true;
         }
-      }
-
-      if (emailTaken) {
-        e.preventDefault();
-        setEmailError("This email is already registered.");
-        return;
-      }
-
-      setEmailSuccess("Email OK. Submitting...");
+      }, 0);
     });
   }
 
@@ -467,7 +263,7 @@
    * ============================================================ */
 
   /**
-   * Initialize non-profile AJAX submit.
+   * Initialize non-profile AJAX submit (firstName + lastName + email).
    * @param {string} csrfToken
    */
   function initNonProfileForm(csrfToken) {
@@ -524,18 +320,30 @@
         message = "Email looks good. You can continue.";
       }
 
+      // NOTE: this controls whether Next is enabled at all
       nextBtn.disabled = !ok;
       nextStatus.textContent = message;
     }
 
+    // Wiring for email validation state (from email-validation.js)
     window.addEventListener("emailValidationUpdated", updateNextButtonState);
-
     if (emailInput) emailInput.addEventListener("input", updateNextButtonState);
     if (confirmInput)
       confirmInput.addEventListener("input", updateNextButtonState);
 
+    // ------------------------------------------------------------------
+    // Double-submit gate
+    // ------------------------------------------------------------------
+    let isSubmitting = false;
+
     nonProfileForm.addEventListener("submit", async (e) => {
       e.preventDefault();
+
+      // If a submit is already in-flight, ignore additional submits
+      if (isSubmitting) return;
+      isSubmitting = true;
+      if (nextBtn) nextBtn.disabled = true;
+
       clearAllFieldStatuses(["firstName", "lastName", "email"]);
 
       /** @type {HTMLInputElement | null} */
@@ -574,11 +382,16 @@
             if (data.fieldErrors) {
               applyFieldErrors(data.fieldErrors);
               updateNextButtonState();
+              // allow user to try again
+              isSubmitting = false;
+              if (nextBtn) nextBtn.disabled = false;
               return;
             }
           }
           showFormToast("An error occurred. Please try again.");
           updateNextButtonState();
+          isSubmitting = false;
+          if (nextBtn) nextBtn.disabled = false;
           return;
         }
 
@@ -589,14 +402,20 @@
         if (data.fieldErrors) {
           applyFieldErrors(data.fieldErrors);
           updateNextButtonState();
+          isSubmitting = false;
+          if (nextBtn) nextBtn.disabled = false;
           return;
         }
 
+        // Success: redirect out of this page.
+        // No need to re-enable or reset isSubmitting.
         window.location.href = "/volunteerIn?disable=true";
       } catch (err) {
         console.error("submit-nonProfileInfo error:", err);
         showFormToast("Server error. Please try again.");
         updateNextButtonState();
+        isSubmitting = false;
+        if (nextBtn) nextBtn.disabled = false;
       }
     });
   }
@@ -607,6 +426,7 @@
 
   /**
    * Initialize volunteer info AJAX submit.
+   * Handles: first/last/suffix/phone/SMSCapable + WhatsApp ID.
    * @param {string} csrfToken
    */
   function initVolunteerInfoForm(csrfToken) {
@@ -640,6 +460,8 @@
       const smsRadio = document.querySelector(
         'input[name="SMSCapable"]:checked',
       );
+      /** @type {HTMLInputElement | null} */
+      const whatsappInput = document.getElementById("whatsappid");
 
       const payload = {
         firstName: firstName?.value.trim(),
@@ -647,6 +469,7 @@
         suffix: suffix?.value.trim(),
         phone: phoneInput ? phoneInput.value.trim() : "",
         SMSCapable: smsRadio?.value === "yes",
+        whatsappid: whatsappInput?.value.trim() || "",
       };
 
       /** @type {any} */
@@ -689,6 +512,350 @@
 
       applySuccessState(["firstName", "lastName", "phone"]);
       window.location.href = "/personalInfo";
+    });
+  }
+
+  /* ============================================================
+   * =============== UPGRADE FLOW: START (FIND) ==================
+   * ============================================================ */
+
+  /**
+   * Initialize the upgrade start form (enter phone/email).
+   * Uses AJAX to POST /upgrade/find and redirects based on JSON.
+   * @param {string} csrfToken
+   */
+  function initUpgradeStartForm(csrfToken) {
+    /** @type {HTMLFormElement | null} */
+    const form = document.querySelector('form[action="/upgrade/find"]');
+    if (!form) return;
+
+    /** @type {HTMLButtonElement | null} */
+    const submitBtn = document.getElementById("upgradeStart-submit");
+    /** @type {HTMLElement | null} */
+    const submitStatus = document.getElementById("submitStatus");
+    /** @type {HTMLInputElement | null} */
+    const phoneInput = document.getElementById("phone");
+    /** @type {HTMLInputElement | null} */
+    const emailInput = document.getElementById("email");
+    /** @type {HTMLInputElement | null} */
+    const confirmInput = document.getElementById("confirmEmail");
+
+    let isSubmitting = false;
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      if (isSubmitting) return;
+      isSubmitting = true;
+      if (submitBtn) submitBtn.disabled = true;
+      if (submitStatus) submitStatus.innerHTML = "";
+
+      clearAllFieldStatuses(["phone", "email"]);
+
+      const phoneVal = phoneInput?.value.trim() || "";
+      const emailVal = emailInput?.value.trim() || "";
+      const confirmVal = confirmInput?.value.trim() || "";
+
+      if (!phoneVal && !emailVal) {
+        showFormToast(
+          "Please enter at least an email address or a phone number.",
+          "warning",
+        );
+        isSubmitting = false;
+        if (submitBtn) submitBtn.disabled = false;
+        return;
+      }
+
+      /** @type {any} */
+      let data = {};
+
+      try {
+        const resp = await fetch("/upgrade/find", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-Token": csrfToken,
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            phone: phoneVal,
+            email: emailVal,
+            confirmEmail: confirmVal,
+          }),
+        });
+
+        const contentType = resp.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          data = await resp.json().catch(() => ({}));
+        }
+
+        if (!resp.ok || data.success === false) {
+          if (data.fieldErrors) {
+            applyFieldErrors(data.fieldErrors);
+          } else {
+            showFormToast(
+              data.message ||
+                "We could not find any account with that email or phone.",
+              "danger",
+            );
+          }
+          isSubmitting = false;
+          if (submitBtn) submitBtn.disabled = false;
+          return;
+        }
+
+        if (data.redirectUrl) {
+          window.location.href = data.redirectUrl;
+        } else {
+          showFormToast(
+            "Unexpected response from server. Please try again.",
+            "danger",
+          );
+          isSubmitting = false;
+          if (submitBtn) submitBtn.disabled = false;
+        }
+      } catch (err) {
+        console.error("upgradeStart submit error:", err);
+        showFormToast("Server error. Please try again.", "danger");
+        isSubmitting = false;
+        if (submitBtn) submitBtn.disabled = false;
+      }
+    });
+  }
+
+  /* ============================================================
+   * =============== UPGRADE FLOW: NAME CHECK ====================
+   * ============================================================ */
+
+  /**
+   * Initialize upgrade name-confirmation form.
+   * POST /upgrade/name via AJAX then redirect.
+   * @param {string} csrfToken
+   */
+  function initUpgradeNameForm(csrfToken) {
+    /** @type {HTMLFormElement | null} */
+    const form = document.querySelector('form[action="/upgrade/name"]');
+    if (!form) return;
+
+    /** @type {HTMLButtonElement | null} */
+    const submitBtn = document.getElementById("upgradeName-submit");
+    /** @type {HTMLElement | null} */
+    const submitStatus = document.getElementById("submitStatus");
+    /** @type {HTMLInputElement | null} */
+    const idInput = form.querySelector('input[name="id"]');
+    /** @type {HTMLInputElement | null} */
+    const firstName = document.getElementById("firstName");
+    /** @type {HTMLInputElement | null} */
+    const lastName = document.getElementById("lastName");
+    /** @type {HTMLInputElement | null} */
+    const suffix = document.getElementById("suffix");
+
+    let isSubmitting = false;
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      if (isSubmitting) return;
+      isSubmitting = true;
+      if (submitBtn) submitBtn.disabled = true;
+      if (submitStatus) submitStatus.innerHTML = "";
+
+      clearAllFieldStatuses(["firstName", "lastName"]);
+
+      const payload = {
+        id: idInput?.value,
+        firstName: firstName?.value.trim(),
+        lastName: lastName?.value.trim(),
+        suffix: suffix?.value.trim(),
+      };
+
+      if (!payload.firstName || !payload.lastName) {
+        showFormToast("First and last name are required.", "warning");
+        isSubmitting = false;
+        if (submitBtn) submitBtn.disabled = false;
+        return;
+      }
+
+      /** @type {any} */
+      let data = {};
+
+      try {
+        const resp = await fetch("/upgrade/name", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-Token": csrfToken,
+          },
+          credentials: "include",
+          body: JSON.stringify(payload),
+        });
+
+        const contentType = resp.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          data = await resp.json().catch(() => ({}));
+        }
+
+        if (!resp.ok || data.success === false) {
+          if (data.fieldErrors) {
+            applyFieldErrors(data.fieldErrors);
+          } else {
+            showFormToast(
+              data.message ||
+                "The name entered does not match our records. Please try again.",
+              "danger",
+            );
+          }
+          isSubmitting = false;
+          if (submitBtn) submitBtn.disabled = false;
+          return;
+        }
+
+        if (data.redirectUrl) {
+          window.location.href = data.redirectUrl;
+        } else {
+          showFormToast(
+            "Unexpected response from server. Please try again.",
+            "danger",
+          );
+          isSubmitting = false;
+          if (submitBtn) submitBtn.disabled = false;
+        }
+      } catch (err) {
+        console.error("upgradeName submit error:", err);
+        showFormToast("Server error. Please try again.", "danger");
+        isSubmitting = false;
+        if (submitBtn) submitBtn.disabled = false;
+      }
+    });
+  }
+
+  /* ============================================================
+   * =============== UPGRADE FLOW: SEND LINK =====================
+   * ============================================================ */
+
+  /**
+   * Initialize upgrade send-link form (choose email vs phone).
+   * POST /upgrade/send via AJAX then redirect to confirmation.
+   * @param {string} csrfToken
+   */
+  /* ============================================================
+   * =============== UPGRADE FLOW: SEND LINK =====================
+   * ============================================================ */
+
+  /**
+   * Initialize upgrade send-link form (choose email vs phone).
+   * POST /upgrade/send via AJAX then redirect to confirmation.
+   * @param {string} csrfToken
+   */
+  function initUpgradeSendForm(csrfToken) {
+    /** @type {HTMLFormElement | null} */
+    const form = document.querySelector('form[action="/upgrade/send"]');
+    if (!form) return;
+
+    /** @type {HTMLButtonElement | null} */
+    const submitBtn = document.getElementById("upgradeSend-submit");
+    /** @type {HTMLElement | null} */
+    const submitStatus = document.getElementById("submitStatus");
+    /** @type {HTMLInputElement | null} */
+    const idInput = form.querySelector('input[name="id"]');
+    /** @type {HTMLElement | null} */
+    const methodStatus = document.getElementById("method-status");
+    /** @type {HTMLElement | null} */
+    const methodSection = document.getElementById("methodSection");
+
+    function scrollToMethodSection() {
+      if (!methodSection) return;
+      // Smooth scroll that centers the radio section in view
+      methodSection.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+
+    let isSubmitting = false;
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      if (isSubmitting) return;
+      isSubmitting = true;
+      if (submitBtn) submitBtn.disabled = true;
+      if (submitStatus) submitStatus.innerHTML = "";
+      if (methodStatus) methodStatus.textContent = "";
+
+      /** @type {HTMLInputElement | null} */
+      const methodRadio = form.querySelector(
+        'input[name="method"]:checked',
+      );
+
+      // No method selected → inline message + scroll to section
+      if (!methodRadio) {
+        const msg =
+          "Please choose how you would like to receive your reset link.";
+        if (methodStatus) methodStatus.textContent = msg;
+        showFormToast(msg, "warning");
+        scrollToMethodSection();
+
+        isSubmitting = false;
+        if (submitBtn) submitBtn.disabled = false;
+        return;
+      }
+
+      /** @type {any} */
+      let data = {};
+
+      try {
+        const resp = await fetch("/upgrade/send", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-Token": csrfToken,
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            id: idInput?.value,
+            method: methodRadio.value,
+          }),
+        });
+
+        const contentType = resp.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          data = await resp.json().catch(() => ({}));
+        }
+
+        if (!resp.ok || data.success === false) {
+          if (data.fieldErrors) {
+            applyFieldErrors(data.fieldErrors);
+            if (data.fieldErrors.form && methodStatus) {
+              methodStatus.textContent = data.fieldErrors.form;
+            }
+          } else {
+            const msg =
+              data.message || "Failed to send reset link. Please try again.";
+            showFormToast(msg, "danger");
+            if (methodStatus) methodStatus.textContent = msg;
+          }
+          // Always scroll back to the radio section on any error
+          scrollToMethodSection();
+
+          isSubmitting = false;
+          if (submitBtn) submitBtn.disabled = false;
+          return;
+        }
+
+        if (data.redirectUrl) {
+          window.location.href = data.redirectUrl;
+        } else {
+          // fallback confirmation page
+          window.location.href = "/upgrade/sent";
+        }
+      } catch (err) {
+        console.error("upgradeSend submit error:", err);
+        const msg = "Server error. Please try again.";
+        showFormToast(msg, "danger");
+        if (methodStatus) methodStatus.textContent = msg;
+        scrollToMethodSection();
+
+        isSubmitting = false;
+        if (submitBtn) submitBtn.disabled = false;
+      }
     });
   }
 
@@ -741,19 +908,22 @@
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // ENTRY-PAGE ENHANCEMENTS:
-  //  - Sticky submit outside <form> -> submit #account-form
-  //  - Auto-scroll focused sections into view on mobile entry pages
-  // ---------------------------------------------------------------------------
-  document.addEventListener("DOMContentLoaded", () => {
+  /* ============================================================
+   * =============== ENTRY-PAGE ENHANCEMENTS ====================
+   *  - Sticky submit outside <form> -> submit #account-form
+   *  - Auto-scroll focused sections into view on mobile entry pages
+   * ============================================================ */
+
+  function initEntryPageEnhancements() {
     const body = document.body;
     const isEntryPage = body.classList.contains("entry-body");
 
     // 1) Sticky submit: button in .sticky-action submits #account-form
+    /** @type {HTMLButtonElement | null} */
     const externalsubmitBtn = document.querySelector(
       ".sticky-action button[type='submit']",
     );
+    /** @type {HTMLFormElement | null} */
     const form = document.getElementById("account-form");
 
     if (externalsubmitBtn && form) {
@@ -772,7 +942,7 @@
       emailsSection: ["emailStatus", "confirmEmailStatus"],
       passwords: ["passwordStatus", "passwordsMatchedStatus"],
 
-      //congregationInfo sections:
+      // congregationInfo sections:
       congAssigned: ["congAssignedStatus"],
       congregationGroup: ["congregationStatus"],
       congregationEnter: [
@@ -782,21 +952,21 @@
       ],
       extraAttend: ["extraAttendStatus"],
 
-      //personalInfo sections:
+      // personalInfo sections:
       genderSection: ["genderStatus"],
       dobSection: ["dobStatus"],
       staminaSection: ["staminaStatus"],
 
-      //spiritualInfo sections:
+      // spiritualInfo sections:
       privilegesSection: ["privilegesStatus"],
 
-      //nonProfileInfo and volunteerIn sections:
+      // nonProfileInfo and volunteerIn sections:
       namesSection: ["firstNameStatus", "lastNameStatus"],
       emailsSection: ["emailStatus", "confirmEmailStatus"],
       phoneSection: ["phoneStatus", "confirmPhoneStatus"],
 
-      //notes sections:
-      notesSection: ["notesStatus"]
+      // notes sections:
+      notesSection: ["notesStatus"],
     };
 
     function updateSectionStatuses(section) {
@@ -854,5 +1024,33 @@
       },
       { capture: false },
     );
+  }
+
+  /* ============================================================
+   * =============== DOMContentLoaded ENTRYPOINT ================
+   * ============================================================ */
+
+  document.addEventListener("DOMContentLoaded", () => {
+    /** @type {HTMLInputElement | null} */
+    const csrfTokenInput = document.querySelector('input[name="_csrf"]');
+    const csrfToken = csrfTokenInput?.value || "";
+
+    // Guard each call so pages without certain forms don't crash.
+    if (typeof initEmailPasswordForm === "function") initEmailPasswordForm();
+    if (typeof initCongregationForm === "function") initCongregationForm();
+    if (typeof initNonProfileForm === "function") initNonProfileForm(csrfToken);
+    if (typeof initVolunteerInfoForm === "function")
+      initVolunteerInfoForm(csrfToken);
+    if (typeof initSummarySubmit === "function") initSummarySubmit();
+
+    // NEW: upgrade flow initializers
+    if (typeof initUpgradeStartForm === "function")
+      initUpgradeStartForm(csrfToken);
+    if (typeof initUpgradeNameForm === "function")
+      initUpgradeNameForm(csrfToken);
+    if (typeof initUpgradeSendForm === "function")
+      initUpgradeSendForm(csrfToken);
+   
+    initEntryPageEnhancements();
   });
 })();

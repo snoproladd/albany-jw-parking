@@ -56,6 +56,7 @@ const SECRET_MAP = Object.freeze({
   KICKBOX_API_KEY: "kickboxBrowser",
   TWILIO_ACCOUNT_SID: "TwilioSID",
   TWILIO_AUTH_TOKEN: "TwilioAuthToken",
+  TWILIO_MSG_SID: "TwilioMsgSID",
   AZSQLServer: "AZSQLServer",
   AZSQLDB: "AZSQLDB",
   AZSQLPort: "AZSQLPort",
@@ -123,6 +124,8 @@ export async function getConfig() {
       secrets.TWILIO_ACCOUNT_SID || process.env.TWILIO_ACCOUNT_SID,
     TWILIO_AUTH_TOKEN:
       secrets.TWILIO_AUTH_TOKEN || process.env.TWILIO_AUTH_TOKEN,
+    TWILIO_MSG_SID:
+      secrets.TWILIO_MSG_SID || process.env.TWILIO_MSG_SID,
 
     // Kickbox
     KICKBOX_API_KEY: secrets.KICKBOX_API_KEY || process.env.KICKBOX_API_KEY,
@@ -144,6 +147,7 @@ export async function getConfig() {
     sqlDb: CONFIG.AZSQLDB,
     sqlPort: CONFIG.AZSQLPort,
     twilioConfigured: Boolean(CONFIG.TWILIO_ACCOUNT_SID),
+    twilioMsgConfigured: Boolean(CONFIG.TWILIO_MSG_SID),
     kickboxConfigured: Boolean(CONFIG.KICKBOX_API_KEY),
   });
 

@@ -20,6 +20,9 @@ import { INCOMPATIBILITIES } from "./src/config/privilegeRules.js";
 import { createRegistrationRouter } from "./routes/registrationRoutes.js";
 import apiRoutes from "./routes/apiRoutes.js";
 import { loginRouter } from "./routes/accountRoutes.js";
+import upgradeRoutes from "./routes/upgradeRoutes.js";
+import sql from "mssql";
+
 
 // Database helpers
 import {
@@ -37,6 +40,9 @@ import {
   loadVolunteerCache,
   markDraftCompleted,
   getCongregations,
+  exec,
+  hashPassword,
+  updateUserPassword,
 } from "./lib/dbSync.js";
 
 // Resolve paths
@@ -214,6 +220,7 @@ app.set("views", [
   path.join(__dirname, "views/partials"),
   path.join(__dirname, "views/errors"),
   path.join(__dirname, "views/authentication_and_accounts"),
+  path.join(__dirname, "views/upgrade"), 
 ]);
 
 // CSP nonce middleware
@@ -363,6 +370,22 @@ const server = http.createServer(app);
 
     // Login + My Account router
     app.use("/", loginRouter({ csrfProtection, logError }));
+
+    // Upgrade Account (email/phone → send reset link)
+    app.use(
+      "/",
+      upgradeRoutes({
+        express,
+        csrfProtection,
+        exec,
+        sql,
+        hashPassword,
+        updateUserPassword,
+        twilioAccountSid: config.TWILIO_ACCOUNT_SID,
+        twilioAuthToken: config.TWILIO_AUTH_TOKEN,
+        twilioMsgSid: config.TWILIO_MSG_SID,
+      }),
+    );
 
     // ========================================================
     // Validation Endpoints (Kickbox / Twilio)

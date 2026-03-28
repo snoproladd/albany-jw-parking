@@ -254,13 +254,13 @@ export function loginRouter({ csrfProtection, logError }) {
       const id = req.session.userId;
       if (!id) return res.redirect("/login");
 
-      const { email, phone, SMSCapable } = req.body;
+      const { email, phone, SMSCapable, whatsappid } = req.body;
       const smsCapable = SMSCapable === "yes";
 
       try {
         await updateUserContact(
           id,
-          { email, phone, smsCapable },
+          { email, phone, smsCapable, whatsappid },
           getEditedBy(req),
         );
         return res.redirect("/my-account");

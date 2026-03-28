@@ -189,6 +189,24 @@
                                       <label class="form-check-label" for="sms-no">No</label>
                                     </div>
                                   </div>
+                                  <!-- WhatsApp ID -->
+                                  <div class="col">
+                                    <label class="form-label small">WhatsApp ID (if known)</label>
+                                    <input
+                                      type="text"
+                                      id="whatsappid"
+                                      name="whatsappid"
+                                      class="form-control"
+                                      value="<%= user.whatsappid || '' %>"
+                                      placeholder="WhatsApp ID"
+                                    >
+                                    <div class="form-text mt-1">
+                                      WhatsApp is not required but
+                                      <strong><em>STRONGLY</em></strong>
+                                      recommended.
+                                    </div>
+                                  </div>
+
                                 </fieldset>
                               </div>
                             </div>

@@ -195,7 +195,6 @@
                                 value="<%= volunteer.phone || '' %>"
                                 readonly>
                             </div>
-
                             <!-- SMS capable -->
                             <div class="col">
                               <fieldset class="border-0 p-0 mt-1">
@@ -225,6 +224,16 @@
                                   </div>
                                 </div>
                               </fieldset>
+                            </div>
+                              <!-- WhatsApp ID -->
+                            <div class="col">
+                              <label class="form-label small">WhatsApp ID</label>
+                              <input
+                                type="text"
+                                class="form-control"
+                                value="<%= volunteer.whatsappid || '' %>"
+                                readonly
+                              >
                             </div>
                           </div>
                         </div>

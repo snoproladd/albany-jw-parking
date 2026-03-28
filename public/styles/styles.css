@@ -1166,6 +1166,7 @@ b {
   .entry-card #finalize-status {
     position: relative;
     z-index: 101;
+    justify-content: center;
   }
 }
 
@@ -1298,7 +1299,7 @@ b {
 } */
 /* Toast container (submit-level only) */
 #submitStatus {
-  min-height: 48px;
+  min-height: 36px;
 }
 
 /* 2) FIX PASSWORD ROW WRAPPING AND SHRINKING ON SMALL DEVICES */
