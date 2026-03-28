@@ -24,7 +24,7 @@
   />
 </head>
 
-<body class="min-vh-100 d-flex justify-content-center align-items-center bg-body-tertiary entry-body">
+<body class="min-vh-100 d-flex justify-content-center align-items-center bg-body-tertiary entry-body" data-login-success="<%= loginSuccess ? 'true' : 'false' %>">
   <main class="container body-container">
     <div class="row justify-content-center">
       <div class="col-12 col-md-10 col-lg-8 form-entry">
@@ -33,14 +33,13 @@
           <header class="card-header text-center">
             <h1 class="h3 my-2">Login</h1>
           </header>
-
           <div class="card-body">
             <% if (typeof error === "string" && error) { %>
               <div class="alert alert-danger alert-dismissible fade show" role="alert">
                 <%= error %>
               </div>
             <% } %>
-
+            <div id="login-status"></div>
             <form action="/login" method="POST" id="account-form" novalidate>
               <!-- CSRF token -->
               <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
@@ -85,6 +84,11 @@
                     <i class="fa-solid fa-eye"></i>
                   </button>
                 </div>
+                <div class="mt-2 text-end">
+                  <a href="/upgrade" class="small text-secondary">
+                    Forgot password?
+                  </a>
+                </div>
                 <div id="passwords-matched-status" class="status mt-2"></div>
               </div>
 
@@ -97,13 +101,14 @@
                 </div>
               </div>
 
-              <div class="d-flex justify-content-end gap-2">
-                <a href="/" class="btn btn-outline-secondary">Cancel</a>
-                <button type="submit" class="btn btn-primary">
-                  Login
-                </button>
-              </div>
-            </form>
+                <div class="d-flex justify-content-end gap-2">
+                  <a href="/" class="btn btn-outline-secondary">Cancel</a>
+                  <button type="submit" class="btn btn-primary">
+                    Login
+                  </button>
+             </div>
+           </form>
+           
           </div>
         </section>
       </div>
@@ -111,6 +116,7 @@
   </main>
 
   <!-- Scripts (all of these safely no-op if their expected forms/fields aren't present) -->
+  <script src="/js/loginSuccess.js"> </script>
   <script src="/js/email-validation.js"></script>
   <script src="/js/passwords.js"></script>
   <script src="/js/formListeners.js"></script>

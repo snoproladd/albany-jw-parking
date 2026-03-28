@@ -305,6 +305,55 @@
   function initSummarySubmit(form) {
     const root = document.getElementById("formSummaryRoot");
 
+    // --- NEW: track edits and submission for unsaved-changes warning ---
+    let hasEdits = false;
+    let hasSubmittedSummary = false;
+
+    if (root) {
+      const markEdited = (event) => {
+        const target = event.target;
+        // Only care about real form controls
+        if (
+          !(target instanceof HTMLInputElement) &&
+          !(target instanceof HTMLTextAreaElement) &&
+          !(target instanceof HTMLSelectElement)
+        ) {
+          return;
+        }
+        hasEdits = true;
+      };
+
+      // Capture changes anywhere inside the summary root
+      root.addEventListener("input", markEdited, true);
+      root.addEventListener("change", markEdited, true);
+    }
+
+    function userHasUnsavedChanges() {
+      if (!root) return false;
+
+      // If the summary has been successfully submitted, don't warn
+      if (hasSubmittedSummary) return false;
+
+      // Any section still in edit mode?
+      if (!allSectionsNotEditing(root)) return true;
+
+      // Any edits made in this session?
+      if (hasEdits) return true;
+
+      return false;
+    }
+
+    // Global beforeunload guard for the summary page
+    window.addEventListener("beforeunload", (event) => {
+      if (window.__suppressBeforeUnload) return;
+      if (!userHasUnsavedChanges()) return;
+
+      // Required to trigger the browser's "Leave site?" prompt
+      event.preventDefault();
+      event.returnValue = "";
+    });
+    // --- END NEW BLOCK ---
+
     const csrf =
       document.getElementById("summary-csrf")?.value ||
       document.querySelector('input[name="_csrf"]')?.value ||
@@ -381,6 +430,9 @@
           );
           return;
         }
+
+        // --- NEW: mark as successfully submitted so we stop warning ---
+        hasSubmittedSummary = true;
 
         if (successModal) {
           successModal.show();

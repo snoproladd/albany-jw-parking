@@ -44,7 +44,8 @@ export function createRegistrationRouter(deps) {
     emailExists,
     nameExists,
     phoneExists,
-    markDraftCompleted
+    markDraftCompleted,
+    upgradeDraftEmailPass,  
   } = db;
 
   const router = express.Router();
@@ -99,9 +100,21 @@ export function createRegistrationRouter(deps) {
     res.render("index", { csrfToken: req.csrfToken() });
   });
 
-  router.get("/email-pass", csrfProtection, (req, res) => {
-    res.render("emailPass", { csrfToken: req.csrfToken() });
+router.get("/email-pass", csrfProtection, (req, res) => {
+  const pending = (req.session.emailPassSetup || "").trim().toLowerCase();
+  const isUpgrade = !!pending;
+
+  // We deliberately do NOT pass the email to the view for upgrade,
+  // to avoid showing it in a visible field. For new signups, the
+  // user will type the email directly.
+  res.render("emailPass", {
+    csrfToken: req.csrfToken(),
+    email: "", // keep blank in the UI
+    isUpgrade, // let the template adapt text if desired
+    error: null,
   });
+});
+
 
   router.get("/nonProfile", csrfProtection, (req, res) => {
     console.log("[GET /nonProfile] session:", req.session);
@@ -599,30 +612,73 @@ export function createRegistrationRouter(deps) {
   // POST — EmailPass (registered users)
   // ------------------------------------------------------------
 
-  router.post("/submit-emailPass", csrfProtection, async (req, res) => {
-    const { email, password } = req.body;
+router.post("/submit-emailPass", csrfProtection, async (req, res) => {
+  const sessionEmail = (req.session.emailPassSetup || "").trim().toLowerCase();
+  const formEmail = (req.body.email || "").trim().toLowerCase();
+  const { password } = req.body || {};
+  const rawPassword = password || "";
 
-    if (!email || !password) {
-      return res.status(400).send("Email and password are required.");
-    }
+  // In upgrade flow, session email is authoritative. Otherwise use form email.
+  const effectiveEmail = sessionEmail || formEmail;
+  const isUpgrade = !!sessionEmail;
 
-    try {
-      const row = await insertDraftEmailPass(email, password);
+  if (!effectiveEmail || !rawPassword) {
+    return res.status(400).render("emailPass", {
+      csrfToken: req.csrfToken(),
+      email: "",           // do not echo email back
+      isUpgrade,
+      error: "Email and password are required.",
+    });
+  }
+
+  try {
+    let row;
+
+    if (isUpgrade) {
+      // UPGRADE: update existing volunteer_in row
+      row = await upgradeDraftEmailPass(effectiveEmail, rawPassword);
 
       if (!row) {
-        return res.status(500).send("Failed to create registration.");
+        console.error("submit-emailPass upgrade: row not found or update failed");
+        return res.status(500).render("emailPass", {
+          csrfToken: req.csrfToken(),
+          email: "",
+          isUpgrade,
+          error: "Failed to upgrade registration.",
+        });
       }
 
-      req.session.userId = row.id;
-      req.session.registrationId = row.registration_id;
-      req.session.formCache = { email };
+      // Clear the upgrade flag
+      req.session.emailPassSetup = null;
+    } else {
+      // NEW SIGNUP: insert a fresh draft registered row
+      row = await insertDraftEmailPass(effectiveEmail, rawPassword);
 
-      return res.redirect("/volunteerIn");
-    } catch (err) {
-      console.error("submit-emailPass error:", err);
-      return res.status(500).send("Registration failed.");
+      if (!row) {
+        return res.status(500).render("emailPass", {
+          csrfToken: req.csrfToken(),
+          email: "",
+          isUpgrade: false,
+          error: "Failed to create registration.",
+        });
+      }
     }
-  });
 
+    // Shared session setup for both new signups and upgrades
+    req.session.userId = row.id;
+    req.session.registrationId = row.registration_id;
+    req.session.formCache = { email: effectiveEmail };
+
+    return res.redirect("/volunteerIn");
+  } catch (err) {
+    console.error("submit-emailPass error:", err);
+    return res.status(500).render("emailPass", {
+      csrfToken: req.csrfToken(),
+      email: "",
+      isUpgrade,
+      error: "Registration failed.",
+    });
+  }
+});
   return router;
 }

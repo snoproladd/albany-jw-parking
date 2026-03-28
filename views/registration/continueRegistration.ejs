@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Continue Registration</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- Bootstrap CSS -->
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+
+    <!-- Site styles -->
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+
+  <body
+    class="min-vh-100 d-flex justify-content-center align-items-center bg-body-tertiary entry-body"
+  >
+    <main class="container body-container">
+      <div class="row justify-content-center">
+        <div class="col-12 col-md-10 col-lg-8 form-entry">
+          <section id="continueRegistrationCard" class="card shadow-lg entry-card">
+            <header class="card-header text-center">
+              <h1 class="text-center mb-1">Continue Registration</h1>
+              <p class="footnote mt-1 mb-0">
+                For your security, we need to confirm some information before you
+                continue your registration.
+              </p>
+            </header>
+
+            <div class="card-body">
+              <% if (typeof error === "string" && error) { %>
+                <div
+                  class="alert alert-danger alert-dismissible fade show"
+                  role="alert"
+                >
+                  <%= error %>
+                  <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"
+                  ></button>
+                </div>
+              <% } %>
+
+              <% if (typeof success === "string" && success) { %>
+                <div
+                  class="alert alert-success alert-dismissible fade show"
+                  role="alert"
+                >
+                  <%= success %>
+                  <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close"
+                  ></button>
+                </div>
+              <% } %>
+
+              <!-- Core verification form -->
+              <form
+                action="/continue-registration"
+                method="POST"
+                id="continueReg-form"
+                novalidate
+              >
+                <input
+                  type="hidden"
+                  name="_csrf"
+                  value="<%= csrfToken %>"
+                />
+
+                <!-- Optional flags the server can set to drive UI/logic -->
+                <input
+                  type="hidden"
+                  name="requireName"
+                  value="<%= requireName ? 'true' : 'false' %>"
+                />
+                <input
+                  type="hidden"
+                  name="requirePhoneConfirm"
+                  value="<%= requirePhoneConfirm ? 'true' : 'false' %>"
+                />
+
+                <!-- NAME SECTION (shown when server requires name verification / creation) -->
+                <% if (requireName) { %>
+                  <div class="mb-4">
+                    <h2 class="h6 mb-3">Confirm Your Name</h2>
+                    <p class="small text-muted mb-2">
+                      Please enter your name as it should appear on your
+                      registration.
+                    </p>
+
+                    <div class="row g-3">
+                      <div class="col-md-4">
+                        <label for="firstName" class="form-label small"
+                          >First Name</label
+                        >
+                        <div class="input-group">
+                          <span class="input-group-text">
+                            <i class="fa-solid fa-user"></i>
+                          </span>
+                          <input
+                            type="text"
+                            id="firstName"
+                            name="firstName"
+                            class="form-control"
+                            autocomplete="given-name"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div class="col-md-4">
+                        <label for="lastName" class="form-label small"
+                          >Last Name</label
+                        >
+                        <div class="input-group">
+                          <span class="input-group-text">
+                            <i class="fa-solid fa-user"></i>
+                          </span>
+                          <input
+                            type="text"
+                            id="lastName"
+                            name="lastName"
+                            class="form-control"
+                            autocomplete="family-name"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div class="col-md-4">
+                        <label for="suffix" class="form-label small"
+                          >Suffix (optional)</label
+                        >
+                        <div class="input-group">
+                          <span class="input-group-text">
+                            <i class="fa-solid fa-user-tag"></i>
+                          </span>
+                          <input
+                            type="text"
+                            id="suffix"
+                            name="suffix"
+                            class="form-control"
+                            placeholder="Jr., Sr., III"
+                            autocomplete="honorific-suffix"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div id="nameStatus" class="status mt-2"></div>
+                  </div>
+                <% } %>
+
+                <!-- PHONE SECTION (always shown, with or without confirm) -->
+                <div class="mb-3">
+                  <h2 class="h6 mb-3">Confirm Your Phone Number</h2>
+
+                  <% if (requirePhoneConfirm) { %>
+                    <!-- No phone on file: collect and confirm -->
+                    <p class="small text-muted mb-2">
+                      We don't have a phone number on file yet. Please enter and
+                      confirm your phone number.
+                    </p>
+
+                    <div class="mb-3">
+                      <label for="phone" class="form-label small"
+                        >Phone Number</label
+                      >
+                      <div class="input-group">
+                        <span class="input-group-text">
+                          <i class="fa-solid fa-phone"></i>
+                        </span>
+                        <input
+                          type="tel"
+                          id="phone"
+                          name="phone"
+                          class="form-control"
+                          autocomplete="tel"
+                          required
+                          aria-describedby="phoneStatus"
+                        />
+                      </div>
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="confirmPhone" class="form-label small"
+                        >Confirm Phone Number</label
+                      >
+                      <div class="input-group">
+                        <span class="input-group-text">
+                          <i class="fa-solid fa-phone"></i>
+                        </span>
+                        <input
+                          type="tel"
+                          id="confirmPhone"
+                          name="confirmPhone"
+                          class="form-control"
+                          autocomplete="tel"
+                          required
+                          aria-describedby="phoneStatus"
+                        />
+                      </div>
+                    </div>
+                  <% } else { %>
+                    <!-- Phone exists on file: verify with single entry -->
+                    <p class="small text-muted mb-2">
+                      Please enter the phone number associated with your
+                      registration.
+                    </p>
+
+                    <div class="mb-3">
+                      <label for="phone" class="form-label small"
+                        >Phone Number</label
+                      >
+                      <div class="input-group">
+                        <span class="input-group-text">
+                          <i class="fa-solid fa-phone"></i>
+                        </span>
+                        <input
+                          type="tel"
+                          id="phone"
+                          name="phone"
+                          class="form-control"
+                          autocomplete="tel"
+                          required
+                          aria-describedby="phoneStatus"
+                        />
+                      </div>
+                    </div>
+                  <% } %>
+
+                  <div id="phoneStatus" class="status mt-2"></div>
+                </div>
+
+                <!-- SUBMIT -->
+                <div class="mt-4">
+                  <button
+                    type="submit"
+                    id="continueReg-submit"
+                    class="btn btn-primary w-100"
+                  >
+                    Continue
+                  </button>
+                </div>
+              </form>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <!-- Scripts (kept minimal; these safely no-op if their hooks aren't used) -->
+    <script src="/js/continueRegistration.js"></script>
+    <script src="/js/phoneVer.js"></script>
+    <script src="/js/formListeners.js"></script>
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>

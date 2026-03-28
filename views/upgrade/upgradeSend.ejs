@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Verify Delivery Method</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+
+  <body class="min-vh-100 d-flex justify-content-center align-items-center bg-body-tertiary entry-body">
+    <main class="container body-container">
+      <div class="row justify-content-center">
+        <div class="col-12 col-md-10 col-lg-8 form-entry">
+
+          <section id="upgrade-send" class="card shadow-lg entry-card">
+            <header class="card-header text-center">
+              <h1 class="text-center mb-1">Verify Delivery Method</h1>
+              <p class="footnote mt-2 mb-0">
+                Choose where we should send your reset link.
+              </p>
+            </header>
+
+            <div class="card-body">
+              <form action="/upgrade/send" method="POST" id="upgradeSend-form">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                <input type="hidden" name="id" value="<%= volunteer.id %>" />
+
+                <div class="mb-3 scroll-section" id="methodSection">
+                  <div class="form-check">
+                    <input
+                      class="form-check-input"
+                      type="radio"
+                      name="method"
+                      id="sendEmail"
+                      value="email"
+                      required
+                    />
+                    <label class="form-check-label" for="sendEmail">
+                      Email: <strong><%= maskedEmail %></strong>
+                    </label>
+                  </div>
+
+                  <div class="form-check mt-2">
+                    <input
+                      class="form-check-input"
+                      type="radio"
+                      name="method"
+                      id="sendSMS"
+                      value="phone"
+                    />
+                    <label class="form-check-label" for="sendSMS">
+                      Text Message: <strong><%= maskedPhone %></strong>
+                    </label>
+                  </div>
+
+                  <div id="method-status" class="status mt-2"></div>
+                </div>
+
+                <button
+                  type="submit"
+                  class="btn btn-primary w-100"
+                  id="upgradeSend-submit"
+                >
+                  Send Reset Link
+                </button>
+
+                <div id="submitStatus" class="mt-2" role="status"></div>
+              </form>
+            </div>
+          </section>
+
+        </div>
+      </div>
+    </main>
+
+    <script src="/js/formListeners.js"></script>
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>

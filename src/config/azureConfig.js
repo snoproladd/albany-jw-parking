@@ -61,6 +61,10 @@ const SECRET_MAP = Object.freeze({
   AZSQLDB: "AZSQLDB",
   AZSQLPort: "AZSQLPort",
   SESSION_SECRET: "CookieSession",
+  IONOS_SMTP_HOST: "IonosSMTPHost",
+  IONOS_SMTP_PORT: "IonosSMTPPort",
+  IONOS_SMTP_USER_INFO: "IonosSMTPUserInfo",
+  IONOS_SMTP_PASS: "IonosSMTPPass",
 });
 
 // ============================================================================
@@ -130,6 +134,14 @@ export async function getConfig() {
     // Kickbox
     KICKBOX_API_KEY: secrets.KICKBOX_API_KEY || process.env.KICKBOX_API_KEY,
 
+    // IONOS SMTP
+    IONOS_SMTP_HOST: secrets.IONOS_SMTP_HOST || process.env.IONOS_SMTP_HOST,
+    IONOS_SMTP_PORT: Number(
+      secrets.IONOS_SMTP_PORT || process.env.IONOS_SMTP_PORT || 587,
+    ),
+    IONOS_SMTP_USER_INFO: secrets.IONOS_SMTP_USER_INFO || process.env.IONOS_SMTP_USER_INFO,
+    IONOS_SMTP_PASS: secrets.IONOS_SMTP_PASS || process.env.IONOS_SMTP_PASS,
+
     // Sessions
     sessionSecret:
       secrets.SESSION_SECRET || process.env.SESSION_SECRET || "fallback-secret",
@@ -149,6 +161,7 @@ export async function getConfig() {
     twilioConfigured: Boolean(CONFIG.TWILIO_ACCOUNT_SID),
     twilioMsgConfigured: Boolean(CONFIG.TWILIO_MSG_SID),
     kickboxConfigured: Boolean(CONFIG.KICKBOX_API_KEY),
+    ionosSmtpConfigured: Boolean(CONFIG.IONOS_SMTP_HOST && CONFIG.IONOS_SMTP_USER_INFO),
   });
 
   return CONFIG;

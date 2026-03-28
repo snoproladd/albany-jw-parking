@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Continue or Upgrade</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- Bootstrap CSS -->
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+
+    <!-- Site styles -->
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Georama:wght@100..900&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:wght@100..900&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+
+  <body
+    class="min-vh-100 d-flex justify-content-center align-items-center bg-body-tertiary entry-body"
+  >
+    <main class="container body-container">
+      <div class="row justify-content-center">
+        <div class="col-12 col-md-10 col-lg-8 form-entry">
+          <section id="chooseContinueCard" class="card shadow-lg entry-card">
+            <header class="card-header text-center">
+              <h1 class="text-center mb-1">Continue Registration</h1>
+              <p class="footnote mt-1 mb-0">
+                We found your email in our system, but you haven’t completed
+                registration yet.
+                <br />
+                How would you like to continue?
+              </p>
+            </header>
+
+            <div class="card-body">
+
+              <% if (typeof error === "string" && error) { %>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                  <%= error %>
+                  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+              <% } %>
+
+              <!-- Two options -->
+              <div class="d-flex flex-column gap-4 mt-3">
+
+                <!-- Continue Without Account -->
+                <form action="/continue-without-account" method="POST" class="w-100">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                  <input type="hidden" name="email" value="<%= email %>">
+
+                  <div class="card p-3 shadow-sm">
+                    <div class="d-flex align-items-center gap-3">
+                      <span class="input-group-text bg-transparent border-0 p-0">
+                        <i class="fa-solid fa-user-pen fa-2xl text-secondary"></i>
+                      </span>
+                      <div>
+                        <h2 class="h6 mb-1">Continue Without an Account</h2>
+                        <p class="small text-muted mb-2">
+                          Proceed without creating a login. You’ll enter information to serve as a volunteer, but you will not have an online account.
+                        </p>
+                        <button type="submit" class="btn btn-outline-primary w-100">
+                          Enter Info Only
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </form>
+
+                <!-- Upgrade to Account -->
+                <form action="/upgrade-to-account" method="POST" class="w-100">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                  <input type="hidden" name="email" value="<%= email %>">
+                  <div class="card p-3 shadow-sm">
+                    <div class="d-flex align-items-center gap-3">
+                      <span class="input-group-text bg-transparent border-0 p-0">
+                        <i class="fa-solid fa-arrow-up-right-from-square fa-2xl text-secondary"></i>
+                      </span>
+                      <div>
+                        <h2 class="h6 mb-1">Upgrade to a Full Account</h2>
+                        <p class="small text-muted mb-2">
+                          Create a full login by setting a password. This lets you update your information later and access more features.
+                        </p>
+                        <button type="submit" class="btn btn-primary w-100">
+                          Upgrade Account
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </form>
+
+              </div>
+
+            </div><!-- /card-body -->
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <!-- Scripts -->
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>

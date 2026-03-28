@@ -34,3 +34,4 @@ public/js/*.js.map
 *.sh
 
 set_local_env.js
+parking/

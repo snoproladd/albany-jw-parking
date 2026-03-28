@@ -1,85 +1,144 @@
+<header class="py-2 mb-4">
+  <nav class="navbar navbar-expand-lg navbar-light site-navbar shadow-sm">
+    <div class="container-fluid">
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <title>Convention Volunteer Home Page</title>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
-    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css">
-    <link rel="stylesheet" href="/styles/fontawesome/css/all.css">
-    <link rel="stylesheet" type="text/css" href="/styles/styles.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
-</head>     
-<div class="container">
-    <header class="d-flex flex-wrap align-items-center justify-content-center justify-content-md-between py-3 mb-4">
-        <div class="col-md-3 mb-2 mb-md-0">
-            <a href="/" class="d-inline-flex link-body-emphasis text-decoration-none">
-                <svg class="bi" width="40" height="32" role="img" aria-label="Bootstrap">
-                    <use xlink:href="#bootstrap"></use>
-                </svg>
-            </a>
-        </div>
+      <a class="navbar-brand d-flex align-items-center" href="/">
+        <i class="fa-solid fa-car-side me-1"></i>
+        Albany JW Parking
+      </a>
 
-      <!-- Nav: centered, items can wrap; link text does NOT wrap -->
-        <nav class="w-100 w-md-auto order-2 order-md-2">
-          <ul class="nav justify-content-center flex-wrap mx-md-auto">
+      <button class="navbar-toggler" type="button"
+              data-bs-toggle="collapse" data-bs-target="#mainNav"
+              aria-controls="mainNav" aria-expanded="false"
+              aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
 
-            <li class="nav-item">
-              <a href="/" class="nav-link px-2 header-link text-nowrap">Home</a>
-            </li>
+      <div class="collapse navbar-collapse" id="mainNav">
 
-            <li class="nav-item">
-              <a href="/schedules" class="nav-link px-2 header-link text-nowrap">
-                Schedules
-              </a>
-            </li>
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
 
-            <li class="nav-item">
-              <a href="/maps" class="nav-link px-2 header-link text-nowrap">
-                Maps
-              </a>
-            </li>
+  <!-- HOME — always visible -->
+  <li class="nav-item">
+    <a class="nav-link" href="/">
+      <i class="fa-solid fa-house me-1"></i>
+      Home
+    </a>
+  </li>
 
-            <li class="nav-item">
-              <a href="/my-account" class="nav-link px-2 header-link text-nowrap">
-                My Account
-              </a>
-            </li>
+  <%
+    const navState = nav || {};
+    const showUpgrade     = navState.canUpgrade;
+    const showContinueReg = navState.showContinueRegistration;
+    const showMyAccount   = navState.isLoggedIn;
+    const showAccountDropdown = showUpgrade || showContinueReg || showMyAccount;
+  %>
 
-            <li class="nav-item">
-              <a href="/contact" class="nav-link px-2 header-link text-nowrap">
-                Contact
-              </a>
-            </li>
+  <% if (navState.isLoggedIn) { %>
 
-            <!-- ⭐ NEW — Upgrade Account link -->
-            <li class="nav-item">
-              <a href="/upgrade" class="nav-link px-2 header-link text-nowrap text-success fw-semibold">
+    <!-- RESOURCES DROPDOWN -->
+    <li class="nav-item dropdown">
+      <a class="nav-link dropdown-toggle" href="#" id="resourcesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="fa-solid fa-folder-open me-1"></i>
+        Resources
+      </a>
+      <ul class="dropdown-menu" aria-labelledby="resourcesDropdown">
+        <li>
+          <a class="dropdown-item" href="/maps">
+            <i class="fa-solid fa-map me-1"></i>
+            Maps
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="/schedules">
+            <i class="fa-regular fa-calendar-days me-1"></i>
+            Schedules
+          </a>
+        </li>
+      </ul>
+    </li>
+
+    <!-- MY ACCOUNT DROPDOWN -->
+    <% if (showAccountDropdown) { %>
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="accountDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="fa-solid fa-user me-1"></i>
+          My Account
+        </a>
+        <ul class="dropdown-menu" aria-labelledby="accountDropdown">
+          <% if (showUpgrade) { %>
+            <li>
+              <a class="dropdown-item" href="/upgrade">
+                <i class="fa-solid fa-arrow-up-right-from-square me-1"></i>
                 Upgrade Account
               </a>
             </li>
+          <% } %>
+          <% if (showContinueReg) { %>
+            <li>
+              <a class="dropdown-item" href="/continue-registration/auto">
+                <i class="fa-solid fa-forward-step me-1"></i>
+                Continue Registration
+              </a>
+            </li>
+          <% } %>
+          <% if (showMyAccount) { %>
+            <li>
+              <a class="dropdown-item" href="/my-account">
+                <i class="fa-solid fa-id-card me-1"></i>
+                My Account
+              </a>
+            </li>
+          <% } %>
+        </ul>
+      </li>
+    <% } %>
 
-          </ul>
-        </nav>
+  <% } %>
 
-      <!-- Buttons: centered on small, right-aligned on md+ -->
-      <div class="d-flex flex-wrap justify-content-center justify-content-md-end w-100 w-md-auto gap-2 order-3 order-md-3">
-        <a href="/login" class="btn btn-outline-primary" role="button">Login</a>
-        <a href="/email-pass" class="btn btn-primary" role="button">Sign-up</a>
-        <a href="/nonProfile" class="btn btn-secondary" role="button">Enter Info Only</a>
+</ul>
+        <div class="d-flex align-items-center nav-cta-container">
+
+          <% if (!navState.isLoggedIn) { %>
+            <a class="nav-link" href="/login">
+              <i class="fa-solid fa-right-to-bracket"></i>
+              Login
+            </a>
+            <a class="nav-link" href="/email-pass">
+              Create Profile
+            </a>
+            <a class="nav-link" href="/nonProfile">
+              Guest Access
+            </a>
+          <% } %>
+
+          <% if (navState.isLoggedIn) { %>
+            <a class="nav-link" href="/logout">
+              <i class="fa-solid fa-right-from-bracket"></i>
+              Logout
+            </a>
+          <% } %>
+
+          <div class="nav-avatar ms-2"
+               title="<%= navState.isLoggedIn ? 'Registered User' : 'Guest User' %>">
+            <svg viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <polygon points="18,6 25,22 11,22" fill="#fb8500"/>
+              <polygon points="15.5,10 20.5,10 22.5,16 13.5,16" fill="white" opacity="0.9"/>
+              <polygon points="13,18 23,18 25,22 11,22" fill="white" opacity="0.9"/>
+              <rect x="10" y="22" width="16" height="3" rx="1" fill="#fb8500"/>
+              <% if (navState.isLoggedIn && navState.userInitials) { %>
+                <text x="18" y="32"
+                      text-anchor="middle"
+                      dominant-baseline="central"
+                      class="nav-avatar-initials">
+                  <%= navState.userInitials %>
+                </text>
+              <% } %>
+            </svg>
+          </div>
+
+        </div>
       </div>
     </div>
-  </div>
+  </nav>
 </header>
-
-
-
-  
-
- 
-</body>
-</html>

@@ -48,6 +48,7 @@
   document.addEventListener("DOMContentLoaded", () => {
     initPhoneVerification(); // registration flow (#phoneSection form)
     initMyAccountPhoneValidation(); // My Account flow (/my-account/update/contact)
+    initUpgradePhoneValidation(); // upgrade flow (/upgrade)
   });
   /**
    * Registration Flow: #phoneSection form
@@ -63,7 +64,7 @@
 
     const DOM = {
       /** @type {HTMLFormElement | null} */
-      form: document.querySelector("#phoneSection"),
+      form: document.querySelector("#phoneVer-form"),
 
       /** @type {HTMLButtonElement | null} */
       submitBtn: document.querySelector("#submitBtn"),
@@ -263,10 +264,13 @@
 
         if (ready) {
           UI.submitSuccess("✅ Ready to submit");
+        } else if (Logic.fieldsFilled()) {
+          // Only show an error after the user has filled something in
+          UI.submitError("Please complete all required fields.");
         } else {
-          UI.submitError(
-            "Please complete all required fields.",
-          );
+          // Nothing filled yet — stay silent rather than flashing an error on load
+          DOM.submitStatus.innerHTML = "";
+          DOM.submitStatus.className = "status mt-2 submitStatus";
         }
       },
 
@@ -587,6 +591,126 @@
 
       debounceId = window.setTimeout(() => {
         void validateMyAccountPhone(raw);
+      }, 500);
+    });
+  }
+  /**
+   * Upgrade Flow: /upgrade
+   * - Single phone field (#phone in #phoneSection)
+   * - Validates deliverability via /validate-phone
+   * - No confirmPhone, no SMSCapable gating, no submit gating here
+   */
+  function initUpgradePhoneValidation() {
+    /** @type {HTMLFormElement | null} */
+    const upgradeForm = document.querySelector('form[action="/upgrade/find"]');
+    /** @type {HTMLInputElement | null} */
+    const phoneInput = document.querySelector("#phone");
+    /** @type {HTMLElement | null} */
+    const phoneStatus = document.querySelector("#phoneStatus");
+
+    // Only run on upgrade start page
+    if (!upgradeForm || !phoneInput || !phoneStatus) return;
+
+    /** @type {number | undefined} */
+    let debounceId;
+
+    function clearStatus() {
+      phoneStatus.classList.remove("loading", "success", "error");
+      phoneStatus.innerHTML = "";
+    }
+
+    /**
+     * @param {string} [msg="Checking phone…"]
+     */
+    function setStatusLoading(msg = "Checking phone…") {
+      phoneStatus.classList.remove("success", "error");
+      phoneStatus.classList.add("loading");
+      phoneStatus.innerHTML = `
+        <span class="spinner-border spinner-border-sm text-secondary" role="status"></span>
+        ${msg}
+      `;
+    }
+
+    /**
+     * @param {string} [msg="✓ Phone looks good"]
+     */
+    function setStatusSuccess(msg = "✓ Phone looks good") {
+      phoneStatus.classList.remove("loading", "error");
+      phoneStatus.classList.add("success");
+      phoneStatus.textContent = msg;
+    }
+
+    /**
+     * @param {string} [msg="Invalid phone"]
+     */
+    function setStatusError(msg = "Invalid phone") {
+      phoneStatus.classList.remove("loading", "success");
+      phoneStatus.classList.add("error");
+      phoneStatus.innerHTML = `
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+          ❌ ${msg}
+        </div>`;
+    }
+
+    /**
+     * Validate phone for upgrade flow (deliverability only).
+     * @param {string} raw
+     */
+    async function validateUpgradePhone(raw) {
+      const phone = raw.trim();
+      const digits = digitsOnly(phone);
+
+      if (!digits) {
+        clearStatus();
+        return;
+      }
+
+      if (digits.length < 10) {
+        setStatusError("Enter at least 10 digits.");
+        return;
+      }
+
+      setStatusLoading();
+
+      try {
+        const url = new URL("/validate-phone", window.location.origin);
+        url.searchParams.set("phone", phone);
+
+        const resp = await fetch(url.toString());
+        /** @type {{valid?:boolean,validation_errors?:string,error?:string}} */
+        const data = await resp.json().catch(() => ({}));
+
+        // If user changed the value while we were validating, ignore this result
+        if (phoneInput.value.trim() !== raw.trim()) return;
+
+        if (!resp.ok || !data.valid) {
+          setStatusError(
+            data.validation_errors || data.error || "Phone is not valid.",
+          );
+          return;
+        }
+
+        setStatusSuccess();
+      } catch (err) {
+        console.error("Upgrade phone validation error:", err);
+        setStatusError("Phone validation failed. Try again.");
+      }
+    }
+
+    phoneInput.addEventListener("input", () => {
+      clearTimeout(debounceId);
+
+      const formatted = formatPhone(phoneInput.value);
+      phoneInput.value = formatted;
+      const raw = phoneInput.value;
+
+      if (!raw.trim()) {
+        clearStatus();
+        return;
+      }
+
+      debounceId = window.setTimeout(() => {
+        void validateUpgradePhone(raw);
       }, 500);
     });
   }

@@ -34,9 +34,11 @@
     const myAccountContactForm = document.querySelector(
       'form[action="/my-account/update/contact"]',
     );
+    const upgradeForm = document.querySelector('form[action="/upgrade/find"]');
 
     /** @type {HTMLFormElement | null} */
-    const form = emailPassForm || nonProfileForm || myAccountContactForm;
+    const form =
+      emailPassForm || nonProfileForm || myAccountContactForm || upgradeForm;
 
     /** @type {HTMLInputElement | null} */
     const emailInput = document.querySelector("#email");
@@ -52,12 +54,16 @@
     const isEmailPass = !!emailPassForm;
     const isNonProfile = !!nonProfileForm;
     const isMyAccount = !!myAccountContactForm;
+    const isUpgrade = !!upgradeForm;
 
-    // If My Account: only need email + status
+    // My Account: only need email + status
     if (isMyAccount) {
       if (!emailInput || !emailStatus) return;
+    } else if (isUpgrade) {
+      // Upgrade: only need email + status (no confirm, no passwords)
+      if (!form || !emailInput || !emailStatus) return;
     } else {
-      // EmailPass & NonProfile need full stack
+      // EmailPass & NonProfile: need full stack (email + confirm + statuses)
       if (
         !form ||
         !emailInput ||
@@ -514,16 +520,20 @@
       }
 
       // REGISTRATION MODES
+
       if (email === "") {
-        emailDeliverable = false;
-        emailStatus.dataset.deliverable = "false";
-        setConfirmEnabled(false);
-        clearStates(emailStatus);
-        emailStatus.textContent = "Please enter an email address.";
-        emailsMatch = false;
-        showPasswords(false);
-        return;
+        if (isUpgrade) {
+          emailDeliverable = false;
+          if (emailStatus) {
+            emailStatus.dataset.deliverable = "false";
+            clearStates(emailStatus);
+            emailStatus.textContent = "";
+          }
+          emailsMatch = false;
+          return;
+        }
       }
+
 
       if (email.length < 5) {
         emailDeliverable = false;

@@ -21,29 +21,11 @@ import { createRegistrationRouter } from "./routes/registrationRoutes.js";
 import apiRoutes from "./routes/apiRoutes.js";
 import { loginRouter } from "./routes/accountRoutes.js";
 import upgradeRoutes from "./routes/upgradeRoutes.js";
-import sql from "mssql";
 
 
 // Database helpers
-import {
-  insertDraftEmailPass,
-  insertDraftNameEmail,
-  updateDraftNameEmail,
-  updateDraftNamePhone,
-  updateDraftPersonalInfo,
-  updateDraftCongregationInfo,
-  updateDraftSpiritualInfo,
-  updateDraftNotes,
-  emailExists,
-  nameExists,
-  phoneExists,
-  loadVolunteerCache,
-  markDraftCompleted,
-  getCongregations,
-  exec,
-  hashPassword,
-  updateUserPassword,
-} from "./lib/dbSync.js";
+import * as db from "./lib/dbSync.js";
+
 
 // Resolve paths
 const config = await getConfig();
@@ -213,6 +195,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public")));
 
+
+
 app.set("view engine", "ejs");
 app.set("views", [
   path.join(__dirname, "views"),
@@ -329,7 +313,46 @@ const server = http.createServer(app);
       log("Redis session store initialized.");
     }
 
-    app.use(session(sessionOptions));
+    
+app.use(session(sessionOptions));
+
+// Derive navigation state from the session for use in views
+app.use((req, res, next) => {
+  // e.g., "/", "/volunteerIn", "/my-account"
+  res.locals.currentPath = req.path;
+
+  const s = req.session || {};
+
+  // Logged-in
+  const isLoggedIn = !!s.userId;
+
+  // Detect draft or partial registration
+  const hasDraftRegistration =
+    !!s.registrationId || !!s.pendingEmail || s.last_step !== undefined;
+
+  // Detect completed registration if stored
+  const registrationCompleted = s.registration_status === "completed";
+
+  // Continue Registration is only shown if NOT completed
+  const showContinueRegistration =
+    hasDraftRegistration && !registrationCompleted;
+
+    
+  const userInitials = s.userInitials || null;
+
+
+  res.locals.nav = {
+    isLoggedIn,
+    hasDraftRegistration,
+    registrationCompleted,
+    showContinueRegistration,
+    canUpgrade: !isLoggedIn,
+    userInitials,
+  };
+
+  next();
+});
+
 
     const csrfProtection = csurf({ cookie: true });
 
@@ -341,32 +364,32 @@ const server = http.createServer(app);
     app.use("/api", apiRoutes);
 
     // Registration router (FULL FLOW)
-    app.use(
-      "/",
-      createRegistrationRouter({
-        csrfProtection,
-        loadVolunteerCache,
-        startDbUpdate,
-        stopDbUpdate,
-        getCongregations,
-        db: {
-          insertDraftEmailPass,
-          insertDraftNameEmail,
-          updateDraftNameEmail,
-          updateDraftNamePhone,
-          updateDraftPersonalInfo,
-          updateDraftCongregationInfo,
-          updateDraftSpiritualInfo,
-          updateDraftNotes,
-          emailExists,
-          nameExists,
-          phoneExists,
-          markDraftCompleted,
-        },
-        INCOMPATIBILITIES,
-        logError,
-      }),
-    );
+app.use(
+  "/",
+  createRegistrationRouter({
+    csrfProtection,
+    loadVolunteerCache: db.loadVolunteerCache,
+    startDbUpdate,
+    stopDbUpdate,
+    getCongregations: db.getCongregations,
+    db: {
+      insertDraftEmailPass: db.insertDraftEmailPass,
+      insertDraftNameEmail: db.insertDraftNameEmail,
+      updateDraftNameEmail: db.updateDraftNameEmail,
+      updateDraftNamePhone: db.updateDraftNamePhone,
+      updateDraftPersonalInfo: db.updateDraftPersonalInfo,
+      updateDraftCongregationInfo: db.updateDraftCongregationInfo,
+      updateDraftSpiritualInfo: db.updateDraftSpiritualInfo,
+      updateDraftNotes: db.updateDraftNotes,
+      emailExists: db.emailExists,
+      nameExists: db.nameExists,
+      phoneExists: db.phoneExists,
+      markDraftCompleted: db.markDraftCompleted,
+    },
+    INCOMPATIBILITIES,
+    logError,
+  }),
+);
 
     // Login + My Account router
     app.use("/", loginRouter({ csrfProtection, logError }));
@@ -377,10 +400,8 @@ const server = http.createServer(app);
       upgradeRoutes({
         express,
         csrfProtection,
-        exec,
-        sql,
-        hashPassword,
-        updateUserPassword,
+        db,        
+        updateUserPassword: db.updateUserPassword,
         twilioAccountSid: config.TWILIO_ACCOUNT_SID,
         twilioAuthToken: config.TWILIO_AUTH_TOKEN,
         twilioMsgSid: config.TWILIO_MSG_SID,

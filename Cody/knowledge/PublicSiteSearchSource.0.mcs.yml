@@ -1,7 +1,0 @@
-mcs.metadata:
-  componentName: https://www.stackoverflow.net/
-  description: This knowledge source searches information on the web found in https://www.stackoverflow.net/ website
-kind: KnowledgeSourceConfiguration
-source:
-  kind: PublicSiteSearchSource
-  site: https://www.stackoverflow.net/
