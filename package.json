@@ -44,7 +44,7 @@
     "jq": "^1.7.2",
     "kickbox": "^2.0.4",
     "mssql": "^12.2.0",
-    "nodemailer": "^8.0.3",
+    "nodemailer": "^8.0.4",
     "path-to-regexp": "^8.3.0",
     "redis": "^5.11.0",
     "twilio": "^5.10.7",
