@@ -137,25 +137,30 @@
               </form>
             </div>
 
-            <!-- STICKY FOOTER (outside the form by design) -->
-            <div class="scroll-section sticky-action">
+          <!-- STICKY FOOTER (outside the form by design) -->
+          <div class="scroll-section sticky-action">
 
               <div id="section-status" class="w-100">
-                <div id="emailStatus" class="inputStatus"></div>
-                <div id="confirmEmailStatus" class="inputStatus"></div>
-                <div id="passwordStatus" class="inputStatus"></div>  
-                <div id="passwordsMatchedStatus" class="inputStatus"></div>
-                
+                  <div id="emailStatus" class="inputStatus"></div>
+                  <div id="confirmEmailStatus" class="inputStatus"></div>
+                  <div id="passwordStatus" class="inputStatus"></div>
+                  <div id="passwordsMatchedStatus" class="inputStatus"></div>
               </div>
+
+              <% if (typeof error !== 'undefined' && error) { %>
+                  <div class="alert alert-danger d-flex align-items-center mt-2 mb-1 py-2" role="alert">
+                      <i class="bi bi-exclamation-triangle-fill me-2 flex-shrink-0"></i>
+                      <span><%= error %></span>
+                  </div>
+              <% } %>
 
               <div id="submitStatus" class="status mt-2 submitStatus"></div>
 
               <button type="submit" class="btn btn-primary w-100 mt-1">
-                Submit
+                  Submit
               </button>
 
-            </div>
-
+          </div>
           </section>
         </div>
       </div>

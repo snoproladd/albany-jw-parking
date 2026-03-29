@@ -472,15 +472,79 @@ app.use(
       }
     });
 
-    // ========================================================
+// ========================================================
     // Health & 404
     // ========================================================
 
     app.get("/health", (req, res) => res.send("OK"));
 
     app.use((req, res) => {
-      res.status(404);
-      res.render("404", { url: req.originalUrl });
+        res.status(404);
+        res.render("404", { url: req.originalUrl });
+    });
+
+    // ========================================================
+    // Global Error Handler
+    // Must be registered after all routes and the 404 handler.
+    // Four-argument signature is required for Express to treat
+    // this as an error-handling middleware.
+    // ========================================================
+
+    /**
+     * Global error handler.
+     * Handles CSRF token expiry with a user-friendly re-render.
+     * All other errors are logged and surfaced as a 500.
+     * @param {any} err
+     * @param {import("express").Request} req
+     * @param {import("express").Response} res
+     * @param {import("express").NextFunction} next
+     */
+    // eslint-disable-next-line no-unused-vars
+    app.use((err, req, res, next) => {
+        if (err.code === "EBADCSRFTOKEN") {
+            logError("CSRF token invalid or expired:", req.method, req.path);
+
+            // Re-render whichever page the user was on with a clear message.
+            // We attempt to match the originating path to avoid dumping them
+            // on a random error page. Falls back to a plain 403 if the view
+            // can't be inferred.
+            const path = req.path;
+
+            if (path.startsWith("/submit-emailPass") || path === "/email-pass") {
+                return res.status(403).render("emailPass", {
+                    csrfToken: req.csrfToken(),
+                    email: "",
+                    isUpgrade: !!(req.session?.emailPassSetup),
+                    error: "Your session expired. Please try again.",
+                });
+            }
+
+            if (path.startsWith("/submit-nonProfileInfo") || path === "/nonProfile") {
+                return res.status(403).render("nonProfile", {
+                    csrfToken: req.csrfToken(),
+                    error: "Your session expired. Please try again.",
+                });
+            }
+
+            if (path.startsWith("/submit-volunteerInfo") || path === "/volunteerIn") {
+                return res.status(403).render("volunteerIn", {
+                    csrfToken: req.csrfToken(),
+                    disableNameFields: !!(req.session?.disableNameFields),
+                    hasActiveRegistration: !!(req.session?.registrationId),
+                    error: "Your session expired. Please try again.",
+                });
+            }
+
+            // Fallback for any other CSRF-protected route
+            return res.status(403).render("404", {
+                url: req.originalUrl,
+                error: "Your session expired. Please go back and try again.",
+            });
+        }
+
+        // All other errors
+        logError("Unhandled error:", err);
+        res.status(500).send("An unexpected error occurred. Please try again.");
     });
 
     // ========================================================
@@ -488,7 +552,7 @@ app.use(
     // ========================================================
 
     server.listen(PORT, HOST, () =>
-      log(`Server running at http://${HOST}:${PORT}`),
+        log(`Server running at http://${HOST}:${PORT}`),
     );
 
     await initTwilio();

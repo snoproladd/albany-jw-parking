@@ -9,6 +9,7 @@
 // - Congregation step: assigned vs visiting branch logic
 // - Summary submit (requires all sections saved, then shows modal)
 // - Entry pages: sticky submit + auto-scroll on mobile
+// - Native form submit gate (personalInfo, congregationInfo, spiritualInfo, notes)
 // -----------------------------------------------------------------------------
 
 (() => {
@@ -20,7 +21,6 @@
 
   /**
    * Clear validation feedback for a specific field.
-   * NOTE: Looks for a status element with id `${fieldId}-status`.
    * @param {string} fieldId
    */
   function clearFieldStatus(fieldId) {
@@ -42,7 +42,6 @@
     const input = document.getElementById(fieldId);
     /** @type {HTMLElement | null} */
     const status = document.getElementById(`${fieldId}-status`);
-
     if (input) {
       input.classList.remove("is-valid");
       input.classList.add("is-invalid");
@@ -66,7 +65,6 @@
     const input = document.getElementById(fieldId);
     /** @type {HTMLElement | null} */
     const status = document.getElementById(`${fieldId}-status`);
-
     if (input) {
       input.classList.remove("is-invalid");
       input.classList.add("is-valid");
@@ -102,7 +100,6 @@
 
   /**
    * Show a global toast message in #submitStatus.
-   * Only used for submit-level failures or warnings.
    * @param {string} message
    * @param {"danger"|"warning"|"success"} [type="danger"]
    */
@@ -110,7 +107,6 @@
     /** @type {HTMLElement | null} */
     const submitStatus = document.getElementById("submitStatus");
     if (!submitStatus) return;
-
     submitStatus.innerHTML = `
   <div class="alert alert-${type} fade show mt-3" role="alert">
     <i class="bi bi-exclamation-triangle-fill me-2"></i>
@@ -128,20 +124,15 @@
    */
   function applyFieldErrors(fieldErrors = {}) {
     clearAllFieldStatuses(["firstName", "lastName", "email", "phone"]);
-
     if (fieldErrors.name) {
       setFieldError("firstName", fieldErrors.name);
       setFieldError("lastName", fieldErrors.name);
     }
-    if (fieldErrors.firstName)
-      setFieldError("firstName", fieldErrors.firstName);
+    if (fieldErrors.firstName) setFieldError("firstName", fieldErrors.firstName);
     if (fieldErrors.lastName) setFieldError("lastName", fieldErrors.lastName);
     if (fieldErrors.email) setFieldError("email", fieldErrors.email);
     if (fieldErrors.phone) setFieldError("phone", fieldErrors.phone);
-
-    if (fieldErrors.form) {
-      showFormToast(fieldErrors.form, "danger");
-    }
+    if (fieldErrors.form) showFormToast(fieldErrors.form, "danger");
   }
 
   /* ============================================================
@@ -160,7 +151,6 @@
     );
     if (!emailPassForm) return;
 
-    // Prefer sticky submit button inside the entry card, fall back to any submit button
     /** @type {HTMLButtonElement | null} */
     const stickySubmitBtn =
       document.querySelector(
@@ -170,26 +160,14 @@
     let isSubmitting = false;
 
     emailPassForm.addEventListener("submit", (e) => {
-      // If we've already allowed a submit to go out, block any further submits
       if (isSubmitting) {
         e.preventDefault();
         return;
       }
-
-      // Defer until other submit listeners (email-validation.js, passwords.js)
-      // have had a chance to call preventDefault() if needed.
       setTimeout(() => {
-        // If someone prevented the default (e.g., invalid email or password),
-        // do NOT mark as submitting; let the user fix and try again.
-        if (e.defaultPrevented) {
-          return;
-        }
-
-        // At this point, the form is truly submitting; gate double-submits.
+        if (e.defaultPrevented) return;
         isSubmitting = true;
-        if (stickySubmitBtn) {
-          stickySubmitBtn.disabled = true;
-        }
+        if (stickySubmitBtn) stickySubmitBtn.disabled = true;
       }, 0);
     });
   }
@@ -198,6 +176,9 @@
    * =============== CONGREGATION FORM LOGIC ====================
    * ============================================================ */
 
+  /**
+   * Initialize congregation assigned vs visiting branch logic.
+   */
   function initCongregationForm() {
     /** @type {HTMLFormElement | null} */
     const congForm = document.querySelector(
@@ -217,7 +198,6 @@
     const congOtherState = congForm.querySelector("#congregationOtherState");
     /** @type {HTMLInputElement | null} */
     const congOtherLang = congForm.querySelector("#congregationOtherLang");
-
     /** @type {NodeListOf<HTMLInputElement>} */
     const assignedButtons = congForm.querySelectorAll(
       'input[name="congAssigned"]',
@@ -231,11 +211,9 @@
         'input[name="congAssigned"]:checked',
       );
       if (!selected) return;
-
       if (selected.value === "yes") {
         congGroup.classList.remove("d-none");
         if (congSelect) congSelect.required = true;
-
         congEnter.classList.add("d-none");
         if (congOtherCity) congOtherCity.required = false;
         if (congOtherState) congOtherState.required = false;
@@ -243,7 +221,6 @@
       } else {
         congGroup.classList.add("d-none");
         if (congSelect) congSelect.required = false;
-
         congEnter.classList.remove("d-none");
         if (congOtherCity) congOtherCity.required = true;
         if (congOtherState) congOtherState.required = true;
@@ -254,7 +231,6 @@
     assignedButtons.forEach((radio) => {
       radio.addEventListener("change", updateCongVisibility);
     });
-
     updateCongVisibility();
   }
 
@@ -290,18 +266,15 @@
     const confirmInput = document.getElementById("confirmEmail");
 
     if (nextBtn) nextBtn.disabled = true;
-    if (nextStatus)
-      nextStatus.textContent = "Complete email validation to continue.";
+    if (nextStatus) nextStatus.textContent = "Complete email validation to continue.";
 
     function updateNextButtonState() {
       /** @type {any} */
       const state = window.__emailValidationState;
-      if (!state || !nextBtn || !nextStatus || !emailInput || !confirmInput)
-        return;
+      if (!state || !nextBtn || !nextStatus || !emailInput || !confirmInput) return;
 
       const emailVal = emailInput.value.trim();
       const confirmVal = confirmInput.value.trim();
-
       let ok = false;
       let message = "Complete email validation to continue.";
 
@@ -320,26 +293,18 @@
         message = "Email looks good. You can continue.";
       }
 
-      // NOTE: this controls whether Next is enabled at all
       nextBtn.disabled = !ok;
       nextStatus.textContent = message;
     }
 
-    // Wiring for email validation state (from email-validation.js)
     window.addEventListener("emailValidationUpdated", updateNextButtonState);
     if (emailInput) emailInput.addEventListener("input", updateNextButtonState);
-    if (confirmInput)
-      confirmInput.addEventListener("input", updateNextButtonState);
+    if (confirmInput) confirmInput.addEventListener("input", updateNextButtonState);
 
-    // ------------------------------------------------------------------
-    // Double-submit gate
-    // ------------------------------------------------------------------
     let isSubmitting = false;
 
     nonProfileForm.addEventListener("submit", async (e) => {
       e.preventDefault();
-
-      // If a submit is already in-flight, ignore additional submits
       if (isSubmitting) return;
       isSubmitting = true;
       if (nextBtn) nextBtn.disabled = true;
@@ -382,7 +347,6 @@
             if (data.fieldErrors) {
               applyFieldErrors(data.fieldErrors);
               updateNextButtonState();
-              // allow user to try again
               isSubmitting = false;
               if (nextBtn) nextBtn.disabled = false;
               return;
@@ -407,8 +371,6 @@
           return;
         }
 
-        // Success: redirect out of this page.
-        // No need to re-enable or reset isSubmitting.
         window.location.href = "/volunteerIn?disable=true";
       } catch (err) {
         console.error("submit-nonProfileInfo error:", err);
@@ -443,8 +405,23 @@
       return;
     }
 
+    /** @type {HTMLButtonElement | null} */
+    const submitBtn =
+      document.querySelector(".sticky-action button[type='submit']") ||
+      volunteerInfoForm.querySelector('button[type="submit"]');
+
+    let isSubmitting = false;
+
     volunteerInfoForm.addEventListener("submit", async (e) => {
       e.preventDefault();
+
+      if (isSubmitting) return;
+      isSubmitting = true;
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.dataset.originalText = submitBtn.textContent?.trim() || "";
+        submitBtn.textContent = "Please wait…";
+      }
 
       clearAllFieldStatuses(["firstName", "lastName", "phone"]);
 
@@ -457,9 +434,7 @@
       /** @type {HTMLInputElement | null} */
       const suffix = document.getElementById("suffix");
       /** @type {HTMLInputElement | null} */
-      const smsRadio = document.querySelector(
-        'input[name="SMSCapable"]:checked',
-      );
+      const smsRadio = document.querySelector('input[name="SMSCapable"]:checked');
       /** @type {HTMLInputElement | null} */
       const whatsappInput = document.getElementById("whatsappid");
 
@@ -494,19 +469,34 @@
         if (!resp.ok) {
           if (data.fieldErrors) {
             applyFieldErrors(data.fieldErrors);
-            return;
+          } else {
+            showFormToast(data.message || "An error occurred. Please try again.");
           }
-          showFormToast(data.message || "An error occurred. Please try again.");
+          isSubmitting = false;
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = submitBtn.dataset.originalText || "Submit";
+          }
           return;
         }
       } catch (err) {
         console.error("submit-volunteerInfo error:", err);
         showFormToast("Server error. Please try again.");
+        isSubmitting = false;
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = submitBtn.dataset.originalText || "Submit";
+        }
         return;
       }
 
       if (data.fieldErrors) {
         applyFieldErrors(data.fieldErrors);
+        isSubmitting = false;
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = submitBtn.dataset.originalText || "Submit";
+        }
         return;
       }
 
@@ -521,7 +511,6 @@
 
   /**
    * Initialize the upgrade start form (enter phone/email).
-   * Uses AJAX to POST /upgrade/find and redirects based on JSON.
    * @param {string} csrfToken
    */
   function initUpgradeStartForm(csrfToken) {
@@ -544,7 +533,6 @@
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
-
       if (isSubmitting) return;
       isSubmitting = true;
       if (submitBtn) submitBtn.disabled = true;
@@ -577,11 +565,7 @@
             "X-CSRF-Token": csrfToken,
           },
           credentials: "include",
-          body: JSON.stringify({
-            phone: phoneVal,
-            email: emailVal,
-            confirmEmail: confirmVal,
-          }),
+          body: JSON.stringify({ phone: phoneVal, email: emailVal, confirmEmail: confirmVal }),
         });
 
         const contentType = resp.headers.get("content-type") || "";
@@ -594,8 +578,7 @@
             applyFieldErrors(data.fieldErrors);
           } else {
             showFormToast(
-              data.message ||
-                "We could not find any account with that email or phone.",
+              data.message || "We could not find any account with that email or phone.",
               "danger",
             );
           }
@@ -607,10 +590,7 @@
         if (data.redirectUrl) {
           window.location.href = data.redirectUrl;
         } else {
-          showFormToast(
-            "Unexpected response from server. Please try again.",
-            "danger",
-          );
+          showFormToast("Unexpected response from server. Please try again.", "danger");
           isSubmitting = false;
           if (submitBtn) submitBtn.disabled = false;
         }
@@ -629,7 +609,6 @@
 
   /**
    * Initialize upgrade name-confirmation form.
-   * POST /upgrade/name via AJAX then redirect.
    * @param {string} csrfToken
    */
   function initUpgradeNameForm(csrfToken) {
@@ -654,7 +633,6 @@
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
-
       if (isSubmitting) return;
       isSubmitting = true;
       if (submitBtn) submitBtn.disabled = true;
@@ -700,8 +678,7 @@
             applyFieldErrors(data.fieldErrors);
           } else {
             showFormToast(
-              data.message ||
-                "The name entered does not match our records. Please try again.",
+              data.message || "The name entered does not match our records. Please try again.",
               "danger",
             );
           }
@@ -713,10 +690,7 @@
         if (data.redirectUrl) {
           window.location.href = data.redirectUrl;
         } else {
-          showFormToast(
-            "Unexpected response from server. Please try again.",
-            "danger",
-          );
+          showFormToast("Unexpected response from server. Please try again.", "danger");
           isSubmitting = false;
           if (submitBtn) submitBtn.disabled = false;
         }
@@ -735,16 +709,6 @@
 
   /**
    * Initialize upgrade send-link form (choose email vs phone).
-   * POST /upgrade/send via AJAX then redirect to confirmation.
-   * @param {string} csrfToken
-   */
-  /* ============================================================
-   * =============== UPGRADE FLOW: SEND LINK =====================
-   * ============================================================ */
-
-  /**
-   * Initialize upgrade send-link form (choose email vs phone).
-   * POST /upgrade/send via AJAX then redirect to confirmation.
    * @param {string} csrfToken
    */
   function initUpgradeSendForm(csrfToken) {
@@ -765,7 +729,6 @@
 
     function scrollToMethodSection() {
       if (!methodSection) return;
-      // Smooth scroll that centers the radio section in view
       methodSection.scrollIntoView({ behavior: "smooth", block: "center" });
     }
 
@@ -773,7 +736,6 @@
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
-
       if (isSubmitting) return;
       isSubmitting = true;
       if (submitBtn) submitBtn.disabled = true;
@@ -781,18 +743,13 @@
       if (methodStatus) methodStatus.textContent = "";
 
       /** @type {HTMLInputElement | null} */
-      const methodRadio = form.querySelector(
-        'input[name="method"]:checked',
-      );
+      const methodRadio = form.querySelector('input[name="method"]:checked');
 
-      // No method selected → inline message + scroll to section
       if (!methodRadio) {
-        const msg =
-          "Please choose how you would like to receive your reset link.";
+        const msg = "Please choose how you would like to receive your reset link.";
         if (methodStatus) methodStatus.textContent = msg;
         showFormToast(msg, "warning");
         scrollToMethodSection();
-
         isSubmitting = false;
         if (submitBtn) submitBtn.disabled = false;
         return;
@@ -809,10 +766,7 @@
             "X-CSRF-Token": csrfToken,
           },
           credentials: "include",
-          body: JSON.stringify({
-            id: idInput?.value,
-            method: methodRadio.value,
-          }),
+          body: JSON.stringify({ id: idInput?.value, method: methodRadio.value }),
         });
 
         const contentType = resp.headers.get("content-type") || "";
@@ -827,14 +781,11 @@
               methodStatus.textContent = data.fieldErrors.form;
             }
           } else {
-            const msg =
-              data.message || "Failed to send reset link. Please try again.";
+            const msg = data.message || "Failed to send reset link. Please try again.";
             showFormToast(msg, "danger");
             if (methodStatus) methodStatus.textContent = msg;
           }
-          // Always scroll back to the radio section on any error
           scrollToMethodSection();
-
           isSubmitting = false;
           if (submitBtn) submitBtn.disabled = false;
           return;
@@ -843,7 +794,6 @@
         if (data.redirectUrl) {
           window.location.href = data.redirectUrl;
         } else {
-          // fallback confirmation page
           window.location.href = "/upgrade/sent";
         }
       } catch (err) {
@@ -852,7 +802,6 @@
         showFormToast(msg, "danger");
         if (methodStatus) methodStatus.textContent = msg;
         scrollToMethodSection();
-
         isSubmitting = false;
         if (submitBtn) submitBtn.disabled = false;
       }
@@ -863,6 +812,9 @@
    * =============== SUMMARY SUBMIT + MODAL LOGIC ===============
    * ============================================================ */
 
+  /**
+   * Initialize summary final-submit button and confirmation modal.
+   */
   function initSummarySubmit() {
     /** @type {HTMLElement | null} */
     const root = document.getElementById("formSummaryRoot");
@@ -909,40 +861,116 @@
   }
 
   /* ============================================================
-   * =============== ENTRY-PAGE ENHANCEMENTS ====================
-   *  - Sticky submit outside <form> -> submit #account-form
-   *  - Auto-scroll focused sections into view on mobile entry pages
+   * =============== NATIVE FORM SUBMIT GATE ====================
+   * Covers all pages that do a standard form POST + redirect
+   * (personalInfo, congregationInfo, spiritualInfo, notes).
+   * Prevents double-submits from impatient clicks or the sticky
+   * button's requestSubmit() firing twice.
    * ============================================================ */
 
+  /**
+   * Initialize a double-submit gate for native (non-AJAX) form pages.
+   * Skips forms already handled by their own AJAX init functions.
+   * @returns {void}
+   */
+  function initNativeFormGate() {
+    /** @type {HTMLFormElement | null} */
+    const form =
+      document.getElementById("account-form") ||
+      document.querySelector("form");
+
+    if (!form) return;
+
+    // Skip forms that have dedicated AJAX handlers — they manage their own gates.
+    const action = form.getAttribute("action") || "";
+    const ajaxActions = [
+      "/submit-emailPass",
+      "/submit-nonProfileInfo",
+      "/submit-volunteerInfo",
+      "/upgrade/find",
+      "/upgrade/name",
+      "/upgrade/send",
+    ];
+    if (ajaxActions.includes(action)) return;
+
+    /** @type {HTMLButtonElement | null} */
+    const submitBtn =
+      form.querySelector('button[type="submit"]') ||
+      document.querySelector(".sticky-action button[type='submit']");
+
+    if (!submitBtn) return;
+
+    form.addEventListener("submit", (e) => {
+      if (e.defaultPrevented) return;
+      if (form.dataset.submitting === "true") {
+        e.preventDefault();
+        return;
+      }
+      form.dataset.submitting = "true";
+      submitBtn.disabled = true;
+      submitBtn.dataset.originalText = submitBtn.textContent?.trim() || "";
+      submitBtn.textContent = "Please wait…";
+    });
+
+    // Reset gate on bfcache restore (browser back button).
+    window.addEventListener("pageshow", (e) => {
+      if (e.persisted) {
+        form.dataset.submitting = "false";
+        submitBtn.disabled = false;
+        if (submitBtn.dataset.originalText) {
+          submitBtn.textContent = submitBtn.dataset.originalText;
+        }
+      }
+    });
+  }
+
+  /* ============================================================
+   * =============== ENTRY-PAGE ENHANCEMENTS ====================
+   * ============================================================ */
+
+  /**
+   * Wire sticky submit button and auto-scroll focused fields on mobile.
+   * If the sticky button is already inside a <form>, type="submit" fires
+   * natively — no extra wiring needed. If it's outside, wire it to the
+   * nearest available form via requestSubmit().
+   */
   function initEntryPageEnhancements() {
     const body = document.body;
     const isEntryPage = body.classList.contains("entry-body");
 
-    // 1) Sticky submit: button in .sticky-action submits #account-form
     /** @type {HTMLButtonElement | null} */
-    const externalsubmitBtn = document.querySelector(
+    const stickyBtn = document.querySelector(
       ".sticky-action button[type='submit']",
     );
-    /** @type {HTMLFormElement | null} */
-    const form = document.getElementById("account-form");
 
-    if (externalsubmitBtn && form) {
-      externalsubmitBtn.addEventListener("click", (e) => {
-        e.preventDefault();
-        form.requestSubmit(); // triggers validation + submit handlers
-      });
+    if (stickyBtn) {
+      /** @type {HTMLFormElement | null} */
+      const containingForm = stickyBtn.closest("form");
+
+      if (!containingForm) {
+        // Button is external to any form — wire it to the first form on the page.
+        /** @type {HTMLFormElement | null} */
+        const targetForm =
+          document.getElementById("account-form") ||
+          document.querySelector("form");
+
+        if (targetForm) {
+          stickyBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            targetForm.requestSubmit();
+          });
+        }
+      }
+      // If containingForm is non-null, type="submit" handles it natively.
     }
 
-    // 2) Auto-scroll only for mobile entry pages
+    // Auto-scroll only for mobile entry pages.
     const isMobile = window.innerWidth <= 768;
     if (!isMobile || !isEntryPage) return;
 
     const SECTION_STATUS_MAP = {
-      // emailPass sections:
       emailsSection: ["emailStatus", "confirmEmailStatus"],
       passwords: ["passwordStatus", "passwordsMatchedStatus"],
-
-      // congregationInfo sections:
       congAssigned: ["congAssignedStatus"],
       congregationGroup: ["congregationStatus"],
       congregationEnter: [
@@ -951,37 +979,24 @@
         "congregationOtherLangStatus",
       ],
       extraAttend: ["extraAttendStatus"],
-
-      // personalInfo sections:
       genderSection: ["genderStatus"],
       dobSection: ["dobStatus"],
       staminaSection: ["staminaStatus"],
-
-      // spiritualInfo sections:
       privilegesSection: ["privilegesStatus"],
-
-      // nonProfileInfo and volunteerIn sections:
       namesSection: ["firstNameStatus", "lastNameStatus"],
-      emailsSection: ["emailStatus", "confirmEmailStatus"],
       phoneSection: ["phoneStatus", "confirmPhoneStatus"],
-
-      // notes sections:
       notesSection: ["notesStatus"],
     };
 
     function updateSectionStatuses(section) {
       const entryCard = section.closest(".entry-card");
       if (!entryCard) return;
-
       const statusContainer = entryCard.querySelector("#section-status");
       if (!statusContainer) return;
-
       const allStatusDivs = statusContainer.querySelectorAll(".status");
       allStatusDivs.forEach((div) => div.classList.remove("show-status"));
-
       const idsToShow = SECTION_STATUS_MAP[section.id];
       if (!idsToShow) return;
-
       idsToShow.forEach((id) => {
         const el = statusContainer.querySelector("#" + id);
         if (el) el.classList.add("show-status");
@@ -991,20 +1006,13 @@
     function scrollFieldIntoView(el) {
       const section = el.closest(".scroll-section");
       if (!section) return;
-
       const cardBody = section.closest(".card-body");
       if (!cardBody) return;
-
       updateSectionStatuses(section);
-
       const bodyRect = cardBody.getBoundingClientRect();
       const sectionRect = section.getBoundingClientRect();
-      const offset = 16;
-
-      const delta = sectionRect.top - bodyRect.top - offset;
-
       cardBody.scrollBy({
-        top: delta,
+        top: sectionRect.top - bodyRect.top - 16,
         left: 0,
         behavior: "smooth",
       });
@@ -1035,22 +1043,17 @@
     const csrfTokenInput = document.querySelector('input[name="_csrf"]');
     const csrfToken = csrfTokenInput?.value || "";
 
-    // Guard each call so pages without certain forms don't crash.
     if (typeof initEmailPasswordForm === "function") initEmailPasswordForm();
     if (typeof initCongregationForm === "function") initCongregationForm();
     if (typeof initNonProfileForm === "function") initNonProfileForm(csrfToken);
-    if (typeof initVolunteerInfoForm === "function")
-      initVolunteerInfoForm(csrfToken);
+    if (typeof initVolunteerInfoForm === "function") initVolunteerInfoForm(csrfToken);
     if (typeof initSummarySubmit === "function") initSummarySubmit();
+    if (typeof initUpgradeStartForm === "function") initUpgradeStartForm(csrfToken);
+    if (typeof initUpgradeNameForm === "function") initUpgradeNameForm(csrfToken);
+    if (typeof initUpgradeSendForm === "function") initUpgradeSendForm(csrfToken);
 
-    // NEW: upgrade flow initializers
-    if (typeof initUpgradeStartForm === "function")
-      initUpgradeStartForm(csrfToken);
-    if (typeof initUpgradeNameForm === "function")
-      initUpgradeNameForm(csrfToken);
-    if (typeof initUpgradeSendForm === "function")
-      initUpgradeSendForm(csrfToken);
-   
+    // Must run after AJAX inits — skips forms they already handle.
+    initNativeFormGate();
     initEntryPageEnhancements();
   });
 })();

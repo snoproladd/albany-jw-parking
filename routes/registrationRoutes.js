@@ -613,72 +613,91 @@ router.get("/email-pass", csrfProtection, (req, res) => {
   // ------------------------------------------------------------
 
 router.post("/submit-emailPass", csrfProtection, async (req, res) => {
-  const sessionEmail = (req.session.emailPassSetup || "").trim().toLowerCase();
-  const formEmail = (req.body.email || "").trim().toLowerCase();
-  const { password } = req.body || {};
-  const rawPassword = password || "";
+    const sessionEmail = (req.session.emailPassSetup || "").trim().toLowerCase();
+    const formEmail = (req.body.email || "").trim().toLowerCase();
+    const { password } = req.body || {};
+    const rawPassword = password || "";
 
-  // In upgrade flow, session email is authoritative. Otherwise use form email.
-  const effectiveEmail = sessionEmail || formEmail;
-  const isUpgrade = !!sessionEmail;
+    // In upgrade flow, session email is authoritative. Otherwise use form email.
+    const effectiveEmail = sessionEmail || formEmail;
+    const isUpgrade = !!sessionEmail;
 
-  if (!effectiveEmail || !rawPassword) {
-    return res.status(400).render("emailPass", {
-      csrfToken: req.csrfToken(),
-      email: "",           // do not echo email back
-      isUpgrade,
-      error: "Email and password are required.",
-    });
-  }
-
-  try {
-    let row;
-
-    if (isUpgrade) {
-      // UPGRADE: update existing volunteer_in row
-      row = await upgradeDraftEmailPass(effectiveEmail, rawPassword);
-
-      if (!row) {
-        console.error("submit-emailPass upgrade: row not found or update failed");
-        return res.status(500).render("emailPass", {
-          csrfToken: req.csrfToken(),
-          email: "",
-          isUpgrade,
-          error: "Failed to upgrade registration.",
+    if (!effectiveEmail || !rawPassword) {
+        return res.status(400).render("emailPass", {
+            csrfToken: req.csrfToken(),
+            email: "",
+            isUpgrade,
+            error: "Email and password are required.",
         });
-      }
-
-      // Clear the upgrade flag
-      req.session.emailPassSetup = null;
-    } else {
-      // NEW SIGNUP: insert a fresh draft registered row
-      row = await insertDraftEmailPass(effectiveEmail, rawPassword);
-
-      if (!row) {
-        return res.status(500).render("emailPass", {
-          csrfToken: req.csrfToken(),
-          email: "",
-          isUpgrade: false,
-          error: "Failed to create registration.",
-        });
-      }
     }
 
-    // Shared session setup for both new signups and upgrades
-    req.session.userId = row.id;
-    req.session.registrationId = row.registration_id;
-    req.session.formCache = { email: effectiveEmail };
+    try {
+        let row;
 
-    return res.redirect("/volunteerIn");
-  } catch (err) {
-    console.error("submit-emailPass error:", err);
-    return res.status(500).render("emailPass", {
-      csrfToken: req.csrfToken(),
-      email: "",
-      isUpgrade,
-      error: "Registration failed.",
-    });
-  }
+        if (isUpgrade) {
+            // UPGRADE: update existing volunteer_in row
+            row = await upgradeDraftEmailPass(effectiveEmail, rawPassword);
+
+            if (!row) {
+                console.error("submit-emailPass upgrade: row not found or update failed");
+                return res.status(500).render("emailPass", {
+                    csrfToken: req.csrfToken(),
+                    email: "",
+                    isUpgrade,
+                    error: "Failed to upgrade registration. Please try again.",
+                });
+            }
+
+            // Clear the upgrade flag
+            req.session.emailPassSetup = null;
+        } else {
+            // NEW SIGNUP: pre-check for duplicate before inserting
+            if (await emailExists(effectiveEmail)) {
+                return res.status(409).render("emailPass", {
+                    csrfToken: req.csrfToken(),
+                    email: "",
+                    isUpgrade: false,
+                    error: "This email is already registered. Try logging in instead.",
+                });
+            }
+
+            row = await insertDraftEmailPass(effectiveEmail, rawPassword);
+
+            if (!row) {
+                return res.status(500).render("emailPass", {
+                    csrfToken: req.csrfToken(),
+                    email: "",
+                    isUpgrade: false,
+                    error: "Failed to create registration. Please try again.",
+                });
+            }
+        }
+
+        // Shared session setup for both new signups and upgrades
+        req.session.userId = row.id;
+        req.session.registrationId = row.registration_id;
+        req.session.formCache = { email: effectiveEmail };
+
+        return res.redirect("/volunteerIn");
+    } catch (err) {
+        // SQL unique constraint violation — email registered between check and insert
+        if (err?.number === 2627 || err?.number === 2601) {
+            return res.status(409).render("emailPass", {
+                csrfToken: req.csrfToken(),
+                email: "",
+                isUpgrade,
+                error: "This email is already registered. Try logging in instead.",
+            });
+        }
+
+        console.error("submit-emailPass error:", err);
+        return res.status(500).render("emailPass", {
+            csrfToken: req.csrfToken(),
+            email: "",
+            isUpgrade,
+            error: "Something went wrong. Please try again.",
+        });
+    }
 });
-  return router;
+return router;
 }
