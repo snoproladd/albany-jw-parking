@@ -26,6 +26,8 @@ import upgradeRoutes from "./routes/upgradeRoutes.js";
 // Database helpers
 import * as db from "./lib/dbSync.js";
 
+import {oversightRouter} from "./routes/oversightRoutes.js";
+
 
 // Resolve paths
 const config = await getConfig();
@@ -339,7 +341,9 @@ app.use((req, res, next) => {
 
     
   const userInitials = s.userInitials || null;
+  const userRole = s.userRole || 'REGISTERED';
 
+ res.locals.userRole = userRole;
 
   res.locals.nav = {
     isLoggedIn,
@@ -348,6 +352,7 @@ app.use((req, res, next) => {
     showContinueRegistration,
     canUpgrade: !isLoggedIn,
     userInitials,
+    userRole,
   };
 
   next();
@@ -387,7 +392,7 @@ app.use(
       markDraftCompleted: db.markDraftCompleted,
     },
     INCOMPATIBILITIES,
-    logError,
+    logError
   }),
 );
 
@@ -407,6 +412,12 @@ app.use(
         twilioMsgSid: config.TWILIO_MSG_SID,
       }),
     );
+
+    app.use("/", oversightRouter({
+      csrfProtection,
+      logError,
+    }));
+    
 
     // ========================================================
     // Validation Endpoints (Kickbox / Twilio)

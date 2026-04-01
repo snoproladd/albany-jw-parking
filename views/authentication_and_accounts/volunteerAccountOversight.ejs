@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Volunteer Account Oversight</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- Bootstrap CSS -->
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+
+    <!-- Site styles -->
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Georama:wght@100..900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@100..900&display=swap" rel="stylesheet" />
+  </head>
+
+  <body class="min-vh-100 d-flex justify-content-center align-items-center bg-body-tertiary">
+    <main class="container" id="volunteerAccountOversightRoot">
+      <div class="row justify-content-center">
+        <div class="col-12 col-lg-10 col-xl-9">
+
+          <section class="card shadow-lg mx-auto">
+            <header class="card-header text-center">
+              <h1 class="h2 my-2">Volunteer Account Oversight</h1>
+              <p class="mb-0">Select a volunteer to view or edit their information.</p>
+            </header>
+
+            <div class="card-body">
+
+              <% if (!editor) { %>
+                <div class="alert alert-warning">
+                  Your session has expired. Please sign in again.
+                </div>
+                <a href="/login" class="btn btn-primary">Go to Login</a>
+                <% } else { %>
+                
+                <%
+                  // Format DOB for input[type="date"] if it exists and is valid>
+                  let dobValue = '';
+                  if (targetUser && targetUser.dobirth) {
+                    const d = new Date(targetUser.dobirth);
+                    if (!isNaN(d.valueOf())) {
+                      const y = d.getFullYear();
+                      const m = String(d.getMonth() + 1).padStart(2, '0');
+                      const day = String(d.getDate()).padStart(2, '0');
+                      dobValue = `${y}-${m}-${day}`;
+                    }
+                  }
+                %>
+                <%
+                  let visitingCity = '';
+                  let visitingState = '';
+                  let visitingLang = '';
+
+                  if (targetUser && targetUser.assignedToConv === false && targetUser.congregation) {
+                    const raw = targetUser.congregation;
+                    const dashIndex = raw.lastIndexOf('-');
+                    if (dashIndex !== -1) {
+                      const left = raw.slice(0, dashIndex).trim();
+                      visitingLang = raw.slice(dashIndex + 1).trim();
+                      const commaIndex = left.lastIndexOf(',');
+                      if (commaIndex !== -1) {
+                        visitingCity = left.slice(0, commaIndex).trim();
+                        visitingState = left.slice(commaIndex + 1).trim();
+                      } else {
+                        visitingCity = left;
+                      }
+                    }
+                  }
+                  %>
+                
+                 <!-- Root (not a form) -->
+                 <div class="summary-form">
+
+                 <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+                  <% if (privilegeRulesJSON) { %>
+                  <script id="privilege-rules-json" type="application/json">
+                    <%- privilegeRulesJSON %>
+                  </script>
+                <% } %>
+
+                <!-- ============================= -->
+                <!-- Volunteer Selector (POST) -->
+                <!-- ============================= -->
+                <form action="/selectVolEdit" method="POST" class="mb-3">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+                  <label class="form-label small">
+                    Volunteers (Begin typing or use dropdown)
+                  </label>
+
+                  <select id="volunteerSelect" name="targetUserId" class="form-select">
+                    <option value="">Select a volunteer...</option>
+
+                    <% volunteers.forEach(v => { %>
+                      <option
+                        value="<%= v.id %>"
+                        <%= targetUser && targetUser.id === v.id ? 'selected' : '' %>>
+                        <%= v.lastName %>, <%= v.firstName %><%= v.suffix ? ' ' + v.suffix : '' %>
+                      </option>
+                    <% }) %>
+                  </select>
+                </form>
+
+                <% if (!targetUser) { %>
+                  <div class="alert alert-info">
+                    Select a volunteer above to begin editing.
+                  </div>
+                <% } else { %>
+
+                <!-- ✅ Target user id for finalize -->
+                 
+
+                <input type="hidden" id="targetUserId" value="<%= targetUser ? targetUser.id : '' %>" />
+                <small id="volunteerSelectHint" class="text-muted">
+                  Finish editing the current volunteer before switching.
+                </small>
+
+                <!-- ============================= -->
+                <!-- ACCORDION -->
+                <!-- ============================= -->
+                <div class="accordion" id="accountAccordion">
+
+                  <!-- CONTACT -->
+                  <div class="accordion-item">
+                    <h2 class="accordion-header">
+                      <button class="accordion-button" type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#collapseContact">
+                        Contact
+                      </button>
+                    </h2>
+
+                    <div id="collapseContact" class="accordion-collapse collapse show">
+                      <div class="accordion-body">
+
+                        <div class="d-flex justify-content-end mb-2">
+                          <button type="button"
+                            class="btn btn-outline-secondary btn-sm summary-edit-btn"
+                            data-section="contact">
+                            EDIT
+                          </button>
+                        </div>
+
+                        <form>
+                          <div class="row row-cols-1 row-cols-md-2 g-3">
+                            <div class="col">
+                              <label class="form-label small">First Name</label>
+                              <input class="form-control" value="<%= targetUser.firstName %>" readonly />
+                            </div>
+
+                            <div class="col">
+                              <label class="form-label small">Last Name</label>
+                              <input class="form-control" value="<%= targetUser.lastName %>" readonly />
+                            </div>
+
+                            <div class="col">
+                              <label class="form-label small">Suffix</label>
+                              <input class="form-control" value="<%= targetUser.suffix || '' %>" readonly />
+                            </div>
+
+                            <div class="col">
+                              <label class="form-label small">Email</label>
+                              <input name="email" class="form-control" id="email" aria-describedby="emailStatus"
+                                value="<%= targetUser.email || '' %>" />
+                                <div id="emailStatus" class="status mt-1"></div>
+                            </div>
+
+                            <div class="col">
+                              <label class="form-label small">Phone</label>
+                              <input name="phone" class="form-control" id="phone" aria-describedby="phoneStatus"
+                                value="<%= targetUser.phone || '' %>" />
+                                <div id="phoneStatus" class="status mt-1"></div>
+                            </div>
+                          </div>
+                        </form>
+
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- PERSONAL -->
+                  <div class="accordion-item">
+                    <h2 class="accordion-header">
+                      <button class="accordion-button collapsed"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#collapsePersonal">
+                        Personal Info
+                      </button>
+                    </h2>
+
+                    <div id="collapsePersonal" class="accordion-collapse collapse">
+                      <div class="accordion-body">
+
+                        <div class="d-flex justify-content-end mb-2">
+                          <button type="button"
+                            class="btn btn-outline-secondary btn-sm summary-edit-btn"
+                            data-section="personal">
+                            EDIT
+                          </button>
+                        </div>
+
+                        <form>
+                           <!-- dob -->
+                          <div class="col">
+                            <label class="form-label small">Date of Birth</label>
+                            <input type="date"
+                              id="dobirthRaw"
+                              name="dobirthRaw"
+                              class="form-control"
+                              value="<%= dobValue %>">
+                          </div>
+
+                          <div class="row row-cols-1 row-cols-md-2 g-3">
+                            <div class="col">
+                              <label class="form-label small">Gender</label>
+                              <select name="genderRaw" id="genderRaw" class="form-select">
+                                <option value="">Select…</option>
+                                <option value="male" <%= targetUser.gender === 'male' ? 'selected' : '' %>>Male</option>
+                                <option value="female" <%= targetUser.gender === 'female' ? 'selected' : '' %>>Female</option>
+                              </select>
+                            </div>
+
+                            <div class="col">
+                              <label class="form-label small">Stamina</label>
+                              <select name="staminaRaw" class="form-select">
+                              <option value="">Rate stamina</option>
+                                <% const values = ["Poor","Fair","Average","Good","Excellent"]; %>
+                                <% for (let i = 0; i < values.length; i++) { %>
+                                  <option
+                                    value="<%= i + 1 %>"
+                                    <%= targetUser.stamina === (i + 1) ? 'selected' : '' %>>
+                                    <%= `${i + 1} - ${values[i]}` %>
+                                  </option>
+                                <% } %>
+                              </select>
+                            </div>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- CONGREGATION INFO -->
+                  <div class="accordion-item">
+                    <h2 class="accordion-header" id="headingCong">
+                      <button class="accordion-button collapsed"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#collapseCong">
+                        Congregation Info
+                      </button>
+                    </h2>
+
+                    <div id="collapseCong" class="accordion-collapse collapse">
+                      <div class="accordion-body">
+
+                        <div class="d-flex justify-content-end mb-2">
+                          <button
+                            type="button"
+                            class="btn btn-outline-secondary btn-sm summary-edit-btn"
+                            data-section="congregation">
+                            EDIT
+                          </button>
+                        </div>
+
+                        <!-- Assigned? -->
+                        <fieldset class="mb-3">
+                          <legend class="form-label small mb-1">
+                            Congregation assigned to this convention?
+                          </legend>
+
+                          <div class="d-flex gap-3">
+                            <div class="form-check">
+                              <input
+                                class="form-check-input"
+                                type="radio"
+                                name="congAssigned"
+                                value="yes"
+                                <%= targetUser.assignedToConv ? 'checked' : '' %>>
+                              <label class="form-check-label">Yes</label>
+                            </div>
+
+                            <div class="form-check">
+                              <input
+                                class="form-check-input"
+                                type="radio"
+                                name="congAssigned"
+                                value="no"
+                                <%= !targetUser.assignedToConv ? 'checked' : '' %>>
+                              <label class="form-check-label">No</label>
+                            </div>
+                          </div>
+                        </fieldset>
+
+                        <!-- Assigned congregation -->
+                        <div id="cong-assigned-block" class="mb-3">
+                          <label class="form-label small">Congregation you are assigned to</label>
+                          <select name="congregation" class="form-select">
+                            <option value="">Select congregation…</option>
+
+                            <% congregations.forEach(c => { %>
+                              <option
+                                value="<%= c %>"
+                                <%= targetUser.assignedToConv && targetUser.congregation === c ? 'selected' : '' %>>
+                                <%= c %>
+                              </option>
+                            <% }) %>
+                          </select>
+                        </div>
+
+                        <!-- Visiting congregation -->
+                        <div id="cong-visiting-block" class="row row-cols-1 row-cols-md-3 g-3">
+                          <div class="col">
+                            <label class="form-label small">Visiting City</label>
+                            <input type="text" name="congregationOtherCity" class="form-control"
+                              value="<%= targetUser.congregationOtherCity || '' %>">
+                          </div>
+
+                          <div class="col">
+                            <label class="form-label small">State</label>
+                            <input type="text" name="congregationOtherState" maxlength="2"
+                              class="form-control"
+                              value="<%= targetUser.congregationOtherState || '' %>">
+                          </div>
+
+                          <div class="col">
+                            <label class="form-label small">Language</label>
+                            <input type="text" name="congregationOtherLang" class="form-control"
+                              value="<%= targetUser.congregationOtherLang || '' %>">
+                          </div>
+                        </div>
+
+                        <!-- Extra session -->
+                        <fieldset class="mt-3">
+                          <legend class="form-label small mb-1">Attending another session?</legend>
+
+                          <div class="d-flex gap-3">
+                            <div class="form-check">
+                              <input
+                                class="form-check-input"
+                                type="radio"
+                                name="extraAttend"
+                                value="yes"
+                                <%= targetUser.attendExtra ? 'checked' : '' %>>
+                              <label class="form-check-label">Yes</label>
+                            </div>
+
+                            <div class="form-check">
+                              <input
+                                class="form-check-input"
+                                type="radio"
+                                name="extraAttend"
+                                value="no"
+                                <%= !targetUser.attendExtra ? 'checked' : '' %>>
+                              <label class="form-check-label">No</label>
+                            </div>
+                          </div>
+                        </fieldset>
+
+                      </div>
+                    </div>
+                  </div>
+                  <!-- SPIRITUAL INFO -->
+                  <div class="accordion-item">
+                    <h2 class="accordion-header" id="headingSpiritual">
+                      <button class="accordion-button collapsed"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#collapseSpiritual">
+                        Spiritual Info
+                      </button>
+                    </h2>
+
+                    <div id="collapseSpiritual" class="accordion-collapse collapse">
+                      <div class="accordion-body">
+
+                        <div class="d-flex justify-content-end mb-2">
+                          <button
+                            type="button"
+                            class="btn btn-outline-secondary btn-sm summary-edit-btn"
+                            data-section="spiritual">
+                            EDIT
+                          </button>
+                        </div>
+
+                        <div class="row row-cols-1 row-cols-md-3 g-4">
+
+                          <!-- Ministry -->
+                          <div class="col">
+                            <h3 class="h6 text-uppercase text-muted mb-2">Ministry</h3>
+
+                            <% ['auxPioneer','regPioneer','specPioneer'].forEach(p => { %>
+                              <div class="form-check">
+                                <input
+                                  class="form-check-input privilege-checkbox"
+                                  type="checkbox"
+                                  value="<%= p %>"
+                                  <%= targetUser[p] ? 'checked' : '' %>>
+                                <label class="form-check-label">
+                                  <%= p === 'auxPioneer' ? 'Auxiliary Pioneer'
+                                    : p === 'regPioneer' ? 'Regular Pioneer'
+                                    : 'Special Pioneer / Missionary' %>
+                                </label>
+                              </div>
+                            <% }) %>
+                          </div>
+
+                          <!-- Congregation -->
+                          <div class="col">
+                            <h3 class="h6 text-uppercase text-muted mb-2">Congregation</h3>
+
+                            <% ['minServ','elder'].forEach(p => { %>
+                              <div class="form-check">
+                                <input
+                                  class="form-check-input privilege-checkbox"
+                                  type="checkbox"
+                                  value="<%= p %>"
+                                  <%= targetUser[p] ? 'checked' : '' %>>
+                                <label class="form-check-label">
+                                  <%= p === 'minServ' ? 'Ministerial Servant' : 'Elder' %>
+                                </label>
+                              </div>
+                            <% }) %>
+                          </div>
+
+                          <!-- SFTS -->
+                          <div class="col">
+                            <h3 class="h6 text-uppercase text-muted mb-2">Special Full-Time</h3>
+
+                            <div class="form-check">
+                              <input
+                                class="form-check-input privilege-checkbox"
+                                type="checkbox"
+                                value="sfs"
+                                <%= targetUser.sfs ? 'checked' : '' %>>
+                              <label class="form-check-label">
+                                Special Full-Time Service
+                              </label>
+                            </div>
+                          </div>
+
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- NOTES -->
+                  <div class="accordion-item">
+                    <h2 class="accordion-header">
+                      <button class="accordion-button collapsed"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#collapseNotes">
+                        Notes
+                      </button>
+                    </h2>
+
+                    <div id="collapseNotes" class="accordion-collapse collapse">
+                      <div class="accordion-body">
+
+                        <div class="d-flex justify-content-end mb-2">
+                          <button type="button"
+                            class="btn btn-outline-secondary btn-sm summary-edit-btn"
+                            data-section="notes">
+                            EDIT
+                          </button>
+                        </div>
+
+                        <textarea name="notes" class="form-control" rows="4">
+                            <%= targetUser.notes || '' %>
+                        </textarea>
+
+                      </div>
+                    </div>
+                  </div>
+
+                 </div>
+
+                  <!-- FINALIZE -->
+                  <div class="text-end mt-4">
+                    <button id="return-home" class="btn btn-outline-secondary me-2">
+                      Return Home
+                    </button>
+                    <button id="finalize-changes" class="btn btn-primary" disabled>
+                      Finalize Changes
+                    </button>
+                    <div id="finalize-status" class="mt-3"></div>
+                  </div>
+
+                <% } %> <!-- targetUser -->
+              </div>
+
+              <% } %> <!-- editor -->
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/mobileDropdownSafety.js"></script>
+    <script src="/js/volunteerAccountOversight.js"></script>
+    <script src="/js/privilegeEnforcer.js"></script>
+    <script src="/js/email-validation.js"></script>
+     <script src="/js/phoneVer.js"></script>
+  </body>
+</html>

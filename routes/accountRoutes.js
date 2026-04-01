@@ -17,14 +17,11 @@ import {
   finalizeContinueRegistration,
   getVolunteerByEmailNonArchived,
   getVolunteerById,
+  loadMergedPermissions,
 } from "../lib/dbSync.js";
 import { verifyPassword, hashPassword } from "../lib/passwordVer.js";
 
 import { INCOMPATIBILITIES } from "../src/config/privilegeRules.js";
-
-
-
-
 
 /**
  * Factory: build router that handles login + my-account.
@@ -552,7 +549,8 @@ export function loginRouter({ csrfProtection, logError }) {
         passwordAlgo,
         registration_status,
         last_step,
-        account_status
+        account_status, 
+        role
       FROM dbo.volunteer_in
       WHERE LOWER(email) = @email
         AND accountType = 'registered'
@@ -615,8 +613,11 @@ export function loginRouter({ csrfProtection, logError }) {
       const initials = makeInitials(user.firstName, user.lastName);
       req.session.userId = user.id;
       req.session.userEmail = user.email;
+      req.session.userRole = user.role;
       req.session.userInitials = initials;
-
+      req.session.userRole = user.role || "REGISTERED";
+      req.session.permissions = await loadMergedPermissions();
+      
       // Login success → clear any leftover pendingEmail
       req.session.pendingEmail = null;
 
@@ -625,7 +626,6 @@ export function loginRouter({ csrfProtection, logError }) {
       req.session.userEmail = user.email; // for edited_by
       req.session.loginSuccess = true;
       return res.redirect("/login");
-
     } catch (err) {
       (logError || console.error)("[accountRoutes] Login error:", err);
       return res.status(500).render("authentication_and_accounts/login", {
@@ -640,11 +640,20 @@ export function loginRouter({ csrfProtection, logError }) {
   // ===========================
   // Logout route: destroy session and redirect to home
   // ==========================
-  router.get("/logout", (req, res) => {
+  router.post("/logout", (req, res) => {
     req.session.destroy(() => {
       res.redirect("/");
     });
   });
+
+  //==========================
+  // Disallow GET on logout for security reasons (avoid CSRF issues)
+  // ==========================
+  
+  router.get("/logout", (req, res) => {
+    res.status(405).send("Logout must be POST");
+  });
+
 
   // ===========================
   // MY ACCOUNT ROUTES

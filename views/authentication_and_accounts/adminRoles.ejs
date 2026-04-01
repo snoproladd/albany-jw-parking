@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Role Management — Albany JW Parking</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+  </head>
+
+  <body class="min-vh-100 bg-body-tertiary">
+    <%- include('../partials/header') %>
+
+    <main class="container py-4">
+      <div class="row justify-content-center">
+        <div class="col-12 col-lg-11 col-xl-10">
+
+          <section class="card shadow-lg admin-console-card">
+            <header class="card-header text-center">
+              <h1 class="h2 my-2">
+                <i class="fa-solid fa-user-shield me-2"></i>Role Management
+              </h1>
+              <p class="mb-0">Assign roles to volunteers. You can only assign roles below your own level.</p>
+            </header>
+
+            <div class="card-body">
+
+              <% if (success) { %>
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                  <i class="fa-solid fa-circle-check me-2"></i>Role updated successfully.
+                  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+              <% } %>
+
+              <% if (error) { %>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                  <i class="fa-solid fa-triangle-exclamation me-2"></i><%= error %>
+                  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+              <% } %>
+
+              <%
+                // Build the list of roles this actor is allowed to assign
+                const actorLevel = roleHierarchy.indexOf(actorRole);
+                const assignableRoles = roleHierarchy.filter((r, i) => i < actorLevel);
+              %>
+
+              <!-- Search filter -->
+              <div class="mb-3">
+                <input
+                  type="text"
+                  id="roleSearch"
+                  class="form-control"
+                  placeholder="Search by name or email..."
+                  autocomplete="off"
+                />
+              </div>
+
+              <div class="table-responsive">
+                <table class="table table-hover align-middle" id="rolesTable">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Name</th>
+                      <th>Email</th>
+                      <th>Current Role</th>
+                      <th>Change To</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% volunteers.forEach(v => { %>
+                      <%
+                        const volunteerLevel = roleHierarchy.indexOf(v.role);
+                        // Can only change roles strictly below actor's own level
+                        const canChange = volunteerLevel < actorLevel;
+                      %>
+                      <tr class="role-row">
+                        <td>
+                          <%= v.lastName %><%= v.suffix ? ' ' + v.suffix : '' %>, <%= v.firstName %>
+                        </td>
+                        <td class="text-muted small"><%= v.email || '—' %></td>
+                        <td>
+                          <span class="badge <%=
+                            v.role === 'ADMIN'           ? 'bg-danger'  :
+                            v.role === 'ASSISTANT_ADMIN' ? 'bg-warning text-dark' :
+                            v.role === 'OVERSEER'        ? 'bg-primary' :
+                            v.role === 'KEYMAN'          ? 'bg-info text-dark'    :
+                            v.role === 'REGISTERED'      ? 'bg-success' :
+                                                           'bg-secondary'
+                          %>">
+                            <%= v.role %>
+                          </span>
+                        </td>
+                        <td>
+                          <% if (canChange && assignableRoles.length > 0) { %>
+                            <select class="form-select form-select-sm role-select" style="min-width: 160px;">
+                              <option value="">Select role…</option>
+                              <% assignableRoles.forEach(r => { %>
+                                <option value="<%= r %>" <%= v.role === r ? 'selected' : '' %>>
+                                  <%= r %>
+                                </option>
+                              <% }) %>
+                            </select>
+                          <% } else { %>
+                            <span class="text-muted small">—</span>
+                          <% } %>
+                        </td>
+                        <td>
+                          <% if (canChange && assignableRoles.length > 0) { %>
+                            <form action="/admin/roles" method="POST" class="role-form">
+                              <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                              <input type="hidden" name="targetId" value="<%= v.id %>" />
+                              <input type="hidden" name="newRole" class="role-input" value="" />
+                              <button
+                                type="submit"
+                                class="btn btn-sm btn-outline-primary role-save-btn"
+                                disabled>
+                                Save
+                              </button>
+                            </form>
+                          <% } %>
+                        </td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+
+              <% if (volunteers.length === 0) { %>
+                <p class="text-center text-muted mt-3">No volunteers found.</p>
+              <% } %>
+
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <%- include('../partials/footer') %>
+
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script nonce="<%= nonce %>">
+      // Wire each row's select → hidden input → enable Save button
+      document.querySelectorAll('.role-row').forEach(row => {
+        const select  = row.querySelector('.role-select');
+        const input   = row.querySelector('.role-input');
+        const saveBtn = row.querySelector('.role-save-btn');
+
+        if (!select || !input || !saveBtn) return;
+
+        select.addEventListener('change', () => {
+          input.value   = select.value;
+          saveBtn.disabled = !select.value;
+        });
+      });
+
+      // Live search filter
+      document.getElementById('roleSearch').addEventListener('input', function () {
+        const term = this.value.toLowerCase();
+        document.querySelectorAll('.role-row').forEach(row => {
+          const text = row.textContent.toLowerCase();
+          row.style.display = text.includes(term) ? '' : 'none';
+        });
+      });
+    </script>
+  </body>
+</html>

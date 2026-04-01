@@ -200,6 +200,10 @@
 
     <!-- Required Scripts -->
     <script src="/js/formListeners.js"></script>
+    <script nonce="<%= nonce %>">
+      window.PRIVILEGE_RULES = <%- privilegeRulesJSON %>;
+    </script>
+    <script src="/js/privilegeEnforcer.js"></script>
     <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
   </body>
 </html>

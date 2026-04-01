@@ -1,8 +1,12 @@
 // routes/upgradeRoutes.js
 import crypto from "crypto";
-import nodemailer from "nodemailer";
-import twilio from "twilio";
 import { hashPassword } from "../lib/passwordVer.js";
+import {
+  sendResetEmail,
+  sendResetSms,
+  getBaseUrl,
+  normalizeToE164,
+} from "../lib/messaging.js";
 
 const RESET_RESEND_COOLDOWN_MS = 60 * 1000 * 2; // 2 minutes
 
@@ -10,16 +14,20 @@ const RESET_RESEND_COOLDOWN_MS = 60 * 1000 * 2; // 2 minutes
  * Upgrade routes: convert non-registered (or existing) records into
  * registered accounts by sending a password reset link via email or SMS.
  *
+ * Send helpers (sendResetEmail, sendResetSms, getBaseUrl, normalizeToE164)
+ * are imported from lib/messaging.js and shared with oversightRoutes.js.
+ *
  * Main flows:
  * - GET  /upgrade                → enter phone/email
  * - POST /upgrade/find           → locate account by phone/email
  * - GET  /upgrade/name           → confirm name
- * - POST /upgrade/name
+ * - POST /upgrade/name           → verify name
  * - GET  /upgrade/send           → choose email vs SMS
  * - POST /upgrade/send           → generate reset hash + send link
- * - GET  /upgrade/sent           → confirmation
+ * - GET  /upgrade/sent           → confirmation page
  * - GET  /reset-password/:hash   → show reset form
  * - POST /reset-password/:hash   → set new password + clear pending flag
+ * - POST /upgrade/test-sms       → dev-only SMS test endpoint
  *
  * @param {object} deps
  * @param {import("express")} deps.express
@@ -30,187 +38,6 @@ const RESET_RESEND_COOLDOWN_MS = 60 * 1000 * 2; // 2 minutes
  * @param {string} deps.twilioAuthToken
  * @param {string} deps.twilioMsgSid
  */
-
-//
-// ---------- Phone normalization helper ----------
-//
-
-/**
- * Normalize a phone number to E.164 format (basic version).
- * - If it already starts with '+', assume it's valid E.164 and return as-is
- * - If it has 10 digits, assume US and prefix +1
- * - If it has 11..15 digits, assume it already includes country code and add '+'
- * - Otherwise, throw an error
- */
-function normalizeToE164(raw) {
-  if (!raw) {
-    throw new Error("Missing phone number for SMS");
-  }
-
-  const trimmed = raw.trim();
-  if (trimmed.startsWith("+")) return trimmed;
-
-  const digits = trimmed.replace(/\D+/g, "");
-  if (!digits) {
-    throw new Error("Invalid phone number: no digits found");
-  }
-
-  if (digits.length === 10) {
-    // Assume US
-    return `+1${digits}`;
-  }
-
-  if (digits.length > 10 && digits.length <= 15) {
-    return `+${digits}`;
-  }
-
-  throw new Error(`Invalid phone number length (${digits.length}) for SMS`);
-}
-
-//
-// ---------- Twilio Messaging Service client ----------
-//
-
-let smsClient;
-
-/**
- * Lazily create Twilio client for SMS sending.
- * Uses credentials passed from index.js so it works with Azure Key Vault.
- */
-function getTwilioClient(twilioAccountSid, twilioAuthToken) {
-  if (!smsClient) {
-    if (!twilioAccountSid || !twilioAuthToken) {
-      throw new Error(
-        "twilioAccountSid/twilioAuthToken missing in upgradeRoutes config.",
-      );
-    }
-    smsClient = twilio(twilioAccountSid, twilioAuthToken);
-  }
-  return smsClient;
-}
-
-/**
- * Send reset link via SMS using Twilio Messaging Service SID.
- * @param {string} toPhoneRaw
- * @param {string} url
- * @param {string} twilioAccountSid
- * @param {string} twilioAuthToken
- * @param {string} twilioMsgSid
- * @returns {Promise<boolean>}
- */
-async function sendResetSms(
-  toPhoneRaw,
-  url,
-  twilioAccountSid,
-  twilioAuthToken,
-  twilioMsgSid,
-) {
-  try {
-    console.log("[DEBUG] sendResetSms called");
-    console.log("[DEBUG] toPhoneRaw =", toPhoneRaw);
-    console.log("[DEBUG] url =", url);
-    console.log("[DEBUG] twilioMsgSid =", twilioMsgSid);
-
-    if (!twilioMsgSid) throw new Error("Missing twilioMsgSid");
-
-    const to = normalizeToE164(toPhoneRaw);
-    console.log("[DEBUG] Normalized to =", to);
-
-    const client = getTwilioClient(twilioAccountSid, twilioAuthToken);
-    console.log("[DEBUG] Twilio client created");
-
-    const msg = await client.messages.create({
-      messagingServiceSid: twilioMsgSid,
-      body: "RESET LINK: " + url,
-      to,
-    });
-
-    console.log("[DEBUG] Twilio created message:", msg.sid, msg.status);
-    return true;
-  } catch (err) {
-    console.error("[DEBUG] sendResetSms ERROR:", err);
-    return false;
-  }
-}
-
-//
-// ---------- Nodemailer (IONOS) client ----------
-//
-
-let mailTransporter;
-
-/**
- * Lazily create Nodemailer transporter for IONOS SMTP.
- * Uses IONOS_SMTP_USER_INFO as the login + from address.
- */
-function getMailTransporter() {
-  if (!mailTransporter) {
-    const smtpUser = process.env.IONOS_SMTP_USER_INFO;
-    const smtpPass = process.env.IONOS_SMTP_PASS;
-
-    if (!smtpUser || !smtpPass) {
-      console.error(
-        "[EMAIL CONFIG] Missing IONOS_SMTP_USER_INFO or IONOS_SMTP_PASS",
-      );
-      console.error("  IONOS_SMTP_USER_INFO =", smtpUser);
-      console.error("  IONOS_SMTP_PASS is", smtpPass ? "SET" : "MISSING");
-      throw new Error("SMTP credentials not configured");
-    }
-
-    mailTransporter = nodemailer.createTransport({
-      host: process.env.IONOS_SMTP_HOST || "smtp.ionos.com",
-      port: Number(process.env.IONOS_SMTP_PORT || 587),
-      secure: false, // STARTTLS on 587
-      auth: {
-        user: smtpUser,
-        pass: smtpPass,
-      },
-      tls: {
-        // DEV ONLY – accept self-signed / corporate proxy certs.
-        // Remove this in production if you can rely on a trusted chain.
-        rejectUnauthorized: false,
-      },
-    });
-  }
-  return mailTransporter;
-}
-
-/**
- * Send reset link via email using IONOS SMTP.
- * @param {string} toEmail
- * @param {string} url
- * @returns {Promise<boolean>}
- */
-async function sendResetEmail(toEmail, url) {
-  try {
-    console.log("[DEBUG] sendResetEmail called");
-    console.log("[DEBUG] toEmail =", toEmail);
-    console.log("[DEBUG] url =", url);
-
-    const transporter = getMailTransporter();
-    const fromAddress = process.env.IONOS_SMTP_USER_INFO;
-
-    const mailOptions = {
-      from: fromAddress,
-      to: toEmail,
-      subject: "TEST from Albany JW Parking App",
-      text: `This is a test email sent at ${new Date().toISOString()}.
-Reset link (local dev only): ${url}`,
-    };
-
-    const info = await transporter.sendMail(mailOptions);
-
-    console.log("[DEBUG] Email sent successfully:");
-    console.log("  MessageId:", info.messageId);
-    console.log("  Response:", info.response);
-
-    return true;
-  } catch (err) {
-    console.error("[DEBUG] sendResetEmail ERROR:", err);
-    return false;
-  }
-}
-
 export default function upgradeRoutes({
   express,
   csrfProtection,
@@ -231,12 +58,15 @@ export default function upgradeRoutes({
     clearPendingReset,
   } = db;
 
-  //
   // ─────────────────────────────────────────────────────────────
-  // Helper functions (masking, baseUrl)
+  // Masking helpers (display only — not shared)
   // ─────────────────────────────────────────────────────────────
-  //
 
+  /**
+   * Mask an email address for display, e.g. j••••e@g••••l.com
+   * @param {string} email
+   * @returns {string}
+   */
   function maskEmail(email) {
     if (!email) return "";
     const [local, domain] = email.split("@");
@@ -248,6 +78,7 @@ export default function upgradeRoutes({
 
     const localMasked =
       local.length <= 2 ? local[0] + "••" : local[0] + "••••" + local.slice(-1);
+
     const domainMasked =
       domainHead.length <= 2
         ? domainHead[0] + "••"
@@ -256,27 +87,23 @@ export default function upgradeRoutes({
     return `${localMasked}@${domainMasked}.${tld}`;
   }
 
+  /**
+   * Mask a phone number for display, e.g. (***) ***-1234
+   * @param {string} phone
+   * @returns {string}
+   */
   function maskPhone(phone) {
     if (!phone) return "";
     const digits = phone.replace(/\D+/g, "");
     if (digits.length < 4) return "****";
-
-    const last4 = digits.slice(-4);
-    return `(***) ***-${last4}`;
+    return `(***) ***-${digits.slice(-4)}`;
   }
 
-  function getBaseUrl(req) {
-    const proto = req.headers["x-forwarded-proto"] || req.protocol;
-    return `${proto}://${req.get("host")}`;
-  }
-
-  //
   // ─────────────────────────────────────────────────────────────
   // Routes
   // ─────────────────────────────────────────────────────────────
-  //
 
-  // GET /upgrade  → start: enter phone/email
+  // GET /upgrade → start: enter phone/email
   router.get("/upgrade", csrfProtection, (req, res) => {
     res.render("upgrade/upgradeStart", {
       csrfToken: req.csrfToken(),
@@ -290,9 +117,7 @@ export default function upgradeRoutes({
       if (!phone && !email) {
         return res.status(400).json({
           success: false,
-          fieldErrors: {
-            form: "Please enter an email or a phone number.",
-          },
+          fieldErrors: { form: "Please enter an email or a phone number." },
         });
       }
 
@@ -328,9 +153,8 @@ export default function upgradeRoutes({
       if (!id) return res.redirect("/upgrade");
 
       const volunteer = await findVolunteerByIdNonArchived(id);
-      if (!volunteer) {
+      if (!volunteer)
         return res.status(404).render("404", { url: req.originalUrl });
-      }
 
       res.render("upgrade/upgradeName", {
         csrfToken: req.csrfToken(),
@@ -342,16 +166,14 @@ export default function upgradeRoutes({
     }
   });
 
-  // POST /upgrade/name → verify name
+  // POST /upgrade/name → verify name against DB record
   router.post("/upgrade/name", csrfProtection, async (req, res) => {
     try {
       const { id, firstName, lastName, suffix } = req.body || {};
       if (!id || !firstName || !lastName) {
         return res.status(400).json({
           success: false,
-          fieldErrors: {
-            form: "First and last name are required.",
-          },
+          fieldErrors: { form: "First and last name are required." },
         });
       }
 
@@ -359,9 +181,7 @@ export default function upgradeRoutes({
       if (!volunteer) {
         return res.status(404).json({
           success: false,
-          fieldErrors: {
-            form: "No matching account was found.",
-          },
+          fieldErrors: { form: "No matching account was found." },
         });
       }
 
@@ -378,9 +198,7 @@ export default function upgradeRoutes({
       if (!matchesFirst || !matchesLast || !matchesSuffix) {
         return res.status(400).json({
           success: false,
-          fieldErrors: {
-            form: "The name entered does not match our records.",
-          },
+          fieldErrors: { form: "The name entered does not match our records." },
         });
       }
 
@@ -392,9 +210,7 @@ export default function upgradeRoutes({
       console.error("[POST /upgrade/name] error:", err);
       return res.status(500).json({
         success: false,
-        fieldErrors: {
-          form: "Server error while verifying your name.",
-        },
+        fieldErrors: { form: "Server error while verifying your name." },
       });
     }
   });
@@ -406,18 +222,14 @@ export default function upgradeRoutes({
       if (!id) return res.redirect("/upgrade");
 
       const volunteer = await findVolunteerByIdNonArchived(id);
-      if (!volunteer) {
+      if (!volunteer)
         return res.status(404).render("404", { url: req.originalUrl });
-      }
-
-      const maskedEmail = maskEmail(volunteer.email);
-      const maskedPhone = maskPhone(volunteer.phone);
 
       res.render("upgrade/upgradeSend", {
         csrfToken: req.csrfToken(),
         volunteer,
-        maskedEmail,
-        maskedPhone,
+        maskedEmail: maskEmail(volunteer.email),
+        maskedPhone: maskPhone(volunteer.phone),
       });
     } catch (err) {
       console.error("[GET /upgrade/send] error:", err);
@@ -429,25 +241,19 @@ export default function upgradeRoutes({
   router.get("/upgrade/sent", csrfProtection, async (req, res) => {
     try {
       const { id, method } = req.query;
-      if (!id || !method) {
-        return res.redirect("/upgrade");
-      }
+      if (!id || !method) return res.redirect("/upgrade");
 
       const volunteer = await findVolunteerByIdNonArchived(id);
-      if (!volunteer) {
+      if (!volunteer)
         return res.status(404).render("404", { url: req.originalUrl });
-      }
-
-      const maskedEmail = maskEmail(volunteer.email);
-      const maskedPhone = maskPhone(volunteer.phone);
 
       res.render("upgrade/upgradeSent", {
         csrfToken: req.csrfToken(),
         volunteer,
         method,
-        maskedEmail,
-        maskedPhone,
-        message: "Reset link SENT SUCCESSFULLY.",
+        maskedEmail: maskEmail(volunteer.email),
+        maskedPhone: maskPhone(volunteer.phone),
+        message: "Reset link sent successfully.",
         errorMessage: null,
       });
     } catch (err) {
@@ -460,9 +266,6 @@ export default function upgradeRoutes({
   router.post("/upgrade/send", csrfProtection, async (req, res) => {
     try {
       const { id, method } = req.body || {};
-      console.log("[DEBUG] POST /upgrade/send hit");
-      console.log("[DEBUG] method:", method);
-      console.log("[DEBUG] sending to volunteer ID", id);
 
       if (!id || !method) {
         return res.status(400).json({
@@ -477,9 +280,7 @@ export default function upgradeRoutes({
       if (!volunteer) {
         return res.status(404).json({
           success: false,
-          fieldErrors: {
-            form: "No matching account was found.",
-          },
+          fieldErrors: { form: "No matching account was found." },
         });
       }
 
@@ -495,9 +296,7 @@ export default function upgradeRoutes({
         if (!volunteer.email) {
           return res.status(400).json({
             success: false,
-            fieldErrors: {
-              form: "No email is on file for this account.",
-            },
+            fieldErrors: { form: "No email is on file for this account." },
           });
         }
         ok = await sendResetEmail(volunteer.email, resetUrl);
@@ -520,9 +319,7 @@ export default function upgradeRoutes({
       } else {
         return res.status(400).json({
           success: false,
-          fieldErrors: {
-            form: "Invalid delivery method.",
-          },
+          fieldErrors: { form: "Invalid delivery method." },
         });
       }
 
@@ -537,34 +334,27 @@ export default function upgradeRoutes({
 
       return res.status(200).json({
         success: true,
-        redirectUrl: `/upgrade/sent?id=${volunteer.id}&method=${encodeURIComponent(
-          method,
-        )}`,
+        redirectUrl: `/upgrade/sent?id=${volunteer.id}&method=${encodeURIComponent(method)}`,
       });
     } catch (err) {
       console.error("[POST /upgrade/send] error:", err);
       return res.status(500).json({
         success: false,
-        fieldErrors: {
-          form: "Failed to send reset link. Please try again.",
-        },
+        fieldErrors: { form: "Failed to send reset link. Please try again." },
       });
     }
   });
 
-  // GET /reset-password/:hash → show reset form
+  // GET /reset-password/:hash → show password reset form
   router.get("/reset-password/:hash", csrfProtection, async (req, res) => {
     try {
-      const hash = req.params.hash;
-      const volunteer = await findVolunteerByResetHash(hash);
-
-      if (!volunteer) {
+      const volunteer = await findVolunteerByResetHash(req.params.hash);
+      if (!volunteer)
         return res.status(404).render("404", { url: req.originalUrl });
-      }
 
       res.render("authentication_and_accounts/resetPassword", {
         csrfToken: req.csrfToken(),
-        hash,
+        hash: req.params.hash,
       });
     } catch (err) {
       console.error("[GET /reset-password/:hash] error:", err);
@@ -572,15 +362,12 @@ export default function upgradeRoutes({
     }
   });
 
-  // POST /reset-password/:hash → update password, clear pending flag
+  // POST /reset-password/:hash → set new password and clear pending flag
   router.post("/reset-password/:hash", csrfProtection, async (req, res) => {
     try {
-      const hashParam = req.params.hash;
-      const volunteer = await findVolunteerByResetHash(hashParam);
-
-      if (!volunteer) {
+      const volunteer = await findVolunteerByResetHash(req.params.hash);
+      if (!volunteer)
         return res.status(404).render("404", { url: req.originalUrl });
-      }
 
       const { password, confirmPasswordInput } = req.body || {};
       if (
@@ -602,16 +389,15 @@ export default function upgradeRoutes({
     }
   });
 
-  // TEST SMS ENDPOINT (Dev-only helper)
+  // POST /upgrade/test-sms → dev-only SMS test endpoint
   router.post("/upgrade/test-sms", csrfProtection, async (req, res) => {
     try {
       const { phone } = req.body || {};
 
       if (!phone) {
-        return res.status(400).json({
-          success: false,
-          error: "Missing 'phone' field.",
-        });
+        return res
+          .status(400)
+          .json({ success: false, error: "Missing 'phone' field." });
       }
 
       let normalized;
@@ -624,29 +410,36 @@ export default function upgradeRoutes({
         });
       }
 
-      console.log("[DEBUG] Attempting to send SMS using SID:", twilioMsgSid);
-      console.log("[DEBUG] To:", normalized);
-      const client = getTwilioClient(twilioAccountSid, twilioAuthToken);
+      const ok = await sendResetSms(
+        normalized,
+        "https://example.com/test",
+        twilioAccountSid,
+        twilioAuthToken,
+        twilioMsgSid,
+      );
 
-      const msg = await client.messages.create({
-        messagingServiceSid: twilioMsgSid,
-        body: "TEST from YOUR CONVENTION APP at " + new Date().toISOString(),
-        to: normalized,
-      });
+      if (!ok) {
+        return res
+          .status(500)
+          .json({
+            success: false,
+            error: "Failed to send test SMS. Check server logs.",
+          });
+      }
 
       return res.json({
         success: true,
         message: "Test SMS queued successfully.",
         to: normalized,
-        sid: msg.sid,
-        status: msg.status,
       });
     } catch (err) {
       console.error("[POST /upgrade/test-sms] error:", err);
-      return res.status(500).json({
-        success: false,
-        error: "Failed to send test SMS. Check server logs.",
-      });
+      return res
+        .status(500)
+        .json({
+          success: false,
+          error: "Failed to send test SMS. Check server logs.",
+        });
     }
   });
 

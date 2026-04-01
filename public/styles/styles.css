@@ -36,7 +36,7 @@
 
 /* -------------------- Body & Background -------------------- */
 body {
-  height: 100dvh;
+  min-height: 100dvh;
   background: linear-gradient(59deg, var(--TextDark), var(--TextLight) 50%);
   background-attachment: fixed;
   font-family: "Archivo", sans-serif;
@@ -117,12 +117,15 @@ strong,
 b {
   font-weight: 500;
 }
-
+/* =====================================================================
+   BASE / GLOBAL STYLES
+   Fonts, variables, typography, generic components
+   ===================================================================== */
 /* -------------------- Buttons -------------------- */
 .btn {
-  font-size: 15pt;
-  padding: 5px;
-  font-weight: 300;
+  font-size: 1rem;
+  padding: 6px 12px;
+  font-weight: 400;
 }
 
 /* -------------------- Feature Showcase -------------------- */
@@ -163,6 +166,49 @@ b {
 .is-hidden {
   display: none !important;
 }
+/* =====================================================================
+   SCROLL OWNERSHIP DIAGRAM (CRITICAL — READ BEFORE EDITING)
+
+   There must be EXACTLY ONE scroll container at any width.
+
+   ┌─────────────────────────────────────────────────────────────┐
+   │ ≤ 576px  (Mobile phones)                                     │
+   │                                                             │
+   │  Scroll owner:  PAGE (body / html)                          │
+   │                                                             │
+   │  body           → scrolls                                  │
+   │  .entry-card    → overflow: visible                         │
+   │  .card-body     → overflow: visible                         │
+   │  .card-header   → position: static                          │
+   │                                                             │
+   └─────────────────────────────────────────────────────────────┘
+
+   ┌─────────────────────────────────────────────────────────────┐
+   │ ≥ 577px  (Tablets + Desktop)                                │
+   │                                                             │
+   │  Scroll owner:  .entry-card                                 │
+   │                                                             │
+   │  body           → overflow: hidden                          │
+   │  .entry-card    → overflow-y: auto  (ONLY scroll container) │
+   │  .card-body     → overflow: visible                         │
+   │  .card-header   → position: sticky (relative to card)       │
+   │                                                             │
+   └─────────────────────────────────────────────────────────────┘
+
+   RULES:
+   - Never allow body AND a card to scroll at the same time
+   - Sticky elements must live inside their scroll container
+   - Mobile = page scroll, Desktop = card scroll
+
+   If something breaks at a breakpoint, re-check this diagram first.
+   ===================================================================== */
+
+/* =====================================================================
+   CARD SYSTEMS
+   - Entry cards (registration / login / forms)
+   - Summary cards
+   ===================================================================== */
+
 
 /* -------------------- Entry card (form pages) -------------------- */
 .form-entry {
@@ -171,6 +217,7 @@ b {
   opacity: 0.75;
   justify-content: center;
 }
+
 
 /* ================================================================
    ENTRY PAGE CARD STRUCTURE
@@ -203,12 +250,34 @@ b {
 /* SHORT VIEWPORTS — page scrolls, card grows freely */
 .entry-card .card-body {
   flex: 1 1 auto;
-  overflow-y: visible;
+  overflow-y: auto;
+  /* ✅ creates formatting context */
   max-height: none;
   -webkit-overflow-scrolling: touch;
+  padding-top: 1rem;
+  /* ✅ stops accordion sliding under header */
   padding-bottom: 5.5rem;
   scroll-padding-top: 80px;
 }
+
+/* =====================================================================
+   RESPONSIVE RULES (LOGICAL GROUPING)
+
+   NOTE:
+   Responsive rules are intentionally distributed throughout this file
+   to preserve cascade order and prevent regressions.
+
+   Do NOT consolidate or reorder media queries unless the
+   scroll-ownership diagram is updated and behavior re-verified.
+   ===================================================================== */
+/* =====================================================================
+   RESPONSIVE RULES (DO NOT REORDER WITHOUT UPDATING DIAGRAM)
+
+   Order matters:
+   1) Mobile ≤ 576px  → page scroll
+   2) Small controls ≤ 767.98px
+   3) Desktop ≥ 577px → card scroll
+   ===================================================================== */
 
 /* TALL VIEWPORTS — card body scrolls, page stays locked */
 @media (min-height: 700px) {
@@ -218,8 +287,9 @@ b {
 
   .entry-card .card-body {
     overflow-y: auto;
-    max-height: unset;
-    /* card's max-height governs, not card-body directly */
+    max-height: unset;    /* card's max-height governs, not card-body directly */
+    padding-top: 1rem;
+    padding-bottom: 1.5rem;
   }
 
   body.entry-body.bg-body-tertiary {
@@ -295,6 +365,11 @@ b {
 #summary-card .accordion-item {
   opacity: 1;
 }
+
+/* =====================================================================
+   COMPONENTS
+   Accordion, buttons, validation, inputs
+   ===================================================================== */
 
 /* ================================================================
    ACCORDION
@@ -646,7 +721,10 @@ b {
   pointer-events: none;
   z-index: 1;
 }
-
+/* =====================================================================
+   NAVIGATION
+   Frosted glass navbar, nav buttons, avatar
+   ===================================================================== */
 /* ================================================================
    FROSTED GLASS NAVIGATION BAR
    ================================================================ */
@@ -798,6 +876,10 @@ b {
   pointer-events: none;
 }
 
+/* =====================================================================
+   FLOWS & MODALS
+   Upgrade flow, summary modals, confirmation dialogs
+   ===================================================================== */
 /* ================================================================
    UPGRADE FLOW
    Isolated from registration card rules via .upgrade-card class.
@@ -894,64 +976,29 @@ b {
   }
 }
 
-/* ================================================================
-   MOBILE — shared responsive rules
-   ================================================================ */
-
-/* @media (max-width: 768px) { */
-
-  /* Freeze the background; let the card scroll instead of the page */
-  /* body.bg-body-tertiary {
-    overflow: hidden;
-  } */
-
-  /* All shadow cards become scroll containers on mobile */
-  .card.shadow-lg,
-  #summary-card {
-    max-height: 85vh;
-    overflow-y: auto;
-    padding-bottom: 1.5rem;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  /* Sticky card headers */
-  .card-header {
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    background: rgba(255, 255, 255, 0.9) !important;
-    backdrop-filter: blur(4px);
-  }
-
-  /* Accordion inside summary scrolls visibly */
-  #summary-card .accordion {
-    overflow-y: visible;
-  }
-
-  /* Full-width rows */
-  .row,
-  .row>[class^="col"] {
-    flex: 1 1 100%;
-    /* max-width: 100%; */
-  }
-
-  /* Flex groups wrap on mobile */
-  .d-flex.gap-3,
-  .d-flex.gap-4 {
-    flex-wrap: wrap;
-    gap: 0.75rem;
-  }
-
-  /* Tighter container padding */
-  .container.body-container {
-    padding-left: 0.5rem;
-    padding-right: 0.5rem;
-  }
-
-
+/* =========================================================
+   MOBILE — ≤ 576px
+   Page scrolls, card grows freely
+   ========================================================= */
 @media (max-width: 576px) {
+  
+      /* ✅ MOBILE: PAGE SCROLLS ONLY — NO CARD SCROLLING */
+      body {
+        overflow: auto;
+      }
+  
+      .entry-card,
+      .entry-card .card-body,
+      .card.shadow-lg,
+      #summary-card {
+        overflow: visible !important;
+        max-height: none !important;
+      }
+      .entry-card .card-header {
+        position: static;
+      }
 
-  /* Entry cards stay centered and constrained */
+  /* Entry & summary cards stay centered and constrained */
   .body-container,
   .form-entry,
   .card.shadow-lg,
@@ -976,7 +1023,7 @@ b {
     margin: 0;
   }
 
-  /* Accordion resets — no forced horizontal scroll on small screens */
+  /* Accordion safety — no horizontal scroll */
   #summary-card .accordion,
   #accountAccordion,
   #summaryAccordion {
@@ -994,7 +1041,7 @@ b {
     min-width: 0;
   }
 
-  /* Full-width inputs */
+  /* Inputs */
   input.form-control,
   select.form-select,
   textarea.form-control {
@@ -1025,13 +1072,10 @@ b {
 
   /* Labels */
   label.form-label,
-  .input-label {
-    margin-bottom: 0.25rem;
-    font-size: 0.9rem;
-  }
-
+  .input-label,
   .form-check-label {
     font-size: 0.9rem;
+    margin-bottom: 0.25rem;
   }
 
   .form-check-input {
@@ -1039,7 +1083,7 @@ b {
     height: 16px;
   }
 
-  /* Button sizes */
+  /* Buttons */
   .summary-edit-btn,
   .summary-save-btn,
   #finalize-changes,
@@ -1070,29 +1114,70 @@ b {
     padding: 10px !important;
   }
 
-  /* Toast spacing above sticky button */
+  /* Toast spacing above sticky bar */
   .entry-card #submitStatus,
   .entry-card #finalize-status {
     position: relative;
     z-index: 101;
     justify-content: center;
   }
+}
 
-  /* Center accordions */
-  .accordion,
-  #accountAccordion,
-  #summaryAccordion {
-    margin-left: auto;
-    margin-right: auto;
-  }
+/* Small controls — phones + small tablets */
+@media (max-width: 767.98px) {
 
-  /* Horizontal scroll for summary on very small screens */
-  #summary-card .accordion {
-    overflow-x: auto;
-    white-space: nowrap;
+  .summary-edit-btn,
+  .summary-save-btn,
+  #finalize-changes,
+  #print-summary,
+  #final-submit,
+  #return-home {
+    font-size: 0.85rem;
+    padding: 4px 10px;
   }
 }
 
+
+/* =========================================================
+   BASE (all widths)
+   Prevent accordion/header overlap everywhere
+   ========================================================= */
+.entry-card .card-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  /* ✅ creates formatting context */
+  max-height: none;
+  padding-top: 1rem;
+  /* ✅ stops accordion sliding under header */
+  padding-bottom: 5.5rem;
+  scroll-padding-top: 80px;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* =========================================================
+   DESKTOP / TABLET — ≥ 577px
+   Card-contained scrolling (desired behavior)
+   ========================================================= */
+@media (min-width: 577px) {
+
+  body.entry-body.bg-body-tertiary {
+    overflow: hidden;
+    /* page does not scroll */
+  }
+
+  .entry-card {
+    max-height: 88dvh;
+    overflow-y: auto;
+    /* ✅ THIS is now the scroll container */
+  }
+
+  .entry-card .card-body {
+    overflow: visible;
+    /* ✅ no competing scroll container */
+    padding-top: 1rem;
+    padding-bottom: 5.5rem;
+  }
+}
 @media (max-width: 480px) {
 
   .card.shadow-lg,
@@ -1263,4 +1348,180 @@ b {
     size: Letter portrait;
     margin: 0.5in;
   }
+}
+/* =======================================================
+   INTERACTION SAFETY OVERRIDES (mobile)
+   ======================================================= */
+/* -------------------------------------------------------
+   Mobile dropdown safety zone (keep menus off buttons)
+   ------------------------------------------------------- */
+
+@media (max-width: 768px) {
+
+  /* Native select dropdowns (mobile browsers) */
+  select {
+    max-height: calc(85vh);
+    /* leaves ~15% at bottom */
+  }
+
+  /* Bootstrap dropdown menus */
+  .dropdown-menu {
+    max-height: calc(85vh);
+    overflow-y: auto;
+  }
+}
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 768px) {
+    select {
+      font-size: 16px;
+      /* prevents zoom + misposition */
+    }
+  }
+}
+
+/* ================================================================
+   ADMIN ROLES CONSOLE TABLE
+   Tighter rows for 768px+, two-column wrap below 768px
+   ================================================================ */
+
+.admin-console-card.card.shadow-lg {
+  max-width: 750px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+#rolesTable th,
+#rolesTable td {
+  padding: 0.35rem 0.5rem;
+  font-size: 0.875rem;
+  vertical-align: middle;
+}
+
+#rolesTable .badge {
+  font-size: 0.75rem;
+  padding: 0.25em 0.5em;
+}
+
+#rolesTable .form-select-sm {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.8rem;
+  height: 30px;
+}
+
+#rolesTable .btn-sm {
+  padding: 0.2rem 0.6rem;
+  font-size: 0.8rem;
+}
+
+/* Below 768px — collapse to two-row card layout, hide table headers */
+@media (max-width: 767.98px) {
+  #rolesTable thead {
+    display: none;
+  }
+
+  #rolesTable,
+  #rolesTable tbody,
+  #rolesTable tr,
+  #rolesTable td {
+    display: block;
+    width: 100%;
+  }
+
+  #rolesTable tr {
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.6);
+  }
+
+  #rolesTable td {
+    padding: 0.25rem 0.4rem;
+    border: none;
+  }
+
+  /* Name + email on first row */
+  #rolesTable td:nth-child(1),
+  #rolesTable td:nth-child(2) {
+    display: inline-block;
+    width: auto;
+  }
+
+  #rolesTable td:nth-child(1) {
+    font-weight: 600;
+    margin-right: 0.5rem;
+  }
+
+  #rolesTable td:nth-child(2) {
+    color: #6c757d;
+    font-size: 0.8rem;
+  }
+
+  /* Current role badge — own line */
+  #rolesTable td:nth-child(3) {
+    display: block;
+    margin-top: 0.0125rem;
+  }
+
+  /* Select + Save on same row */
+  #rolesTable td:nth-child(4),
+  #rolesTable td:nth-child(5) {
+    display: inline-block;
+    width: auto;
+    vertical-align: middle;
+  }
+
+  #rolesTable td:nth-child(4) {
+    margin-right: 0.5rem;
+  }
+
+  #rolesTable .role-select {
+    min-width: 130px;
+  }
+}
+/* Admin tools dashboard cards */
+.admin-tool-card {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.admin-tool-card:hover:not(.admin-tool-card--soon) {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+.admin-tool-card--soon {
+  opacity: 0.6;
+}
+
+.admin-tool-icon {
+  font-size: 2rem;
+  line-height: 1;
+  margin-bottom: 0.25rem;
+}
+
+.admin-tool-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--Primary);
+}
+
+.admin-tool-desc {
+  font-size: 0.875rem;
+  color: #6c757d;
+  flex: 1;
+  margin: 0;
+}
+
+.admin-tool-btn,
+.admin-tool-soon {
+  align-self: flex-start;
+  margin-top: auto;
 }
