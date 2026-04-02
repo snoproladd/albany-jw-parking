@@ -75,18 +75,20 @@ async function loadSecretsFromKeyVault() {
 
   const output = {};
 
-  for (const [envVar, kvName] of Object.entries(SECRET_MAP)) {
-    try {
-      const sec = await secretClient.getSecret(kvName);
-      output[envVar] = sec.value;
-    } catch (err) {
-      logError(
-        `KeyVault: Missing or inaccessible secret "${kvName}" →`,
-        err.message,
-      );
-      output[envVar] = process.env[envVar]; // Fallback to .env
-    }
-  }
+  await Promise.all(
+    Object.entries(SECRET_MAP).map(async ([envVar, kvName]) => {
+      try {
+        const sec = await secretClient.getSecret(kvName);
+        output[envVar] = sec.value;
+      } catch (err) {
+        logError(
+          `KeyVault: Missing or inaccessible secret "${kvName}" →`,
+          err.message,
+        );
+        output[envVar] = process.env[envVar];
+      }
+    }),
+  );
 
   return output;
 }
