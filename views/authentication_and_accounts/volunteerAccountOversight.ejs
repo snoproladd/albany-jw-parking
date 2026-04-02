@@ -151,7 +151,7 @@
                           </button>
                         </div>
 
-                        <form>
+                        <form action="/my-account/update/contact">
                           <div class="row row-cols-1 row-cols-md-2 g-3">
                             <div class="col">
                               <label class="form-label small">First Name</label>
@@ -170,16 +170,28 @@
 
                             <div class="col">
                               <label class="form-label small">Email</label>
-                              <input name="email" class="form-control" id="email" aria-describedby="emailStatus"
-                                value="<%= targetUser.email || '' %>" />
-                                <div id="emailStatus" class="status mt-1"></div>
+                              <input
+                                type="email"
+                                name="email"
+                                class="form-control"
+                                id="email"
+                                aria-describedby="emailStatus"
+                                value="<%= targetUser.email || '' %>"
+                                data-current-email="<%= targetUser.email || '' %>" />
+                              <div id="emailStatus" class="status mt-1"></div>
                             </div>
 
                             <div class="col">
                               <label class="form-label small">Phone</label>
-                              <input name="phone" class="form-control" id="phone" aria-describedby="phoneStatus"
-                                value="<%= targetUser.phone || '' %>" />
-                                <div id="phoneStatus" class="status mt-1"></div>
+                              <input
+                                type="text"
+                                name="phone"
+                                class="form-control"
+                                id="phone"
+                                aria-describedby="phoneStatus"
+                                value="<%= targetUser.phone || '' %>"
+                                data-current-phone="<%= targetUser.phone || '' %>" />
+                              <div id="phoneStatus" class="status mt-1"></div>
                             </div>
                           </div>
                         </form>

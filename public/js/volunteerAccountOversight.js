@@ -102,28 +102,27 @@ document.addEventListener("DOMContentLoaded", () => {
     updateFinalizeState();
   }
 
-function updateVisitingCongregationVisibility() {
-  const assignedYes = document.querySelector(
-    'input[name="congAssigned"][value="yes"]',
-  );
-  const assignedNo = document.querySelector(
-    'input[name="congAssigned"][value="no"]',
-  );
+  function updateVisitingCongregationVisibility() {
+    const assignedYes = document.querySelector(
+      'input[name="congAssigned"][value="yes"]',
+    );
+    const assignedNo = document.querySelector(
+      'input[name="congAssigned"][value="no"]',
+    );
 
-  const assignedBlock = document.getElementById("cong-assigned-block");
-  const visitingBlock = document.getElementById("cong-visiting-block");
+    const assignedBlock = document.getElementById("cong-assigned-block");
+    const visitingBlock = document.getElementById("cong-visiting-block");
 
-  if (!assignedYes || !assignedNo) return;
+    if (!assignedYes || !assignedNo) return;
 
-  if (assignedBlock) {
-    assignedBlock.classList.toggle("d-none", assignedNo.checked);
+    if (assignedBlock) {
+      assignedBlock.classList.toggle("d-none", assignedNo.checked);
+    }
+
+    if (visitingBlock) {
+      visitingBlock.classList.toggle("d-none", assignedYes.checked);
+    }
   }
-
-  if (visitingBlock) {
-    visitingBlock.classList.toggle("d-none", assignedYes.checked);
-  }
-}
-
 
   /**
    * Toggle the volunteer picker disabled state based on edit mode.
@@ -147,6 +146,22 @@ function updateVisitingCongregationVisibility() {
     if (hint) {
       hint.style.display = editing ? "block" : "none";
     }
+  }
+
+  // Wire live email validation
+  if (typeof window.initEmailValidation === "function") {
+    window.initEmailValidation({
+      inputId: "email",
+      statusId: "emailStatus",
+    });
+  }
+
+  // Wire live phone validation
+  if (typeof window.initPhoneVerification === "function") {
+    window.initPhoneVerification({
+      inputId: "phone",
+      statusId: "phoneStatus",
+    });
   }
 
   /**
@@ -307,12 +322,9 @@ function updateVisitingCongregationVisibility() {
 
       case "personal":
         window.editVolunteerCache.personal = {
-          dobirthRaw:
-            sec.querySelector('[name="dobirthRaw"]')?.value || null,
-          genderRaw:
-            sec.querySelector('[name="genderRaw"]')?.value || null,
-          staminaRaw:
-            sec.querySelector('[name="staminaRaw"]')?.value || null,
+          dobirthRaw: sec.querySelector('[name="dobirthRaw"]')?.value || null,
+          genderRaw: sec.querySelector('[name="genderRaw"]')?.value || null,
+          staminaRaw: sec.querySelector('[name="staminaRaw"]')?.value || null,
         };
         break;
 
@@ -389,7 +401,6 @@ function updateVisitingCongregationVisibility() {
       // EDIT
       setSectionEditing(sec, true);
       updateVisitingCongregationVisibility();
-
     }
 
     updateFinalizeState();
