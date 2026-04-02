@@ -46,6 +46,7 @@ export default function upgradeRoutes({
   twilioAccountSid,
   twilioAuthToken,
   twilioMsgSid,
+  smtpConfig,
 }) {
   const router = express.Router();
 
@@ -299,7 +300,10 @@ export default function upgradeRoutes({
             fieldErrors: { form: "No email is on file for this account." },
           });
         }
-        ok = await sendResetEmail(volunteer.email, resetUrl);
+      ok = await sendResetEmail(volunteer.email, resetUrl, {
+        ...smtpConfig,
+        firstName: volunteer.firstName || "there",
+      });
       } else if (method === "phone") {
         if (!volunteer.phone) {
           return res.status(400).json({

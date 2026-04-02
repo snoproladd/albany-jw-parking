@@ -410,12 +410,27 @@ app.use(
         twilioAccountSid: config.TWILIO_ACCOUNT_SID,
         twilioAuthToken: config.TWILIO_AUTH_TOKEN,
         twilioMsgSid: config.TWILIO_MSG_SID,
+        smtpConfig: {
+          host: config.IONOS_SMTP_HOST,
+          port: config.IONOS_SMTP_PORT,
+          user: config.IONOS_SMTP_USER,
+          pass: config.IONOS_SMTP_PASS,
+        },
       }),
     );
 
     app.use("/", oversightRouter({
       csrfProtection,
       logError,
+      twilioAccountSid: config.TWILIO_ACCOUNT_SID,
+      twilioAuthToken: config.TWILIO_AUTH_TOKEN,  
+      twilioMsgSid: config.TWILIO_MSG_SID,
+      smtpConfig: {
+        host: config.IONOS_SMTP_HOST,
+        port: config.IONOS_SMTP_PORT,
+        user: config.IONOS_SMTP_USER_INFO,
+        pass: config.IONOS_SMTP_PASS,
+      },
     }));
     
 

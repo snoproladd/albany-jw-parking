@@ -45,7 +45,13 @@ import { sendResetEmail, sendResetSms, getBaseUrl } from '../lib/messaging.js'; 
  * }} deps - Dependencies injected from index.js.
  * @returns {import("express").Router} Configured Express router.
  */
-export function oversightRouter({ csrfProtection, logError }) {
+export function oversightRouter({ 
+  csrfProtection, 
+  logError,
+  twilioAccountSid,
+  twilioAuthToken,
+  twilioMsgSid,
+  smtpConfig,}) {
   const router = express.Router();
 
   /**
@@ -679,15 +685,19 @@ export function oversightRouter({ csrfProtection, logError }) {
         let ok = false;
 
         if (method === "email") {
-          ok = await sendResetEmail(volunteer.email, resetUrl, opts);
+ok = await sendResetEmail(volunteer.email, resetUrl, {
+  ...smtpConfig,
+  firstName: volunteer.firstName || "there",
+  subject: "Action needed — complete your Albany JW Parking registration",
+});
         } else {
           ok = await sendResetSms(
             volunteer.phone,
             resetUrl,
-            process.env.TWILIO_ACCOUNT_SID,
-            process.env.TWILIO_AUTH_TOKEN,
-            process.env.TWILIO_MSG_SID,
-            opts,
+            twilioAccountSid,
+            twilioAuthToken,
+            twilioMsgSid,
+            { firstName: volunteer.firstName || "there" },
           );
         }
 

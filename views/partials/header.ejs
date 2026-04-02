@@ -151,10 +151,12 @@
             <% } %>
 
             <% if (navState.isLoggedIn) { %>
-              <a class="nav-link" href="/logout">
-                <i class="fa-solid fa-right-from-bracket"></i>
-                Logout
-              </a>
+              <form action="/logout" method="POST" class="d-inline">
+                <button type="submit" class="nav-link btn btn-link p-0">
+                  <i class="fa-solid fa-right-from-bracket"></i>
+                  Logout
+                </button>
+              </form>
             <% } %>
 
             <div class="nav-avatar ms-2"
