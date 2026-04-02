@@ -45,7 +45,8 @@ export function createRegistrationRouter(deps) {
     nameExists,
     phoneExists,
     markDraftCompleted,
-    upgradeDraftEmailPass,  
+    upgradeDraftEmailPass,
+    getVolunteerById,  
   } = db;
 
   const router = express.Router();
@@ -172,38 +173,44 @@ router.get("/email-pass", csrfProtection, (req, res) => {
     res.render("notes", { csrfToken: req.csrfToken() });
   });
 
-  router.get("/volunteerSummary", csrfProtection, async (req, res) => {
-    if (!requireDraft(req, res)) return;
+router.get("/volunteerSummary", csrfProtection, async (req, res) => {
+  if (!requireDraft(req, res)) return;
 
-    try {
-      const registrationId = req.session.registrationId;
-      const volunteer =
-        req.app.locals.volunteerCache?.byRegistrationId?.[registrationId] ||
-        null;
+  try {
+    const registrationId = req.session.registrationId;
 
-      if (!volunteer) {
-        return res.status(404).render("404", { url: req.originalUrl });
-      }
+    // Try cache first — may be cold on fresh login resume
+    let volunteer =
+      req.app.locals.volunteerCache?.byRegistrationId?.[registrationId] || null;
 
-      const congregations = await getCongregations();
-      const gender =
-        typeof req.session.gender === "string"
-          ? req.session.gender
-          : volunteer.gender || null;
-
-      res.render("formSummary", {
-        volunteer,
-        congregations,
-        csrfToken: req.csrfToken(),
-        privilegeRulesJSON: JSON.stringify(INCOMPATIBILITIES),
-        gender,
-        disableNameFields: !!req.session.disableNameFields,
-      });
-    } catch (err) {
-      logError("Error rendering /volunteerSummary:", err);
-      res.status(500).send("Internal Server Error");
+    // Cache miss — load directly from DB using userId
+    if (!volunteer && req.session.userId) {
+      volunteer = await getVolunteerById(req.session.userId);
     }
-  });
+
+    if (!volunteer) {
+      return res.status(404).render("404", { url: req.originalUrl });
+    }
+
+    const congregations = await getCongregations();
+    const gender =
+      typeof req.session.gender === "string"
+        ? req.session.gender
+        : volunteer.gender || null;
+
+    res.render("formSummary", {
+      volunteer,
+      congregations,
+      csrfToken: req.csrfToken(),
+      privilegeRulesJSON: JSON.stringify(INCOMPATIBILITIES),
+      gender,
+      disableNameFields: !!req.session.disableNameFields,
+    });
+  } catch (err) {
+    logError("Error rendering /volunteerSummary:", err);
+    res.status(500).send("Internal Server Error");
+  }
+});
 
   router.get("/formDone", csrfProtection, (req, res) => {
     if (!requireDraft(req, res)) return;

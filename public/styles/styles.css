@@ -730,11 +730,11 @@ b {
    ================================================================ */
 
 .site-navbar {
-  background: rgba(14, 54, 92, 0.45);
+  background: rgba(10, 35, 65, 0.82);
   backdrop-filter: blur(14px) saturate(160%);
   -webkit-backdrop-filter: blur(14px) saturate(160%);
   border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
   color: #f8f9fa;
   padding: 0.45rem 0;
 }
@@ -764,12 +764,12 @@ b {
 }
 
 .site-navbar .dropdown-menu {
-  background: rgba(14, 54, 92, 0.55);
+  background: rgba(8, 28, 58, 0.95);
   backdrop-filter: blur(12px) saturate(180%);
   -webkit-backdrop-filter: blur(12px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 8px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
 }
 
 .site-navbar .dropdown-item {
@@ -960,6 +960,32 @@ b {
   margin-right: 4px;
 }
 
+/* Hamburger toggler */
+.site-navbar .navbar-toggler {
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  border-radius: 6px;
+  padding: 4px 8px;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.site-navbar .navbar-toggler:hover,
+.site-navbar .navbar-toggler:focus {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: var(--Accent);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.3);
+  outline: none;
+}
+
+.site-navbar .navbar-toggler:active {
+  background: rgba(255, 255, 255, 0.25);
+  transform: scale(0.96);
+}
+
+.site-navbar .navbar-toggler-icon {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(255,255,255,1)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2.5' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+  width: 1.4em;
+  height: 1.4em;
+}
 /* ================================================================
    ANIMATIONS
    ================================================================ */
@@ -1524,4 +1550,66 @@ b {
 .admin-tool-soon {
   align-self: flex-start;
   margin-top: auto;
+}
+
+/* Unfinished profile banner */
+.draft-banner-nav {
+  order: -1;
+}
+
+.draft-banner-link {
+  display: inline-flex;
+  align-items: center;
+  background: var(--Accent);
+  color: var(--TextDark) !important;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 6px 14px;
+  border-radius: 6px;
+  text-decoration: none;
+  letter-spacing: 0.03em;
+  animation: draftPulse 2.5s ease-in-out infinite;
+  white-space: nowrap;
+  transition: background 0.2s ease;
+}
+
+.draft-banner-link:hover {
+  background: #e08e00;
+  color: var(--TextDark) !important;
+  text-decoration: none;
+}
+
+@keyframes draftPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
+    background: #f59e0b;
+  }
+
+  50% {
+    box-shadow: 0 0 0 10px rgba(245, 158, 11, 0);
+    background: #e08e00;
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
+    background: #f59e0b;
+  }
+}
+
+@media (max-width: 991.98px) {
+  .draft-banner-link {
+      display: inline-flex;
+      align-items: center;
+      background: var(--Accent);
+      color: var(--TextDark) !important;
+      font-weight: 700;
+      font-size: 0.85rem;
+      padding: 6px 14px;
+      border-radius: 6px;
+      text-decoration: none;
+      letter-spacing: 0.03em;
+      animation: draftPulse 2.5s ease-in-out infinite;
+      white-space: nowrap;
+      transition: background 0.2s ease;
+    }
 }

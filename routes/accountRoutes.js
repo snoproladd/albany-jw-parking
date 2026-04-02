@@ -79,6 +79,7 @@ export function loginRouter({ csrfProtection, logError }) {
       case "":
       case null:
       case undefined:
+        case "emailPass":
         return "/volunteerIn";
       case "volunteerIn":
         return "/personalInfo";
@@ -89,9 +90,9 @@ export function loginRouter({ csrfProtection, logError }) {
       case "spiritualInfo":
         return "/notes";
       case "notes":
-        return "/formSummary";
+        return "/volunteerSummary";
       case "formSummary":
-        return "/formSummary";
+        return "/volunteerSummary";
       default:
         return "/volunteerIn";
     }
@@ -171,10 +172,16 @@ export function loginRouter({ csrfProtection, logError }) {
         // non-registered? Show summary page
         return res.redirect("/volunteerSummary");
       }
+      // Restore the existing registration_id into session so
+      // requireDraft guards on subsequent steps don't kick the
+      // user back to /email-pass.
+     if (user.registration_id) {
+       req.session.registrationId = user.registration_id;
+       req.session.disableNameFields = true;
+     }
 
-      // Otherwise resume where left off:
-      const nextStep = getNextRegistrationStep(user.last_step);
-      return res.redirect(nextStep);
+     const nextStep = getNextRegistrationStep(user.last_step);
+     return res.redirect(nextStep);
     } catch (err) {
       logError("Auto-resume continue-registration failed:", err);
       return res.redirect("/volunteerIn");
@@ -617,6 +624,7 @@ export function loginRouter({ csrfProtection, logError }) {
       req.session.userInitials = initials;
       req.session.userRole = user.role || "REGISTERED";
       req.session.permissions = await loadMergedPermissions();
+      req.session.registrationStatus = user.registration_status || null;
       
       // Login success → clear any leftover pendingEmail
       req.session.pendingEmail = null;

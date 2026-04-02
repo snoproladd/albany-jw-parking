@@ -2,23 +2,48 @@
   <nav class="navbar navbar-expand-lg navbar-light site-navbar shadow-sm">
     <div class="container-fluid">
 
+      <!-- Brand — always far left -->
       <a class="navbar-brand d-flex align-items-center" href="/">
         <i class="fa-solid fa-car-side me-1"></i>
         Albany JW Parking
       </a>
 
-      <button class="navbar-toggler" type="button"
+      <!-- Mobile: banner sits here, outside the collapse, below brand row -->
+      <% const navState = nav || {}; %>
+      <% if (navState.showDraftBanner) { %>
+        <div class="draft-banner-nav d-lg-none w-100 mt-1 mb-1 order-3">
+          <a href="/continue-registration/auto" class="draft-banner-link">
+            <i class="fa-solid fa-triangle-exclamation me-1"></i>
+            Unfinished profile — click here
+          </a>
+        </div>
+      <% } %>
+
+      <!-- Hamburger -->
+      <button class="navbar-toggler order-2" type="button"
               data-bs-toggle="collapse" data-bs-target="#mainNav"
               aria-controls="mainNav" aria-expanded="false"
               aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
 
+      <!-- Collapsible content -->
       <div class="collapse navbar-collapse" id="mainNav">
 
+        <%
+          const showUpgrade         = navState.canUpgrade;
+          const showContinueReg     = navState.showContinueRegistration;
+          const showMyAccount       = navState.isLoggedIn;
+          const showAccountDropdown = showUpgrade || showContinueReg || showMyAccount;
+
+          const role      = navState.userRole || 'NON_REGISTERED';
+          const roleLevel = ['NON_REGISTERED','REGISTERED','KEYMAN','OVERSEER','ASSISTANT_ADMIN','ADMIN'].indexOf(role);
+          const isAtLeast = (r) => roleLevel >= ['NON_REGISTERED','REGISTERED','KEYMAN','OVERSEER','ASSISTANT_ADMIN','ADMIN'].indexOf(r);
+        %>
+
+        <!-- Nav items — left side, spread with auto margins -->
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
 
-          <!-- HOME — always visible -->
           <li class="nav-item">
             <a class="nav-link" href="/">
               <i class="fa-solid fa-house me-1"></i>
@@ -26,65 +51,53 @@
             </a>
           </li>
 
-            <%
-              const navState = nav || {};
-              const showUpgrade     = navState.canUpgrade;
-              const showContinueReg = navState.showContinueRegistration;
-              const showMyAccount   = navState.isLoggedIn;
-              const showAccountDropdown = showUpgrade || showContinueReg || showMyAccount;
+          <% if (navState.isLoggedIn && isAtLeast('REGISTERED')) { %>
 
-              const role = navState.userRole || 'NON_REGISTERED';
-              const roleLevel = ['NON_REGISTERED','REGISTERED','KEYMAN','OVERSEER','ASSISTANT_ADMIN','ADMIN'].indexOf(role);
-              const isAtLeast = (r) => roleLevel >= ['NON_REGISTERED','REGISTERED','KEYMAN','OVERSEER','ASSISTANT_ADMIN','ADMIN'].indexOf(r);
-            %>
-
-            <% if (navState.isLoggedIn && isAtLeast('REGISTERED')) { %>
-
-          <!-- RESOURCES DROPDOWN -->
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" id="resourcesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-              <i class="fa-solid fa-folder-open me-1"></i>
-              Resources
-            </a>
-            <ul class="dropdown-menu" aria-labelledby="resourcesDropdown">
-              <li>
-                <a class="dropdown-item" href="/maps">
-                  <i class="fa-solid fa-map me-1"></i>
-                  Maps
-                </a>
-              </li>
-              <li>
-                <a class="dropdown-item" href="/schedules">
-                  <i class="fa-regular fa-calendar-days me-1"></i>
-                  Schedules
-                </a>
-              </li>
-            </ul>
-          </li>
-
-          <!-- MY ACCOUNT DROPDOWN -->
-          <% if (showAccountDropdown) { %>
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" id="accountDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-              <i class="fa-solid fa-user me-1"></i>
-              My Account
-            </a>
-            <ul class="dropdown-menu" aria-labelledby="accountDropdown">
-              <% if (showUpgrade) { %>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" id="resourcesDropdown"
+                 role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fa-solid fa-folder-open me-1"></i>
+                Resources
+              </a>
+              <ul class="dropdown-menu" aria-labelledby="resourcesDropdown">
                 <li>
-                  <a class="dropdown-item" href="/upgrade">
-                    <i class="fa-solid fa-arrow-up-right-from-square me-1"></i>
-                    Upgrade Account
+                  <a class="dropdown-item" href="/maps">
+                    <i class="fa-solid fa-map me-1"></i>
+                    Maps
                   </a>
                 </li>
+                <li>
+                  <a class="dropdown-item" href="/schedules">
+                    <i class="fa-regular fa-calendar-days me-1"></i>
+                    Schedules
+                  </a>
+                </li>
+              </ul>
+            </li>
+
+            <% if (showAccountDropdown) { %>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" id="accountDropdown"
+                 role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fa-solid fa-user me-1"></i>
+                My Account
+              </a>
+              <ul class="dropdown-menu" aria-labelledby="accountDropdown">
+                <% if (showUpgrade) { %>
+                  <li>
+                    <a class="dropdown-item" href="/upgrade">
+                      <i class="fa-solid fa-arrow-up-right-from-square me-1"></i>
+                      Upgrade Account
+                    </a>
+                  </li>
                 <% } %>
                 <% if (showContinueReg) { %>
-                <li>
-                  <a class="dropdown-item" href="/continue-registration/auto">
-                    <i class="fa-solid fa-forward-step me-1"></i>
-                    Continue Registration
-                  </a>
-                </li>
+                  <li>
+                    <a class="dropdown-item" href="/continue-registration/auto">
+                      <i class="fa-solid fa-forward-step me-1"></i>
+                      Continue Registration
+                    </a>
+                  </li>
                 <% } %>
                 <% if (showMyAccount) { %>
                   <li>
@@ -95,89 +108,103 @@
                   </li>
                 <% } %>
               </ul>
-          </li>
-          <% } %>
-
-          <!-- Oversight Options Dropdown -->
-           <if (isAtLeast('KEYMAN')) { %>
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" id="oversightDropdown"
-              role="button" data-bs-toggle="dropdown" aria-expanded="false">
-              <i class="fa-solid fa-user me-1"></i>
-              Oversight
-            </a>
-
-            <ul class="dropdown-menu" aria-labelledby="oversightDropdown">
-              <% if (isAtLeast('ASSISTANT_ADMIN')) { %>
-                <li>
-                  <a class="dropdown-item" href="/admin/tools">
-                    <i class="fa-solid fa-screwdriver-wrench me-1"></i>
-                    Admin Tools
-                  </a>
-                </li>
-                <li><hr class="dropdown-divider"></li>
-              <% } %>
-              <li>
-                <a class="dropdown-item" href="/editVolunteer">
-                  <i class="fa-solid fa-arrow-up-right-from-square me-1"></i>
-                  Edit Volunteer
-                </a>
-              </li>
-              <% if (isAtLeast('ASSISTANT_ADMIN')) { %>
-                <li><hr class="dropdown-divider"></li>
-                <li>
-                  <a class="dropdown-item" href="/admin/roles">
-                    <i class="fa-solid fa-user-shield me-1"></i>
-                    Role Management
-                  </a>
-                </li>
-              <% } %>
-            </ul>
-          </li>
-          <% } %>
-          <div class="d-flex align-items-center nav-cta-container">
-
-            <% if (!navState.isLoggedIn) { %>
-              <a class="nav-link" href="/login">
-                <i class="fa-solid fa-right-to-bracket"></i>
-                Login
-              </a>
-              <a class="nav-link" href="/email-pass">
-                Create Profile
-              </a>
-              <a class="nav-link" href="/nonProfile">
-                Guest Access
-              </a>
+            </li>
             <% } %>
 
-            <% if (navState.isLoggedIn) { %>
-              <form action="/logout" method="POST" class="d-inline">
-                <button type="submit" class="nav-link btn btn-link p-0">
-                  <i class="fa-solid fa-right-from-bracket"></i>
-                  Logout
-                </button>
-              </form>
-            <% } %>
-
-            <div class="nav-avatar ms-2"
-                title="<%= navState.isLoggedIn ? 'Registered User' : 'Guest User' %>">
-              <svg viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <polygon points="18,6 25,22 11,22" fill="#fb8500"/>
-                <polygon points="15.5,10 20.5,10 22.5,16 13.5,16" fill="white" opacity="0.9"/>
-                <polygon points="13,18 23,18 25,22 11,22" fill="white" opacity="0.9"/>
-                <rect x="10" y="22" width="16" height="3" rx="1" fill="#fb8500"/>
-                <% if (navState.isLoggedIn && navState.userInitials) { %>
-                  <text x="18" y="32"
-                        text-anchor="middle"
-                        dominant-baseline="central"
-                        class="nav-avatar-initials">
-                    <%= navState.userInitials %>
-                  </text>
+            <% if (isAtLeast('KEYMAN')) { %>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" id="oversightDropdown"
+                 role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fa-solid fa-user me-1"></i>
+                Oversight
+              </a>
+              <ul class="dropdown-menu" aria-labelledby="oversightDropdown">
+                <% if (isAtLeast('ASSISTANT_ADMIN')) { %>
+                  <li>
+                    <a class="dropdown-item" href="/admin/tools">
+                      <i class="fa-solid fa-screwdriver-wrench me-1"></i>
+                      Admin Tools
+                    </a>
+                  </li>
+                  <li><hr class="dropdown-divider"></li>
                 <% } %>
-              </svg>
-            </div>
+                <li>
+                  <a class="dropdown-item" href="/editVolunteer">
+                    <i class="fa-solid fa-arrow-up-right-from-square me-1"></i>
+                    Edit Volunteer
+                  </a>
+                </li>
+                <% if (isAtLeast('ASSISTANT_ADMIN')) { %>
+                  <li><hr class="dropdown-divider"></li>
+                  <li>
+                    <a class="dropdown-item" href="/admin/roles">
+                      <i class="fa-solid fa-user-shield me-1"></i>
+                      Role Management
+                    </a>
+                  </li>
+                <% } %>
+              </ul>
+            </li>
+            <% } %>
 
+          <% } %>
+
+        </ul>
+
+        <!-- Desktop banner — between nav items and right controls -->
+        <% if (navState.showDraftBanner) { %>
+          <div class="draft-banner-nav d-none d-lg-flex me-3">
+            <a href="/continue-registration/auto" class="draft-banner-link">
+              <i class="fa-solid fa-triangle-exclamation me-1"></i>
+              Unfinished profile — click here
+            </a>
           </div>
+        <% } %>
+
+        <!-- Right side: login/logout + avatar — pushed to far right with ms-auto -->
+        <div class="d-flex align-items-center nav-cta-container ms-auto">
+
+          <% if (!navState.isLoggedIn) { %>
+            <a class="nav-link" href="/login">
+              <i class="fa-solid fa-right-to-bracket"></i>
+              Login
+            </a>
+            <a class="nav-link" href="/email-pass">
+              Create Profile
+            </a>
+            <a class="nav-link" href="/nonProfile">
+              Guest Access
+            </a>
+          <% } %>
+
+          <% if (navState.isLoggedIn) { %>
+            <form action="/logout" method="POST" class="d-inline">
+              <button type="submit" class="nav-link btn btn-link p-0">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                Logout
+              </button>
+            </form>
+          <% } %>
+
+          <div class="nav-avatar ms-2"
+               title="<%= navState.isLoggedIn ? 'Registered User' : 'Guest User' %>">
+            <svg viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <polygon points="18,6 25,22 11,22" fill="#fb8500"/>
+              <polygon points="15.5,10 20.5,10 22.5,16 13.5,16" fill="white" opacity="0.9"/>
+              <polygon points="13,18 23,18 25,22 11,22" fill="white" opacity="0.9"/>
+              <rect x="10" y="22" width="16" height="3" rx="1" fill="#fb8500"/>
+              <% if (navState.isLoggedIn && navState.userInitials) { %>
+                <text x="18" y="32"
+                      text-anchor="middle"
+                      dominant-baseline="central"
+                      class="nav-avatar-initials">
+                  <%= navState.userInitials %>
+                </text>
+              <% } %>
+            </svg>
+          </div>
+
+        </div>
       </div>
     </div>
   </nav>

@@ -342,6 +342,8 @@ app.use((req, res, next) => {
     
   const userInitials = s.userInitials || null;
   const userRole = s.userRole || 'REGISTERED';
+  const registrationStatus = s.registrationStatus || null;
+  const showDraftBanner = isLoggedIn && registrationStatus === "draft";;
 
  res.locals.userRole = userRole;
 
@@ -353,6 +355,7 @@ app.use((req, res, next) => {
     canUpgrade: !isLoggedIn,
     userInitials,
     userRole,
+    showDraftBanner,
   };
 
   next();
@@ -390,9 +393,10 @@ app.use(
       nameExists: db.nameExists,
       phoneExists: db.phoneExists,
       markDraftCompleted: db.markDraftCompleted,
+      getVolunteerById: db.getVolunteerById, 
     },
     INCOMPATIBILITIES,
-    logError
+    logError,
   }),
 );
 
