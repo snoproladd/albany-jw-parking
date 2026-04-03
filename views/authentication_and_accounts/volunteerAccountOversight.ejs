@@ -129,7 +129,80 @@
                 <!-- ACCORDION -->
                 <!-- ============================= -->
                 <div class="accordion" id="accountAccordion">
+                  <!-- ASSIGNMENT (role + crew) — OVERSEER+ only -->
+                  <div class="accordion-item" id="assignmentAccordionItem">
+                    <h2 class="accordion-header">
+                      <button class="accordion-button" type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#collapseAssignment">
+                        <i class="fa-solid fa-people-group me-2"></i>Assignment &amp; Role
+                      </button>
+                    </h2>
 
+                    <div id="collapseAssignment" class="accordion-collapse collapse" data-bs-parent="#accountAccordion">
+                      <div class="accordion-body" data-section="assignment">
+
+                        <div class="row g-3">
+
+                          <!-- Role -->
+                          <div class="col-12 col-md-4">
+                            <label for="assignmentRole" class="form-label small fw-medium">Role</label>
+                            <select id="assignmentRole" name="newRole" class="form-select" disabled>
+                              <option value="REGISTERED" <%= targetUser.role === 'REGISTERED' ? 'selected' : '' %>>REGISTERED</option>
+                              <option value="KEYMAN"     <%= targetUser.role === 'KEYMAN'     ? 'selected' : '' %>>KEYMAN</option>
+                            </select>
+                            <div class="form-text">Overseer can assign REGISTERED or KEYMAN only.</div>
+                          </div>
+
+                          <!-- Crew assignments -->
+                          <div class="col-12 col-md-8">
+                            <label class="form-label small fw-medium d-block mb-2">Crew Assignments</label>
+                            <div class="row row-cols-1 row-cols-sm-2 g-2">
+
+                              <% const crewDefs = [
+                                { key: 'crew_lots_garages',   label: 'Lots and Garages' },
+                                { key: 'crew_signs',          label: 'Signs' },
+                                { key: 'crew_security',       label: 'Security' },
+                                { key: 'crew_mobile_support', label: 'Mobile Support' },
+                                { key: 'crew_dropoff_pickup', label: 'Dropoff and Pickup' },
+                              ]; %>
+
+                              <% crewDefs.forEach(crew => { %>
+                                <div class="col">
+                                  <div class="form-check">
+                                    <input
+                                      class="form-check-input crew-checkbox"
+                                      type="checkbox"
+                                      id="<%= crew.key %>"
+                                      name="<%= crew.key %>"
+                                      value="true"
+                                      <%= targetUser[crew.key] ? 'checked' : '' %>
+                                      disabled
+                                    />
+                                    <label class="form-check-label" for="<%= crew.key %>">
+                                      <%= crew.label %>
+                                    </label>
+                                  </div>
+                                </div>
+                              <% }) %>
+
+                            </div>
+                          </div>
+
+                        </div>
+
+                        <div class="d-flex justify-content-end mt-3">
+                          <button
+                            type="button"
+                            class="btn btn-outline-secondary btn-sm summary-edit-btn"
+                            data-section="assignment">
+                            EDIT
+                          </button>
+                        </div>
+
+                      </div>
+                    </div>
+                  </div>
                   <!-- CONTACT -->
                   <div class="accordion-item">
                     <h2 class="accordion-header">
@@ -140,7 +213,7 @@
                       </button>
                     </h2>
 
-                    <div id="collapseContact" class="accordion-collapse collapse show">
+                    <div id="collapseContact" class="accordion-collapse collapse show" data-bs-parent="#accountAccordion">
                       <div class="accordion-body">
 
                         <div class="d-flex justify-content-end mb-2">
@@ -211,7 +284,7 @@
                       </button>
                     </h2>
 
-                    <div id="collapsePersonal" class="accordion-collapse collapse">
+                    <div id="collapsePersonal" class="accordion-collapse collapse" data-bs-parent="#accountAccordion">
                       <div class="accordion-body">
 
                         <div class="d-flex justify-content-end mb-2">
@@ -273,7 +346,7 @@
                       </button>
                     </h2>
 
-                    <div id="collapseCong" class="accordion-collapse collapse">
+                    <div id="collapseCong" class="accordion-collapse collapse" data-bs-parent="#accountAccordion">
                       <div class="accordion-body">
 
                         <div class="d-flex justify-content-end mb-2">
@@ -393,7 +466,7 @@
                       </button>
                     </h2>
 
-                    <div id="collapseSpiritual" class="accordion-collapse collapse">
+                    <div id="collapseSpiritual" class="accordion-collapse collapse" data-bs-parent="#accountAccordion">
                       <div class="accordion-body">
 
                         <div class="d-flex justify-content-end mb-2">
@@ -477,7 +550,7 @@
                       </button>
                     </h2>
 
-                    <div id="collapseNotes" class="accordion-collapse collapse">
+                    <div id="collapseNotes" class="accordion-collapse collapse" data-bs-parent="#accountAccordion">
                       <div class="accordion-body">
 
                         <div class="d-flex justify-content-end mb-2">

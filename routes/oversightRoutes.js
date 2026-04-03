@@ -18,6 +18,7 @@ import {
   getActiveVolunteers,
   getAllVolunteersWithRoles,
   updateVolunteerRole,
+  updateVolunteerAssignment,
   getIncompleteDraftVolunteers,
   getRegisteredVolunteers,
   setPendingReset,
@@ -37,7 +38,6 @@ import { requirePermission, canAssignRole, ROLE_HIERARCHY, PERMISSIONS } from ".
 
 import { sendResetEmail, sendResetSms, getBaseUrl } from '../lib/messaging.js';   
 
-import { PROCEDURES, findProcedure } from "../src/config/procedures.js";
 
 
 
@@ -496,6 +496,95 @@ export function oversightRouter({
     },
   );
 
+  // ===========================
+  // VOLUNTEER ASSIGNMENT (role + crew)
+  // ===========================
+
+  /**
+   * POST /edit-volunteer/assignment
+   * Update role (REGISTERED or KEYMAN only) and crew assignments for a volunteer.
+   * Requires OVERSEER+ via createAssignments permission.
+   */
+  router.post(
+    "/edit-volunteer/assignment",
+    requireAuth,
+    requirePermission("createAssignments"),
+    csrfProtection,
+    async (req, res) => {
+      const {
+        targetUserId,
+        newRole,
+        crew_lots_garages,
+        crew_signs,
+        crew_security,
+        crew_mobile_support,
+        crew_dropoff_pickup,
+      } = req.body || {};
+
+      const id = Number(targetUserId);
+
+      if (!id) {
+        return res
+          .status(400)
+          .json({ success: false, message: "No volunteer selected." });
+      }
+
+      // Overseer can only assign REGISTERED or KEYMAN
+      const allowedRoles = ["REGISTERED", "KEYMAN"];
+      if (!allowedRoles.includes(newRole)) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid role for this action." });
+      }
+
+      // Prevent self-assignment
+      if (id === req.session.userId) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message: "You cannot change your own assignment.",
+          });
+      }
+
+      try {
+        const ok = await updateVolunteerAssignment(
+          id,
+          newRole,
+          {
+            crew_lots_garages:
+              crew_lots_garages === "true" || crew_lots_garages === true,
+            crew_signs: crew_signs === "true" || crew_signs === true,
+            crew_security: crew_security === "true" || crew_security === true,
+            crew_mobile_support:
+              crew_mobile_support === "true" || crew_mobile_support === true,
+            crew_dropoff_pickup:
+              crew_dropoff_pickup === "true" || crew_dropoff_pickup === true,
+          },
+          req.session.userEmail || "admin",
+        );
+
+        if (!ok) {
+          return res
+            .status(400)
+            .json({
+              success: false,
+              message: "Volunteer not found or not eligible.",
+            });
+        }
+
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)(
+          "edit-volunteer/assignment POST error:",
+          err,
+        );
+        return res
+          .status(500)
+          .json({ success: false, message: "Server error." });
+      }
+    },
+  );
   // ===========================
   // ADMIN ROLES CONSOLE
   // ===========================
@@ -1223,5 +1312,6 @@ export function oversightRouter({
       return res.send(csv);
     },
   );
+
   return router;
 };

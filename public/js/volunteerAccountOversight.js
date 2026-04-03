@@ -359,6 +359,22 @@ document.addEventListener("DOMContentLoaded", () => {
         window.editVolunteerCache.notes =
           sec.querySelector('textarea[name="notes"]')?.value || "";
         break;
+
+      case "assignment":
+        window.editVolunteerCache.assignment = {
+          newRole: sec.querySelector('[name="newRole"]')?.value || "REGISTERED",
+          crew_lots_garages:
+            sec.querySelector('[name="crew_lots_garages"]')?.checked || false,
+          crew_signs:
+            sec.querySelector('[name="crew_signs"]')?.checked || false,
+          crew_security:
+            sec.querySelector('[name="crew_security"]')?.checked || false,
+          crew_mobile_support:
+            sec.querySelector('[name="crew_mobile_support"]')?.checked || false,
+          crew_dropoff_pickup:
+            sec.querySelector('[name="crew_dropoff_pickup"]')?.checked || false,
+        };
+        break;
     }
   }
   root.addEventListener("change", (ev) => {
@@ -461,24 +477,61 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       try {
-        const res = await fetch("/edit-volunteer/finalize", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-Token": csrf,
-          },
-          body: JSON.stringify({
-            targetUserId,
-            ...window.editVolunteerCache,
+        // Split assignment out — it has its own endpoint
+        const { assignment, ...coreCache } = window.editVolunteerCache;
+
+        // Fire both requests in parallel if assignment data is present
+        const fetchPromises = [
+          fetch("/edit-volunteer/finalize", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRF-Token": csrf,
+            },
+            body: JSON.stringify({
+              targetUserId,
+              ...coreCache,
+            }),
           }),
-        });
+        ];
+
+        if (assignment) {
+          fetchPromises.push(
+            fetch("/edit-volunteer/assignment", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-CSRF-Token": csrf,
+              },
+              body: JSON.stringify({
+                targetUserId,
+                ...assignment,
+              }),
+            }),
+          );
+        }
+
+        const [res, assignRes] = await Promise.all(fetchPromises);
 
         const data = await res.json().catch(() => ({}));
+        const assignData = assignRes
+          ? await assignRes.json().catch(() => ({}))
+          : { success: true };
 
         if (!res.ok || !data.success) {
           finalizeStatus.innerHTML = `
                         <div class="alert alert-danger">
                             ${data.message || "Failed to finalize changes."}
+                        </div>`;
+          finalizeBtn.disabled = false;
+          finalizeBtn.textContent = "Finalize Changes";
+          return;
+        }
+
+        if (!assignRes?.ok || !assignData.success) {
+          finalizeStatus.innerHTML = `
+                        <div class="alert alert-danger">
+                            ${assignData.message || "Failed to save assignment changes."}
                         </div>`;
           finalizeBtn.disabled = false;
           finalizeBtn.textContent = "Finalize Changes";
