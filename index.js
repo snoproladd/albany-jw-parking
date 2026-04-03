@@ -315,52 +315,72 @@ const server = http.createServer(app);
       log("Redis session store initialized.");
     }
 
-    
-app.use(session(sessionOptions));
+    app.use(session(sessionOptions));
+    // Store the intended destination for post-login redirect.
+    // Only captures GET requests to non-auth, non-static paths.
+    app.use((req, res, next) => {
+      const isGet = req.method === "GET";
+      const isLoginPage = req.path === "/login";
+      const isLogoutPage = req.path === "/logout";
+      const isStatic =
+        req.path.startsWith("/vendor") ||
+        req.path.startsWith("/styles") ||
+        req.path.startsWith("/js") ||
+        req.path.startsWith("/images") ||
+        req.path.startsWith("/api") ||
+        req.path === "/health" ||
+        req.path === "/favicon.ico";
+      const isAuthed = !!req.session?.userId;
 
-// Derive navigation state from the session for use in views
-app.use((req, res, next) => {
-  // e.g., "/", "/volunteerIn", "/my-account"
-  res.locals.currentPath = req.path;
+      if (isGet && !isLoginPage && !isLogoutPage && !isStatic && !isAuthed) {
+        req.session.returnTo = req.originalUrl;
+      }
 
-  const s = req.session || {};
+      next();
+    });
 
-  // Logged-in
-  const isLoggedIn = !!s.userId;
+    // Derive navigation state from the session for use in views
+    app.use((req, res, next) => {
+      // e.g., "/", "/volunteerIn", "/my-account"
+      res.locals.currentPath = req.path;
 
-  // Detect draft or partial registration
-  const hasDraftRegistration =
-    !!s.registrationId || !!s.pendingEmail || s.last_step !== undefined;
+      const s = req.session || {};
 
-  // Detect completed registration if stored
-  const registrationCompleted = s.registration_status === "completed";
+      // Logged-in
+      const isLoggedIn = !!s.userId;
 
-  // Continue Registration is only shown if NOT completed
-  const showContinueRegistration =
-    hasDraftRegistration && !registrationCompleted;
+      // Detect draft or partial registration
+      const hasDraftRegistration =
+        !!s.registrationId || !!s.pendingEmail || s.last_step !== undefined;
 
-    
-  const userInitials = s.userInitials || null;
-  const userRole = s.userRole || 'REGISTERED';
-  const registrationStatus = s.registrationStatus || null;
-  const showDraftBanner = isLoggedIn && registrationStatus === "draft";;
+      // Detect completed registration if stored
+      const registrationCompleted = s.registration_status === "completed";
 
- res.locals.userRole = userRole;
+      // Continue Registration is only shown if NOT completed
+      const showContinueRegistration =
+        hasDraftRegistration && !registrationCompleted;
 
-  res.locals.nav = {
-    isLoggedIn,
-    hasDraftRegistration,
-    registrationCompleted,
-    showContinueRegistration,
-    canUpgrade: !isLoggedIn,
-    userInitials,
-    userRole,
-    showDraftBanner,
-  };
+      const userInitials = s.userInitials || null;
+      const userRole = s.userRole || "REGISTERED";
+      const registrationStatus = s.registrationStatus || null;
+      const showDraftBanner = isLoggedIn && registrationStatus === "draft";
 
-  next();
-});
+      res.locals.userRole = userRole;
+      res.locals.userPermissions= s.permissions || {};
 
+      res.locals.nav = {
+        isLoggedIn,
+        hasDraftRegistration,
+        registrationCompleted,
+        showContinueRegistration,
+        canUpgrade: !isLoggedIn,
+        userInitials,
+        userRole,
+        showDraftBanner,
+      };
+
+      next();
+    });
 
     const csrfProtection = csurf({ cookie: true });
 
@@ -372,33 +392,33 @@ app.use((req, res, next) => {
     app.use("/api", apiRoutes);
 
     // Registration router (FULL FLOW)
-app.use(
-  "/",
-  createRegistrationRouter({
-    csrfProtection,
-    loadVolunteerCache: db.loadVolunteerCache,
-    startDbUpdate,
-    stopDbUpdate,
-    getCongregations: db.getCongregations,
-    db: {
-      insertDraftEmailPass: db.insertDraftEmailPass,
-      insertDraftNameEmail: db.insertDraftNameEmail,
-      updateDraftNameEmail: db.updateDraftNameEmail,
-      updateDraftNamePhone: db.updateDraftNamePhone,
-      updateDraftPersonalInfo: db.updateDraftPersonalInfo,
-      updateDraftCongregationInfo: db.updateDraftCongregationInfo,
-      updateDraftSpiritualInfo: db.updateDraftSpiritualInfo,
-      updateDraftNotes: db.updateDraftNotes,
-      emailExists: db.emailExists,
-      nameExists: db.nameExists,
-      phoneExists: db.phoneExists,
-      markDraftCompleted: db.markDraftCompleted,
-      getVolunteerById: db.getVolunteerById, 
-    },
-    INCOMPATIBILITIES,
-    logError,
-  }),
-);
+    app.use(
+      "/",
+      createRegistrationRouter({
+        csrfProtection,
+        loadVolunteerCache: db.loadVolunteerCache,
+        startDbUpdate,
+        stopDbUpdate,
+        getCongregations: db.getCongregations,
+        db: {
+          insertDraftEmailPass: db.insertDraftEmailPass,
+          insertDraftNameEmail: db.insertDraftNameEmail,
+          updateDraftNameEmail: db.updateDraftNameEmail,
+          updateDraftNamePhone: db.updateDraftNamePhone,
+          updateDraftPersonalInfo: db.updateDraftPersonalInfo,
+          updateDraftCongregationInfo: db.updateDraftCongregationInfo,
+          updateDraftSpiritualInfo: db.updateDraftSpiritualInfo,
+          updateDraftNotes: db.updateDraftNotes,
+          emailExists: db.emailExists,
+          nameExists: db.nameExists,
+          phoneExists: db.phoneExists,
+          markDraftCompleted: db.markDraftCompleted,
+          getVolunteerById: db.getVolunteerById,
+        },
+        INCOMPATIBILITIES,
+        logError,
+      }),
+    );
 
     // Login + My Account router
     app.use("/", loginRouter({ csrfProtection, logError }));
@@ -409,7 +429,7 @@ app.use(
       upgradeRoutes({
         express,
         csrfProtection,
-        db,        
+        db,
         updateUserPassword: db.updateUserPassword,
         twilioAccountSid: config.TWILIO_ACCOUNT_SID,
         twilioAuthToken: config.TWILIO_AUTH_TOKEN,
@@ -423,20 +443,22 @@ app.use(
       }),
     );
 
-    app.use("/", oversightRouter({
-      csrfProtection,
-      logError,
-      twilioAccountSid: config.TWILIO_ACCOUNT_SID,
-      twilioAuthToken: config.TWILIO_AUTH_TOKEN,  
-      twilioMsgSid: config.TWILIO_MSG_SID,
-      smtpConfig: {
-        host: config.IONOS_SMTP_HOST,
-        port: config.IONOS_SMTP_PORT,
-        user: config.IONOS_SMTP_USER_INFO,
-        pass: config.IONOS_SMTP_PASS,
-      },
-    }));
-    
+    app.use(
+      "/",
+      oversightRouter({
+        csrfProtection,
+        logError,
+        twilioAccountSid: config.TWILIO_ACCOUNT_SID,
+        twilioAuthToken: config.TWILIO_AUTH_TOKEN,
+        twilioMsgSid: config.TWILIO_MSG_SID,
+        smtpConfig: {
+          host: config.IONOS_SMTP_HOST,
+          port: config.IONOS_SMTP_PORT,
+          user: config.IONOS_SMTP_USER_INFO,
+          pass: config.IONOS_SMTP_PASS,
+        },
+      }),
+    );
 
     // ========================================================
     // Validation Endpoints (Kickbox / Twilio)
@@ -502,15 +524,15 @@ app.use(
       }
     });
 
-// ========================================================
+    // ========================================================
     // Health & 404
     // ========================================================
 
     app.get("/health", (req, res) => res.send("OK"));
 
     app.use((req, res) => {
-        res.status(404);
-        res.render("404", { url: req.originalUrl });
+      res.status(404);
+      res.render("404", { url: req.originalUrl });
     });
 
     // ========================================================
@@ -531,50 +553,56 @@ app.use(
      */
     // eslint-disable-next-line no-unused-vars
     app.use((err, req, res, next) => {
-        if (err.code === "EBADCSRFTOKEN") {
-            logError("CSRF token invalid or expired:", req.method, req.path);
+      if (err.code === "EBADCSRFTOKEN") {
+        logError("CSRF token invalid or expired:", req.method, req.path);
 
-            // Re-render whichever page the user was on with a clear message.
-            // We attempt to match the originating path to avoid dumping them
-            // on a random error page. Falls back to a plain 403 if the view
-            // can't be inferred.
-            const path = req.path;
+        // Re-render whichever page the user was on with a clear message.
+        // We attempt to match the originating path to avoid dumping them
+        // on a random error page. Falls back to a plain 403 if the view
+        // can't be inferred.
+        const path = req.path;
 
-            if (path.startsWith("/submit-emailPass") || path === "/email-pass") {
-                return res.status(403).render("emailPass", {
-                    csrfToken: req.csrfToken(),
-                    email: "",
-                    isUpgrade: !!(req.session?.emailPassSetup),
-                    error: "Your session expired. Please try again.",
-                });
-            }
-
-            if (path.startsWith("/submit-nonProfileInfo") || path === "/nonProfile") {
-                return res.status(403).render("nonProfile", {
-                    csrfToken: req.csrfToken(),
-                    error: "Your session expired. Please try again.",
-                });
-            }
-
-            if (path.startsWith("/submit-volunteerInfo") || path === "/volunteerIn") {
-                return res.status(403).render("volunteerIn", {
-                    csrfToken: req.csrfToken(),
-                    disableNameFields: !!(req.session?.disableNameFields),
-                    hasActiveRegistration: !!(req.session?.registrationId),
-                    error: "Your session expired. Please try again.",
-                });
-            }
-
-            // Fallback for any other CSRF-protected route
-            return res.status(403).render("404", {
-                url: req.originalUrl,
-                error: "Your session expired. Please go back and try again.",
-            });
+        if (path.startsWith("/submit-emailPass") || path === "/email-pass") {
+          return res.status(403).render("emailPass", {
+            csrfToken: req.csrfToken(),
+            email: "",
+            isUpgrade: !!req.session?.emailPassSetup,
+            error: "Your session expired. Please try again.",
+          });
         }
 
-        // All other errors
-        logError("Unhandled error:", err);
-        res.status(500).send("An unexpected error occurred. Please try again.");
+        if (
+          path.startsWith("/submit-nonProfileInfo") ||
+          path === "/nonProfile"
+        ) {
+          return res.status(403).render("nonProfile", {
+            csrfToken: req.csrfToken(),
+            error: "Your session expired. Please try again.",
+          });
+        }
+
+        if (
+          path.startsWith("/submit-volunteerInfo") ||
+          path === "/volunteerIn"
+        ) {
+          return res.status(403).render("volunteerIn", {
+            csrfToken: req.csrfToken(),
+            disableNameFields: !!req.session?.disableNameFields,
+            hasActiveRegistration: !!req.session?.registrationId,
+            error: "Your session expired. Please try again.",
+          });
+        }
+
+        // Fallback for any other CSRF-protected route
+        return res.status(403).render("404", {
+          url: req.originalUrl,
+          error: "Your session expired. Please go back and try again.",
+        });
+      }
+
+      // All other errors
+      logError("Unhandled error:", err);
+      res.status(500).send("An unexpected error occurred. Please try again.");
     });
 
     // ========================================================
@@ -582,7 +610,7 @@ app.use(
     // ========================================================
 
     server.listen(PORT, HOST, () =>
-        log(`Server running at http://${HOST}:${PORT}`),
+      log(`Server running at http://${HOST}:${PORT}`),
     );
 
     await initTwilio();

@@ -19,15 +19,25 @@ import {
   getAllVolunteersWithRoles,
   updateVolunteerRole,
   getIncompleteDraftVolunteers,
+  getRegisteredVolunteers,
   setPendingReset,
+  createVolunteerAccount,
+  findPotentialDuplicates,
+  getRolePermissions,
+  upsertRolePermission,
+  deleteRolePermission,
+  getDecentlyExportRows,
+  markDecentlyExported
 } from "../lib/dbSync.js";
 import { verifyPassword, hashPassword } from "../lib/passwordVer.js";
 
 import { INCOMPATIBILITIES } from "../src/config/privilegeRules.js";
 
-import { requirePermission, canAssignRole, ROLE_HIERARCHY } from "../src/config/roles.js";
+import { requirePermission, canAssignRole, ROLE_HIERARCHY, PERMISSIONS } from "../src/config/roles.js";
 
-import { sendResetEmail, sendResetSms, getBaseUrl } from '../lib/messaging.js';    // ← add
+import { sendResetEmail, sendResetSms, getBaseUrl } from '../lib/messaging.js';   
+
+import { PROCEDURES, findProcedure } from "../src/config/procedures.js";
 
 
 
@@ -45,13 +55,14 @@ import { sendResetEmail, sendResetSms, getBaseUrl } from '../lib/messaging.js'; 
  * }} deps - Dependencies injected from index.js.
  * @returns {import("express").Router} Configured Express router.
  */
-export function oversightRouter({ 
-  csrfProtection, 
+export function oversightRouter({
+  csrfProtection,
   logError,
   twilioAccountSid,
   twilioAuthToken,
   twilioMsgSid,
-  smtpConfig,}) {
+  smtpConfig,
+}) {
   const router = express.Router();
 
   /**
@@ -490,12 +501,12 @@ export function oversightRouter({
   // ===========================
 
   /**
-   * GET /admin/roles
+   * GET /oversight/roles
    * Show all volunteers and their current roles.
    * Accessible to ASSISTANT_ADMIN and ADMIN only.
    */
   router.get(
-    "/admin/roles",
+    "/oversight/roles",
     requireAuth,
     requirePermission("accessAdminConsole"),
     csrfProtection,
@@ -520,12 +531,12 @@ export function oversightRouter({
   );
 
   /**
-   * POST /admin/roles
+   * POST /oversight/roles
    * Update a single volunteer's role.
    * Server-side canAssignRole check — actor cannot assign equal or higher roles.
    */
   router.post(
-    "/admin/roles",
+    "/oversight/roles",
     requireAuth,
     requirePermission("accessAdminConsole"),
     csrfProtection,
@@ -537,20 +548,20 @@ export function oversightRouter({
 
       // Validate inputs
       if (!targetId || !newRole || !ROLE_HIERARCHY.includes(newRole)) {
-        return res.redirect("/admin/roles?error=Invalid+request");
+        return res.redirect("/oversight/roles?error=Invalid+request");
       }
 
       // Enforce hierarchy — actor cannot assign their own level or above
       if (!canAssignRole(actorRole, newRole)) {
         return res.redirect(
-          "/admin/roles?error=You+do+not+have+permission+to+assign+that+role",
+          "/oversight/roles?error=You+do+not+have+permission+to+assign+that+role",
         );
       }
 
       // Prevent self-role change
       if (targetId === req.session.userId) {
         return res.redirect(
-          "/admin/roles?error=You+cannot+change+your+own+role",
+          "/oversight/roles?error=You+cannot+change+your+own+role",
         );
       }
 
@@ -558,34 +569,35 @@ export function oversightRouter({
         const ok = await updateVolunteerRole(targetId, newRole, editedBy);
         if (!ok) {
           return res.redirect(
-            "/admin/roles?error=Volunteer+not+found+or+already+archived",
+            "/oversight/roles?error=Volunteer+not+found+or+already+archived",
           );
         }
-        return res.redirect("/admin/roles?success=1");
+        return res.redirect("/oversight/roles?success=1");
       } catch (err) {
         (logError || console.error)("admin/roles POST error:", err);
-        return res.redirect("/admin/roles?error=Server+error");
+        return res.redirect("/oversight/roles?error=Server+error");
       }
     },
   );
 
   // ===========================
-  // ADMIN TOOLS DASHBOARD
+  // Oversight Tools DASHBOARD
   // ===========================
 
   /**
-   * GET /admin/tools
-   * Central dashboard for admin tools.
+   * GET /oversight/tools
+   * Central dashboard for Oversight Tools.
    * Accessible to ASSISTANT_ADMIN and ADMIN only.
    */
   router.get(
-    "/admin/tools",
+    "/oversight/tools",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("editVolunteerInfo"),
     csrfProtection,
     (req, res) => {
-      res.render("authentication_and_accounts/adminTools", {
+      res.render("authentication_and_accounts/oversightTools", {
         csrfToken: req.csrfToken(),
+        userRole: req.session.userRole || "NON_REGISTERED",
       });
     },
   );
@@ -595,21 +607,26 @@ export function oversightRouter({
   // ===========================
 
   /**
-   * GET /admin/tools/send-reset
+   * GET /oversight/tools/send-reset
    * List all volunteers with incomplete draft registrations.
    */
   router.get(
-    "/admin/tools/send-reset",
+    "/oversight/tools/send-reset",
     requireAuth,
     requirePermission("accessAdminConsole"),
     csrfProtection,
     async (req, res) => {
       try {
-        const drafts = await getIncompleteDraftVolunteers();
+        const [drafts, registered] = await Promise.all([
+          getIncompleteDraftVolunteers(),
+          getRegisteredVolunteers(),
+        ]);
 
         return res.render("authentication_and_accounts/adminSendReset", {
           csrfToken: req.csrfToken(),
           drafts,
+          registered,
+          activeTab: req.query.tab === "registered" ? "registered" : "draft",
           success: req.query.success
             ? decodeURIComponent(req.query.success)
             : null,
@@ -623,105 +640,587 @@ export function oversightRouter({
   );
 
   /**
-   * POST /admin/tools/send-reset
+   * POST /oversight/tools/send-reset
    * Generate a reset hash and send it via email or SMS to a single volunteer.
    */
   router.post(
-    "/admin/tools/send-reset",
+    "/oversight/tools/send-reset",
     requireAuth,
     requirePermission("accessAdminConsole"),
     csrfProtection,
     async (req, res) => {
-      const { targetId, method } = req.body || {};
+      const { targetId, method, linkType } = req.body || {};
       const id = Number(targetId);
+      const channel = method === "phone" ? "sms" : "email";
+      const isResume = linkType === "resume";
 
-      if (!id || !method || !["email", "phone"].includes(method)) {
+      // Redirect back to the correct tab on error
+      const tabParam = isResume ? "draft" : "registered";
+
+      /**
+       * Redirect back with an error, preserving the active tab.
+       * @param {string} msg
+       */
+      function redirectError(msg) {
         return res.redirect(
-          "/admin/tools/send-reset?error=" +
-            encodeURIComponent("Invalid request."),
+          `/oversight/tools/send-reset?tab=${tabParam}&error=${encodeURIComponent(msg)}`,
         );
+      }
+
+      if (
+        !id ||
+        !method ||
+        !["email", "phone"].includes(method) ||
+        !linkType ||
+        !["resume", "reset"].includes(linkType)
+      ) {
+        return redirectError("Invalid request.");
       }
 
       try {
         const volunteer = await getVolunteerById(id);
 
         if (!volunteer || volunteer.registration_status === "archived") {
-          return res.redirect(
-            "/admin/tools/send-reset?error=" +
-              encodeURIComponent("Volunteer not found."),
-          );
+          return redirectError("Volunteer not found.");
         }
 
         if (method === "email" && !volunteer.email) {
-          return res.redirect(
-            "/admin/tools/send-reset?error=" +
-              encodeURIComponent(
-                `No email on file for ${volunteer.firstName} ${volunteer.lastName}.`,
-              ),
+          return redirectError(
+            `No email on file for ${volunteer.firstName} ${volunteer.lastName}.`,
           );
         }
-
         if (method === "phone" && !volunteer.phone) {
-          return res.redirect(
-            "/admin/tools/send-reset?error=" +
-              encodeURIComponent(
-                `No phone on file for ${volunteer.firstName} ${volunteer.lastName}.`,
-              ),
+          return redirectError(
+            `No phone on file for ${volunteer.firstName} ${volunteer.lastName}.`,
           );
         }
 
-        // Generate and store reset hash
+        // ── Per-channel 24hr cooldown ────────────────────────────────
+        const cooldownCol = isResume
+          ? channel === "sms"
+            ? "last_resume_sms_sent_at"
+            : "last_resume_email_sent_at"
+          : channel === "sms"
+            ? "last_reset_sms_sent_at"
+            : "last_reset_email_sent_at";
+
+        const lastSent = volunteer[cooldownCol];
+        if (lastSent) {
+          const hoursSince =
+            (Date.now() - new Date(lastSent).getTime()) / (1000 * 60 * 60);
+          if (hoursSince < 24) {
+            const hoursLeft = Math.ceil(24 - hoursSince);
+            return redirectError(
+              `A ${isResume ? "resume" : "reset"} link was already sent to ${volunteer.firstName} ${volunteer.lastName} via ${method === "phone" ? "SMS" : "email"} recently. Please wait ${hoursLeft} hour${hoursLeft !== 1 ? "s" : ""}.`,
+            );
+          }
+        }
+
+        // ── Generate and store hash ──────────────────────────────────
         const hash = crypto.randomUUID();
-        await setPendingReset(id, hash);
+        await setPendingReset(id, hash, isResume ? "resume" : "reset", channel);
 
         const baseUrl = getBaseUrl(req);
-        const resetUrl = `${baseUrl}/reset-password/${encodeURIComponent(hash)}`;
+        const linkUrl = `${baseUrl}/reset-password/${encodeURIComponent(hash)}`;
 
-        const opts = {
-          subject: "Action needed — complete your Albany JW Parking registration",
-          firstName: volunteer.firstName || "there",
-        };
+        // ── Message copy depends on link type ────────────────────────
+        const firstName = volunteer.firstName || "there";
+        const emailSubject = isResume
+          ? "Action needed — complete your Albany JW Parking registration"
+          : "Reset your Albany JW Parking password";
+        const smsBody = isResume
+          ? `Albany JW Parking: Hi ${firstName}, your registration is incomplete. Tap to finish:\n${linkUrl}`
+          : `Albany JW Parking: Hi ${firstName}, tap the link to reset your password:\n${linkUrl}`;
 
         let ok = false;
 
         if (method === "email") {
-ok = await sendResetEmail(volunteer.email, resetUrl, {
-  ...smtpConfig,
-  firstName: volunteer.firstName || "there",
-  subject: "Action needed — complete your Albany JW Parking registration",
-});
+          ok = await sendResetEmail(volunteer.email, linkUrl, {
+            ...smtpConfig,
+            firstName,
+            subject: emailSubject,
+            isResume,
+          });
         } else {
           ok = await sendResetSms(
             volunteer.phone,
-            resetUrl,
+            linkUrl,
             twilioAccountSid,
             twilioAuthToken,
             twilioMsgSid,
-            { firstName: volunteer.firstName || "there" },
+            { firstName, customBody: smsBody },
           );
         }
 
         if (!ok) {
-          return res.redirect(
-            "/admin/tools/send-reset?error=" +
-              encodeURIComponent("Failed to send — check server logs."),
-          );
+          return redirectError("Failed to send — check server logs.");
         }
 
         const name = [volunteer.firstName, volunteer.lastName]
           .filter(Boolean)
           .join(" ");
         return res.redirect(
-          "/admin/tools/send-reset?success=" +
-            encodeURIComponent(`Link sent to ${name} via ${method}.`),
+          `/oversight/tools/send-reset?tab=${tabParam}&success=${encodeURIComponent(
+            `${isResume ? "Resume" : "Reset"} link sent to ${name} via ${method === "phone" ? "SMS" : "email"}.`,
+          )}`,
         );
       } catch (err) {
         (logError || console.error)("admin/tools/send-reset POST error:", err);
+        return redirectError("Server error.");
+      }
+    },
+  );
+  // ===========================
+  // ADMIN CREATE VOLUNTEER TOOL
+  // ===========================
+
+  /**
+   * GET /oversight/tools/create-volunteer
+   * Show the create-volunteer form with congregation dropdown.
+   * Requires OVERSEER or above via createVolunteerAccounts permission.
+   */
+  router.get(
+    "/oversight/tools/create-volunteer",
+    requireAuth,
+    requirePermission("createVolunteerAccounts"),
+    csrfProtection,
+    async (req, res) => {
+      try {
+        const congregations = await getCongregations();
+
+        return res.render("authentication_and_accounts/adminCreateVolunteer", {
+          csrfToken: req.csrfToken(),
+          congregations,
+          success: req.query.success
+            ? decodeURIComponent(req.query.success)
+            : null,
+          error: req.query.error ? decodeURIComponent(req.query.error) : null,
+          fields: {
+            firstName: req.query.firstName || "",
+            lastName: req.query.lastName || "",
+            suffix: req.query.suffix || "",
+            email: req.query.email || "",
+            phone: req.query.phone || "",
+            congAssigned: req.query.congAssigned || "",
+            congregation: req.query.congregation || "",
+            congregationOtherCity: req.query.congregationOtherCity || "",
+            congregationOtherState: req.query.congregationOtherState || "",
+            congregationOtherLang: req.query.congregationOtherLang || "",
+          },
+        });
+      } catch (err) {
+        (logError || console.error)(
+          "admin/tools/create-volunteer GET error:",
+          err,
+        );
+        return res.status(500).send("Server error");
+      }
+    },
+  );
+
+  /**
+   * POST /api/admin/check-duplicates
+   * JSON endpoint — called by the frontend before submitting the create form.
+   * Returns potential duplicate volunteers for the given name / email / phone.
+   *
+   * Body: { firstName, lastName, email, phone }
+   * Response: { duplicates: Array<{id, firstName, lastName, suffix, email, phone,
+   *             registration_status, role, matchReason}> }
+   */
+  router.post(
+    "/api/admin/check-duplicates",
+    requireAuth,
+    requirePermission("createVolunteerAccounts"),
+    async (req, res) => {
+      const { firstName, lastName, email, phone } = req.body || {};
+
+      if (!firstName?.trim() || !lastName?.trim() || !email?.trim()) {
+        return res
+          .status(400)
+          .json({ error: "firstName, lastName, and email are required." });
+      }
+
+      try {
+        const duplicates = await findPotentialDuplicates({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          email: email.trim(),
+          phone: phone?.trim() || null,
+        });
+
+        return res.json({ duplicates });
+      } catch (err) {
+        (logError || console.error)("api/admin/check-duplicates error:", err);
+        return res.status(500).json({ error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * POST /oversight/tools/create-volunteer
+   * Validate inputs, check for duplicates, and insert a new completed volunteer
+   * account. Password defaults to `lastName + '1914'` (hashed).
+   *
+   * Pass `force=true` in body to bypass the duplicate modal and create anyway.
+   * On duplicate email/phone, SQL constraint errors 2627/2601 are caught.
+   */
+  router.post(
+    "/oversight/tools/create-volunteer",
+    requireAuth,
+    requirePermission("createVolunteerAccounts"),
+    csrfProtection,
+    async (req, res) => {
+      const {
+        firstName,
+        lastName,
+        suffix,
+        email,
+        phone,
+        congAssigned,
+        congregation,
+        congregationOtherCity,
+        congregationOtherState,
+        congregationOtherLang,
+        force,
+      } = req.body || {};
+
+      /**
+       * Redirect back to form with an error message and sticky field values.
+       * @param {string} msg
+       */
+      function redirectError(msg) {
+        const q = new URLSearchParams({
+          error: msg,
+          firstName: firstName || "",
+          lastName: lastName || "",
+          suffix: suffix || "",
+          email: email || "",
+          phone: phone || "",
+          congAssigned: congAssigned || "",
+          congregation: congregation || "",
+          congregationOtherCity: congregationOtherCity || "",
+          congregationOtherState: congregationOtherState || "",
+          congregationOtherLang: congregationOtherLang || "",
+        });
         return res.redirect(
-          "/admin/tools/send-reset?error=" +
-            encodeURIComponent("Server error."),
+          `/oversight/tools/create-volunteer?${q.toString()}`,
         );
       }
+
+      // ── Validation ──────────────────────────────────────────────────────
+      if (!firstName?.trim()) return redirectError("First name is required.");
+      if (!lastName?.trim()) return redirectError("Last name is required.");
+      if (!email?.trim()) return redirectError("Email is required.");
+      if (!phone?.trim()) return redirectError("Phone number is required.");
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim()))
+        return redirectError("Please enter a valid email address.");
+
+      try {
+        // ── Duplicate check (skipped when force=true from modal confirm) ──
+        if (force !== "true") {
+          const duplicates = await findPotentialDuplicates({
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+            email: email.trim(),
+            phone: phone.trim(),
+          });
+
+          if (duplicates.length > 0) {
+            // Return JSON so the frontend can show the modal.
+            // The form submits via fetch on this path, not a native POST,
+            // so we always respond with JSON and let the client decide.
+            return res.json({ duplicates });
+          }
+        }
+
+        // ── Insert ──────────────────────────────────────────────────────
+        const newId = await createVolunteerAccount(
+          {
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+            suffix: suffix?.trim() || null,
+            email: email.trim().toLowerCase(),
+            phone: phone.trim(),
+            congAssigned: congAssigned || "unknown",
+            congregation: congregation?.trim() || null,
+            congregationOtherCity: congregationOtherCity?.trim() || null,
+            congregationOtherState: congregationOtherState?.trim() || null,
+            congregationOtherLang: congregationOtherLang?.trim() || null,
+          },
+          req.session.userEmail || "admin",
+        );
+
+        const name = `${firstName.trim()} ${lastName.trim()}`;
+        return res.json({
+          success: true,
+          message: `Account created for ${name} (ID: ${newId}). Temporary password: ${lastName.trim()}1914`,
+          newId,
+        });
+      } catch (err) {
+        // Duplicate email — SQL unique constraint codes 2627 / 2601
+        const sqlCode = err?.originalError?.info?.number || err?.number;
+        if (sqlCode === 2627 || sqlCode === 2601) {
+          return res.json({
+            success: false,
+            error: `An account with email "${email.trim()}" already exists.`,
+          });
+        }
+        (logError || console.error)(
+          "admin/tools/create-volunteer POST error:",
+          err,
+        );
+        return res.json({
+          success: false,
+          error: "Server error — please try again.",
+        });
+      }
+    },
+  );
+
+  // ===========================
+  // PERMISSION MATRIX (ADMIN only)
+  // ===========================
+
+  /**
+   * GET /oversight/tools/permissions
+   * Display the full role × permission matrix with current DB overrides merged in.
+   * Restricted to ADMIN only.
+   */
+  router.get(
+    "/oversight/tools/permissions",
+    requireAuth,
+    requirePermission("manageRoles"),
+    csrfProtection,
+    async (req, res) => {
+      try {
+        const dbOverrides = await getRolePermissions();
+
+        // Build override lookup: { 'OVERSEER.sendMessages': true/false }
+        /** @type {Record<string, boolean>} */
+        const overrideLookup = {};
+        for (const row of dbOverrides) {
+          overrideLookup[`${row.role_name}.${row.permission}`] =
+            !!row.is_granted;
+        }
+
+        return res.render("authentication_and_accounts/oversightPermissions", {
+          csrfToken: req.csrfToken(),
+          PERMISSIONS,
+          ROLE_HIERARCHY,
+          overrideLookup,
+          success: req.query.success
+            ? decodeURIComponent(req.query.success)
+            : null,
+          error: req.query.error ? decodeURIComponent(req.query.error) : null,
+        });
+      } catch (err) {
+        (logError || console.error)(
+          "oversight/tools/permissions GET error:",
+          err,
+        );
+        return res.status(500).send("Server error");
+      }
+    },
+  );
+
+  /**
+   * POST /oversight/tools/permissions
+   * AJAX endpoint — upsert a single role/permission cell.
+   * Body: { roleName, permission, isGranted }
+   * Returns: { success: true } or { success: false, error: string }
+   */
+  router.post(
+    "/oversight/tools/permissions",
+    requireAuth,
+    requirePermission("manageRoles"),
+    csrfProtection,
+    async (req, res) => {
+      const { roleName, permission, isGranted } = req.body || {};
+
+      if (!roleName || !permission || typeof isGranted === "undefined") {
+        return res
+          .status(400)
+          .json({ success: false, error: "Missing required fields." });
+      }
+
+      if (!ROLE_HIERARCHY.includes(roleName)) {
+        return res.status(400).json({ success: false, error: "Invalid role." });
+      }
+
+      // Prevent removing manageRoles from ADMIN — that would lock everyone out
+      if (roleName === "ADMIN" && permission === "manageRoles" && !isGranted) {
+        return res.status(400).json({
+          success: false,
+          error: "Cannot remove manageRoles from ADMIN.",
+        });
+      }
+
+      try {
+        const defaultVal = PERMISSIONS[roleName]?.[permission];
+        const isDefault = !!isGranted === !!defaultVal;
+
+        if (isDefault) {
+          await deleteRolePermission(roleName, permission);
+          return res.json({ success: true, removedOverride: true });
+        }
+
+        await upsertRolePermission(
+          roleName,
+          permission,
+          !!isGranted,
+          req.session.userId || null,
+        );
+        return res.json({ success: true, removedOverride: false });
+      } catch (err) {
+        (logError || console.error)(
+          "oversight/tools/permissions POST error:",
+          err,
+        );
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  // ===========================
+  // DECENTLY EXPORT TOOL
+  // ===========================
+
+  /**
+   * GET /oversight/tools/decently-export
+   * Show the export page. If a cached CSV exists in the session, show the
+   * download link and row count from the last generation.
+   */
+  router.get(
+    "/oversight/tools/decently-export",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    csrfProtection,
+    (req, res) => {
+      const cached = req.session.decentlyCache || null;
+
+      return res.render("authentication_and_accounts/oversightDecentlyExport", {
+        csrfToken: req.csrfToken(),
+        rowCount: cached ? cached.ids.length : null,
+        hasCache: !!cached,
+        success: req.query.success
+          ? decodeURIComponent(req.query.success)
+          : null,
+        error: req.query.error ? decodeURIComponent(req.query.error) : null,
+      });
+    },
+  );
+
+  /**
+   * POST /oversight/tools/decently-export
+   * Query volunteers not yet exported, build CSV, cache in session.
+   * Redirects back to GET with the cache populated.
+   */
+  router.post(
+    "/oversight/tools/decently-export",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    csrfProtection,
+    async (req, res) => {
+      try {
+        const rows = await getDecentlyExportRows();
+
+        if (rows.length === 0) {
+          return res.redirect(
+            "/oversight/tools/decently-export?error=" +
+              encodeURIComponent("No new volunteers to export."),
+          );
+        }
+
+        // ── Build CSV ────────────────────────────────────────────────
+        const columns = [
+          "firstName",
+          "lastName",
+          "suffix",
+          "email",
+          "phone",
+          "congregation",
+          "role",
+          "notes",
+        ];
+
+        /**
+         * Escape a value for CSV: wrap in quotes if it contains comma, quote, or newline.
+         * @param {any} val
+         * @returns {string}
+         */
+        function escapeCSV(val) {
+          if (val === null || val === undefined) return "";
+          const str = String(val);
+          return str.includes(",") || str.includes('"') || str.includes("\n")
+            ? `"${str.replace(/"/g, '""')}"`
+            : str;
+        }
+
+        const csvLines = [
+          columns.map(escapeCSV).join(","),
+          ...rows.map((row) =>
+            columns.map((col) => escapeCSV(row[col])).join(","),
+          ),
+        ];
+
+        const csv = csvLines.join("\r\n");
+        const ids = rows.map((r) => r.id);
+        const filename = `DecentlyExport_${new Date().toISOString().slice(0, 10)}.csv`;
+
+        // Cache CSV + IDs in session until download or session end
+        req.session.decentlyCache = { csv, ids, filename };
+
+        return res.redirect("/oversight/tools/decently-export");
+      } catch (err) {
+        (logError || console.error)("decently-export POST error:", err);
+        return res.redirect(
+          "/oversight/tools/decently-export?error=" +
+            encodeURIComponent("Export failed — check server logs."),
+        );
+      }
+    },
+  );
+
+  /**
+   * GET /oversight/tools/decently-export/download
+   * Stream the cached CSV to the browser, then mark records as exported in the DB.
+   * Clears the session cache after download.
+   */
+  router.get(
+    "/oversight/tools/decently-export/download",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    async (req, res) => {
+      const cached = req.session.decentlyCache;
+
+      if (!cached || !cached.csv) {
+        return res.redirect(
+          "/oversight/tools/decently-export?error=" +
+            encodeURIComponent("No export ready — please generate first."),
+        );
+      }
+
+      const { csv, ids, filename } = cached;
+
+      // Clear cache before sending so a refresh doesn't re-download
+      req.session.decentlyCache = null;
+
+      // Mark as exported in DB
+      try {
+        await markDecentlyExported(ids);
+      } catch (err) {
+        (logError || console.error)("markDecentlyExported error:", err);
+        // Non-fatal — still send the file, log the failure
+      }
+
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${filename}"`,
+      );
+      return res.send(csv);
     },
   );
   return router;

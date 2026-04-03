@@ -1,0 +1,37 @@
+<%
+/**
+ * roleGuard.ejs
+ * Centralized role/permission helper partial.
+ *
+ * Requires res.locals to have:
+ *   userRole        — string, e.g. 'OVERSEER'
+ *   userPermissions — merged permissions object from session
+ *
+ * Exposes to the including template:
+ *   roleLevel         — numeric level of current user (0–5)
+ *   isAtLeast(r)      — true if user is >= that role
+ *   can(permission)   — true if current user has that permission
+ *                       (uses merged session permissions, falls back to defaults)
+ */
+
+const _ROLE_ORDER = ['NON_REGISTERED','REGISTERED','KEYMAN','OVERSEER','ASSISTANT_ADMIN','ADMIN'];
+const _role       = typeof userRole !== 'undefined' ? userRole : 'NON_REGISTERED';
+const _perms      = typeof userPermissions !== 'undefined' ? userPermissions : {};
+
+const roleLevel = _ROLE_ORDER.indexOf(_role);
+
+/**
+ * Returns true if the current user's role is >= minRole.
+ * @param {string} minRole
+ * @returns {boolean}
+ */
+const isAtLeast = (minRole) => roleLevel >= _ROLE_ORDER.indexOf(minRole);
+
+/**
+ * Returns true if the current user has the given permission.
+ * Uses the merged session permissions (DB overrides applied).
+ * @param {string} permission
+ * @returns {boolean}
+ */
+const can = (permission) => !!(_perms[_role] && _perms[_role][permission]);
+%>

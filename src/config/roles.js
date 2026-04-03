@@ -46,6 +46,7 @@ export const PERMISSIONS = {
     editSelf: true,
     manageRoles: false,
     accessAdminConsole: false,
+    createVolunteerAccounts: false,
   },
   REGISTERED: {
     submitInfo: true,
@@ -63,6 +64,7 @@ export const PERMISSIONS = {
     editSelf: true,
     manageRoles: false,
     accessAdminConsole: false,
+    createVolunteerAccounts: false,
   },
   KEYMAN: {
     submitInfo: true,
@@ -80,6 +82,7 @@ export const PERMISSIONS = {
     editSelf: true,
     manageRoles: false,
     accessAdminConsole: false,
+    createVolunteerAccounts: false,
   },
   OVERSEER: {
     submitInfo: true,
@@ -97,6 +100,7 @@ export const PERMISSIONS = {
     editSelf: true,
     manageRoles: false,
     accessAdminConsole: false,
+    createVolunteerAccounts: true,
   },
   ASSISTANT_ADMIN: {
     submitInfo: true,
@@ -114,6 +118,7 @@ export const PERMISSIONS = {
     editSelf: true,
     manageRoles: true,
     accessAdminConsole: true,
+    createVolunteerAccounts: true,
   },
   ADMIN: {
     submitInfo: true,
@@ -131,6 +136,7 @@ export const PERMISSIONS = {
     editSelf: true,
     manageRoles: true,
     accessAdminConsole: true,
+    createVolunteerAccounts: true,
   },
 };
 

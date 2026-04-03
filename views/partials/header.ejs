@@ -29,16 +29,17 @@
 
       <!-- Collapsible content -->
       <div class="collapse navbar-collapse" id="mainNav">
-
         <%
           const showUpgrade         = navState.canUpgrade;
           const showContinueReg     = navState.showContinueRegistration;
           const showMyAccount       = navState.isLoggedIn;
           const showAccountDropdown = showUpgrade || showContinueReg || showMyAccount;
 
-          const role      = navState.userRole || 'NON_REGISTERED';
-          const roleLevel = ['NON_REGISTERED','REGISTERED','KEYMAN','OVERSEER','ASSISTANT_ADMIN','ADMIN'].indexOf(role);
-          const isAtLeast = (r) => roleLevel >= ['NON_REGISTERED','REGISTERED','KEYMAN','OVERSEER','ASSISTANT_ADMIN','ADMIN'].indexOf(r);
+          const _ROLE_ORDER_NAV = ['NON_REGISTERED','REGISTERED','KEYMAN','OVERSEER','ASSISTANT_ADMIN','ADMIN'];
+          const _navRole        = navState.userRole || 'NON_REGISTERED';
+          const _navRoleLevel   = _ROLE_ORDER_NAV.indexOf(_navRole);
+          const isAtLeast       = (r) => _navRoleLevel >= _ROLE_ORDER_NAV.indexOf(r);
+          const can             = (permission) => !!(userPermissions && userPermissions[_navRole] && userPermissions[_navRole][permission]);
         %>
 
         <!-- Nav items — left side, spread with auto margins -->
@@ -119,11 +120,11 @@
                 Oversight
               </a>
               <ul class="dropdown-menu" aria-labelledby="oversightDropdown">
-                <% if (isAtLeast('ASSISTANT_ADMIN')) { %>
+                <% if (isAtLeast('OVERSEER')) { %>
                   <li>
-                    <a class="dropdown-item" href="/admin/tools">
+                    <a class="dropdown-item" href="/oversight/tools">
                       <i class="fa-solid fa-screwdriver-wrench me-1"></i>
-                      Admin Tools
+                      Oversight Tools
                     </a>
                   </li>
                   <li><hr class="dropdown-divider"></li>
@@ -137,9 +138,17 @@
                 <% if (isAtLeast('ASSISTANT_ADMIN')) { %>
                   <li><hr class="dropdown-divider"></li>
                   <li>
-                    <a class="dropdown-item" href="/admin/roles">
+                    <a class="dropdown-item" href="/oversight/roles">
                       <i class="fa-solid fa-user-shield me-1"></i>
                       Role Management
+                    </a>
+                  </li>
+                <% } %>
+                <% if (isAtLeast('ADMIN')) { %>
+                  <li>
+                    <a class="dropdown-item" href="/oversight/tools/permissions">
+                      <i class="fa-solid fa-sliders me-1"></i>
+                      Permission Matrix
                     </a>
                   </li>
                 <% } %>

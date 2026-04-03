@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Permission Matrix — Albany JW Parking</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+    <meta name="csrf-token" content="<%= csrfToken %>" />
+
+    <style nonce="<%= nonce %>">
+      .perm-table th, .perm-table td { white-space: nowrap; vertical-align: middle; }
+      .perm-table thead th.role-header { text-align: center; min-width: 110px; }
+      .perm-table td.toggle-cell { text-align: center; }
+      .saving-indicator { font-size: .75rem; }
+    </style>
+  </head>
+
+  <body class="min-vh-100 bg-body-tertiary">
+    <%- include('../partials/header') %>
+
+    <main class="container-fluid py-4">
+      <div class="row justify-content-center">
+        <div class="col-12 col-xl-11">
+
+          <section class="card shadow-lg admin-console-card">
+            <header class="card-header text-center">
+              <h1 class="h2 my-2">
+                <i class="fa-solid fa-sliders me-2"></i>Permission Matrix
+              </h1>
+              <p class="mb-0">
+                Override default role permissions. Changes take effect on next login.
+                <span class="badge bg-warning text-dark ms-2">ADMIN only</span>
+              </p>
+            </header>
+
+            <div class="card-body">
+
+              <% if (success) { %>
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                  <i class="fa-solid fa-circle-check me-2"></i><%= success %>
+                  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+              <% } %>
+              <% if (error) { %>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                  <i class="fa-solid fa-triangle-exclamation me-2"></i><%= error %>
+                  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+              <% } %>
+
+              <div id="saveStatus" class="mb-3" aria-live="polite"></div>
+
+              <div class="alert alert-info small mb-3">
+                <i class="fa-solid fa-circle-info me-1"></i>
+                Toggles show the <strong>effective</strong> value (default merged with any DB override).
+                Greyed-out labels indicate the value matches the factory default.
+                Changes save automatically on toggle.
+              </div>
+
+              <%
+                // Derive the ordered permission list from the first role's keys
+                const permissionKeys = Object.keys(PERMISSIONS['NON_REGISTERED']);
+
+                // Human-readable labels
+                const permLabels = {
+                  submitInfo:              'Submit Info',
+                  viewSchedules:           'View Schedules',
+                  viewMaps:                'View Maps',
+                  printMaps:               'Print Maps',
+                  printSchedules:          'Print Schedules',
+                  viewVolunteerInfo:       'View Volunteer Info',
+                  editVolunteerInfo:       'Edit Volunteer Info',
+                  createAssignments:       'Create Assignments',
+                  manageShifts:            'Manage Shifts',
+                  uploadMaps:              'Upload Maps',
+                  sendMessages:            'Send Messages',
+                  printUserData:           'Print User Data',
+                  editSelf:                'Edit Self',
+                  manageRoles:             'Manage Roles',
+                  accessAdminConsole:      'Access Admin Console',
+                  createVolunteerAccounts: 'Create Volunteer Accounts',
+                };
+              %>
+
+              <div class="table-responsive">
+                <table class="table table-bordered table-hover perm-table">
+                  <thead class="table-dark">
+                    <tr>
+                      <th>Permission</th>
+                      <% ROLE_HIERARCHY.forEach(role => { %>
+                        <th class="role-header"><%= role.replace('_', ' ') %></th>
+                      <% }) %>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% permissionKeys.forEach(perm => { %>
+                      <tr>
+                        <td class="fw-medium"><%= permLabels[perm] || perm %></td>
+                        <% ROLE_HIERARCHY.forEach(role => { %>
+                          <%
+                            const defaultVal  = PERMISSIONS[role][perm] === true;
+                            const overrideKey = role + '.' + perm;
+                            const hasOverride = overrideLookup.hasOwnProperty(overrideKey);
+                            const effectiveVal = hasOverride ? overrideLookup[overrideKey] : defaultVal;
+                            const isLocked = role === 'ADMIN' && perm === 'manageRoles';
+                          %>
+                          <td class="toggle-cell">
+                            <div class="form-check form-switch d-flex justify-content-center align-items-center gap-1">
+                              <input
+                                class="form-check-input perm-toggle"
+                                type="checkbox"
+                                role="switch"
+                                id="toggle-<%= role %>-<%= perm %>"
+                                data-role="<%= role %>"
+                                data-permission="<%= perm %>"
+                                data-default="<%= defaultVal %>"
+                                <%= effectiveVal ? 'checked' : '' %>
+                                <%= isLocked ? 'disabled title="Cannot remove manageRoles from ADMIN"' : '' %>
+                              />
+                              <% if (hasOverride) { %>
+                                <span class="badge bg-warning text-dark saving-indicator" title="DB override active">
+                                  <i class="fa-solid fa-database"></i>
+                                </span>
+                              <% } %>
+                            </div>
+                          </td>
+                        <% }) %>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+
+              <p class="text-muted small mt-2">
+                <i class="fa-solid fa-database me-1"></i>
+                <span class="badge bg-warning text-dark">DB</span> badge indicates a DB override is active for that cell.
+                Reload the page after bulk changes to see the updated state.
+              </p>
+
+              <div class="mt-3">
+                <a href="/oversight/tools" class="btn btn-outline-secondary btn-sm">
+                  <i class="fa-solid fa-arrow-left me-1"></i>Back to Oversight Tools
+                </a>
+              </div>
+
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <%- include('../partials/footer') %>
+
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/permissionMatrix.js"></script>
+  </body>
+</html>

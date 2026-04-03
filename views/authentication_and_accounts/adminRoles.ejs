@@ -113,7 +113,7 @@
                         </td>
                         <td>
                           <% if (canChange && assignableRoles.length > 0) { %>
-                            <form action="/admin/roles" method="POST" class="role-form">
+                            <form action="/oversight/roles" method="POST" class="role-form">
                               <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
                               <input type="hidden" name="targetId" value="<%= v.id %>" />
                               <input type="hidden" name="newRole" class="role-input" value="" />

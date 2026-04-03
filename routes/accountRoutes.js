@@ -65,7 +65,12 @@ export function loginRouter({ csrfProtection, logError }) {
    * @returns {void}
    */
   function requireAuth(req, res, next) {
-    if (!req.session.userId) return res.redirect("/login");
+    if (!req.session.userId) {
+      if (req.method === "GET") {
+        req.session.returnTo = req.originalUrl;
+      }
+      return res.redirect("/login");
+    }
     next();
   }
   // Normalize phone like phoneVer.js "digitsOnly": strip non-digits only.
@@ -625,7 +630,7 @@ export function loginRouter({ csrfProtection, logError }) {
       req.session.userRole = user.role || "REGISTERED";
       req.session.permissions = await loadMergedPermissions();
       req.session.registrationStatus = user.registration_status || null;
-      
+
       // Login success → clear any leftover pendingEmail
       req.session.pendingEmail = null;
 
@@ -633,6 +638,9 @@ export function loginRouter({ csrfProtection, logError }) {
       req.session.userId = user.id;
       req.session.userEmail = user.email; // for edited_by
       req.session.loginSuccess = true;
+      // Redirect to intended destination if one was captured, then clear it
+      const returnTo = req.session.returnTo || null;
+      req.session.returnTo = null;
       return res.redirect("/login");
     } catch (err) {
       (logError || console.error)("[accountRoutes] Login error:", err);

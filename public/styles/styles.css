@@ -737,6 +737,9 @@ b {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
   color: #f8f9fa;
   padding: 0.45rem 0;
+  position: sticky;
+  top: 0;
+  z-index: 1050;
 }
 
 .site-navbar .navbar-brand,
@@ -770,6 +773,9 @@ b {
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 8px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+  position: sticky;
+  z-index: 1000;
+
 }
 
 .site-navbar .dropdown-item {
@@ -1505,7 +1511,7 @@ b {
     min-width: 130px;
   }
 }
-/* Admin tools dashboard cards */
+/* Oversight Tools dashboard cards */
 .admin-tool-card {
   background: rgba(255, 255, 255, 0.85);
   border: 1px solid rgba(0, 0, 0, 0.08);
