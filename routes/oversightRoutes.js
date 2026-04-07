@@ -28,7 +28,10 @@ import {
   upsertRolePermission,
   deleteRolePermission,
   getDecentlyExportRows,
-  markDecentlyExported
+  markDecentlyExported,
+  setVolunteerActive,
+  getVolunteersForImportMatch,
+  applyDecentlyImport,
 } from "../lib/dbSync.js";
 import { verifyPassword, hashPassword } from "../lib/passwordVer.js";
 
@@ -37,10 +40,6 @@ import { INCOMPATIBILITIES } from "../src/config/privilegeRules.js";
 import { requirePermission, canAssignRole, ROLE_HIERARCHY, PERMISSIONS } from "../src/config/roles.js";
 
 import { sendResetEmail, sendResetSms, getBaseUrl } from '../lib/messaging.js';   
-
-
-
-
 
 
 /**
@@ -219,7 +218,63 @@ export function oversightRouter({
       res.status(500).send("Server error");
     }
   });
+  /**
+   * POST /edit-volunteer/active
+   * Immediately toggle active_current_year for a volunteer.
+   * Requires editVolunteerInfo permission. Does not go through the finalize flow.
+   *
+   * Body (JSON): { targetUserId: number, active: boolean }
+   * Response: { success: boolean, message?: string }
+   */
+  router.post(
+    "/edit-volunteer/active",
+    requireAuth,
+    requirePermission("editVolunteerInfo"),
+    csrfProtection,
+    async (req, res) => {
+      const { targetUserId, active } = req.body || {};
+      const id = Number(targetUserId);
 
+      if (!id) {
+        return res
+          .status(400)
+          .json({ success: false, message: "No volunteer selected." });
+      }
+
+      if (typeof active !== "boolean") {
+        return res
+          .status(400)
+          .json({ success: false, message: "active must be a boolean." });
+      }
+
+      if (id === req.session.userId) {
+        return res.status(400).json({
+          success: false,
+          message: "You cannot change your own active status.",
+        });
+      }
+
+      try {
+        const ok = await setVolunteerActive(
+          id,
+          active,
+          req.session.userEmail || "admin",
+        );
+        if (!ok) {
+          return res.status(404).json({
+            success: false,
+            message: "Volunteer not found or archived.",
+          });
+        }
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("edit-volunteer/active POST error:", err);
+        return res
+          .status(500)
+          .json({ success: false, message: "Server error." });
+      }
+    },
+  );
   // CONTACT
   router.post(
     "/my-account/update/contact",
@@ -539,12 +594,10 @@ export function oversightRouter({
 
       // Prevent self-assignment
       if (id === req.session.userId) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message: "You cannot change your own assignment.",
-          });
+        return res.status(400).json({
+          success: false,
+          message: "You cannot change your own assignment.",
+        });
       }
 
       try {
@@ -565,12 +618,10 @@ export function oversightRouter({
         );
 
         if (!ok) {
-          return res
-            .status(400)
-            .json({
-              success: false,
-              message: "Volunteer not found or not eligible.",
-            });
+          return res.status(400).json({
+            success: false,
+            message: "Volunteer not found or not eligible.",
+          });
         }
 
         return res.json({ success: true });
@@ -1312,6 +1363,290 @@ export function oversightRouter({
       return res.send(csv);
     },
   );
+  // ===========================
+  // DECENTLY IMPORT TOOL
+  // ===========================
 
+  /**
+   * GET /oversight/tools/decently-import
+   * Show the upload page.
+   */
+  router.get(
+    "/oversight/tools/decently-import",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    csrfProtection,
+    (req, res) => {
+      return res.render("authentication_and_accounts/decentlyImport", {
+        csrfToken: req.csrfToken(),
+      });
+    },
+  );
+
+  /**
+   * POST /oversight/tools/decently-import/process
+   * Accept parsed CSV rows as JSON, run matching against DB volunteers,
+   * and return categorised results for the review phase.
+   *
+   * Body: { rows: Array<{ name, email, phone }> }
+   * Response: {
+   *   matched:       Array<{ csvRow, dbMatch, confidence }>
+   *   fuzzy:         Array<{ csvRow, candidates: Array<dbVolunteer> }>
+   *   unmatchedCsv:  Array<csvRow>           — in CSV, not in DB
+   *   unmatchedDb:   Array<dbVolunteer>      — in DB, not in CSV
+   * }
+   */
+  router.post(
+    "/oversight/tools/decently-import/process",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    csrfProtection,
+    async (req, res) => {
+      const { rows } = req.body || {};
+
+      if (!Array.isArray(rows) || rows.length === 0) {
+        return res
+          .status(400)
+          .json({ success: false, error: "No rows provided." });
+      }
+
+      try {
+        const dbVolunteers = await getVolunteersForImportMatch();
+
+        /**
+         * Normalise a string for comparison: lowercase, strip non-alphanumeric, collapse spaces.
+         * @param {string|null|undefined} s
+         * @returns {string}
+         */
+        function norm(s) {
+          return (s || "")
+            .toLowerCase()
+            .replace(/[^a-z0-9 ]/g, "")
+            .replace(/\s+/g, " ")
+            .trim();
+        }
+
+        /**
+         * Strip all non-digit characters from a phone string.
+         * @param {string|null|undefined} s
+         * @returns {string}
+         */
+        function digits(s) {
+          return (s || "").replace(/\D/g, "");
+        }
+
+        // Pre-build lookup maps for O(1) exact matching
+        /** @type {Map<string, object>} email → db row */
+        const byEmail = new Map();
+        /** @type {Map<string, object>} phone digits → db row */
+        const byPhone = new Map();
+        /** @type {Map<string, object>} normalised full name → db row */
+        const byName = new Map();
+
+        for (const v of dbVolunteers) {
+          const fullName = norm(
+            `${v.firstName || ""} ${v.lastName || ""} ${v.suffix || ""}`.trim(),
+          );
+          if (v.email) byEmail.set(v.email.trim().toLowerCase(), v);
+          const ph = digits(v.phone);
+          if (ph.length >= 10) byPhone.set(ph.slice(-10), v);
+          if (fullName) byName.set(fullName, v);
+        }
+
+        /** @type {Set<number>} DB IDs that were matched to a CSV row */
+        const matchedDbIds = new Set();
+
+        const matched = [];
+        const fuzzy = [];
+        const unmatchedCsv = [];
+
+        for (const row of rows) {
+          const csvEmail = (row.email || "").trim().toLowerCase();
+          const csvPhone = digits(row.phone).slice(-10);
+          const csvName = norm(row.name);
+
+          let dbMatch = null;
+          let confidence = "";
+
+          // 1) Exact email
+          if (!dbMatch && csvEmail && byEmail.has(csvEmail)) {
+            dbMatch = byEmail.get(csvEmail);
+            confidence = "email";
+          }
+          // 2) Exact phone (last 10 digits)
+          if (!dbMatch && csvPhone.length >= 10 && byPhone.has(csvPhone)) {
+            dbMatch = byPhone.get(csvPhone);
+            confidence = "phone";
+          }
+          // 3) Exact normalised name
+          if (!dbMatch && csvName && byName.has(csvName)) {
+            dbMatch = byName.get(csvName);
+            confidence = "name";
+          }
+
+          if (dbMatch) {
+            matchedDbIds.add(dbMatch.id);
+            matched.push({ csvRow: row, dbMatch, confidence });
+            continue;
+          }
+
+          // 4) Fuzzy: any DB volunteer that shares a name token (word) with the CSV row
+          const csvTokens = new Set(
+            csvName.split(" ").filter((t) => t.length > 1),
+          );
+          const candidates = dbVolunteers.filter((v) => {
+            const vName = norm(`${v.firstName || ""} ${v.lastName || ""}`);
+            return vName
+              .split(" ")
+              .some((t) => t.length > 1 && csvTokens.has(t));
+          });
+
+          if (candidates.length > 0) {
+            fuzzy.push({ csvRow: row, candidates });
+          } else {
+            unmatchedCsv.push(row);
+          }
+        }
+
+        // DB volunteers not matched to any CSV row
+        const unmatchedDb = dbVolunteers.filter((v) => !matchedDbIds.has(v.id));
+
+        return res.json({
+          success: true,
+          matched,
+          fuzzy,
+          unmatchedCsv,
+          unmatchedDb,
+        });
+      } catch (err) {
+        (logError || console.error)("decently-import/process error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * POST /oversight/tools/decently-import/apply
+   * Apply confirmed import mappings.
+   *
+   * Body: {
+   *   matchedIds:  number[]   — DB IDs to activate + mark imported
+   *   inactiveIds: number[]   — DB IDs to mark inactive
+   * }
+   * Response: { success, activated, deactivated }
+   */
+  router.post(
+    "/oversight/tools/decently-import/apply",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    csrfProtection,
+    async (req, res) => {
+      const { matchedIds, inactiveIds } = req.body || {};
+
+      if (!Array.isArray(matchedIds) || !Array.isArray(inactiveIds)) {
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid payload." });
+      }
+
+      try {
+        const { activated, deactivated } = await applyDecentlyImport(
+          matchedIds.map(Number).filter(Boolean),
+          inactiveIds.map(Number).filter(Boolean),
+          req.session.userEmail || "admin",
+        );
+        return res.json({ success: true, activated, deactivated });
+      } catch (err) {
+        (logError || console.error)("decently-import/apply error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+  /**
+   * POST /oversight/tools/decently-import/send-welcome
+   * Send a password reset link to a newly created volunteer using standard copy.
+   *
+   * Body (JSON): { volunteerId: number, method: 'email'|'phone' }
+   * Response: { success: boolean, message?: string }
+   */
+  router.post(
+    "/oversight/tools/decently-import/send-welcome",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    csrfProtection,
+    async (req, res) => {
+      const { volunteerId, method } = req.body || {};
+      const id = Number(volunteerId);
+      const channel = method === "phone" ? "sms" : "email";
+
+      if (!id || !["email", "phone"].includes(method)) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid request." });
+      }
+
+      try {
+        const volunteer = await getVolunteerById(id);
+        if (!volunteer || volunteer.registration_status === "archived") {
+          return res
+            .status(404)
+            .json({ success: false, message: "Volunteer not found." });
+        }
+        if (method === "email" && !volunteer.email) {
+          return res
+            .status(400)
+            .json({ success: false, message: "No email on file." });
+        }
+        if (method === "phone" && !volunteer.phone) {
+          return res
+            .status(400)
+            .json({ success: false, message: "No phone on file." });
+        }
+
+        const hash = crypto.randomUUID();
+        await setPendingReset(id, hash, "reset", channel);
+
+        const baseUrl = getBaseUrl(req);
+        const linkUrl = `${baseUrl}/reset-password/${encodeURIComponent(hash)}`;
+        const firstName = volunteer.firstName || "there";
+
+        let ok = false;
+
+        if (method === "email") {
+          ok = await sendResetEmail(volunteer.email, linkUrl, {
+            ...smtpConfig,
+            firstName,
+            subject: "Welcome to Albany JW Parking — set your password",
+            isResume: false,
+          });
+        } else {
+          ok = await sendResetSms(
+            volunteer.phone,
+            linkUrl,
+            twilioAccountSid,
+            twilioAuthToken,
+            twilioMsgSid,
+            { firstName },
+          );
+        }
+
+        if (!ok) {
+          return res
+            .status(500)
+            .json({
+              success: false,
+              message: "Failed to send — check server logs.",
+            });
+        }
+
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("decently-import/send-welcome error:", err);
+        return res
+          .status(500)
+          .json({ success: false, message: "Server error." });
+      }
+    },
+  );
   return router;
 };

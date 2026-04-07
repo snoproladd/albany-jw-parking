@@ -537,6 +537,16 @@
       // Run once on load to reflect sticky-repopulated state
       onCongChange();
 
+      // ── Auto-validate pre-filled fields (e.g. from Decently Import query params) ──
+      if (emailInput.value.trim()) {
+        emailDebounce = window.setTimeout(() => validateEmail(emailInput.value), 100);
+      }
+      if (phoneInput.value.trim()) {
+        // Normalise the pre-filled value through the mask first
+        phoneInput.value = maskPhone(phoneInput.value);
+        phoneDebounce = window.setTimeout(() => validatePhone(phoneInput.value), 200);
+      }
+
       // ── Duplicate modal helpers ─────────────────────────────────────────────
 
       /**

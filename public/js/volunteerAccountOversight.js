@@ -54,9 +54,10 @@ document.addEventListener("DOMContentLoaded", () => {
   function allLocked() {
     const bodies = /** @type {HTMLElement[]} */ (
       Array.from(root.querySelectorAll(".accordion-body"))
+      .filter((s) => s.dataset.section !== "status")
     );
     if (!bodies.length) return true;
-    return bodies.every((s) => s.dataset.editing === "false");
+    return bodies.every((s) => s.dataset.editing !== "true");
   }
 
   /**
@@ -198,6 +199,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // ---------------------------------------------------------------------
 
   root.querySelectorAll(".accordion-body").forEach((sec) => {
+    if (sec.dataset.section ==="status") return; // skip status section if present
     setSectionEditing(sec, false);
   });
 
@@ -528,11 +530,11 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        if (!assignRes?.ok || !assignData.success) {
+        if (assignment && (!assignRes?.ok || !assignData.success)) {
           finalizeStatus.innerHTML = `
-                        <div class="alert alert-danger">
-                            ${assignData.message || "Failed to save assignment changes."}
-                        </div>`;
+                                <div class="alert alert-danger">
+                                    ${assignData.message || "Failed to save assignment changes."}
+                                </div>`;
           finalizeBtn.disabled = false;
           finalizeBtn.textContent = "Finalize Changes";
           return;
@@ -558,4 +560,96 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
+  // ---------------------------------------------------------------------
+  // Active / inactive toggle (immediate AJAX — does not go through finalize)
+  // ---------------------------------------------------------------------
+
+  /**
+   * Initialise the active_current_year toggle.
+   * Fires a standalone POST immediately on change so the state is persisted
+   * without requiring the user to go through the full finalize flow.
+   *
+   * @returns {void}
+   */
+  function initActiveToggle() {
+    const toggle = /** @type {HTMLInputElement | null} */ (
+      document.getElementById("activeToggle")
+    );
+    const label = document.getElementById("activeToggleLabel");
+    const status = document.getElementById("activeToggleStatus");
+
+    if (!toggle) return;
+
+    toggle.addEventListener("change", async () => {
+      const active = toggle.checked;
+      const targetUserId = getTargetUserId();
+      const csrf = document.querySelector('input[name="_csrf"]')?.value || "";
+
+      if (!targetUserId) {
+        toggle.checked = !active; // revert
+        return;
+      }
+
+      if (status) {
+        status.textContent = "Saving…";
+        status.className = "small text-muted";
+      }
+
+      try {
+        const res = await fetch("/edit-volunteer/active", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-Token": csrf,
+          },
+          body: JSON.stringify({ targetUserId, active }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok || !data.success) {
+          toggle.checked = !active; // revert on failure
+          if (status) {
+            status.textContent = data.message || "Failed to save.";
+            status.className = "small text-danger";
+          }
+          return;
+        }
+
+        if (label)
+          label.textContent = active
+            ? "Active this year"
+            : "Inactive this year";
+        if (status) {
+          status.textContent = active ? "Marked active." : "Marked inactive.";
+          status.className = "small text-success";
+        }
+
+        // Update the badge in the accordion header to reflect the new state
+        const headerBadge = document.querySelector(
+          "#statusAccordionItem .accordion-button .badge",
+        );
+        if (headerBadge) {
+          headerBadge.textContent = active ? "Active" : "Inactive";
+          headerBadge.className = active
+            ? "badge bg-success ms-2"
+            : "badge bg-secondary ms-2";
+        }
+
+        // Clear the status message after 3 s
+        setTimeout(() => {
+          if (status) status.textContent = "";
+        }, 3000);
+      } catch (err) {
+        console.error("[oversight] activeToggle error:", err);
+        toggle.checked = !active; // revert
+        if (status) {
+          status.textContent = "Server error.";
+          status.className = "small text-danger";
+        }
+      }
+    });
+  }
+
+  initActiveToggle();
 });
