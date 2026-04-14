@@ -222,6 +222,52 @@
                                                       </div>
                                                     </div>
                                                     <% } %>
+                                                    <%# Locations & Tasks — live %>
+                                                      <% if (can('manageShifts')) { %>
+                                                        <div class="col-12 col-sm-6 col-lg-4">
+                                                          <div class="admin-tool-card h-100">
+                                                            <div class="admin-tool-icon text-primary">
+                                                              <i class="fa-solid fa-map-pin"></i>
+                                                            </div>
+                                                            <h3 class="admin-tool-title">Locations</h3>
+                                                            <p class="admin-tool-desc">Define parking locations, zones, and mobile tasks for the current year. Used to build schedules and assignments.</p>
+                                                            <a href="/oversight/tools/locationsAndTasks" class="btn btn-primary admin-tool-btn">
+                                                              Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                                                            </a>
+                                                          </div>
+                                                        </div>
+                                                      <% } %>
+                                                      <%# Timelines — live %>
+                                                        <% if (can('manageShifts')) { %>
+                                                          <div class="col-12 col-sm-6 col-lg-4">
+                                                            <div class="admin-tool-card h-100">
+                                                              <div class="admin-tool-icon text-warning">
+                                                                <i class="fa-regular fa-clock"></i>
+                                                              </div>
+                                                              <h3 class="admin-tool-title">Timelines</h3>
+                                                              <p class="admin-tool-desc">Define convention days, sessions, and event shifts. Attach locations and tasks to shifts.</p>
+                                                              <a href="/oversight/tools/timelines" class="btn btn-warning admin-tool-btn">
+                                                                Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                                                              </a>
+                                                            </div>
+                                                          </div>
+                                                        <% } %>
+
+                                                        <%# Event Types — ASSISTANT_ADMIN+ %>
+                                                        <% if (can('accessAdminConsole')) { %>
+                                                          <div class="col-12 col-sm-6 col-lg-4">
+                                                            <div class="admin-tool-card h-100">
+                                                              <div class="admin-tool-icon text-secondary">
+                                                                <i class="fa-solid fa-tags"></i>
+                                                              </div>
+                                                              <h3 class="admin-tool-title">Event Types</h3>
+                                                              <p class="admin-tool-desc">Manage the event categories used in shift scheduling — Ingress, Egress, Security, and more.</p>
+                                                              <a href="/oversight/tools/timelines/event-types" class="btn btn-secondary admin-tool-btn">
+                                                                Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                                                              </a>
+                                                            </div>
+                                                          </div>
+                                                        <% } %>
 
                                       </div>
                                       <% } %>

@@ -32,6 +32,28 @@ import {
   setVolunteerActive,
   getVolunteersForImportMatch,
   applyDecentlyImport,
+  getLocationsTasks,
+  createLocationTask,
+  updateLocationTask,
+  setLocationTaskActive,
+  getEventTypes,
+  createEventType,
+  updateEventType,
+  getConventionDays,
+  createConventionDay,
+  updateConventionDay,
+  deleteConventionDay,
+  createSession,
+  updateSession,
+  deleteSession,
+  createShift,
+  updateShift,
+  deleteShift,
+  createScheduleAssignment,
+  updateScheduleAssignment,
+  deleteScheduleAssignment,
+  getFullDayTimeline,
+  copyConventionDay,
 } from "../lib/dbSync.js";
 import { verifyPassword, hashPassword } from "../lib/passwordVer.js";
 
@@ -1631,12 +1653,10 @@ export function oversightRouter({
         }
 
         if (!ok) {
-          return res
-            .status(500)
-            .json({
-              success: false,
-              message: "Failed to send — check server logs.",
-            });
+          return res.status(500).json({
+            success: false,
+            message: "Failed to send — check server logs.",
+          });
         }
 
         return res.json({ success: true });
@@ -1645,6 +1665,782 @@ export function oversightRouter({
         return res
           .status(500)
           .json({ success: false, message: "Server error." });
+      }
+    },
+  );
+  // ===========================
+  // LOCATIONS & TASKS
+  // ===========================
+
+  /**
+   * GET /oversight/tools/locationsAndTasks
+   * Render the locations and tasks management page.
+   * Defaults to the current calendar year.
+   */
+  router.get(
+    "/oversight/tools/locationsAndTasks",
+    requireAuth,
+    requirePermission("manageShifts"),
+    csrfProtection,
+    async (req, res) => {
+      const year = parseInt(req.query.year) || new Date().getFullYear();
+      try {
+        const rows = await getLocationsTasks(year);
+        return res.render("authentication_and_accounts/locationsAndTasks", {
+          csrfToken: req.csrfToken(),
+          year,
+          rows,
+          currentYear: new Date().getFullYear(),
+        });
+      } catch (err) {
+        (logError || console.error)("locationsAndTasks GET error:", err);
+        return res.status(500).send("Server error");
+      }
+    },
+  );
+
+  /**
+   * POST /oversight/tools/locationsAndTasks
+   * Create a new location or task.
+   * Body (JSON): { year, name, type, description, capacity, address, lat, lng, maps_url }
+   * Response: { success, id }
+   */
+  router.post(
+    "/oversight/tools/locationsAndTasks",
+    requireAuth,
+    requirePermission("manageShifts"),
+    csrfProtection,
+    async (req, res) => {
+      const {
+        year,
+        name,
+        type,
+        description,
+        capacity,
+        address,
+        lat,
+        lng,
+        maps_url,
+      } = req.body || {};
+
+      if (!name?.trim())
+        return res
+          .status(400)
+          .json({ success: false, error: "Name is required." });
+      if (!["location", "task"].includes(type))
+        return res.status(400).json({ success: false, error: "Invalid type." });
+      if (!year)
+        return res
+          .status(400)
+          .json({ success: false, error: "Year is required." });
+
+      try {
+        const id = await createLocationTask(
+          {
+            year: Number(year),
+            name,
+            type,
+            description,
+            capacity,
+            address,
+            lat,
+            lng,
+            maps_url,
+          },
+          req.session.userEmail || "admin",
+        );
+        return res.json({ success: true, id });
+      } catch (err) {
+        (logError || console.error)("locationsAndTasks POST error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * PUT /oversight/tools/locationsAndTasks/:id
+   * Update an existing location or task.
+   * Body (JSON): { name, type, description, capacity, address, lat, lng, maps_url, active }
+   * Response: { success }
+   */
+  router.put(
+    "/oversight/tools/locationsAndTasks/:id",
+    requireAuth,
+    requirePermission("manageShifts"),
+    csrfProtection,
+    async (req, res) => {
+      const id = Number(req.params.id);
+      const {
+        name,
+        type,
+        description,
+        capacity,
+        address,
+        lat,
+        lng,
+        maps_url,
+        active,
+      } = req.body || {};
+
+      if (!id)
+        return res.status(400).json({ success: false, error: "Invalid id." });
+      if (!name?.trim())
+        return res
+          .status(400)
+          .json({ success: false, error: "Name is required." });
+      if (!["location", "task"].includes(type))
+        return res.status(400).json({ success: false, error: "Invalid type." });
+
+      try {
+        const ok = await updateLocationTask(id, {
+          name,
+          type,
+          description,
+          capacity,
+          address,
+          lat,
+          lng,
+          maps_url,
+          active: active !== false && active !== "false",
+        });
+        if (!ok)
+          return res
+            .status(404)
+            .json({ success: false, error: "Record not found." });
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("locationsAndTasks PUT error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * PATCH /oversight/tools/locationsAndTasks/:id/active
+   * Toggle the active flag only.
+   * Body (JSON): { active: boolean }
+   * Response: { success }
+   */
+  router.patch(
+    "/oversight/tools/locationsAndTasks/:id/active",
+    requireAuth,
+    requirePermission("manageShifts"),
+    csrfProtection,
+    async (req, res) => {
+      const id = Number(req.params.id);
+      const active = req.body?.active !== false && req.body?.active !== "false";
+
+      if (!id)
+        return res.status(400).json({ success: false, error: "Invalid id." });
+
+      try {
+        const ok = await setLocationTaskActive(id, active);
+        if (!ok)
+          return res
+            .status(404)
+            .json({ success: false, error: "Record not found." });
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("locationsAndTasks PATCH error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+  // ===========================
+  // TIMELINES — Event Types (ASSISTANT_ADMIN+)
+  // ===========================
+
+  /**
+   * GET /oversight/tools/timelines/event-types
+   * Render event types management page.
+   */
+  router.get(
+    "/oversight/tools/timelines/event-types",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    csrfProtection,
+    async (req, res) => {
+      try {
+        const eventTypes = await getEventTypes();
+        console.log("Fetched event types:", eventTypes);
+        return res.render("authentication_and_accounts/timelines", {
+          csrfToken: req.csrfToken(),
+          view: "event-types",
+          eventTypes,
+          conventionDays: [],
+          timeline: [],
+          year: new Date().getFullYear(),
+          currentYear: new Date().getFullYear(),
+          selectedDay: null,
+          locationsTasks: [],
+        });
+      } catch (err) {
+        (logError || console.error)("timelines/event-types GET error:", err);
+        return res.status(500).send("Server error");
+      }
+    },
+  );
+
+  router.post(
+    "/oversight/tools/timelines/event-types",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    csrfProtection,
+    async (req, res) => {
+      const { name, description, color } = req.body || {};
+      if (!name?.trim())
+        return res
+          .status(400)
+          .json({ success: false, error: "Name is required." });
+      try {
+        const id = await createEventType(
+          { name, description, color },
+          req.session.userEmail || "admin",
+        );
+        return res.json({ success: true, id });
+      } catch (err) {
+        (logError || console.error)("timelines/event-types POST error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  router.put(
+    "/oversight/tools/timelines/event-types/:id",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    csrfProtection,
+    async (req, res) => {
+      const id = Number(req.params.id);
+      const { name, description, color, active } = req.body || {};
+      if (!id || !name?.trim())
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid request." });
+      try {
+        const ok = await updateEventType(id, {
+          name,
+          description,
+          color,
+          active: active !== false && active !== "false",
+        });
+        if (!ok)
+          return res.status(404).json({ success: false, error: "Not found." });
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("timelines/event-types PUT error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  // ===========================
+  // TIMELINES — Convention Days (OVERSEER+)
+  // ===========================
+
+  /**
+   * GET /oversight/tools/timelines
+   * Main timelines page — shows convention days for a year.
+   * Optional ?year= and ?dayId= params.
+   */
+  router.get(
+    "/oversight/tools/timelines",
+    requireAuth,
+    requirePermission("manageShifts"),
+    csrfProtection,
+    async (req, res) => {
+      const year = parseInt(req.query.year) || new Date().getFullYear();
+      const dayId = req.query.dayId ? Number(req.query.dayId) : null;
+      try {
+        const [eventTypes, conventionDays, locationsTasks] = await Promise.all([
+          getEventTypes(),
+          getConventionDays(year),
+          getLocationsTasks(year),
+        ]);
+
+        let timeline = [];
+        let selectedDay = null;
+
+        if (dayId) {
+          selectedDay = conventionDays.find((d) => d.id === dayId) || null;
+          if (selectedDay) timeline = await getFullDayTimeline(dayId);
+        }
+
+        return res.render("authentication_and_accounts/timelines", {
+          csrfToken: req.csrfToken(),
+          view: "timelines",
+          year,
+          currentYear: new Date().getFullYear(),
+          eventTypes,
+          conventionDays,
+          selectedDay,
+          timeline,
+          locationsTasks,
+        });
+      } catch (err) {
+        (logError || console.error)("timelines GET error:", err);
+        return res.status(500).send("Server error");
+      }
+    },
+  );
+
+  router.post(
+    "/oversight/tools/timelines/days",
+    requireAuth,
+    requirePermission("manageShifts"),
+    csrfProtection,
+    async (req, res) => {
+      const {
+        year,
+        label,
+        convention_date,
+        program_start,
+        program_end,
+        notes,
+      } = req.body || {};
+      const yearNum = Number(year);
+      const conventionDateObj = convention_date
+          ? new Date(String(convention_date).slice(0, 10) + 'T12:00:00Z')
+          : null;
+      if (
+        !year ||
+        !label?.trim() ||
+        !convention_date ||
+        !program_start ||
+        !program_end
+      )
+        return res
+          .status(400)
+          .json({ success: false, error: "Missing required fields." });
+
+      if (
+        yearNum < 2000 ||
+        yearNum > 2100 ||
+        !conventionDateObj ||
+        isNaN(conventionDateObj.valueOf())
+      )
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid year or convention date." });
+      try {
+        const id = await createConventionDay({
+          year: yearNum,
+          label,
+          convention_date,
+          program_start,
+          program_end,
+          notes,
+        });
+        return res.json({ success: true, id });
+      } catch (err) {
+        (logError || console.error)("timelines/days POST error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  router.put(
+    "/oversight/tools/timelines/days/:id",
+    requireAuth,
+    requirePermission("manageShifts"),
+    csrfProtection,
+    async (req, res) => {
+      const id = Number(req.params.id);
+      const { label, convention_date, program_start, program_end, notes } =
+        req.body || {};
+
+      const conventionDateObj = convention_date
+          ? new Date(String(convention_date).slice(0, 10) + 'T12:00:00Z')
+          : null;
+
+      if (
+        !id ||
+        !label?.trim() ||
+        !convention_date ||
+        !program_start ||
+        !program_end
+      )
+        return res
+          .status(400)
+          .json({ success: false, error: "Missing required fields." });
+
+      if (!conventionDateObj || isNaN(conventionDateObj.valueOf()))
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid convention date." });
+
+      try {
+        const ok = await updateConventionDay(id, {
+          label,
+          convention_date,
+          program_start,
+          program_end,
+          notes,
+        });
+        if (!ok)
+          return res.status(404).json({ success: false, error: "Not found." });
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("timelines/days PUT error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  router.delete(
+    "/oversight/tools/timelines/days/:id",
+    requireAuth,
+    requirePermission("manageShifts"),
+    csrfProtection,
+    async (req, res) => {
+      const id = Number(req.params.id);
+      if (!id)
+        return res.status(400).json({ success: false, error: "Invalid id." });
+      try {
+        const ok = await deleteConventionDay(id);
+        if (!ok)
+          return res.status(404).json({ success: false, error: "Not found." });
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("timelines/days DELETE error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * POST /oversight/tools/timelines/days/:id/copy
+   * Deep-copy a convention day — sessions, shifts, and assignments included.
+   * Body (JSON): { year, label, convention_date, program_start, program_end, notes? }
+   * Response: { success, id }
+   */
+  router.post(
+    "/oversight/tools/timelines/days/:id/copy",
+    requireAuth,
+    requirePermission("manageShifts"),
+    csrfProtection,
+    async (req, res) => {
+      const sourceDayId = Number(req.params.id);
+      const {
+        year,
+        label,
+        convention_date,
+        program_start,
+        program_end,
+        notes,
+      } = req.body || {};
+      const yearNum = Number(year);
+      const conventionDateObj = convention_date
+        ? new Date(String(convention_date).slice(0, 10) + "T12:00:00Z")
+        : null;
+
+      if (
+        !sourceDayId ||
+        !yearNum ||
+        !label?.trim() ||
+        !convention_date ||
+        !program_start ||
+        !program_end
+      )
+        return res
+          .status(400)
+          .json({ success: false, error: "Missing required fields." });
+
+      try {
+        const newId = await copyConventionDay(sourceDayId, {
+          year: Number(year),
+          label: label.trim(),
+          convention_date,
+          program_start,
+          program_end,
+          notes: notes?.trim() || null,
+        });
+        return res.json({ success: true, id: newId });
+      } catch (err) {
+        (logError || console.error)("timelines/days/copy POST error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+  // ===========================
+  // TIMELINES — Sessions
+  // ===========================
+
+  router.post(
+    "/oversight/tools/timelines/sessions",
+    requireAuth,
+    requirePermission("manageShifts"),
+    csrfProtection,
+    async (req, res) => {
+      const {
+        convention_day_id,
+        label,
+        session_order,
+        start_time,
+        end_time,
+        notes,
+      } = req.body || {};
+      if (!convention_day_id || !label?.trim() || !start_time || !end_time)
+        return res
+          .status(400)
+          .json({ success: false, error: "Missing required fields." });
+      try {
+        const id = await createSession({
+          convention_day_id: Number(convention_day_id),
+          label,
+          session_order: session_order || 0,
+          start_time,
+          end_time,
+          notes,
+        });
+        return res.json({ success: true, id });
+      } catch (err) {
+        (logError || console.error)("timelines/sessions POST error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  router.put(
+    "/oversight/tools/timelines/sessions/:id",
+    requireAuth,
+    requirePermission("manageShifts"),
+    csrfProtection,
+    async (req, res) => {
+      const id = Number(req.params.id);
+      const { label, session_order, start_time, end_time, notes } =
+        req.body || {};
+      if (!id || !label?.trim() || !start_time || !end_time)
+        return res
+          .status(400)
+          .json({ success: false, error: "Missing required fields." });
+      try {
+        const ok = await updateSession(id, {
+          label,
+          session_order: session_order || 0,
+          start_time,
+          end_time,
+          notes,
+        });
+        if (!ok)
+          return res.status(404).json({ success: false, error: "Not found." });
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("timelines/sessions PUT error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  router.delete(
+    "/oversight/tools/timelines/sessions/:id",
+    requireAuth,
+    requirePermission("manageShifts"),
+    csrfProtection,
+    async (req, res) => {
+      const id = Number(req.params.id);
+      if (!id)
+        return res.status(400).json({ success: false, error: "Invalid id." });
+      try {
+        const ok = await deleteSession(id);
+        if (!ok)
+          return res.status(404).json({ success: false, error: "Not found." });
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("timelines/sessions DELETE error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  // ===========================
+  // TIMELINES — Shifts
+  // ===========================
+
+  router.post(
+    "/oversight/tools/timelines/shifts",
+    requireAuth,
+    requirePermission("manageShifts"),
+    csrfProtection,
+    async (req, res) => {
+      const {
+        session_id,
+        event_type_id,
+        label,
+        start_time,
+        end_time,
+        volunteer_need,
+        notes,
+      } = req.body || {};
+      if (
+        !session_id ||
+        !event_type_id ||
+        !label?.trim() ||
+        !start_time ||
+        !end_time
+      )
+        return res
+          .status(400)
+          .json({ success: false, error: "Missing required fields." });
+      try {
+        const id = await createShift({
+          session_id: Number(session_id),
+          event_type_id: Number(event_type_id),
+          label,
+          start_time,
+          end_time,
+          volunteer_need,
+          notes,
+        });
+        return res.json({ success: true, id });
+      } catch (err) {
+        (logError || console.error)("timelines/shifts POST error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  router.put(
+    "/oversight/tools/timelines/shifts/:id",
+    requireAuth,
+    requirePermission("manageShifts"),
+    csrfProtection,
+    async (req, res) => {
+      const id = Number(req.params.id);
+      const {
+        event_type_id,
+        label,
+        start_time,
+        end_time,
+        volunteer_need,
+        notes,
+      } = req.body || {};
+      if (!id || !event_type_id || !label?.trim() || !start_time || !end_time)
+        return res
+          .status(400)
+          .json({ success: false, error: "Missing required fields." });
+      try {
+        const ok = await updateShift(id, {
+          event_type_id: Number(event_type_id),
+          label,
+          start_time,
+          end_time,
+          volunteer_need,
+          notes,
+        });
+        if (!ok)
+          return res.status(404).json({ success: false, error: "Not found." });
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("timelines/shifts PUT error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  router.delete(
+    "/oversight/tools/timelines/shifts/:id",
+    requireAuth,
+    requirePermission("manageShifts"),
+    csrfProtection,
+    async (req, res) => {
+      const id = Number(req.params.id);
+      if (!id)
+        return res.status(400).json({ success: false, error: "Invalid id." });
+      try {
+        const ok = await deleteShift(id);
+        if (!ok)
+          return res.status(404).json({ success: false, error: "Not found." });
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("timelines/shifts DELETE error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  // ===========================
+  // TIMELINES — Schedule Assignments
+  // ===========================
+
+  router.post(
+    "/oversight/tools/timelines/assignments",
+    requireAuth,
+    requirePermission("manageShifts"),
+    csrfProtection,
+    async (req, res) => {
+      const { shift_id, location_task_id, volunteer_need, notes } =
+        req.body || {};
+      if (!shift_id || !location_task_id)
+        return res
+          .status(400)
+          .json({ success: false, error: "Missing required fields." });
+      try {
+        const id = await createScheduleAssignment({
+          shift_id: Number(shift_id),
+          location_task_id: Number(location_task_id),
+          volunteer_need:
+            volunteer_need != null ? Number(volunteer_need) : null,
+
+          notes,
+        });
+        return res.json({ success: true, id });
+      } catch (err) {
+        (logError || console.error)("timelines/assignments POST error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+  /**
+   * PUT /oversight/tools/timelines/assignments/:id
+   * Update volunteer_need and notes on an existing assignment.
+   * Body (JSON): { volunteer_need, notes }
+   */
+  router.put(
+    "/oversight/tools/timelines/assignments/:id",
+    requireAuth,
+    requirePermission("manageShifts"),
+    csrfProtection,
+    async (req, res) => {
+      const id = Number(req.params.id);
+      if (!id)
+        return res.status(400).json({ success: false, error: "Invalid id." });
+      const { volunteer_need, notes } = req.body || {};
+      try {
+        const ok = await updateScheduleAssignment(id, {
+          volunteer_need:
+            volunteer_need != null && volunteer_need !== ""
+              ? Number(volunteer_need)
+              : null,
+          notes,
+        });
+        if (!ok)
+          return res.status(404).json({ success: false, error: "Not found." });
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("timelines/assignments PUT error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  router.delete(
+    "/oversight/tools/timelines/assignments/:id",
+    requireAuth,
+    requirePermission("manageShifts"),
+    csrfProtection,
+    async (req, res) => {
+      const id = Number(req.params.id);
+      if (!id)
+        return res.status(400).json({ success: false, error: "Invalid id." });
+      try {
+        const ok = await deleteScheduleAssignment(id);
+        if (!ok)
+          return res.status(404).json({ success: false, error: "Not found." });
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("timelines/assignments DELETE error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
       }
     },
   );

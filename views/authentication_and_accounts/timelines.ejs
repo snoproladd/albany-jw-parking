@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title><%= view === 'event-types' ? 'Event Types' : 'Timelines' %> — Albany JW Parking</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+    <meta name="csrf-token" content="<%= csrfToken %>" />
+  </head>
+
+  <body class="min-vh-100 bg-body-tertiary">
+    <%- include('../partials/header') %>
+
+    <main class="container-fluid py-4">
+      <div class="row justify-content-center">
+        <div class="col-12 col-xl-11">
+
+          <% if (view === 'event-types') { %>
+          <%# ══════════════════════════════════════════════════════
+              EVENT TYPES VIEW
+          ══════════════════════════════════════════════════════ %>
+
+          <section class="card shadow-lg admin-console-card timeline-card-full">
+            <header class="card-header text-center">
+              <h1 class="h2 my-2">
+                <i class="fa-solid fa-tags me-2"></i>Event Types
+              </h1>
+              <p class="mb-0">Manage the event categories used across all shift scheduling.</p>
+            </header>
+
+            <div class="card-body py-4">
+
+              <%# Add form %>
+              <div id="etFormPanel" class="card border-secondary mb-4 d-none">
+                <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                  <span id="etFormTitle" class="fw-semibold">Add Event Type</span>
+                  <button type="button" class="btn-close btn-close-white btn-sm" id="etFormClose"></button>
+                </div>
+                <div class="card-body">
+                  <input type="hidden" id="etEditId" />
+                  <div class="row g-3">
+                    <div class="col-12 col-md-4">
+                      <label for="etName" class="form-label small">Name <span class="text-danger">*</span></label>
+                      <input type="text" id="etName" class="form-control" maxlength="100" placeholder="e.g. Ingress" />
+                    </div>
+                    <div class="col-12 col-md-5">
+                      <label for="etDescription" class="form-label small">Description</label>
+                      <input type="text" id="etDescription" class="form-control" maxlength="500" />
+                    </div>
+                    <div class="col-12 col-md-1">
+                      <label for="etColor" class="form-label small">Color</label>
+                      <input type="color" id="etColor" class="form-control form-control-color w-100" value="#6c757d" />
+                    </div>
+                    <div class="col-12 col-md-2 d-flex align-items-end" id="etActiveWrap">
+                      <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" id="etActive" checked />
+                        <label class="form-check-label small" for="etActive">Active</label>
+                      </div>
+                    </div>
+                  </div>
+                  <div id="etFormStatus" class="mt-3"></div>
+                  <div class="d-flex gap-2 mt-3">
+                    <button type="button" class="btn btn-secondary" id="etSaveBtn">
+                      <i class="fa-solid fa-floppy-disk me-1"></i>Save
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" id="etCancelBtn">Cancel</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-flex justify-content-end mb-3">
+                <button type="button" class="btn btn-secondary btn-sm" id="etAddBtn">
+                  <i class="fa-solid fa-plus me-1"></i>Add Event Type
+                </button>
+              </div>
+
+              <% if (eventTypes.length === 0) { %>
+                <p class="text-muted small">No event types defined yet.</p>
+              <% } else { %>
+                <div class="table-responsive">
+                  <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                      <tr>
+                        <th>Color</th>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <% eventTypes.forEach(et => { %>
+                        <tr data-et-id="<%= et.id %>"
+                            data-et-name="<%= et.name %>"
+                            data-et-description="<%= et.description || '' %>"
+                            data-et-color="<%= et.color || '#6c757d' %>"
+                            data-et-active="<%= et.active ? 'true' : 'false' %>"
+                            class="<%= !et.active ? 'table-secondary text-muted' : '' %>">
+                          <td>
+                            <span class="et-color-swatch" data-color="<%= et.color || '#6c757d' %>"></span>
+                          </td>
+                          <td><strong><%= et.name %></strong></td>
+                          <td class="small text-muted"><%= et.description || '—' %></td>
+                          <td>
+                            <span class="badge <%= et.active ? 'bg-success' : 'bg-secondary' %>">
+                              <%= et.active ? 'Active' : 'Inactive' %>
+                            </span>
+                          </td>
+                          <td class="text-end">
+                            <button type="button" class="btn btn-outline-secondary btn-sm et-edit-btn"
+                              data-id="<%= et.id %>">
+                              <i class="fa-solid fa-pen"></i>
+                            </button>
+                          </td>
+                        </tr>
+                      <% }) %>
+                    </tbody>
+                  </table>
+                </div>
+              <% } %>
+
+              <div class="mt-4">
+                <a href="/oversight/tools" class="btn btn-outline-secondary btn-sm">
+                  <i class="fa-solid fa-arrow-left me-1"></i>Back to Oversight Tools
+                </a>
+              </div>
+
+            </div>
+          </section>
+
+          <% } else { %>
+          <%# ══════════════════════════════════════════════════════
+              TIMELINES VIEW
+          ══════════════════════════════════════════════════════ %>
+
+          <section class="card shadow-lg admin-console-card timeline-card-full">
+            <header class="card-header text-center">
+              <h1 class="h2 my-2">
+                <i class="fa-regular fa-clock me-2"></i>Timelines
+              </h1>
+              <p class="mb-0">Define convention days, sessions, and event shifts for <strong><%= year %></strong>.</p>
+            </header>
+
+            <div class="card-body py-4">
+
+              <%# ── Toolbar ── %>
+              <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+                <form method="GET" action="/oversight/tools/timelines" class="d-flex align-items-center gap-2">
+                  <label for="yearPicker" class="form-label mb-0 small fw-semibold">Year</label>
+                  <select id="yearPicker" name="year" class="form-select form-select-sm year-picker-select"
+                    onchange="this.form.submit()">
+                    <% for (let y = currentYear + 1; y >= currentYear - 2; y--) { %>
+                      <option value="<%= y %>" <%= y === year ? 'selected' : '' %>><%= y %></option>
+                    <% } %>
+                  </select>
+                </form>
+                <button type="button" class="btn btn-warning btn-sm" id="addDayBtn">
+                  <i class="fa-solid fa-plus me-1"></i>Add Convention Day
+                </button>
+              </div>
+
+              <%# ── Add/Edit Day form ── %>
+              <div id="dayFormPanel" class="card border-warning mb-4 d-none">
+                <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                  <span id="dayFormTitle" class="fw-semibold">Add Convention Day</span>
+                  <button type="button" class="btn-close btn-sm" id="dayFormClose"></button>
+                </div>
+                <div class="card-body">
+                  <input type="hidden" id="dayEditId" />
+                  <div class="row g-3">
+                    <div class="col-12 col-md-3">
+                      <label for="dayLabel" class="form-label small">Label <span class="text-danger">*</span></label>
+                      <input type="text" id="dayLabel" class="form-control" maxlength="50" placeholder="Friday" />
+                    </div>
+                    <div class="col-12 col-md-3">
+                      <label for="dayDate" class="form-label small">Date <span class="text-danger">*</span></label>
+                      <input type="date" id="dayDate" class="form-control" />
+                    </div>
+                    <div class="col-12 col-md-2">
+                      <label for="dayStart" class="form-label small">Program Start <span class="text-danger">*</span></label>
+                      <input type="time" id="dayStart" class="form-control" />
+                    </div>
+                    <div class="col-12 col-md-2">
+                      <label for="dayEnd" class="form-label small">Program End <span class="text-danger">*</span></label>
+                      <input type="time" id="dayEnd" class="form-control" />
+                    </div>
+                    <div class="col-12 col-md-2">
+                      <label for="dayNotes" class="form-label small">Notes</label>
+                      <input type="text" id="dayNotes" class="form-control" maxlength="500" />
+                    </div>
+                  </div>
+                  <div id="dayFormStatus" class="mt-3"></div>
+                  <div class="d-flex gap-2 mt-3">
+                    <button type="button" class="btn btn-warning" id="daySaveBtn">
+                      <i class="fa-solid fa-floppy-disk me-1"></i>Save
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" id="dayCancelBtn">Cancel</button>
+                    <button type="button" class="btn btn-outline-danger ms-auto d-none" id="dayDeleteBtn">
+                      <i class="fa-solid fa-trash me-1"></i>Delete Day
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <%# ── Copy Day form ── %>
+              <div id="copyDayFormPanel" class="card border-info mb-4 d-none">
+                <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                  <span id="copyDayFormTitle" class="fw-semibold">Copy Convention Day</span>
+                  <button type="button" class="btn-close btn-close-white btn-sm" id="copyDayFormClose"></button>
+                </div>
+                <div class="card-body">
+                  <input type="hidden" id="copySourceDayId" />
+                  <p class="text-muted small mb-3">
+                    All sessions, shifts, and location assignments will be copied to the new day.
+                  </p>
+                  <div class="row g-3">
+                    <div class="col-12 col-md-3">
+                      <label for="copyDayLabel" class="form-label small">Label <span class="text-danger">*</span></label>
+                      <input type="text" id="copyDayLabel" class="form-control" maxlength="50" placeholder="Saturday" />
+                    </div>
+                    <div class="col-12 col-md-3">
+                      <label for="copyDayDate" class="form-label small">Date <span class="text-danger">*</span></label>
+                      <input type="date" id="copyDayDate" class="form-control" />
+                    </div>
+                    <div class="col-12 col-md-2">
+                      <label for="copyDayStart" class="form-label small">Program Start <span class="text-danger">*</span></label>
+                      <input type="time" id="copyDayStart" class="form-control" />
+                    </div>
+                    <div class="col-12 col-md-2">
+                      <label for="copyDayEnd" class="form-label small">Program End <span class="text-danger">*</span></label>
+                      <input type="time" id="copyDayEnd" class="form-control" />
+                    </div>
+                    <div class="col-12 col-md-2">
+                      <label for="copyDayNotes" class="form-label small">Notes</label>
+                      <input type="text" id="copyDayNotes" class="form-control" maxlength="500" />
+                    </div>
+                  </div>
+                  <div id="copyDayFormStatus" class="mt-3"></div>
+                  <div class="d-flex gap-2 mt-3">
+                    <button type="button" class="btn btn-info text-white" id="copyDaySaveBtn">
+                      <i class="fa-solid fa-copy me-1"></i>Copy Day
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" id="copyDayCancelBtn">Cancel</button>
+                  </div>
+                </div>
+              </div>
+
+              <%# ── Convention days list ── %>
+              <% if (conventionDays.length === 0) { %>
+                <p class="text-muted small">No convention days defined for <%= year %>. Add one above.</p>
+              <% } else { %>
+                <div class="row g-3 mb-4" id="daysList">
+                  <% conventionDays.forEach(day => { %>
+                    <div class="col-12 col-md-6 col-lg-4">
+                      <div class="card h-100 <%= selectedDay && selectedDay.id === day.id ? 'border-warning border-2' : '' %>">
+                        <div class="card-body py-3 d-flex flex-column">
+                          <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                              <h3 class="h6 mb-1 fw-bold"><%= day.label %></h3>
+                              <div class="text-muted small">
+                                  <span class="fmt-date" data-raw="<%= day.convention_date instanceof Date ? day.convention_date.toISOString().slice(0,10) : String(day.convention_date).slice(0,10) %>"></span>
+                              </div>
+                              <div class="text-muted small">
+                                Program: <span class="fmt-time" data-raw="<%= day.program_start %>"></span> – <span class="fmt-time" data-raw="<%= day.program_end %>"></span>
+                              </div>
+                              <% if (day.notes) { %>
+                                <div class="text-muted small mt-1"><%= day.notes %></div>
+                              <% } %>
+                            </div>
+                            <div class="d-flex gap-1">
+                              <button type="button" class="btn btn-outline-secondary btn-sm day-edit-btn"
+                                data-id="<%= day.id %>"
+                                data-label="<%= day.label %>"
+                                data-date="<%= day.convention_date instanceof Date ? day.convention_date.toISOString().slice(0,10) : String(day.convention_date).slice(0,10) %>"
+                                data-start="<%= day.program_start instanceof Date ? day.program_start.toISOString() : day.program_start %>"
+                                data-end="<%= day.program_end instanceof Date ? day.program_end.toISOString() : day.program_end %>"
+                                data-notes="<%= day.notes || '' %>">
+                                <i class="fa-solid fa-pen"></i>
+                              </button>
+                              <button type="button" class="btn btn-outline-secondary btn-sm day-copy-btn"
+                                data-id="<%= day.id %>"
+                                data-label="<%= day.label %>"
+                                data-start="<%= day.program_start instanceof Date ? day.program_start.toISOString() : day.program_start %>"
+                                data-end="<%= day.program_end instanceof Date ? day.program_end.toISOString() : day.program_end %>"
+                                title="Copy day">
+                                <i class="fa-solid fa-copy"></i>
+                              </button>
+                            </div>
+                          </div>
+                          <a href="/oversight/tools/timelines?year=<%= year %>&dayId=<%= day.id %>"
+                            class="btn btn-sm btn-warning w-100 mt-auto pt-3">
+                            <i class="fa-solid fa-list me-1"></i>Manage Sessions &amp; Shifts
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  <% }) %>
+                </div>
+              <% } %>
+
+              <%# ── Selected day: sessions & shifts ── %>
+              <% if (selectedDay) { %>
+                <hr class="my-4" />
+
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                  <h2 class="h5 mb-0">
+                    <i class="fa-regular fa-calendar-days me-2 text-warning"></i>
+                    <%= selectedDay.label %> — Sessions &amp; Shifts
+                  </h2>
+                  <button type="button" class="btn btn-outline-warning btn-sm" id="addSessionBtn"
+                    data-day-id="<%= selectedDay.id %>">
+                    <i class="fa-solid fa-plus me-1"></i>Add Session
+                  </button>
+                </div>
+
+                <%# Add/Edit Session form %>
+                <div id="sessionFormPanel" class="card border-secondary mb-4 d-none">
+                  <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                    <span id="sessionFormTitle" class="fw-semibold">Add Session</span>
+                    <button type="button" class="btn-close btn-close-white btn-sm" id="sessionFormClose"></button>
+                  </div>
+                  <div class="card-body">
+                    <input type="hidden" id="sessionEditId" />
+                    <input type="hidden" id="sessionDayId" value="<%= selectedDay.id %>" />
+                    <div class="row g-3">
+                      <div class="col-12 col-md-3">
+                        <label for="sessionLabel" class="form-label small">Label <span class="text-danger">*</span></label>
+                        <input type="text" id="sessionLabel" class="form-control" maxlength="50"
+                          placeholder="Morning A" list="sessionLabelSuggestions" />
+                        <datalist id="sessionLabelSuggestions">
+                          <option value="Pre-Session"/>
+                          <option value="Morning A" />
+                          <option value="Morning B" />
+                          <option value="Lunch" />
+                          <option value="Afternoon A" />
+                          <option value="Afternoon B" />
+                          <option value="Post-Session" />
+                        </datalist>
+                      </div>
+                      <div class="col-12 col-md-2">
+                        <label for="sessionOrder" class="form-label small">Order</label>
+                        <input type="number" id="sessionOrder" class="form-control" min="1" max="99" placeholder="1" />
+                      </div>
+                      <div class="col-12 col-md-2">
+                        <label for="sessionStart" class="form-label small">Start <span class="text-danger">*</span></label>
+                        <input type="time" id="sessionStart" class="form-control" />
+                      </div>
+                      <div class="col-12 col-md-2">
+                        <label for="sessionEnd" class="form-label small">End <span class="text-danger">*</span></label>
+                        <input type="time" id="sessionEnd" class="form-control" />
+                      </div>
+                      <div class="col-12 col-md-3">
+                        <label for="sessionNotes" class="form-label small">Notes</label>
+                        <input type="text" id="sessionNotes" class="form-control" maxlength="500" />
+                      </div>
+                    </div>
+                    <div id="sessionFormStatus" class="mt-3"></div>
+                    <div class="d-flex gap-2 mt-3">
+                      <button type="button" class="btn btn-secondary" id="sessionSaveBtn">
+                        <i class="fa-solid fa-floppy-disk me-1"></i>Save
+                      </button>
+                      <button type="button" class="btn btn-outline-secondary" id="sessionCancelBtn">Cancel</button>
+                      <button type="button" class="btn btn-outline-danger ms-auto d-none" id="sessionDeleteBtn">
+                        <i class="fa-solid fa-trash me-1"></i>Delete Session
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <%# Add/Edit Shift form %>
+                <div id="shiftFormPanel" class="card border-primary mb-4 d-none">
+                  <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <span id="shiftFormTitle" class="fw-semibold">Add Shift</span>
+                    <button type="button" class="btn-close btn-close-white btn-sm" id="shiftFormClose"></button>
+                  </div>
+                  <div class="card-body">
+                    <input type="hidden" id="shiftEditId" />
+                    <input type="hidden" id="shiftSessionId" />
+                    <div class="row g-3">
+                      <div class="col-12 col-md-3">
+                        <label for="shiftEventType" class="form-label small">Event Type <span class="text-danger">*</span></label>
+                        <select id="shiftEventType" class="form-select">
+                          <option value="">Select…</option>
+                          <% eventTypes.filter(et => et.active).forEach(et => { %>
+                            <option value="<%= et.id %>"
+                              data-color="<%= et.color || '#6c757d' %>">
+                              <%= et.name %>
+                            </option>
+                          <% }) %>
+                        </select>
+                      </div>
+                      <div class="col-12 col-md-2">
+                        <label for="shiftLabel" class="form-label small">Label <span class="text-danger">*</span></label>
+                        <input type="text" id="shiftLabel" class="form-control" maxlength="50"
+                          placeholder="Shift A" list="shiftLabelSuggestions" />
+                        <datalist id="shiftLabelSuggestions">
+                          <option value="Shift A" />
+                          <option value="Shift B" />
+                          <option value="Full Session" />
+                          <option value="Pre-Session" />
+                        </datalist>
+                      </div>
+                      <div class="col-12 col-md-2">
+                        <label for="shiftStart" class="form-label small">Start <span class="text-danger">*</span></label>
+                        <input type="time" id="shiftStart" class="form-control" />
+                      </div>
+                      <div class="col-12 col-md-2">
+                        <label for="shiftEnd" class="form-label small">End <span class="text-danger">*</span></label>
+                        <input type="time" id="shiftEnd" class="form-control" />
+                      </div>
+                      <!-- <div class="col-12 col-md-1">
+                        <label for="shiftNeed" class="form-label small">Volunteers</label>
+                        <input type="number" id="shiftNeed" class="form-control" min="1" max="999" placeholder="—" />
+                      </div> -->
+                      <div class="col-12 col-md-2">
+                        <label for="shiftNotes" class="form-label small">Notes</label>
+                        <input type="text" id="shiftNotes" class="form-control" maxlength="500" />
+                      </div>
+                    </div>
+                    <div id="shiftFormStatus" class="mt-3"></div>
+                    <div class="d-flex gap-2 mt-3">
+                      <button type="button" class="btn btn-primary" id="shiftSaveBtn">
+                        <i class="fa-solid fa-floppy-disk me-1"></i>Save
+                      </button>
+                      <button type="button" class="btn btn-outline-secondary" id="shiftCancelBtn">Cancel</button>
+                      <button type="button" class="btn btn-outline-danger ms-auto d-none" id="shiftDeleteBtn">
+                        <i class="fa-solid fa-trash me-1"></i>Delete Shift
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <%# Assign location/task to shift form %>
+                <div id="assignFormPanel" class="card border-success mb-4 d-none">
+                  <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    <span id="assignFormTitle" class="fw-semibold">Assign Location</span>
+                    <button type="button" class="btn-close btn-close-white btn-sm" id="assignFormClose"></button>
+                  </div>
+                  <div class="card-body">
+                    <input type="hidden" id="assignShiftId" />
+                    <input type="hidden" id="assignEditId" />
+                    <div class="row g-3">
+                      <div class="col-12 col-md-6">
+                        <label for="assignLocationTask" class="form-label small">
+                          Location <span id="assignLocationNote" class="text-muted fw-normal d-none">(not editable)</span>
+                        </label>
+                        <select id="assignLocationTask" class="form-select">
+                          <option value="">Select…</option>
+                          <optgroup label="Locations">
+                            <% locationsTasks.filter(l => l.type === 'location' && l.active).forEach(l => { %>
+                              <option value="<%= l.id %>"><%= l.name %></option>
+                            <% }) %>
+                          </optgroup>
+                        </select>
+                      </div>
+                         <div class="col-12 col-md-3">
+                        <label for="assignVolNeed" class="form-label small">Volunteers Needed</label>
+                        <input type="number" id="assignVolNeed" class="form-control" min="1" max="999" placeholder="—" />
+                      </div>
+                      <div class="col-12 col-md-3">
+                        <label for="assignNotes" class="form-label small">Notes</label>
+                        <input type="text" id="assignNotes" class="form-control" maxlength="500" />
+                      </div>
+                    </div>
+                    <div id="assignFormStatus" class="mt-3"></div>
+                    <div class="d-flex gap-2 mt-3">
+                      <button type="button" class="btn btn-success" id="assignSaveBtn">
+                        <i class="fa-solid fa-floppy-disk me-1"></i><span id="assignSaveBtnLabel">Assign</span>
+                      </button>
+                      <button type="button" class="btn btn-outline-secondary" id="assignCancelBtn">Cancel</button>
+                    </div>
+                  </div>
+                </div>
+
+                <%# Sessions & Shifts accordion %>
+                <% if (timeline.length === 0) { %>
+                  <p class="text-muted small">No sessions defined for this day yet.</p>
+                <% } else { %>
+                  <div class="accordion" id="timelineAccordion">
+                    <% timeline.forEach((block, sIdx) => { %>
+                      <div class="accordion-item" id="session-block-<%= block.session.id %>">
+                        <h2 class="accordion-header">
+                          <button class="accordion-button <%= sIdx > 0 ? 'collapsed' : '' %>"
+                            type="button" data-bs-toggle="collapse"
+                            data-bs-target="#session-collapse-<%= block.session.id %>">
+                            <span class="me-3 fw-bold"><%= block.session.label %></span>
+                            <span class="text-muted small me-3">
+                              <span class="fmt-time" data-raw="<%= block.session.start_time %>"></span> – <span class="fmt-time" data-raw="<%= block.session.end_time %>"></span>
+                            </span>
+                            <span class="badge bg-secondary ms-auto me-3">
+                              <%= block.shifts.length %> shift<%= block.shifts.length !== 1 ? 's' : '' %>
+                            </span>
+                          </button>
+                        </h2>
+
+                        <div id="session-collapse-<%= block.session.id %>"
+                          class="accordion-collapse collapse <%= sIdx === 0 ? 'show' : '' %>">
+                          <div class="accordion-body pt-2 pb-3">
+
+                            <%# Session action bar %>
+                            <div class="d-flex gap-2 mb-3 flex-wrap">
+                              <button type="button" class="btn btn-outline-secondary btn-sm session-edit-btn"
+                                data-id="<%= block.session.id %>"
+                                data-label="<%= block.session.label %>"
+                                data-order="<%= block.session.session_order %>"
+                                data-start="<%= block.session.start_time instanceof Date ? block.session.start_time.toISOString() : block.session.start_time %>"
+                                data-end="<%= block.session.end_time instanceof Date ? block.session.end_time.toISOString() : block.session.end_time %>"
+                                data-notes="<%= block.session.notes || '' %>">
+                                <i class="fa-solid fa-pen me-1"></i>Edit Session
+                              </button>
+                              <button type="button" class="btn btn-outline-primary btn-sm add-shift-btn"
+                                data-session-id="<%= block.session.id %>">
+                                <i class="fa-solid fa-plus me-1"></i>Add Shift
+                              </button>
+                            </div>
+
+                            <% if (block.shifts.length === 0) { %>
+                              <p class="text-muted small mb-0">No shifts defined for this session.</p>
+                            <% } else { %>
+                              <div class="row g-3">
+                                <% block.shifts.forEach(({ shift, assignments }) => { %>
+                                  <div class="col-12 col-lg-6" id="shift-block-<%= shift.id %>">
+                                    <div class="card h-100 shift-card"
+                                      data-shift-color="<%= shift.event_type_color || '#6c757d' %>">                                      <div class="card-body py-2 px-3">
+
+                                        <%# Shift header %>
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                          <div>
+                                            <span class="badge me-1 shift-badge"
+                                              data-badge-color="<%= shift.event_type_color || '#6c757d' %>">
+                                              <%= shift.event_type_name %>
+                                            </span>
+                                            <strong><%= shift.label %></strong>
+                                            <div class="text-muted small">
+                                              <span class="fmt-time" data-raw="<%= shift.start_time %>"></span> – <span class="fmt-time" data-raw="<%= shift.end_time %>"></span>
+
+                                              <% if (shift.volunteer_need) { %>
+                                                &nbsp;·&nbsp;
+                                                <i class="fa-solid fa-users me-1"></i><%= shift.volunteer_need %> needed
+                                              <% } %>
+                                            </div>
+                                          </div>
+                                          <div class="d-flex gap-1">
+                                            <button type="button"
+                                              class="btn btn-outline-secondary btn-sm shift-edit-btn"
+                                              data-id="<%= shift.id %>"
+                                              data-session-id="<%= shift.session_id %>"
+                                              data-event-type-id="<%= shift.event_type_id %>"
+                                              data-label="<%= shift.label %>"
+                                              data-start="<%= shift.start_time instanceof Date ? shift.start_time.toISOString() : shift.start_time %>"
+                                              data-end="<%= shift.end_time instanceof Date ? shift.end_time.toISOString() : shift.end_time %>"
+                                              data-need="<%= shift.volunteer_need || '' %>"
+                                              data-notes="<%= shift.notes || '' %>">
+                                              <i class="fa-solid fa-pen"></i>
+                                            </button>
+                                            <button type="button"
+                                              class="btn btn-outline-success btn-sm add-assignment-btn"
+                                              data-shift-id="<%= shift.id %>"
+                                              data-shift-label="<%= shift.event_type_name %> – <%= shift.label %>">
+                                              <i class="fa-solid fa-link"></i>
+                                            </button>
+                                          </div>
+                                        </div>
+
+                                        <%# Assignments %>
+                                        <% if (assignments.length > 0) { %>
+                                          <div class="d-flex flex-wrap gap-1 mt-1">
+                                            <% assignments.forEach(a => { %>
+                                              <span class="badge bg-light text-dark border d-flex align-items-center gap-1 assignment-badge">
+                                                <i class="fa-solid fa-location-dot me-1 text-secondary"></i>
+                                                <%= a.location_task_name %>
+                                                <% if (a.volunteer_need) { %>
+                                                  <span class="text-secondary assignment-vol-need">
+                                                    (<%= a.volunteer_need %>)
+                                                  </span>
+                                                <% } %>
+                                                <button type="button"
+                                                  class="edit-assignment-btn border-0 bg-transparent p-0 assignment-edit-btn"
+                                                  data-assignment-id="<%= a.id %>"
+                                                  data-location-name="<%= a.location_task_name %>"
+                                                  data-volunteer-need="<%= a.volunteer_need != null ? a.volunteer_need : '' %>"
+                                                  data-notes="<%= a.notes || '' %>"
+                                                  aria-label="Edit">
+                                                  <i class="fa-solid fa-pen text-secondary"></i>
+                                                </button>
+                                                <button type="button"
+                                                  class="btn-close btn-close-sm remove-assignment-btn assignment-remove-btn"
+                                                  data-assignment-id="<%= a.id %>"
+                                                  aria-label="Remove"></button>
+                                              </span>
+                                            <% }) %>
+                                          </div>
+                                        <% } else { %>
+                                          <p class="text-muted small mb-0">No locations assigned.</p>
+                                        <% } %>
+
+                                      </div>
+                                    </div>
+                                  </div>
+                                <% }) %>
+                              </div>
+                            <% } %>
+
+                          </div>
+                        </div>
+                      </div>
+                    <% }) %>
+                  </div>
+                <% } %>
+
+              <% } %><%# end selectedDay %>
+
+              <div class="mt-4 d-flex gap-2">
+                <a href="/oversight/tools" class="btn btn-outline-secondary btn-sm">
+                  <i class="fa-solid fa-arrow-left me-1"></i>Back to Oversight Tools
+                </a>
+                <% if (view === 'timelines') { %>
+                  <a href="/oversight/tools/timelines/event-types" class="btn btn-outline-secondary btn-sm">
+                    <i class="fa-solid fa-tags me-1"></i>Manage Event Types
+                  </a>
+                <% } %>
+              </div>
+
+            </div>
+          </section>
+
+          <% } %><%# end view switch %>
+
+     
+
+        </div>
+      </div>
+    </main>
+
+    <%- include('../partials/footer') %>
+
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/timelines.js"></script>
+  </body>
+</html>

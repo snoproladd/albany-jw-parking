@@ -117,6 +117,7 @@ strong,
 b {
   font-weight: 500;
 }
+
 /* =====================================================================
    BASE / GLOBAL STYLES
    Fonts, variables, typography, generic components
@@ -166,6 +167,7 @@ b {
 .is-hidden {
   display: none !important;
 }
+
 /* =====================================================================
    SCROLL OWNERSHIP DIAGRAM (CRITICAL — READ BEFORE EDITING)
 
@@ -212,8 +214,10 @@ b {
 
 /* -------------------- Entry card (form pages) -------------------- */
 .form-entry {
-  max-width: 500px; /* was 400px, increased for better mobile usability */
-  width: 100%; /* allows shrinking on small screens */
+  max-width: 500px;
+  /* was 400px, increased for better mobile usability */
+  width: 100%;
+  /* allows shrinking on small screens */
   opacity: 0.75;
   justify-content: center;
 }
@@ -287,7 +291,8 @@ b {
 
   .entry-card .card-body {
     overflow-y: auto;
-    max-height: unset;    /* card's max-height governs, not card-body directly */
+    max-height: unset;
+    /* card's max-height governs, not card-body directly */
     padding-top: 1rem;
     padding-bottom: 1.5rem;
   }
@@ -319,18 +324,21 @@ b {
     overflow: visible;
   }
 }
+
 /* Shared max width for main cards on form/summary pages */
 .entry-card,
-.card.shadow-lg{
+.card.shadow-lg {
   width: 100%;
   max-width: 500px;
 }
+
 /* ================================================================
    SUMMARY PAGE CARD
    ================================================================ */
 
 #summary-card {
-  max-width: 600px; /* it was 800px, but reduced for better mobile experience */
+  max-width: 600px;
+  /* it was 800px, but reduced for better mobile experience */
   margin: 0 auto;
   background: rgba(255, 255, 255, 0.80);
   backdrop-filter: blur(6px);
@@ -721,6 +729,7 @@ b {
   pointer-events: none;
   z-index: 1;
 }
+
 /* =====================================================================
    NAVIGATION
    Frosted glass navbar, nav buttons, avatar
@@ -992,6 +1001,7 @@ b {
   width: 1.4em;
   height: 1.4em;
 }
+
 /* ================================================================
    ANIMATIONS
    ================================================================ */
@@ -1013,22 +1023,23 @@ b {
    Page scrolls, card grows freely
    ========================================================= */
 @media (max-width: 576px) {
-  
-      /* ✅ MOBILE: PAGE SCROLLS ONLY — NO CARD SCROLLING */
-      body {
-        overflow: auto;
-      }
-  
-      .entry-card,
-      .entry-card .card-body,
-      .card.shadow-lg,
-      #summary-card {
-        overflow: visible !important;
-        max-height: none !important;
-      }
-      .entry-card .card-header {
-        position: static;
-      }
+
+  /* ✅ MOBILE: PAGE SCROLLS ONLY — NO CARD SCROLLING */
+  body {
+    overflow: auto;
+  }
+
+  .entry-card,
+  .entry-card .card-body,
+  .card.shadow-lg,
+  #summary-card {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  .entry-card .card-header {
+    position: static;
+  }
 
   /* Entry & summary cards stay centered and constrained */
   .body-container,
@@ -1210,6 +1221,7 @@ b {
     padding-bottom: 5.5rem;
   }
 }
+
 @media (max-width: 480px) {
 
   .card.shadow-lg,
@@ -1381,6 +1393,7 @@ b {
     margin: 0.5in;
   }
 }
+
 /* =======================================================
    INTERACTION SAFETY OVERRIDES (mobile)
    ======================================================= */
@@ -1402,6 +1415,7 @@ b {
     overflow-y: auto;
   }
 }
+
 @supports (-webkit-touch-callout: none) {
   @media (max-width: 768px) {
     select {
@@ -1511,6 +1525,7 @@ b {
     min-width: 130px;
   }
 }
+
 /* Oversight Tools dashboard cards */
 .admin-tool-card {
   background: rgba(255, 255, 255, 0.85);
@@ -1534,6 +1549,7 @@ b {
   padding-bottom: 0.5rem;
   margin-bottom: 1.25rem;
 }
+
 .admin-tool-card:hover:not(.admin-tool-card--soon) {
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
   transform: translateY(-2px);
@@ -1615,20 +1631,20 @@ b {
 
 @media (max-width: 991.98px) {
   .draft-banner-link {
-      display: inline-flex;
-      align-items: center;
-      background: var(--Accent);
-      color: var(--TextDark) !important;
-      font-weight: 700;
-      font-size: 0.85rem;
-      padding: 6px 14px;
-      border-radius: 6px;
-      text-decoration: none;
-      letter-spacing: 0.03em;
-      animation: draftPulse 2.5s ease-in-out infinite;
-      white-space: nowrap;
-      transition: background 0.2s ease;
-    }
+    display: inline-flex;
+    align-items: center;
+    background: var(--Accent);
+    color: var(--TextDark) !important;
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 6px 14px;
+    border-radius: 6px;
+    text-decoration: none;
+    letter-spacing: 0.03em;
+    animation: draftPulse 2.5s ease-in-out infinite;
+    white-space: nowrap;
+    transition: background 0.2s ease;
+  }
 }
 
 /* ── Scroll-to-top button ─────────────────────────────────────── */
@@ -1654,4 +1670,49 @@ b {
   opacity: 1;
   pointer-events: auto;
   transform: translateY(0);
+}
+
+/* ── Event type color swatch ─────────────────────────────────────────── */
+.et-color-swatch {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  vertical-align: middle;
+}
+
+.badge.shift-badge {
+  background: var(--badge-color, #6c757d) !important;
+  color: #fff
+}
+
+/* ── Timelines page layout & sizing ─────────────────────────────────── */
+.timeline-card-full {
+  max-width: none;
+}
+
+.year-picker-select {
+  width: auto;
+}
+
+.shift-card {
+  border-left: 4px solid var(--shift-border-color, #6c757d);
+}
+
+.assignment-badge {
+  font-size: 0.78rem;
+}
+
+.assignment-vol-need {
+  font-size: 0.72rem;
+}
+
+.assignment-edit-btn {
+  font-size: 0.65rem;
+  line-height: 1;
+}
+
+.assignment-remove-btn {
+  font-size: 0.55rem;
 }

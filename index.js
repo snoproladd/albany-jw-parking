@@ -268,11 +268,12 @@ const server = http.createServer(app);
       secret: sessionSecret,
       resave: false,
       saveUninitialized: false,
+      rolling: true, // Reset maxAge on every response
       cookie: {
         secure: isProd,
         httpOnly: true,
         sameSite: "lax",
-        maxAge: 5 * 60 * 1000,
+        maxAge: 15 * 60 * 1000,
       },
     };
 
@@ -366,7 +367,7 @@ const server = http.createServer(app);
       const showDraftBanner = isLoggedIn && registrationStatus === "draft";
 
       res.locals.userRole = userRole;
-      res.locals.userPermissions= s.permissions || {};
+      res.locals.userPermissions = s.permissions || {};
 
       res.locals.nav = {
         isLoggedIn,
@@ -459,7 +460,20 @@ const server = http.createServer(app);
         },
       }),
     );
-
+    /**
+     * GET /api/session/touch
+     * Lightweight endpoint called by sessionKeepAlive.js to reset the
+     * rolling session timer while the user is active. Returns 401 when
+     * no session exists so the client knows to redirect to login.
+     */
+    app.get("/api/session/touch", (req, res) => {
+      if (!req.session?.userId) {
+        return res.status(401).json({ ok: false, reason: "unauthenticated" });
+      }
+      // touching req.session marks it dirty so rolling re-saves it
+      req.session.lastTouched = Date.now();
+      return res.json({ ok: true });
+    });
     // ========================================================
     // Validation Endpoints (Kickbox / Twilio)
     // ========================================================

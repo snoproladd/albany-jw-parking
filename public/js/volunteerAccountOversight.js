@@ -269,6 +269,90 @@ document.addEventListener("DOMContentLoaded", () => {
   })();
 
   // ---------------------------------------------------------------------
+  // Volunteer filter (status + approval buttons)
+  // ---------------------------------------------------------------------
+
+  /**
+   * Initialise the filter button panel above the volunteer select.
+   * Filters are applied client-side against data-status / data-active
+   * attributes on each <option>. The select is reset to the placeholder
+   * whenever the visible set changes and the current selection is hidden.
+   * @returns {void}
+   */
+  (function initVolunteerFilter() {
+    const select = /** @type {HTMLSelectElement | null} */ (
+      root.querySelector('#volunteerSelect')
+    );
+    const countEl = document.getElementById('volunteerFilterCount');
+    if (!select) return;
+
+    /** @type {string} */
+    let activeStatus = 'all';
+    /** @type {string} */
+    let activeApproval = 'all';
+
+    /**
+     * Apply current filter state to the select options.
+     * Options that don't match are hidden and disabled so they cannot
+     * be submitted or selected via keyboard navigation.
+     * @returns {void}
+     */
+    function applyFilter() {
+      let visible = 0;
+      let currentStillVisible = false;
+      const currentVal = select.value;
+
+      Array.from(select.options).forEach((opt) => {
+        if (!opt.value) return; // skip placeholder
+
+        const matchStatus = activeStatus === 'all' || opt.dataset.status === activeStatus;
+        const matchApproval = activeApproval === 'all' || opt.dataset.active === activeApproval;
+        const show = matchStatus && matchApproval;
+
+        opt.hidden   = !show;
+        opt.disabled = !show;
+
+        if (show) {
+          visible++;
+          if (opt.value === currentVal) currentStillVisible = true;
+        }
+      });
+
+      // If the currently selected volunteer is now hidden, reset to placeholder
+      if (currentVal && !currentStillVisible) {
+        select.value = '';
+      }
+
+      if (countEl) {
+        countEl.textContent = `${visible} volunteer${visible !== 1 ? 's' : ''}`;
+      }
+    }
+
+    // Wire status filter buttons
+    root.querySelectorAll('.status-filter-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        root.querySelectorAll('.status-filter-btn').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        activeStatus = btn.dataset.filterStatus || 'all';
+        applyFilter();
+      });
+    });
+
+    // Wire approval filter buttons
+    root.querySelectorAll('.active-filter-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        root.querySelectorAll('.active-filter-btn').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        activeApproval = btn.dataset.filterActive || 'all';
+        applyFilter();
+      });
+    });
+
+    // Run once on load to populate the count
+    applyFilter();
+  })();
+
+  // ---------------------------------------------------------------------
   // beforeunload guard
   // ---------------------------------------------------------------------
 
