@@ -128,7 +128,8 @@
       setFieldError("firstName", fieldErrors.name);
       setFieldError("lastName", fieldErrors.name);
     }
-    if (fieldErrors.firstName) setFieldError("firstName", fieldErrors.firstName);
+    if (fieldErrors.firstName)
+      setFieldError("firstName", fieldErrors.firstName);
     if (fieldErrors.lastName) setFieldError("lastName", fieldErrors.lastName);
     if (fieldErrors.email) setFieldError("email", fieldErrors.email);
     if (fieldErrors.phone) setFieldError("phone", fieldErrors.phone);
@@ -266,12 +267,13 @@
     const confirmInput = document.getElementById("confirmEmail");
 
     if (nextBtn) nextBtn.disabled = true;
-    if (nextStatus) nextStatus.textContent = "Complete email validation to continue.";
+    if (nextStatus)
+      nextStatus.textContent = "Complete email validation to continue.";
 
     function updateNextButtonState() {
       /** @type {any} */
       const state = window.__emailValidationState;
-      if (!state || !nextBtn || !nextStatus || !emailInput || !confirmInput) return;
+      if (!state || !nextBtn || !emailInput || !confirmInput) return;
 
       const emailVal = emailInput.value.trim();
       const confirmVal = confirmInput.value.trim();
@@ -294,12 +296,13 @@
       }
 
       nextBtn.disabled = !ok;
-      nextStatus.textContent = message;
+      if (nextStatus) nextStatus.textContent = message;
     }
 
     window.addEventListener("emailValidationUpdated", updateNextButtonState);
     if (emailInput) emailInput.addEventListener("input", updateNextButtonState);
-    if (confirmInput) confirmInput.addEventListener("input", updateNextButtonState);
+    if (confirmInput)
+      confirmInput.addEventListener("input", updateNextButtonState);
 
     let isSubmitting = false;
 
@@ -434,7 +437,9 @@
       /** @type {HTMLInputElement | null} */
       const suffix = document.getElementById("suffix");
       /** @type {HTMLInputElement | null} */
-      const smsRadio = document.querySelector('input[name="SMSCapable"]:checked');
+      const smsRadio = document.querySelector(
+        'input[name="SMSCapable"]:checked',
+      );
       /** @type {HTMLInputElement | null} */
       const whatsappInput = document.getElementById("whatsappid");
 
@@ -470,7 +475,9 @@
           if (data.fieldErrors) {
             applyFieldErrors(data.fieldErrors);
           } else {
-            showFormToast(data.message || "An error occurred. Please try again.");
+            showFormToast(
+              data.message || "An error occurred. Please try again.",
+            );
           }
           isSubmitting = false;
           if (submitBtn) {
@@ -565,7 +572,11 @@
             "X-CSRF-Token": csrfToken,
           },
           credentials: "include",
-          body: JSON.stringify({ phone: phoneVal, email: emailVal, confirmEmail: confirmVal }),
+          body: JSON.stringify({
+            phone: phoneVal,
+            email: emailVal,
+            confirmEmail: confirmVal,
+          }),
         });
 
         const contentType = resp.headers.get("content-type") || "";
@@ -578,7 +589,8 @@
             applyFieldErrors(data.fieldErrors);
           } else {
             showFormToast(
-              data.message || "We could not find any account with that email or phone.",
+              data.message ||
+                "We could not find any account with that email or phone.",
               "danger",
             );
           }
@@ -590,7 +602,10 @@
         if (data.redirectUrl) {
           window.location.href = data.redirectUrl;
         } else {
-          showFormToast("Unexpected response from server. Please try again.", "danger");
+          showFormToast(
+            "Unexpected response from server. Please try again.",
+            "danger",
+          );
           isSubmitting = false;
           if (submitBtn) submitBtn.disabled = false;
         }
@@ -678,7 +693,8 @@
             applyFieldErrors(data.fieldErrors);
           } else {
             showFormToast(
-              data.message || "The name entered does not match our records. Please try again.",
+              data.message ||
+                "The name entered does not match our records. Please try again.",
               "danger",
             );
           }
@@ -690,7 +706,10 @@
         if (data.redirectUrl) {
           window.location.href = data.redirectUrl;
         } else {
-          showFormToast("Unexpected response from server. Please try again.", "danger");
+          showFormToast(
+            "Unexpected response from server. Please try again.",
+            "danger",
+          );
           isSubmitting = false;
           if (submitBtn) submitBtn.disabled = false;
         }
@@ -746,7 +765,8 @@
       const methodRadio = form.querySelector('input[name="method"]:checked');
 
       if (!methodRadio) {
-        const msg = "Please choose how you would like to receive your reset link.";
+        const msg =
+          "Please choose how you would like to receive your reset link.";
         if (methodStatus) methodStatus.textContent = msg;
         showFormToast(msg, "warning");
         scrollToMethodSection();
@@ -766,7 +786,10 @@
             "X-CSRF-Token": csrfToken,
           },
           credentials: "include",
-          body: JSON.stringify({ id: idInput?.value, method: methodRadio.value }),
+          body: JSON.stringify({
+            id: idInput?.value,
+            method: methodRadio.value,
+          }),
         });
 
         const contentType = resp.headers.get("content-type") || "";
@@ -781,7 +804,8 @@
               methodStatus.textContent = data.fieldErrors.form;
             }
           } else {
-            const msg = data.message || "Failed to send reset link. Please try again.";
+            const msg =
+              data.message || "Failed to send reset link. Please try again.";
             showFormToast(msg, "danger");
             if (methodStatus) methodStatus.textContent = msg;
           }
@@ -876,8 +900,7 @@
   function initNativeFormGate() {
     /** @type {HTMLFormElement | null} */
     const form =
-      document.getElementById("account-form") ||
-      document.querySelector("form");
+      document.getElementById("account-form") || document.querySelector("form");
 
     if (!form) return;
 
@@ -1046,11 +1069,15 @@
     if (typeof initEmailPasswordForm === "function") initEmailPasswordForm();
     if (typeof initCongregationForm === "function") initCongregationForm();
     if (typeof initNonProfileForm === "function") initNonProfileForm(csrfToken);
-    if (typeof initVolunteerInfoForm === "function") initVolunteerInfoForm(csrfToken);
+    if (typeof initVolunteerInfoForm === "function")
+      initVolunteerInfoForm(csrfToken);
     if (typeof initSummarySubmit === "function") initSummarySubmit();
-    if (typeof initUpgradeStartForm === "function") initUpgradeStartForm(csrfToken);
-    if (typeof initUpgradeNameForm === "function") initUpgradeNameForm(csrfToken);
-    if (typeof initUpgradeSendForm === "function") initUpgradeSendForm(csrfToken);
+    if (typeof initUpgradeStartForm === "function")
+      initUpgradeStartForm(csrfToken);
+    if (typeof initUpgradeNameForm === "function")
+      initUpgradeNameForm(csrfToken);
+    if (typeof initUpgradeSendForm === "function")
+      initUpgradeSendForm(csrfToken);
 
     // Must run after AJAX inits — skips forms they already handle.
     initNativeFormGate();
