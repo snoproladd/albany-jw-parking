@@ -54,6 +54,28 @@ import {
   deleteScheduleAssignment,
   getFullDayTimeline,
   copyConventionDay,
+  getVolunteersForMessaging,
+  createInvitation,
+  getInvitationByToken,
+  markInvitationResponded,
+  getMessageTemplates,
+  createMessageTemplate,
+  updateMessageTemplate,
+  deleteMessageTemplate,
+  getInvitationsForTracker,
+  getVolunteersWithPendingInvites,
+  getVolunteersWithPendingInvitesDeep,
+  getInvitationBatches,
+  getInvitationBatch,
+  createInvitationBatch,
+  suggestBatchName,
+  revokeInvitation,
+  reinstateInvitation,
+  getRevocationLog,
+  setShiftInvitable,
+  getInvitableDaysWithShifts,
+  setVolunteerSmsOptIn,
+  handleSmsOptOutWebhook,
 } from "../lib/dbSync.js";
 import { verifyPassword, hashPassword } from "../lib/passwordVer.js";
 
@@ -138,7 +160,6 @@ export function oversightRouter({
       try {
         const volunteers = (await getActiveVolunteers()) || [];
         const user = await getVolunteerById(id);
-        console.log("Volunteers passed to router", volunteers);
 
         if (!user) {
           // If the record disappeared, force re-login
@@ -1862,7 +1883,6 @@ export function oversightRouter({
     async (req, res) => {
       try {
         const eventTypes = await getEventTypes();
-        console.log("Fetched event types:", eventTypes);
         return res.render("authentication_and_accounts/timelines", {
           csrfToken: req.csrfToken(),
           view: "event-types",
@@ -2000,8 +2020,8 @@ export function oversightRouter({
       } = req.body || {};
       const yearNum = Number(year);
       const conventionDateObj = convention_date
-          ? new Date(String(convention_date).slice(0, 10) + 'T12:00:00Z')
-          : null;
+        ? new Date(String(convention_date).slice(0, 10) + "T12:00:00Z")
+        : null;
       if (
         !year ||
         !label?.trim() ||
@@ -2050,8 +2070,8 @@ export function oversightRouter({
         req.body || {};
 
       const conventionDateObj = convention_date
-          ? new Date(String(convention_date).slice(0, 10) + 'T12:00:00Z')
-          : null;
+        ? new Date(String(convention_date).slice(0, 10) + "T12:00:00Z")
+        : null;
 
       if (
         !id ||
@@ -2444,5 +2464,859 @@ export function oversightRouter({
       }
     },
   );
+
+  // ===========================
+  // MESSAGING CENTER
+  // ===========================
+
+  /**
+   * GET /oversight/tools/messaging
+   * Render the Messaging Center.
+   * Passes volunteers, templates, invitable convention days with shifts,
+   * and active invitation batches for the current year.
+   *
+   * Optional ?batchId= query param pre-selects a batch in add-to-campaign mode.
+   *
+   * @requires accessAdminConsole permission
+   */
+  router.get(
+    "/oversight/tools/messaging",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    csrfProtection,
+    async (req, res) => {
+      try {
+        const year = new Date().getFullYear();
+        const batchId = req.query.batchId ? Number(req.query.batchId) : null;
+        const selectPending = req.query.selectPending === "1";
+
+        const [volunteers, templates, conventionDays, batches] =
+          await Promise.all([
+            getVolunteersForMessaging(),
+            getMessageTemplates(),
+            getInvitableDaysWithShifts(year),
+            getInvitationBatches(year),
+          ]);
+
+        let preselectedBatch = null;
+        let pendingVolunteerIds = [];
+
+        if (batchId) {
+          preselectedBatch = batches.find((b) => b.id === batchId) || null;
+
+          // If selectPending=1, fetch unanswered unrevoked invitations for this batch
+          // so the client can auto-select those volunteers.
+          if (selectPending) {
+            const pendingInvs = await getInvitationsForTracker({
+              batchId,
+              response: "pending",
+              includeRevoked: false,
+            });
+            pendingVolunteerIds = pendingInvs.map((i) => i.volunteer_id);
+          }
+        }
+
+        return res.render("authentication_and_accounts/messagingCenter", {
+          csrfToken: req.csrfToken(),
+          volunteers,
+          templates,
+          conventionDays,
+          batches,
+          preselectedBatch,
+          pendingVolunteerIds,
+          year,
+          success: req.query.success
+            ? decodeURIComponent(req.query.success)
+            : null,
+          error: req.query.error ? decodeURIComponent(req.query.error) : null,
+        });
+      } catch (err) {
+        (logError || console.error)("messaging GET error:", err);
+        return res.status(500).send("Server error");
+      }
+    },
+  );
+
+  /**
+   * POST /oversight/tools/messaging/send
+   * Send an invite message (email, SMS, or both) to one or more volunteers.
+   *
+   * Optionally links each invitation to a convention day + shift for
+   * tracking purposes. If a conventionDayId is provided and any selected
+   * volunteers already have an open (unanswered) invitation for that day,
+   * the response includes a `pendingWarnings` array — the caller can prompt
+   * the user to confirm before re-sending (warn-only, not a hard block).
+   *
+   * Body (JSON):
+   * {
+   *   volunteerIds:     number[],
+   *   subject:          string,
+   *   body:             string,
+   *   sendEmail:        boolean,
+   *   sendSms:          boolean,
+   *   conventionDayId?: number|null,
+   *   shiftId?:         number|null,
+   *   force?:           boolean      — true = skip double-send warning check
+   * }
+   *
+   * Response:
+   * {
+   *   success:          boolean,
+   *   sent:             number,
+   *   skipped:          Array<{ name: string, reason: string }>,
+   *   errors:           Array<{ name: string, reason: string }>,
+   *   pendingWarnings?: Array<{ id: number, name: string }>
+   * }
+   *
+   * @requires accessAdminConsole permission
+   */
+  router.post(
+    "/oversight/tools/messaging/send",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    csrfProtection,
+    async (req, res) => {
+      const {
+        volunteerIds,
+        subject,
+        body,
+        sendEmail,
+        sendSms,
+        campaignMode = "new",
+        batchName = null,
+        existingBatchId = null,
+        conventionDayId = null,
+        sessionId = null,
+        shiftId = null,
+        force = false,
+      } = req.body || {};
+
+      const sentBy = req.session.userEmail || "admin";
+      const year = new Date().getFullYear();
+      const dayId = conventionDayId ? Number(conventionDayId) : null;
+      const resolvedSess = sessionId ? Number(sessionId) : null;
+      const resolvedShift = shiftId ? Number(shiftId) : null;
+      const resolvedBatch = existingBatchId ? Number(existingBatchId) : null;
+
+      // ── Input validation ────────────────────────────────────────────────
+      if (!Array.isArray(volunteerIds) || volunteerIds.length === 0)
+        return res
+          .status(400)
+          .json({ success: false, error: "No recipients selected." });
+      if (!body?.trim())
+        return res
+          .status(400)
+          .json({ success: false, error: "Message body is required." });
+      if (!sendEmail && !sendSms)
+        return res
+          .status(400)
+          .json({ success: false, error: "Select at least one channel." });
+      if (campaignMode === "new" && !batchName?.trim())
+        return res
+          .status(400)
+          .json({ success: false, error: "Campaign name is required." });
+      if (campaignMode === "add_to" && !resolvedBatch)
+        return res
+          .status(400)
+          .json({ success: false, error: "Select an existing campaign." });
+
+      // ── Fetch volunteers ────────────────────────────────────────────────
+      let volunteers;
+      try {
+        const all = await getVolunteersForMessaging();
+        const idSet = new Set(volunteerIds.map(Number));
+        volunteers = all.filter((v) => idSet.has(v.id));
+      } catch (err) {
+        (logError || console.error)(
+          "messaging/send fetch volunteers error:",
+          err,
+        );
+        return res
+          .status(500)
+          .json({ success: false, error: "Server error fetching volunteers." });
+      }
+
+      if (volunteers.length === 0)
+        return res
+          .status(400)
+          .json({ success: false, error: "No valid volunteers found." });
+
+      // ── Double-send warning ─────────────────────────────────────────────
+      if (!force) {
+        try {
+          let pendingIds = [];
+
+          if (campaignMode === "add_to" && resolvedBatch) {
+            const batchInvs = await getInvitationsForTracker({
+              batchId: resolvedBatch,
+              includeRevoked: false,
+            });
+            const batchVolIds = new Set(
+              batchInvs
+                .filter((i) => !i.responded_at)
+                .map((i) => i.volunteer_id),
+            );
+            pendingIds = volunteers
+              .map((v) => v.id)
+              .filter((id) => batchVolIds.has(id));
+          } else if (dayId) {
+            pendingIds = await getVolunteersWithPendingInvitesDeep(
+              volunteers.map((v) => v.id),
+              {
+                conventionDayId: dayId,
+                sessionId: resolvedSess,
+                shiftId: resolvedShift,
+              },
+            );
+          }
+
+          if (pendingIds.length > 0) {
+            const pendingSet = new Set(pendingIds);
+            const pendingWarnings = volunteers
+              .filter((v) => pendingSet.has(v.id))
+              .map((v) => ({
+                id: v.id,
+                name: [v.lastName, v.firstName].filter(Boolean).join(", "),
+              }));
+            return res.json({ success: false, pendingWarnings });
+          }
+        } catch (err) {
+          (logError || console.error)(
+            "messaging/send pending check error:",
+            err,
+          );
+          // Non-fatal — proceed
+        }
+      }
+
+      // ── Resolve or create the batch ─────────────────────────────────────
+      let batchId;
+      try {
+        if (campaignMode === "add_to" && resolvedBatch) {
+          batchId = resolvedBatch;
+        } else {
+          batchId = await createInvitationBatch({
+            name: batchName.trim(),
+            conventionDayId: dayId,
+            shiftId: resolvedShift,
+            messageSubject: subject?.trim() || null,
+            messageBody: body.trim(),
+            year,
+            createdBy: sentBy,
+          });
+        }
+      } catch (err) {
+        (logError || console.error)(
+          "messaging/send createInvitationBatch error:",
+          err,
+        );
+        return res
+          .status(500)
+          .json({ success: false, error: "Failed to create campaign record." });
+      }
+
+      /** @type {Array<{ name: string, reason: string }>} */
+      const skipped = [];
+      /** @type {Array<{ name: string, reason: string }>} */
+      const errors = [];
+      let sent = 0;
+
+      const baseUrl = getBaseUrl(req);
+
+      // ── Per-volunteer send loop ─────────────────────────────────────────
+      for (const vol of volunteers) {
+        const fullName = [vol.firstName, vol.lastName]
+          .filter(Boolean)
+          .join(" ");
+        const shortName = [vol.lastName, vol.firstName]
+          .filter(Boolean)
+          .join(", ");
+
+        const willEmail = sendEmail && !!vol.email;
+        const willSms = sendSms && !!vol.phone && !!vol.smsCapable;
+
+        if (!willEmail && !willSms) {
+          const missing = [];
+          if (sendEmail && !vol.email) missing.push("no email on file");
+          if (sendSms && !vol.phone) missing.push("no phone on file");
+          if (sendSms && !vol.smsCapable) missing.push("SMS not capable");
+          skipped.push({ name: shortName, reason: missing.join("; ") });
+          continue;
+        }
+
+        const token = crypto.randomUUID();
+        const rsvpUrl = `${baseUrl}/invite/respond/${encodeURIComponent(token)}`;
+
+        /**
+         * Replace all {field} placeholders in a string.
+         * @param {string} text
+         * @returns {string}
+         */
+        function resolveMergeFields(text) {
+          return text
+            .replace(/\{firstName\}/g, vol.firstName || "")
+            .replace(/\{lastName\}/g, vol.lastName || "")
+            .replace(/\{fullName\}/g, fullName)
+            .replace(/\{link\}/g, rsvpUrl)
+            .replace(/\{year\}/g, String(year));
+        }
+
+        const resolvedSubject = resolveMergeFields(subject || "");
+        const resolvedBody = resolveMergeFields(body);
+        const channel =
+          willEmail && willSms ? "both" : willEmail ? "email" : "sms";
+
+        // Store invitation
+        try {
+          await createInvitation({
+            volunteerId: vol.id,
+            token,
+            channel,
+            messageSubject: resolvedSubject || null,
+            messageBody: resolvedBody,
+            sentBy,
+            conventionDayId: dayId,
+            sessionId: resolvedSess,
+            shiftId: resolvedShift,
+            batchId,
+          });
+        } catch (err) {
+          (logError || console.error)(
+            `messaging/send createInvitation error for vol ${vol.id}:`,
+            err,
+          );
+          errors.push({
+            name: shortName,
+            reason: "Failed to store invitation record.",
+          });
+          continue;
+        }
+
+        // Send email
+        if (willEmail) {
+          try {
+            const ok = await sendResetEmail(vol.email, rsvpUrl, {
+              ...smtpConfig,
+              firstName: vol.firstName,
+              subject: resolvedSubject || "Albany JW Parking — You're invited",
+              isResume: false,
+              customBody: resolvedBody,
+            });
+            if (!ok)
+              errors.push({
+                name: shortName,
+                reason: "Email delivery failed.",
+              });
+          } catch (err) {
+            (logError || console.error)(
+              `messaging/send email error for vol ${vol.id}:`,
+              err,
+            );
+            errors.push({
+              name: shortName,
+              reason: "Email threw an exception.",
+            });
+          }
+        }
+
+        // Send SMS
+        if (willSms) {
+          try {
+            const ok = await sendResetSms(
+              vol.phone,
+              rsvpUrl,
+              twilioAccountSid,
+              twilioAuthToken,
+              twilioMsgSid,
+              { firstName: vol.firstName, customBody: resolvedBody },
+            );
+            if (!ok)
+              errors.push({ name: shortName, reason: "SMS delivery failed." });
+          } catch (err) {
+            (logError || console.error)(
+              `messaging/send SMS error for vol ${vol.id}:`,
+              err,
+            );
+            errors.push({ name: shortName, reason: "SMS threw an exception." });
+          }
+        }
+
+        sent++;
+      }
+
+      return res.json({ success: true, sent, batchId, skipped, errors });
+    },
+  );
+
+  // ===========================
+  // MESSAGING CENTER — Templates
+  // ===========================
+
+  /**
+   * GET /oversight/tools/messaging/templates
+   * Return all active templates as JSON.
+   * Used by the frontend to refresh the template list after saves/deletes.
+   *
+   * Response: { success: true, templates: Array<template> }
+   *
+   * @requires accessAdminConsole permission
+   */
+  router.get(
+    "/oversight/tools/messaging/templates",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    async (req, res) => {
+      try {
+        const templates = await getMessageTemplates();
+        return res.json({ success: true, templates });
+      } catch (err) {
+        (logError || console.error)("messaging/templates GET error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * POST /oversight/tools/messaging/templates
+   * Create a new message template.
+   *
+   * Body (JSON): { name, subject, body }
+   * Response:    { success: true, id: number }
+   *
+   * @requires accessAdminConsole permission
+   */
+  router.post(
+    "/oversight/tools/messaging/templates",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    csrfProtection,
+    async (req, res) => {
+      const { name, subject, body } = req.body || {};
+
+      if (!name?.trim()) {
+        return res
+          .status(400)
+          .json({ success: false, error: "Template name is required." });
+      }
+      if (!body?.trim()) {
+        return res
+          .status(400)
+          .json({ success: false, error: "Template body is required." });
+      }
+
+      try {
+        const id = await createMessageTemplate({
+          name: name.trim(),
+          subject: subject?.trim() || null,
+          body: body.trim(),
+          createdBy: req.session.userEmail || "admin",
+        });
+        return res.json({ success: true, id });
+      } catch (err) {
+        (logError || console.error)("messaging/templates POST error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * PUT /oversight/tools/messaging/templates/:id
+   * Update an existing template's name, subject, and body.
+   *
+   * Body (JSON): { name, subject, body }
+   * Response:    { success: true }
+   *
+   * @requires accessAdminConsole permission
+   */
+  router.put(
+    "/oversight/tools/messaging/templates/:id",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    csrfProtection,
+    async (req, res) => {
+      const id = Number(req.params.id);
+      const { name, subject, body } = req.body || {};
+
+      if (!id) {
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid template id." });
+      }
+      if (!name?.trim()) {
+        return res
+          .status(400)
+          .json({ success: false, error: "Template name is required." });
+      }
+      if (!body?.trim()) {
+        return res
+          .status(400)
+          .json({ success: false, error: "Template body is required." });
+      }
+
+      try {
+        const ok = await updateMessageTemplate(id, {
+          name: name.trim(),
+          subject: subject?.trim() || null,
+          body: body.trim(),
+        });
+        if (!ok) {
+          return res
+            .status(404)
+            .json({ success: false, error: "Template not found." });
+        }
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("messaging/templates PUT error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * DELETE /oversight/tools/messaging/templates/:id
+   * Soft-delete a template (sets active = 0).
+   *
+   * Response: { success: true }
+   *
+   * @requires accessAdminConsole permission
+   */
+  router.delete(
+    "/oversight/tools/messaging/templates/:id",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    csrfProtection,
+    async (req, res) => {
+      const id = Number(req.params.id);
+      if (!id) {
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid template id." });
+      }
+
+      try {
+        const ok = await deleteMessageTemplate(id);
+        if (!ok) {
+          return res
+            .status(404)
+            .json({ success: false, error: "Template not found." });
+        }
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("messaging/templates DELETE error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+  // ===========================
+  // INVITATION BATCHES
+  // ===========================
+
+  /**
+   * GET /oversight/tools/messaging/batches
+   * Return all active batches for the current year as JSON.
+   * Used by the Messaging Center to refresh the batch picker.
+   *
+   * @requires accessAdminConsole permission
+   */
+  router.get(
+    "/oversight/tools/messaging/batches",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    async (req, res) => {
+      try {
+        const year = req.query.year
+          ? Number(req.query.year)
+          : new Date().getFullYear();
+        const batches = await getInvitationBatches(year);
+        return res.json({ success: true, batches });
+      } catch (err) {
+        (logError || console.error)("messaging/batches GET error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * POST /oversight/tools/messaging/batches/suggest-name
+   * Auto-suggest a batch name from event context.
+   * Called when the user selects a day/shift in the Messaging Center
+   * and hasn't typed a custom name yet.
+   *
+   * Body (JSON): { dayLabel, conventionDate, shiftLabel, eventTypeName }
+   * Response:    { success: true, name: string }
+   *
+   * @requires accessAdminConsole permission
+   */
+  router.post(
+    "/oversight/tools/messaging/batches/suggest-name",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    async (req, res) => {
+      const { dayLabel, conventionDate, shiftLabel, eventTypeName } =
+        req.body || {};
+      const name = suggestBatchName({
+        dayLabel,
+        conventionDate,
+        shiftLabel,
+        eventTypeName,
+      });
+      return res.json({ success: true, name });
+    },
+  );
+
+  /**
+   * GET /oversight/tools/messaging/batches/:id
+   * Fetch a single batch with full context.
+   * Used by the Messaging Center when switching into add-to-campaign mode.
+   *
+   * @requires accessAdminConsole permission
+   */
+  router.get(
+    "/oversight/tools/messaging/batches/:id",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    async (req, res) => {
+      const id = Number(req.params.id);
+      if (!id)
+        return res.status(400).json({ success: false, error: "Invalid id." });
+      try {
+        const batch = await getInvitationBatch(id);
+        if (!batch)
+          return res
+            .status(404)
+            .json({ success: false, error: "Batch not found." });
+        return res.json({ success: true, batch });
+      } catch (err) {
+        (logError || console.error)("messaging/batches/:id GET error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+  // ===========================
+  // INVITATION REVOCATION
+  // ===========================
+
+  /**
+   * POST /oversight/tools/messaging/invitations/:id/revoke
+   * Revoke a single invitation.
+   *
+   * Body (JSON): { notes? }
+   * Response:    { success: boolean }
+   *
+   * @requires accessAdminConsole permission
+   */
+  router.post(
+    "/oversight/tools/messaging/invitations/:id/revoke",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    csrfProtection,
+    async (req, res) => {
+      const id = Number(req.params.id);
+      const notes = req.body?.notes || null;
+      if (!id)
+        return res.status(400).json({ success: false, error: "Invalid id." });
+
+      try {
+        const ok = await revokeInvitation(
+          id,
+          req.session.userEmail || "admin",
+          notes,
+        );
+        if (!ok)
+          return res
+            .status(404)
+            .json({ success: false, error: "Invitation not found." });
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("invitations/revoke POST error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * POST /oversight/tools/messaging/invitations/:id/reinstate
+   * Reinstate a revoked invitation.
+   *
+   * Body (JSON): { notes? }
+   * Response:    { success: boolean }
+   *
+   * @requires accessAdminConsole permission
+   */
+  router.post(
+    "/oversight/tools/messaging/invitations/:id/reinstate",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    csrfProtection,
+    async (req, res) => {
+      const id = Number(req.params.id);
+      const notes = req.body?.notes || null;
+      if (!id)
+        return res.status(400).json({ success: false, error: "Invalid id." });
+
+      try {
+        const ok = await reinstateInvitation(
+          id,
+          req.session.userEmail || "admin",
+          notes,
+        );
+        if (!ok)
+          return res
+            .status(404)
+            .json({ success: false, error: "Invitation not found." });
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("invitations/reinstate POST error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * GET /oversight/tools/messaging/tracker
+   * Render the Invitation Tracker page.
+   * Now supports filtering by batch in addition to day and response.
+   *
+   * Optional query params:
+   *  - dayId          — filter by convention day id
+   *  - batchId        — filter by invitation batch id
+   *  - response       — 'all' | 'pending' | 'yes' | 'no' | 'maybe'
+   *  - includeRevoked — '1' to include (default), '0' to hide
+   *
+   * @requires accessAdminConsole permission
+   */
+  router.get(
+    "/oversight/tools/messaging/tracker",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    csrfProtection,
+    async (req, res) => {
+      const year = new Date().getFullYear();
+      const dayId = req.query.dayId ? Number(req.query.dayId) : null;
+      const batchId = req.query.batchId ? Number(req.query.batchId) : null;
+      const includeRevoked = req.query.includeRevoked !== "0";
+      const responseFilter = ["all", "pending", "yes", "no", "maybe"].includes(
+        req.query.response,
+      )
+        ? req.query.response
+        : "all";
+
+      try {
+        const [invitations, conventionDays, batches] = await Promise.all([
+          getInvitationsForTracker({
+            conventionDayId: dayId,
+            batchId,
+            response: responseFilter,
+            includeRevoked,
+          }),
+          getConventionDays(year),
+          getInvitationBatches(year),
+        ]);
+
+        return res.render("authentication_and_accounts/invitationTracker", {
+          csrfToken: req.csrfToken(),
+          invitations,
+          conventionDays,
+          batches,
+          year,
+          activeDay: dayId,
+          activeBatch: batchId,
+          activeResponse: responseFilter,
+          includeRevoked,
+        });
+      } catch (err) {
+        (logError || console.error)("messaging/tracker GET error:", err);
+        return res.status(500).send("Server error");
+      }
+    },
+  );
+  // ===========================
+  // SHIFTS — Invitable toggle
+  // ===========================
+
+  /**
+   * PATCH /oversight/tools/timelines/shifts/:id/invitable
+   * Toggle the invitable flag on a shift.
+   * Body (JSON): { invitable: boolean }
+   * Response: { success: boolean }
+   *
+   * @requires manageShifts permission
+   */
+  router.patch(
+    "/oversight/tools/timelines/shifts/:id/invitable",
+    requireAuth,
+    requirePermission("manageShifts"),
+    csrfProtection,
+    async (req, res) => {
+      const id = Number(req.params.id);
+      const invitable =
+        req.body?.invitable !== false && req.body?.invitable !== "false";
+
+      if (!id)
+        return res.status(400).json({ success: false, error: "Invalid id." });
+
+      try {
+        const ok = await setShiftInvitable(id, invitable);
+        if (!ok)
+          return res
+            .status(404)
+            .json({ success: false, error: "Shift not found." });
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("shifts/invitable PATCH error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * GET /oversight/tools/messaging/batches/:id/invited
+   * Return all volunteer IDs already invited in a batch, with their
+   * response status. Used by the Messaging Center to mark already-invited
+   * volunteers in the volunteer list.
+   *
+   * Response: {
+   *   success: true,
+   *   invited: Array<{
+   *     volunteer_id: number,
+   *     response: string|null,
+   *     responded_at: Date|null,
+   *     revoked: boolean
+   *   }>
+   * }
+   *
+   * @requires accessAdminConsole permission
+   */
+  router.get(
+    "/oversight/tools/messaging/batches/:id/invited",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    async (req, res) => {
+      const id = Number(req.params.id);
+      if (!id)
+        return res.status(400).json({ success: false, error: "Invalid id." });
+
+      try {
+        const invitations = await getInvitationsForTracker({
+          batchId: id,
+          includeRevoked: true,
+          response: "all",
+        });
+
+        const invited = invitations.map((i) => ({
+          volunteer_id: i.volunteer_id,
+          response: i.response || null,
+          responded_at: i.responded_at || null,
+          revoked: !!i.revoked,
+        }));
+
+        return res.json({ success: true, invited });
+      } catch (err) {
+        (logError || console.error)("batches/:id/invited GET error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
   return router;
 };

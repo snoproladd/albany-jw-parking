@@ -845,6 +845,36 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     });
   }
+  // ── Shift invitable toggle ────────────────────────────────────────────
+
+  /**
+   * Wire the invitable toggle buttons on shift cards.
+   * Fires a PATCH to flip the flag, then reloads to reflect the new state.
+   * Stores the parent session accordion so it reopens after reload.
+   */
+  document.querySelectorAll(".shift-invitable-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = Number(btn.dataset.id);
+      const current = btn.dataset.invitable === "true";
+      const invitable = !current;
+
+      const sessionId =
+        btn.closest(".accordion-item")?.id?.replace("session-block-", "") || "";
+
+      try {
+        await apiFetch(
+          `/oversight/tools/timelines/shifts/${id}/invitable`,
+          "PATCH",
+          { invitable },
+        );
+        storeLastAccordion(sessionId);
+        window.location.reload();
+      } catch (err) {
+        console.error("[timelines] invitable toggle error:", err);
+        alert("Failed to update invitable status — please try again.");
+      }
+    });
+  });
   // Apply color swatches — inline style attributes are blocked by CSP,
   // so background color is set via JS from data-color attributes.
   document.querySelectorAll(".et-color-swatch").forEach((el) => {

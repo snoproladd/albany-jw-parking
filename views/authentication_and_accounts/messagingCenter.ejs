@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Messaging Center — Albany JW Parking</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" href="/styles/styles.css" />
+    <link rel="stylesheet" href="/styles/messagingCenter.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+</head>
+
+<body class="min-vh-100 bg-body-tertiary" data-authed="true">
+
+    <%- include('../partials/header') %>
+
+    <%
+        const _ROLE_ORDER = ['NON_REGISTERED','REGISTERED','KEYMAN','OVERSEER','ASSISTANT_ADMIN','ADMIN'];
+        const _role       = typeof userRole        !== 'undefined' ? userRole        : 'NON_REGISTERED';
+        const _perms      = typeof userPermissions !== 'undefined' ? userPermissions : {};
+        const roleLevel   = _ROLE_ORDER.indexOf(_role);
+        const isAtLeast   = (r) => roleLevel >= _ROLE_ORDER.indexOf(r);
+        const can         = (permission) => !!(_perms[_role] && _perms[_role][permission]);
+    %>
+
+    <%# ── Desktop-only alert ──────────────────────────────────────────────── %>
+    <div class="mc-mobile-alert d-flex align-items-center gap-2">
+        <i class="fa-solid fa-desktop fa-lg"></i>
+        <span>The Messaging Center is designed for desktop use. Some features may not work well on a touch screen.</span>
+    </div>
+
+    <%# ── Main layout wrapper ─────────────────────────────────────────────── %>
+    <div class="mc-layout" id="messagingCenterRoot">
+
+        <%# ══════════════════════════════════════════════════════════════════ %>
+        <%# ASIDE — Volunteer selector                                         %>
+        <%# ══════════════════════════════════════════════════════════════════ %>
+        <aside class="mc-aside" id="mcAside">
+
+            <div class="mc-aside-header">
+                <h2 class="mc-aside-title">
+                    <i class="fa-solid fa-users me-2"></i>Volunteers
+                </h2>
+                <span class="badge bg-secondary" id="mcSelectionCount">0 selected</span>
+            </div>
+
+            <%# ── Filters ──────────────────────────────────────────────────── %>
+            <div class="mc-filters">
+
+                <div class="mc-filter-group">
+                    <label class="mc-filter-label">Status</label>
+                    <div class="mc-filter-btns" role="group">
+                        <button type="button" class="mc-filter-btn active" data-filter-status="all">All</button>
+                        <button type="button" class="mc-filter-btn" data-filter-status="draft">Draft</button>
+                        <button type="button" class="mc-filter-btn" data-filter-status="completed">Completed</button>
+                    </div>
+                </div>
+
+                <div class="mc-filter-group">
+                    <label class="mc-filter-label">Active</label>
+                    <div class="mc-filter-btns" role="group">
+                        <button type="button" class="mc-active-btn active" data-filter-active="all">All</button>
+                        <button type="button" class="mc-active-btn" data-filter-active="true">Active</button>
+                        <button type="button" class="mc-active-btn" data-filter-active="false">Inactive</button>
+                    </div>
+                </div>
+
+                <div class="mc-filter-group">
+                    <label class="mc-filter-label" for="mcSearch">Search</label>
+                    <input
+                        type="text"
+                        id="mcSearch"
+                        class="form-control form-control-sm"
+                        placeholder="Name…"
+                        autocomplete="off"
+                    />
+                </div>
+
+            </div>
+
+            <%# ── Select all / count ───────────────────────────────────────── %>
+            <div class="mc-list-controls">
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="mcSelectAll">
+                    Select all visible
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="mcClearAll">
+                    Clear
+                </button>
+                <span class="mc-visible-count" id="mcVisibleCount"></span>
+            </div>
+
+            <%# ── Volunteer list ───────────────────────────────────────────── %>
+            <ul class="mc-volunteer-list" id="mcVolunteerList" role="listbox" aria-multiselectable="true">
+                <% volunteers.forEach(function(v) { %>
+                    <%
+                        const displayName = v.lastName + ', ' + v.firstName + (v.suffix ? ' ' + v.suffix : '');
+                        const hasEmail    = !!v.email;
+                        const hasSms      = !!v.phone && v.sms_capable;
+                    %>
+                    <li
+                        class="mc-volunteer-item"
+                        role="option"
+                        aria-selected="false"
+                        data-id="<%= v.id %>"
+                        data-name="<%= displayName.toLowerCase() %>"
+                        data-status="<%= v.registration_status %>"
+                        data-active="<%= v.active_current_year %>"
+                        data-has-email="<%= hasEmail %>"
+                        data-has-sms="<%= hasSms %>"
+                    >
+                        <input
+                            type="checkbox"
+                            class="mc-checkbox"
+                            aria-hidden="true"
+                            tabindex="-1"
+                            id="mcVol_<%= v.id %>"
+                        />
+                        <label class="mc-volunteer-name" for="mcVol_<%= v.id %>">
+                            <%= displayName %>
+                        </label>
+                        <span class="mc-channel-icons">
+                            <% if (hasEmail) { %>
+                                <i class="fa-solid fa-envelope mc-icon-email" title="Has email"></i>
+                            <% } %>
+                            <% if (hasSms) { %>
+                                <i class="fa-solid fa-comment-sms mc-icon-sms" title="SMS capable"></i>
+                            <% } %>
+                        </span>
+                    </li>
+                <% }); %>
+            </ul>
+
+        </aside>
+
+        <%# ══════════════════════════════════════════════════════════════════ %>
+        <%# MAIN — Compose + Send                                              %>
+        <%# ══════════════════════════════════════════════════════════════════ %>
+        <main class="mc-main">
+
+            <%# ── Page header ──────────────────────────────────────────────── %>
+            <div class="mc-main-header">
+                <h1 class="mc-main-title">
+                    <i class="fa-solid fa-paper-plane me-2"></i>Messaging Center
+                </h1>
+                <div class="d-flex gap-2 align-items-center">
+                    <a href="/oversight/tools/messaging/tracker" class="btn btn-success btn-sm">
+                        <i class="fa-solid fa-chart-gantt me-1"></i>Invitation Tracker
+                    </a>
+                    <a href="/oversight/tools" class="btn btn-secondary btn-sm">
+                        <i class="fa-solid fa-screwdriver-wrench me-1"></i>Oversight Tools
+                    </a>
+                </div>
+            </div>
+
+            <%# ── Send list (recipient chips) ──────────────────────────────── %>
+            <section class="mc-card" id="mcSendListCard">
+                <div class="mc-card-header">
+                    <h2 class="mc-card-title">
+                        <i class="fa-solid fa-list-check me-2"></i>
+                        Send List
+                        <span class="badge bg-primary ms-2" id="mcSendListCount">0</span>
+                    </h2>
+                    <button type="button" class="btn btn-link btn-sm text-danger p-0" id="mcClearSendList">
+                        Clear all
+                    </button>
+                </div>
+                <div class="mc-chip-area" id="mcChipArea">
+                    <span class="mc-empty-hint" id="mcEmptyHint">
+                        <i class="fa-solid fa-arrow-left me-1"></i>
+                        Select volunteers from the list to add them here.
+                    </span>
+                </div>
+            </section>
+
+            <%# ── Templates ────────────────────────────────────────────────── %>
+            <section class="mc-card" id="mcTemplatesCard">
+                <div class="mc-card-header">
+                    <h2 class="mc-card-title">
+                        <i class="fa-solid fa-file-lines me-2"></i>Templates
+                    </h2>
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="mcNewTemplateBtn">
+                        <i class="fa-solid fa-plus me-1"></i>New template
+                    </button>
+                </div>
+
+                <div class="mc-template-list" id="mcTemplateList">
+                    <% if (templates.length === 0) { %>
+                        <p class="text-muted small mb-0" id="mcNoTemplates">No saved templates yet.</p>
+                    <% } else { %>
+                        <% templates.forEach(function(t) { %>
+                            <div class="mc-template-row" data-template-id="<%= t.id %>">
+                                <button
+                                    type="button"
+                                    class="mc-template-load btn btn-link btn-sm p-0 text-start"
+                                    data-id="<%= t.id %>"
+                                    data-name="<%= t.name %>"
+                                    data-subject="<%= t.subject || '' %>"
+                                    data-body="<%= t.body %>"
+                                    title="Load this template into the compose area"
+                                >
+                                    <i class="fa-regular fa-file-lines me-1"></i><%= t.name %>
+                                </button>
+                                <div class="mc-template-actions">
+                                    <button type="button" class="btn btn-link btn-sm p-0 text-secondary mc-template-edit" data-id="<%= t.id %>">
+                                        <i class="fa-solid fa-pencil"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-link btn-sm p-0 text-danger mc-template-delete" data-id="<%= t.id %>" data-name="<%= t.name %>">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        <% }); %>
+                    <% } %>
+                </div>
+
+                <div class="mc-template-editor d-none" id="mcTemplateEditor">
+                    <hr class="my-3" />
+                    <div class="mb-2">
+                        <label class="form-label form-label-sm" for="mcTplName">Template name</label>
+                        <input type="text" class="form-control form-control-sm" id="mcTplName" placeholder="e.g. Convention Invite" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label form-label-sm" for="mcTplSubject">Subject <span class="text-muted">(email only)</span></label>
+                        <input type="text" class="form-control form-control-sm" id="mcTplSubject" placeholder="e.g. You're invited — {year} Albany JW Convention" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label form-label-sm" for="mcTplBody">Body</label>
+                        <div class="mc-merge-chips mb-1">
+                            <span class="mc-merge-label">Insert:</span>
+                            <button type="button" class="mc-merge-chip" data-field="{firstName}" data-target="mcTplBody">{firstName}</button>
+                            <button type="button" class="mc-merge-chip" data-field="{lastName}"  data-target="mcTplBody">{lastName}</button>
+                            <button type="button" class="mc-merge-chip" data-field="{fullName}"  data-target="mcTplBody">{fullName}</button>
+                            <button type="button" class="mc-merge-chip" data-field="{link}"      data-target="mcTplBody">{link}</button>
+                            <button type="button" class="mc-merge-chip" data-field="{year}"      data-target="mcTplBody">{year}</button>
+                        </div>
+                        <textarea class="form-control form-control-sm mc-tpl-body" id="mcTplBody" rows="5" placeholder="Hi {firstName}, …"></textarea>
+                    </div>
+                    <div class="d-flex gap-2 justify-content-end">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="mcTplCancelBtn">Cancel</button>
+                        <button type="button" class="btn btn-primary btn-sm" id="mcTplSaveBtn">Save template</button>
+                    </div>
+                    <div class="mt-2" id="mcTplStatus"></div>
+                </div>
+
+            </section>
+
+            <%# ── Compose ───────────────────────────────────────────────────── %>
+            <section class="mc-card" id="mcComposeCard">
+                <div class="mc-card-header">
+                    <h2 class="mc-card-title">
+                        <i class="fa-solid fa-pen-to-square me-2"></i>Compose
+                    </h2>
+                </div>
+
+                <%# ── Campaign mode toggle ──────────────────────────────────── %>
+                <div class="mc-campaign-mode mb-3">
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Campaign mode">
+                        <button type="button" class="btn btn-primary active" id="mcModeNew">
+                            <i class="fa-solid fa-plus me-1"></i>New Campaign
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" id="mcModeAddTo"
+                            <%= batches.length === 0 ? 'disabled title="No existing campaigns yet"' : '' %>>
+                            <i class="fa-solid fa-user-plus me-1"></i>Add to Existing
+                        </button>
+                    </div>
+                </div>
+
+                <%# ── New campaign — campaign name ──────────────────────────── %>
+                <div class="mb-3" id="mcCampaignNameWrap">
+                    <label class="form-label" for="mcCampaignName">
+                        Campaign name
+                        <span class="text-muted small fw-normal ms-1">— identifies this send in the tracker</span>
+                    </label>
+                    <div class="d-flex gap-2">
+                        <input
+                            type="text"
+                            class="form-control"
+                            id="mcCampaignName"
+                            placeholder="e.g. Friday · Jul 18 · Ingress"
+                            maxlength="150"
+                        />
+                        <button type="button" class="btn btn-outline-secondary btn-sm text-nowrap" id="mcSuggestNameBtn"
+                            title="Auto-suggest from selected event">
+                            <i class="fa-solid fa-wand-magic-sparkles me-1"></i>Suggest
+                        </button>
+                    </div>
+                </div>
+
+                <%# ── Add-to mode — existing batch picker ───────────────────── %>
+                <div class="mb-3 d-none" id="mcExistingBatchWrap">
+                    <label class="form-label" for="mcExistingBatch">Select existing campaign</label>
+                    <select class="form-select" id="mcExistingBatch">
+                        <option value="">— Choose a campaign —</option>
+                        <% batches.forEach(function(b) { %>
+                            <option
+                                value="<%= b.id %>"
+                                data-subject="<%= b.message_subject || '' %>"
+                                data-body="<%= b.message_body || '' %>"
+                                data-day-id="<%= b.convention_day_id || '' %>"
+                                data-shift-id="<%= b.shift_id || '' %>"
+                            >
+                                <%= b.name %>
+                                <% if (b.day_label) { %> — <%= b.day_label %><% } %>
+                                (<%= b.volunteer_count %> sent)
+                            </option>
+                        <% }); %>
+                    </select>
+                    <div class="mc-batch-preview mt-2 d-none" id="mcBatchPreview">
+                        <i class="fa-solid fa-circle-info me-1 text-info"></i>
+                        <span id="mcBatchPreviewText"></span>
+                        <a href="#" class="ms-2 small" id="mcBatchTrackerLink" target="_blank">
+                            View in tracker <i class="fa-solid fa-arrow-up-right-from-square ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <%# ── Channel toggles ───────────────────────────────────────── %>
+                <div class="mc-channel-toggles mb-3">
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" id="mcSendEmail" checked />
+                        <label class="form-check-label" for="mcSendEmail">
+                            <i class="fa-solid fa-envelope me-1"></i>Email
+                        </label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" id="mcSendSms" />
+                        <label class="form-check-label" for="mcSendSms">
+                            <i class="fa-solid fa-comment-sms me-1"></i>SMS
+                        </label>
+                    </div>
+                </div>
+
+                <%# ── Event picker (new campaign only) ──────────────────────── %>
+                <div class="mc-event-picker mb-3" id="mcEventPickerWrap">
+                    <label class="mc-filter-label mb-1">
+                        <i class="fa-regular fa-calendar-days me-1"></i>
+                        Link to event <span class="text-muted fw-normal">(optional)</span>
+                    </label>
+                    <% if (conventionDays.length === 0) { %>
+                        <p class="text-muted small mb-0">
+                            <i class="fa-solid fa-triangle-exclamation me-1 text-warning"></i>
+                            No invitable shifts defined yet.
+                            <a href="/oversight/tools/timelines">Set shifts as invitable in Timelines.</a>
+                        </p>
+                    <% } else { %>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <select class="form-select form-select-sm mc-event-day-select" id="mcEventDay">
+                                <option value="">— No event —</option>
+                                <% conventionDays.forEach(function(day) { %>
+                                    <option value="<%= day.id %>"
+                                        data-label="<%= day.label %>"
+                                        data-date="<%= day.convention_date %>">
+                                        <%= day.label %> — <%= new Date(day.convention_date).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', timeZone:'UTC' }) %>
+                                    </option>
+                                <% }); %>
+                            </select>
+                            <select class="form-select form-select-sm mc-event-shift-select d-none" id="mcEventShift">
+                                <option value="">— All shifts —</option>
+                            </select>
+                        </div>
+                        <div class="mc-event-preview mt-2 d-none" id="mcEventPreview">
+                            <i class="fa-solid fa-circle-info me-1 text-info"></i>
+                            <span id="mcEventPreviewText"></span>
+                        </div>
+                    <% } %>
+                </div>
+
+                <%# ── Subject ───────────────────────────────────────────────── %>
+                <div class="mb-3" id="mcSubjectWrap">
+                    <label class="form-label" for="mcSubject">Subject</label>
+                    <div class="mc-merge-chips mb-1">
+                        <span class="mc-merge-label">Insert:</span>
+                        <button type="button" class="mc-merge-chip" data-field="{firstName}" data-target="mcSubject">{firstName}</button>
+                        <button type="button" class="mc-merge-chip" data-field="{lastName}"  data-target="mcSubject">{lastName}</button>
+                        <button type="button" class="mc-merge-chip" data-field="{fullName}"  data-target="mcSubject">{fullName}</button>
+                        <button type="button" class="mc-merge-chip" data-field="{year}"      data-target="mcSubject">{year}</button>
+                    </div>
+                    <input type="text" class="form-control" id="mcSubject" placeholder="e.g. You're invited — {year} Albany JW Convention" />
+                </div>
+
+                <%# ── Body ──────────────────────────────────────────────────── %>
+                <div class="mb-3">
+                    <label class="form-label" for="mcBody">Message</label>
+                    <div class="mc-merge-chips mb-1">
+                        <span class="mc-merge-label">Insert:</span>
+                        <button type="button" class="mc-merge-chip" data-field="{firstName}" data-target="mcBody">{firstName}</button>
+                        <button type="button" class="mc-merge-chip" data-field="{lastName}"  data-target="mcBody">{lastName}</button>
+                        <button type="button" class="mc-merge-chip" data-field="{fullName}"  data-target="mcBody">{fullName}</button>
+                        <button type="button" class="mc-merge-chip" data-field="{link}"      data-target="mcBody">{link}</button>
+                        <button type="button" class="mc-merge-chip" data-field="{year}"      data-target="mcBody">{year}</button>
+                    </div>
+                    <textarea class="form-control" id="mcBody" rows="8" placeholder="Hi {firstName}, …"></textarea>
+                </div>
+
+                <%# ── Send bar ──────────────────────────────────────────────── %>
+                <div class="mc-send-bar">
+                    <button type="button" class="btn btn-primary" id="mcSendBtn" disabled>
+                        <i class="fa-solid fa-paper-plane me-2"></i>
+                        Send to <span id="mcSendBtnCount">0</span> recipient<span id="mcSendBtnPlural">s</span>
+                    </button>
+                    <span class="mc-send-hint text-muted small" id="mcSendHint">Select recipients and compose a message to send.</span>
+                </div>
+
+            </section>
+
+            <%# ── Results log ───────────────────────────────────────────────── %>
+            <section class="mc-card d-none" id="mcResultsCard">
+                <div class="mc-card-header">
+                    <h2 class="mc-card-title">
+                        <i class="fa-solid fa-circle-check me-2"></i>Send Results
+                    </h2>
+                    <button type="button" class="btn btn-link btn-sm p-0 text-secondary" id="mcResultsDismiss">
+                        Dismiss
+                    </button>
+                </div>
+                <div id="mcResultsBody"></div>
+            </section>
+
+        </main>
+
+    </div><!-- /.mc-layout -->
+
+    <%# ── Hidden inputs ────────────────────────────────────────────────────── %>
+    <input type="hidden" id="mcCsrfToken" value="<%= csrfToken %>" />
+
+    <%# ── Embedded JSON data ────────────────────────────────────────────────── %>
+    <script id="mc-volunteer-data" type="application/json" nonce="<%= nonce %>">
+        <%- JSON.stringify(volunteers) %>
+    </script>
+    <script id="mc-template-data" type="application/json" nonce="<%= nonce %>">
+        <%- JSON.stringify(templates) %>
+    </script>
+    <script id="mc-convention-days-data" type="application/json" nonce="<%= nonce %>">
+        <%- JSON.stringify(conventionDays) %>
+    </script>
+    <script id="mc-batches-data" type="application/json" nonce="<%= nonce %>">
+        <%- JSON.stringify(batches) %>
+    </script>
+    <script id="mc-preselected-batch" type="application/json" nonce="<%= nonce %>">
+        <%- JSON.stringify(preselectedBatch) %>
+    </script>
+    <script id="mc-pending-volunteer-ids" type="application/json" nonce="<%= nonce %>">
+        <%- JSON.stringify(pendingVolunteerIds) %>
+    </script>
+
+    <%- include('../partials/footer') %>
+
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/messagingCenter.js"></script>
+
+</body>
+</html>

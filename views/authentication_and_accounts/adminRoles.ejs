@@ -14,7 +14,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
   </head>
 
-  <body class="min-vh-100 bg-body-tertiary">
+  <body class="min-vh-100 bg-body-tertiary" data-authed="true">
     <%- include('../partials/header') %>
 
     <main class="container py-4">
@@ -99,7 +99,7 @@
                         </td>
                         <td>
                           <% if (canChange && assignableRoles.length > 0) { %>
-                            <select class="form-select form-select-sm role-select" style="min-width: 160px;">
+                            <select class="form-select form-select-sm role-select">
                               <option value="">Select role…</option>
                               <% assignableRoles.forEach(r => { %>
                                 <option value="<%= r %>" <%= v.role === r ? 'selected' : '' %>>
@@ -154,29 +154,6 @@
     <%- include('../partials/footer') %>
 
     <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
-    <script nonce="<%= nonce %>">
-      // Wire each row's select → hidden input → enable Save button
-      document.querySelectorAll('.role-row').forEach(row => {
-        const select  = row.querySelector('.role-select');
-        const input   = row.querySelector('.role-input');
-        const saveBtn = row.querySelector('.role-save-btn');
-
-        if (!select || !input || !saveBtn) return;
-
-        select.addEventListener('change', () => {
-          input.value   = select.value;
-          saveBtn.disabled = !select.value;
-        });
-      });
-
-      // Live search filter
-      document.getElementById('roleSearch').addEventListener('input', function () {
-        const term = this.value.toLowerCase();
-        document.querySelectorAll('.role-row').forEach(row => {
-          const text = row.textContent.toLowerCase();
-          row.style.display = text.includes(term) ? '' : 'none';
-        });
-      });
-    </script>
+    <script src="/js/adminRoles.js"></script>
   </body>
 </html>

@@ -1,0 +1,184 @@
+/* =============================================================
+   invitationTracker.css
+   Styles for the Invitation Tracker oversight tool.
+
+   Sections:
+     1. Summary stat cards
+     2. Table
+     3. Response badges
+     4. Event label + dot
+   ============================================================= */
+
+
+/* ─────────────────────────────────────────────────────────────
+   1. Summary stat cards
+   ───────────────────────────────────────────────────────────── */
+
+.it-stat-card {
+    background: var(--bs-body-bg, #fff);
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 0.5rem;
+    padding: 0.85rem 1rem;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .05);
+}
+
+.it-stat-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--bs-emphasis-color, #000);
+}
+
+.it-stat-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--bs-secondary-color, #6c757d);
+    margin-top: 0.25rem;
+}
+
+.it-stat-card--yes {
+    border-left: 4px solid var(--bs-success, #198754);
+}
+
+.it-stat-card--no {
+    border-left: 4px solid var(--bs-danger, #dc3545);
+}
+
+.it-stat-card--maybe {
+    border-left: 4px solid var(--bs-warning, #ffc107);
+}
+
+.it-stat-card--pending {
+    border-left: 4px solid var(--bs-secondary, #6c757d);
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   2. Table
+   ───────────────────────────────────────────────────────────── */
+
+.it-table {
+    font-size: 0.875rem;
+}
+
+.it-table thead th {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--bs-secondary-color, #6c757d);
+    white-space: nowrap;
+    border-bottom: 2px solid var(--bs-border-color, #dee2e6);
+}
+
+.it-col-name {
+    min-width: 160px;
+}
+
+.it-col-event {
+    min-width: 200px;
+}
+
+.it-col-channel {
+    width: 70px;
+    text-align: center;
+}
+
+.it-col-sent {
+    width: 110px;
+    white-space: nowrap;
+}
+
+.it-col-response {
+    width: 100px;
+    text-align: center;
+}
+
+.it-col-responded {
+    width: 110px;
+    white-space: nowrap;
+}
+
+.it-col-sentby {
+    min-width: 130px;
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   3. Response badges
+   ───────────────────────────────────────────────────────────── */
+
+.it-badge-yes {
+    background-color: var(--bs-success-bg-subtle, #d1e7dd);
+    color: var(--bs-success-text-emphasis, #0a3622);
+    border: 1px solid var(--bs-success-border-subtle, #a3cfbb);
+}
+
+.it-badge-no {
+    background-color: var(--bs-danger-bg-subtle, #f8d7da);
+    color: var(--bs-danger-text-emphasis, #58151c);
+    border: 1px solid var(--bs-danger-border-subtle, #f1aeb5);
+}
+
+.it-badge-maybe {
+    background-color: var(--bs-warning-bg-subtle, #fff3cd);
+    color: var(--bs-warning-text-emphasis, #664d03);
+    border: 1px solid var(--bs-warning-border-subtle, #ffecb5);
+}
+
+.it-badge-pending {
+    background-color: var(--bs-secondary-bg-subtle, #e2e3e5);
+    color: var(--bs-secondary-text-emphasis, #2b2d42);
+    border: 1px solid var(--bs-secondary-border-subtle, #c4c8cb);
+}
+
+/* All badges share base padding/radius */
+.it-badge-yes,
+.it-badge-no,
+.it-badge-maybe,
+.it-badge-pending,
+.it-badge-revoked {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25em 0.55em;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   4. Event label + dot
+   ───────────────────────────────────────────────────────────── */
+
+.it-event-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.85rem;
+}
+
+.it-event-dot {
+    display: inline-block;
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.it-badge-revoked {
+    background-color: #dc3545;
+    color: #fff;
+    border: 1px solid #b02a37;
+}
+/* ─────────────────────────────────────────────────────────────
+   Toast container
+   ───────────────────────────────────────────────────────────── */
+
+.it-toast-container {
+    position: fixed;
+    bottom: 1rem;
+    right: 1rem;
+    z-index: 1100;
+}

@@ -540,14 +540,26 @@
                                             <strong><%= shift.label %></strong>
                                             <div class="text-muted small">
                                               <span class="fmt-time" data-raw="<%= shift.start_time %>"></span> – <span class="fmt-time" data-raw="<%= shift.end_time %>"></span>
-
                                               <% if (shift.volunteer_need) { %>
                                                 &nbsp;·&nbsp;
                                                 <i class="fa-solid fa-users me-1"></i><%= shift.volunteer_need %> needed
                                               <% } %>
+                                              <% if (shift.invitable) { %>
+                                                &nbsp;·&nbsp;
+                                                <span class="badge bg-warning text-dark" style="font-size:0.65rem">
+                                                  <i class="fa-solid fa-envelope-circle-check me-1"></i>invitable
+                                                </span>
+                                              <% } %>
                                             </div>
                                           </div>
-                                          <div class="d-flex gap-1">
+                                          <div class="d-flex gap-1 align-items-center">
+                                            <button type="button"
+                                              class="btn btn-sm shift-invitable-btn <%= shift.invitable ? 'btn-warning' : 'btn-outline-secondary' %>"
+                                              data-id="<%= shift.id %>"
+                                              data-invitable="<%= shift.invitable ? 'true' : 'false' %>"
+                                              title="<%= shift.invitable ? 'invitable — click to disable' : 'not invitable — click to enable' %>">
+                                              <i class="fa-solid fa-envelope-circle-check"></i>
+                                            </button>
                                             <button type="button"
                                               class="btn btn-outline-secondary btn-sm shift-edit-btn"
                                               data-id="<%= shift.id %>"

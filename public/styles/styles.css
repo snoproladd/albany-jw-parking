@@ -1716,3 +1716,85 @@ b {
 .assignment-remove-btn {
   font-size: 0.55rem;
 }
+/* ─────────────────────────────────────────────────────────────
+   Invite respond — event context block
+   ───────────────────────────────────────────────────────────── */
+
+.ir-event-block {
+  background: var(--bs-primary-bg-subtle, #cfe2ff);
+  border: 1px solid var(--bs-primary-border-subtle, #9ec5fe);
+  border-radius: 0.5rem;
+  padding: 1rem 1.1rem;
+}
+
+.ir-event-header {
+  display: flex;
+  align-items: center;
+  font-size: 1rem;
+  margin-bottom: 0.2rem;
+}
+
+.ir-event-date {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--bs-primary-text-emphasis, #052c65);
+  margin-bottom: 0.1rem;
+}
+
+.ir-event-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  border-top: 1px solid var(--bs-primary-border-subtle, #9ec5fe);
+  padding-top: 0.6rem;
+}
+
+.ir-event-detail-row {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+  align-items: baseline;
+}
+
+.ir-detail-label {
+  min-width: 80px;
+  color: var(--bs-primary-text-emphasis, #052c65);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.ir-detail-value {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--bs-body-color, #212529);
+}
+
+.ir-type-dot {
+  display: inline-block;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+/* ─────────────────────────────────────────────────────────────
+   14. Campaign mode
+   ───────────────────────────────────────────────────────────── */
+
+.mc-campaign-mode {
+  display: flex;
+  align-items: center;
+}
+
+.mc-batch-preview {
+  font-size: 0.8rem;
+  color: var(--bs-secondary-color, #6c757d);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.role-select {
+  min-width: 160px;
+}

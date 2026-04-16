@@ -27,6 +27,8 @@ import upgradeRoutes from "./routes/upgradeRoutes.js";
 import * as db from "./lib/dbSync.js";
 
 import {oversightRouter} from "./routes/oversightRoutes.js";
+import { getBaseUrl } from "./lib/messaging.js";
+
 
 
 // Resolve paths
@@ -536,6 +538,195 @@ const server = http.createServer(app);
         logError("Twilio Lookup error:", err);
         res.status(500).json({ error: "Lookup failed" });
       }
+    });
+    // ========================================================
+    // Public RSVP — Invite Response
+    // No authentication required; token is the credential.
+    // ========================================================
+
+    /**
+     * GET /invite/respond/:token
+     * Show the RSVP response page for an invite link.
+     */
+    app.get("/invite/respond/:token", csrfProtection, async (req, res) => {
+      const { token } = req.params;
+      try {
+        const invitation = await db.getInvitationByToken(token);
+        if (!invitation) {
+          return res.status(404).render("404", { url: req.originalUrl });
+        }
+        return res.render("authentication_and_accounts/inviteRespond", {
+          csrfToken: req.csrfToken(),
+          invitation,
+          alreadyResponded: !!invitation.responded_at && !invitation.revoked,
+          responded: req.query.responded === "1",
+          error: req.query.error || null,
+        });
+      } catch (err) {
+        logError("invite/respond GET error:", err);
+        return res.status(500).send("Server error");
+      }
+    });
+
+    /**
+     * POST /invite/respond/:token
+     * Record a volunteer's RSVP response.
+     * Revoked invitations cannot be responded to.
+     */
+    app.post("/invite/respond/:token", csrfProtection, async (req, res) => {
+      const { token } = req.params;
+      const { response } = req.body || {};
+
+      const valid = ["yes", "no", "maybe"];
+      if (!valid.includes(response)) {
+        return res.redirect(
+          `/invite/respond/${encodeURIComponent(token)}?error=invalid`,
+        );
+      }
+
+      try {
+        const invitation = await db.getInvitationByToken(token);
+        if (!invitation) {
+          return res.status(404).render("404", { url: req.originalUrl });
+        }
+        if (invitation.revoked) {
+          return res.redirect(`/invite/respond/${encodeURIComponent(token)}`);
+        }
+        if (invitation.responded_at) {
+          return res.redirect(
+            `/invite/respond/${encodeURIComponent(token)}?responded=1`,
+          );
+        }
+        await db.markInvitationResponded(token, response);
+        return res.redirect(
+          `/invite/respond/${encodeURIComponent(token)}?responded=1`,
+        );
+      } catch (err) {
+        logError("invite/respond POST error:", err);
+        return res.status(500).send("Server error");
+      }
+    });
+
+    // ========================================================
+    // Twilio SMS Webhook — Opt-out handling
+    // Receives STOP / UNSTOP / HELP messages from Twilio.
+    // Twilio sends application/x-www-form-urlencoded POST.
+    // Validated via X-Twilio-Signature — no CSRF or session needed.
+    // ========================================================
+
+    /**
+     * POST /api/sms/webhook
+     * Handle inbound SMS events from Twilio (STOP, UNSTOP, HELP).
+     * Twilio delivers these as URL-encoded form POST, not JSON.
+     *
+     * Validation: We check the X-Twilio-Signature header using the
+     * Twilio auth token to confirm the request genuinely came from Twilio.
+     * Invalid signatures are rejected with 403.
+     */
+    app.post(
+      "/api/sms/webhook",
+      express.urlencoded({ extended: false }),
+      async (req, res) => {
+        try {
+          // ── Signature validation ───────────────────────────────────
+          const twilioSignature = req.headers["x-twilio-signature"] || "";
+          const webhookUrl = `${getBaseUrl(req)}/api/sms/webhook`;
+
+          // Build the Twilio client to access the validator
+          const twilio = await import("twilio");
+          const twRoot = twilio.default ?? twilio;
+          const isValid = twRoot.validateRequest(
+            config.TWILIO_AUTH_TOKEN,
+            twilioSignature,
+            webhookUrl,
+            req.body || {},
+          );
+
+          if (!isValid) {
+            logError("SMS webhook: invalid Twilio signature — rejected");
+            return res.status(403).send("Forbidden");
+          }
+
+          // ── Extract fields from Twilio payload ─────────────────────
+          // Twilio sends: From, To, Body, MessageSid, etc.
+          const fromPhone = (req.body.From || "").trim();
+          const bodyText = (req.body.Body || "").trim().toUpperCase();
+          const rawPayload = JSON.stringify(req.body);
+
+          // ── Classify the event ─────────────────────────────────────
+          // STOP keywords: STOP, STOPALL, UNSUBSCRIBE, CANCEL, END, QUIT
+          // UNSTOP keywords: START, YES, UNSTOP
+          // HELP keywords: HELP, INFO
+          let eventType = null;
+
+          const stopWords = [
+            "STOP",
+            "STOPALL",
+            "UNSUBSCRIBE",
+            "CANCEL",
+            "END",
+            "QUIT",
+          ];
+          const unstopWords = ["START", "YES", "UNSTOP"];
+          const helpWords = ["HELP", "INFO"];
+
+          if (stopWords.includes(bodyText)) eventType = "STOP";
+          else if (unstopWords.includes(bodyText)) eventType = "UNSTOP";
+          else if (helpWords.includes(bodyText)) eventType = "HELP";
+
+          if (!eventType) {
+            // Not an opt-out keyword — acknowledge and ignore
+            res.set("Content-Type", "text/xml");
+            return res.send(
+              `<?xml version="1.0" encoding="UTF-8"?><Response></Response>`,
+            );
+          }
+
+          // ── Process the event ──────────────────────────────────────
+          await db.handleSmsOptOutWebhook({
+            phone: fromPhone,
+            eventType,
+            rawPayload,
+          });
+
+          log(`SMS webhook: ${eventType} from ${fromPhone}`);
+
+          // Twilio expects a TwiML response — empty is fine for opt-out
+          res.set("Content-Type", "text/xml");
+          return res.send(
+            `<?xml version="1.0" encoding="UTF-8"?><Response></Response>`,
+          );
+        } catch (err) {
+          logError("SMS webhook error:", err);
+          // Still return 200 so Twilio doesn't retry indefinitely
+          res.set("Content-Type", "text/xml");
+          return res.send(
+            `<?xml version="1.0" encoding="UTF-8"?><Response></Response>`,
+          );
+        }
+      },
+    );
+    // ========================================================
+    // Public — SMS opt-in stamp (called from RSVP page)
+    // ========================================================
+
+    /**
+     * POST /invite/opt-in/:token
+     * Stamp SMS opt-in on a volunteer when they submit their RSVP.
+     * Public route — no session auth, invitation token is the credential.
+     * Fire-and-forget from the client — always returns 200.
+     */
+    app.post("/invite/opt-in/:token", csrfProtection, async (req, res) => {
+      const { token } = req.params;
+      try {
+        const invitation = await db.getInvitationByToken(token);
+        if (invitation?.volunteer_id) {
+          await db.setVolunteerSmsOptIn(invitation.volunteer_id, "rsvp");
+        }
+      } catch (err) {
+        logError("invite/opt-in POST error:", err);
+      }
+      return res.json({ success: true });
     });
 
     // ========================================================

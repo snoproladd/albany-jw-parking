@@ -7,27 +7,26 @@
     <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
     <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
-    <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/permissionMatrix.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
     <meta name="csrf-token" content="<%= csrfToken %>" />
-
-    <style nonce="<%= nonce %>">
-      .perm-table th, .perm-table td { white-space: nowrap; vertical-align: middle; }
-      .perm-table thead th.role-header { text-align: center; min-width: 110px; }
-      .perm-table td.toggle-cell { text-align: center; }
-      .saving-indicator { font-size: .75rem; }
-    </style>
+    <link rel="stylesheet" href="/styles/permissionMatrix.css" />
   </head>
 
-  <body class="min-vh-100 bg-body-tertiary">
+  <body class="min-vh-100 bg-body-tertiary" data-authed="true">
     <%- include('../partials/header') %>
 
-    <main class="container-fluid py-4">
-      <div class="row justify-content-center">
-        <div class="col-12 col-xl-11">
+    <div class="pm-mobile-alert d-flex align-items-center gap-2">
+        <i class="fa-solid fa-desktop fa-lg"></i>
+        <span>the permission matrix is designed for desktop use. scroll horizontally to see all roles.</span>
+    </div>
+
+    <main class="container-fluid py-4 px-4">
+      <div class="row">
+        <div class="col-12">
 
           <section class="card shadow-lg admin-console-card">
             <header class="card-header text-center">

@@ -17,7 +17,7 @@
     rel="stylesheet" />
 </head>
 
-<body class="min-vh-100 bg-body-tertiary">
+<body class="min-vh-100 bg-body-tertiary" data-authed="true">
   <%- include('../partials/header') %>
     <% const _ROLE_ORDER=['NON_REGISTERED','REGISTERED','KEYMAN','OVERSEER','ASSISTANT_ADMIN','ADMIN']; const
       _role=typeof userRole !=='undefined' ? userRole : 'NON_REGISTERED' ; const _perms=typeof userPermissions
@@ -127,6 +127,31 @@
                                 <p class="admin-tool-desc">Send password reset or account completion links to volunteers
                                   with incomplete registrations.</p>
                                 <a href="/oversight/tools/send-reset" class="btn btn-warning admin-tool-btn">
+                                  Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                                </a>
+                              </div>
+                            </div>
+
+                            <div class="col-12 col-sm-6 col-lg-4">
+                              <div class="admin-tool-card h-100">
+                                <div class="admin-tool-icon text-primary">
+                                  <i class="fa-solid fa-envelope-open-text"></i>
+                                </div>
+                                <h3 class="admin-tool-title">Messaging Center</h3>
+                                <p class="admin-tool-desc">Send convention invites to volunteers via email or SMS. Track RSVP responses and manage reusable message templates.</p>
+                                <a href="/oversight/tools/messaging" class="btn btn-primary admin-tool-btn">
+                                  Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                                </a>
+                              </div>
+                            </div>
+                            <div class="col-12 col-sm-6 col-lg-4">
+                              <div class="admin-tool-card h-100">
+                                <div class="admin-tool-icon text-success">
+                                  <i class="fa-solid fa-chart-gantt"></i>
+                                </div>
+                                <h3 class="admin-tool-title">Invitation Tracker</h3>
+                                <p class="admin-tool-desc">View all sent invitations, filter by event or response status, and identify volunteers who haven't responded yet.</p>
+                                <a href="/oversight/tools/messaging/tracker" class="btn btn-success admin-tool-btn">
                                   Open <i class="fa-solid fa-arrow-right ms-1"></i>
                                 </a>
                               </div>

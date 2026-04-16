@@ -1,0 +1,592 @@
+/* =============================================================
+   messagingCenter.css
+   Styles for the Messaging Center oversight tool.
+
+   Sections:
+     1. Mobile alert banner
+     2. Layout — aside + main
+     3. Aside — header, filters, list controls
+     4. Volunteer list items
+     5. Main — header + cards
+     6. Send list chips
+     7. Merge field chips
+     8. Template list + editor
+     9. Compose area
+    10. Send bar
+    11. Results log
+    12. Invite respond page
+   ============================================================= */
+
+
+/* ─────────────────────────────────────────────────────────────
+   1. Mobile alert banner
+   ───────────────────────────────────────────────────────────── */
+
+.mc-mobile-alert {
+    display: none;
+    background-color: var(--bs-warning-bg-subtle, #fff3cd);
+    border-bottom: 1px solid var(--bs-warning-border-subtle, #ffecb5);
+    color: var(--bs-warning-text-emphasis, #664d03);
+    font-size: 0.875rem;
+    padding: 0.6rem 1.25rem;
+}
+
+@media (max-width: 991.98px) {
+    .mc-mobile-alert {
+        display: flex;
+    }
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   2. Layout — aside + main
+   ───────────────────────────────────────────────────────────── */
+
+.mc-layout {
+    display: flex;
+    align-items: stretch;
+    height: 90vh;
+    /* fixed height so both panels scroll independently */
+    overflow-x: auto;
+    /* horizontal scroll on narrow screens */
+}
+
+.mc-aside {
+    width: 300px;
+    min-width: 300px;
+    /* never shrinks below 300px */
+    height: 100%;
+    /* fill the layout height */
+    background: var(--bs-body-bg, #fff);
+    border-right: 1px solid var(--bs-border-color, #dee2e6);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    /* inner list scrolls independently */
+}
+
+.mc-main {
+    flex: 1;
+    min-width: 520px;
+    /* keeps compose readable before h-scroll kicks in */
+    height: 100%;
+    /* fill the layout height */
+    padding: 1.5rem 2rem 3rem;
+    overflow-y: auto;
+    /* main content scrolls independently */
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   3. Aside — header, filters, list controls
+   ───────────────────────────────────────────────────────────── */
+
+.mc-aside-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1rem 0.5rem;
+    border-bottom: 1px solid var(--bs-border-color, #dee2e6);
+    flex-shrink: 0;
+}
+
+.mc-aside-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.mc-filters {
+    padding: 0.75rem 1rem 0.5rem;
+    border-bottom: 1px solid var(--bs-border-color, #dee2e6);
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.mc-filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.mc-filter-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--bs-secondary-color, #6c757d);
+    margin: 0;
+}
+
+.mc-filter-btns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+}
+
+.mc-filter-btn,
+.mc-active-btn {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    background: transparent;
+    color: var(--bs-body-color, #212529);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    white-space: nowrap;
+}
+
+.mc-filter-btn:hover,
+.mc-active-btn:hover {
+    background: var(--bs-tertiary-bg, #f8f9fa);
+}
+
+.mc-filter-btn.active,
+.mc-active-btn.active {
+    background: var(--bs-primary, #0d6efd);
+    border-color: var(--bs-primary, #0d6efd);
+    color: #fff;
+}
+
+.mc-list-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid var(--bs-border-color, #dee2e6);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.mc-visible-count {
+    font-size: 0.75rem;
+    color: var(--bs-secondary-color, #6c757d);
+    margin-left: auto;
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   4. Volunteer list items
+   ───────────────────────────────────────────────────────────── */
+
+.mc-volunteer-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.mc-volunteer-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 1rem;
+    cursor: pointer;
+    border-bottom: 1px solid var(--bs-border-color-translucent, rgba(0, 0, 0, .06));
+    transition: background 0.1s;
+    user-select: none;
+}
+
+.mc-volunteer-item:hover {
+    background: var(--bs-tertiary-bg, #f8f9fa);
+}
+
+.mc-volunteer-item.mc-selected {
+    background: var(--bs-primary-bg-subtle, #cfe2ff);
+}
+
+.mc-checkbox {
+    flex-shrink: 0;
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--bs-primary, #0d6efd);
+    cursor: pointer;
+    pointer-events: none;
+    /* clicks handled by the li */
+}
+
+.mc-volunteer-name {
+    flex: 1;
+    font-size: 0.85rem;
+    cursor: pointer;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mc-channel-icons {
+    display: flex;
+    gap: 0.3rem;
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+.mc-icon-email {
+    color: var(--bs-info, #0dcaf0);
+}
+
+.mc-icon-sms {
+    color: var(--bs-success, #198754);
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   5. Main — header + cards
+   ───────────────────────────────────────────────────────────── */
+
+.mc-main-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+}
+
+.mc-main-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--bs-emphasis-color, #000);
+}
+
+.mc-card {
+    background: var(--bs-body-bg, #fff);
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 0.5rem;
+    padding: 1.25rem;
+    margin-bottom: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .06);
+}
+
+.mc-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.85rem;
+}
+
+.mc-card-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   6. Send list chips
+   ───────────────────────────────────────────────────────────── */
+
+.mc-chip-area {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    min-height: 2.25rem;
+    align-items: flex-start;
+}
+
+.mc-empty-hint {
+    font-size: 0.8rem;
+    color: var(--bs-secondary-color, #6c757d);
+    align-self: center;
+}
+
+.mc-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: var(--bs-primary-bg-subtle, #cfe2ff);
+    border: 1px solid var(--bs-primary-border-subtle, #9ec5fe);
+    color: var(--bs-primary-text-emphasis, #052c65);
+    border-radius: 999px;
+    padding: 0.2rem 0.55rem 0.2rem 0.7rem;
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+.mc-chip-remove {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    color: inherit;
+    opacity: 0.6;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    transition: opacity 0.15s;
+}
+
+.mc-chip-remove:hover {
+    opacity: 1;
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   7. Merge field chips
+   ───────────────────────────────────────────────────────────── */
+
+.mc-merge-chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.mc-merge-label {
+    font-size: 0.72rem;
+    color: var(--bs-secondary-color, #6c757d);
+    white-space: nowrap;
+}
+
+.mc-merge-chip {
+    font-size: 0.72rem;
+    font-family: var(--bs-font-monospace, monospace);
+    padding: 0.15rem 0.45rem;
+    border-radius: 4px;
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    color: var(--bs-body-color, #212529);
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
+    white-space: nowrap;
+}
+
+.mc-merge-chip:hover {
+    background: var(--bs-secondary-bg, #e9ecef);
+    border-color: var(--bs-secondary-color, #6c757d);
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   8. Template list + editor
+   ───────────────────────────────────────────────────────────── */
+
+.mc-template-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.mc-template-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.3rem 0.5rem;
+    border-radius: 0.35rem;
+    border: 1px solid var(--bs-border-color-translucent, rgba(0, 0, 0, .08));
+    background: var(--bs-tertiary-bg, #f8f9fa);
+}
+
+.mc-template-load {
+    flex: 1;
+    text-align: left;
+    font-size: 0.85rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mc-template-actions {
+    display: flex;
+    gap: 0.4rem;
+    flex-shrink: 0;
+}
+
+.mc-template-editor {
+    background: var(--bs-body-bg, #fff);
+}
+
+.mc-tpl-body {
+    font-family: var(--bs-font-monospace, monospace);
+    font-size: 0.82rem;
+}
+
+/* Active template editing state — backdrop blocks the rest of the page,
+   templates card floats above it */
+.mc-main::before {
+    content: '';
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 100;
+}
+
+.mc-main.mc-template-editing::before {
+    display: block;
+}
+
+.mc-card--template-active {
+    position: relative;
+    z-index: 101;
+    border-color: var(--bs-primary, #0d6efd);
+    box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.2), 0 4px 16px rgba(0,0,0,.2);
+}
+
+.mc-card--dimmed {
+    /* kept for safety but backdrop handles the visual blocking */
+    pointer-events: none;
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   9. Compose area
+   ───────────────────────────────────────────────────────────── */
+
+.mc-channel-toggles {
+    display: flex;
+    gap: 1rem;
+    padding: 0.4rem 0;
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   10. Send bar
+   ───────────────────────────────────────────────────────────── */
+
+.mc-send-bar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.mc-send-hint {
+    font-size: 0.8rem;
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   11. Results log
+   ───────────────────────────────────────────────────────────── */
+
+#mcResultsBody ul {
+    padding-left: 1.25rem;
+    margin-bottom: 0;
+}
+
+#mcResultsBody li {
+    margin-bottom: 0.25rem;
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   12. Invite respond page
+   ───────────────────────────────────────────────────────────── */
+
+.mc-invite-body {
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 0.4rem;
+    padding: 0.85rem 1rem;
+    font-size: 0.92rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   13. Event picker
+   ───────────────────────────────────────────────────────────── */
+
+.mc-event-picker {
+    padding: 0.75rem 1rem;
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 0.4rem;
+}
+
+.mc-event-preview {
+    font-size: 0.8rem;
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   15. Campaign mode toggle active state
+   ───────────────────────────────────────────────────────────── */
+
+.mc-campaign-mode .btn.active {
+    box-shadow: 0 0 0 2px rgba(13, 110, 253, .25);
+}
+/* ─────────────────────────────────────────────────────────────
+   16. Event picker select widths
+   ───────────────────────────────────────────────────────────── */
+
+#mcEventDay {
+    max-width: 220px;
+}
+
+#mcEventShift {
+    max-width: 280px;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   17. Volunteer row — invitation status badges
+   ───────────────────────────────────────────────────────────── */
+
+.mc-invite-status {
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 0.15em 0.45em;
+    border-radius: 999px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+.mc-invite-status--pending {
+    background-color: var(--bs-secondary-bg-subtle, #e2e3e5);
+    color: var(--bs-secondary-text-emphasis, #2b2d42);
+    border: 1px solid var(--bs-secondary-border-subtle, #c4c8cb);
+}
+
+.mc-invite-status--yes {
+    background-color: var(--bs-success-bg-subtle, #d1e7dd);
+    color: var(--bs-success-text-emphasis, #0a3622);
+    border: 1px solid var(--bs-success-border-subtle, #a3cfbb);
+}
+
+.mc-invite-status--no {
+    background-color: var(--bs-danger-bg-subtle, #f8d7da);
+    color: var(--bs-danger-text-emphasis, #58151c);
+    border: 1px solid var(--bs-danger-border-subtle, #f1aeb5);
+}
+
+.mc-invite-status--maybe {
+    background-color: var(--bs-warning-bg-subtle, #fff3cd);
+    color: var(--bs-warning-text-emphasis, #664d03);
+    border: 1px solid var(--bs-warning-border-subtle, #ffecb5);
+}
+
+.mc-invite-status--revoked {
+    background-color: transparent;
+    color: var(--bs-secondary-color, #6c757d);
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    text-decoration: line-through;
+}
+/* Filter select widths */
+#itBatchFilter {
+    min-width: 220px;
+}
+
+#itDayFilter {
+    min-width: 200px;
+}
+
+#itResponseFilter {
+    min-width: 130px;
+}
+
+#itSearch {
+    min-width: 180px;
+}
+
+/* Pending stat card arrow icon */
+.it-stat-arrow {
+    font-size: 0.6rem;
+}
