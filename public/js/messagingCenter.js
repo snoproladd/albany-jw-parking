@@ -1044,6 +1044,9 @@ function updateSubjectVisibility() {
   templateList?.addEventListener("click", (ev) => {
     const loadBtn = ev.target.closest(".mc-template-load");
     if (loadBtn) {
+      // If the template editor is open, ignore load clicks —
+      // the user is editing, not browsing.
+      if (!templateEditor?.classList.contains("d-none")) return;
       if (subjectInput) subjectInput.value = loadBtn.dataset.subject || "";
       if (bodyInput) {
         bodyInput.value = loadBtn.dataset.body || "";

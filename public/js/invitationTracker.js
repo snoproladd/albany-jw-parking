@@ -133,6 +133,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     updateAddVolunteersLink();
+    updateRemindButton();
   }
 
   // Wire all filter controls
@@ -177,6 +178,44 @@ document.addEventListener("DOMContentLoaded", () => {
       addVolunteersWrap.classList.remove("d-none");
     } else {
       addVolunteersWrap.classList.add("d-none");
+    }
+  }
+
+  // =========================================================
+  // Remind button — updates dynamically with batch filter
+  // =========================================================
+
+  /** @type {HTMLElement|null} */
+  const remindWrap = document.getElementById("itRemindWrap");
+
+  /**
+   * Update the Remind button based on the current batch filter selection.
+   * When a batch is selected it becomes an active link; otherwise a
+   * disabled button that shows the no-batch toast on click.
+   * @returns {void}
+   */
+  function updateRemindButton() {
+    if (!remindWrap) return;
+    const batchVal = batchFilter?.value || "";
+    const pendingCount = remindWrap.dataset.pendingCount || "0";
+
+    if (batchVal) {
+      remindWrap.innerHTML = `
+        <a href="/oversight/tools/messaging?batchId=${batchVal}&selectPending=1"
+           class="btn btn-warning btn-sm">
+          <i class="fa-solid fa-bell me-1"></i>Remind ${pendingCount} pending
+        </a>`;
+    } else {
+      remindWrap.innerHTML = `
+        <button type="button" class="btn btn-secondary btn-sm" id="itRemindNoBatch">
+          <i class="fa-solid fa-bell me-1"></i>Remind ${pendingCount} pending
+        </button>`;
+      // Re-wire the toast since we just replaced the element
+      const btn = remindWrap.querySelector("#itRemindNoBatch");
+      const toastEl = document.getElementById("itNoBatchToast");
+      btn?.addEventListener("click", () => {
+        if (toastEl) bootstrap.Toast.getOrCreateInstance(toastEl).show();
+      });
     }
   }
 
@@ -281,21 +320,8 @@ document.addEventListener("DOMContentLoaded", () => {
     .querySelectorAll(".it-revoke-btn, .it-reinstate-btn")
     .forEach(wireActionButton);
 
-  // =========================================================
-  // Remind button — no batch selected toast
-  // =========================================================
-
-  /**
-   * Show a Bootstrap toast when remind is clicked with no campaign selected.
-   * @returns {void}
-   */
-  const remindNoBatchBtn = document.getElementById("itRemindNoBatch");
-  if (remindNoBatchBtn) {
-    const toastEl = document.getElementById("itNoBatchToast");
-    remindNoBatchBtn.addEventListener("click", () => {
-      if (toastEl) bootstrap.Toast.getOrCreateInstance(toastEl).show();
-    });
-  }
+  // Remind button initial state — wire toast if no batch active on load
+  updateRemindButton();
 
   // =========================================================
   // Init

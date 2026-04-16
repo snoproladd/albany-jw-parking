@@ -2722,6 +2722,18 @@ export function oversightRouter({
       let sent = 0;
 
       const baseUrl = getBaseUrl(req);
+       // ── Fetch shift context for merge fields ────────────────────────────
+      // Fetches location names, address, maps_url, times, and day context
+      // for the linked shift. Null when no event is linked to the batch.
+      let shiftContext = null;
+      if (batchId) {
+        try {
+          shiftContext = await getInvitationBatch(batchId);
+        } catch (err) {
+          (logError || console.error)("messaging/send getInvitationBatch for merge fields error:", err);
+          // Non-fatal — merge fields will resolve to empty strings
+        }
+      }
 
       // ── Per-volunteer send loop ─────────────────────────────────────────
       for (const vol of volunteers) {
@@ -2752,13 +2764,70 @@ export function oversightRouter({
          * @param {string} text
          * @returns {string}
          */
+        /**
+         * Build the location string for merge fields.
+         * Single location → just the name.
+         * Multiple → "At one of: Name1, Name2, …"
+         * @returns {string}
+         */
+        function resolveLocationName() {
+          if (!shiftContext) return "";
+          const count = shiftContext.location_count || 0;
+          const names = shiftContext.location_names || "";
+          if (!names) return "";
+          return count > 1 ? `At one of: ${names}` : names;
+        }
+
+        /**
+         * Format a TIME value (epoch-anchored Date or ISO string) to h:MM AM/PM.
+         * @param {Date|string|null} val
+         * @returns {string}
+         */
+        function fmtShiftTime(val) {
+          if (!val) return "";
+          const d = new Date(val);
+          if (isNaN(d.valueOf())) return String(val).slice(0, 5);
+          const h = d.getUTCHours();
+          const m = String(d.getUTCMinutes()).padStart(2, "0");
+          const ap = h >= 12 ? "PM" : "AM";
+          return `${h % 12 || 12}:${m} ${ap}`;
+        }
+
         function resolveMergeFields(text) {
           return text
             .replace(/\{firstName\}/g, vol.firstName || "")
             .replace(/\{lastName\}/g, vol.lastName || "")
             .replace(/\{fullName\}/g, fullName)
             .replace(/\{link\}/g, rsvpUrl)
-            .replace(/\{year\}/g, String(year));
+            .replace(/\{year\}/g, String(year))
+            .replace(
+              /\{shiftDate\}/g,
+              shiftContext?.convention_date
+                ? new Date(shiftContext.convention_date).toLocaleDateString(
+                    "en-US",
+                    {
+                      weekday: "long",
+                      month: "long",
+                      day: "numeric",
+                      timeZone: "UTC",
+                    },
+                  )
+                : "",
+            )
+            .replace(/\{shiftDay\}/g, shiftContext?.day_label || "")
+            .replace(/\{shiftStart\}/g, fmtShiftTime(shiftContext?.shift_start))
+            .replace(/\{shiftEnd\}/g, fmtShiftTime(shiftContext?.shift_end))
+            .replace(/\{shiftType\}/g, shiftContext?.event_type_name || "")
+            .replace(/\{shiftLabel\}/g, shiftContext?.shift_label || "")
+            .replace(/\{locationName\}/g, resolveLocationName())
+            .replace(
+              /\{locationAddress\}/g,
+              shiftContext?.location_address || "",
+            )
+            .replace(
+              /\{locationMapsUrl\}/g,
+              shiftContext?.location_maps_url || "",
+            );
         }
 
         const resolvedSubject = resolveMergeFields(subject || "");

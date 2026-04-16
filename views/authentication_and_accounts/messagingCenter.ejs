@@ -232,13 +232,22 @@
                         <label class="form-label form-label-sm" for="mcTplBody">Body</label>
                         <div class="mc-merge-chips mb-1">
                             <span class="mc-merge-label">Insert:</span>
-                            <button type="button" class="mc-merge-chip" data-field="{firstName}" data-target="mcTplBody">{firstName}</button>
-                            <button type="button" class="mc-merge-chip" data-field="{lastName}"  data-target="mcTplBody">{lastName}</button>
-                            <button type="button" class="mc-merge-chip" data-field="{fullName}"  data-target="mcTplBody">{fullName}</button>
-                            <button type="button" class="mc-merge-chip" data-field="{link}"      data-target="mcTplBody">{link}</button>
-                            <button type="button" class="mc-merge-chip" data-field="{year}"      data-target="mcTplBody">{year}</button>
+                            <button type="button" class="mc-merge-chip" data-field="{firstName}"       data-target="mcTplBody">First Name</button>
+                            <button type="button" class="mc-merge-chip" data-field="{lastName}"        data-target="mcTplBody">Last Name</button>
+                            <button type="button" class="mc-merge-chip" data-field="{fullName}"        data-target="mcTplBody">Full Name</button>
+                            <button type="button" class="mc-merge-chip" data-field="{link}"            data-target="mcTplBody">RSVP Link</button>
+                            <button type="button" class="mc-merge-chip" data-field="{year}"            data-target="mcTplBody">Convention Year</button>
+                            <button type="button" class="mc-merge-chip" data-field="{shiftDate}"       data-target="mcTplBody">Shift Date</button>
+                            <button type="button" class="mc-merge-chip" data-field="{shiftDay}"        data-target="mcTplBody">Shift Day</button>
+                            <button type="button" class="mc-merge-chip" data-field="{shiftStart}"      data-target="mcTplBody">Shift Start Time</button>
+                            <button type="button" class="mc-merge-chip" data-field="{shiftEnd}"        data-target="mcTplBody">Shift End Time</button>
+                            <button type="button" class="mc-merge-chip" data-field="{shiftType}"       data-target="mcTplBody">Shift Type</button>
+                            <button type="button" class="mc-merge-chip" data-field="{shiftLabel}"      data-target="mcTplBody">Shift</button>
+                            <button type="button" class="mc-merge-chip" data-field="{locationName}"    data-target="mcTplBody">Location</button>
+                            <button type="button" class="mc-merge-chip" data-field="{locationAddress}" data-target="mcTplBody">Address</button>
+                            <button type="button" class="mc-merge-chip" data-field="{locationMapsUrl}" data-target="mcTplBody">Google Maps Link</button>
                         </div>
-                        <textarea class="form-control form-control-sm mc-tpl-body" id="mcTplBody" rows="5" placeholder="Hi {firstName}, …"></textarea>
+                        <textarea class="form-control form-control-sm mc-tpl-body" id="mcTplBody" rows="14" placeholder="Hi {firstName}, …"></textarea>
                     </div>
                     <div class="d-flex gap-2 justify-content-end">
                         <button type="button" class="btn btn-outline-secondary btn-sm" id="mcTplCancelBtn">Cancel</button>
@@ -375,10 +384,10 @@
                     <label class="form-label" for="mcSubject">Subject</label>
                     <div class="mc-merge-chips mb-1">
                         <span class="mc-merge-label">Insert:</span>
-                        <button type="button" class="mc-merge-chip" data-field="{firstName}" data-target="mcSubject">{firstName}</button>
-                        <button type="button" class="mc-merge-chip" data-field="{lastName}"  data-target="mcSubject">{lastName}</button>
-                        <button type="button" class="mc-merge-chip" data-field="{fullName}"  data-target="mcSubject">{fullName}</button>
-                        <button type="button" class="mc-merge-chip" data-field="{year}"      data-target="mcSubject">{year}</button>
+                        <button type="button" class="mc-merge-chip" data-field="{firstName}" data-target="mcSubject">First Name</button>
+                        <button type="button" class="mc-merge-chip" data-field="{lastName}"  data-target="mcSubject">Last Name</button>
+                        <button type="button" class="mc-merge-chip" data-field="{fullName}"  data-target="mcSubject">Full Name</button>
+                        <button type="button" class="mc-merge-chip" data-field="{year}"      data-target="mcSubject">Convention Year</button>
                     </div>
                     <input type="text" class="form-control" id="mcSubject" placeholder="e.g. You're invited — {year} Albany JW Convention" />
                 </div>
@@ -388,11 +397,20 @@
                     <label class="form-label" for="mcBody">Message</label>
                     <div class="mc-merge-chips mb-1">
                         <span class="mc-merge-label">Insert:</span>
-                        <button type="button" class="mc-merge-chip" data-field="{firstName}" data-target="mcBody">{firstName}</button>
-                        <button type="button" class="mc-merge-chip" data-field="{lastName}"  data-target="mcBody">{lastName}</button>
-                        <button type="button" class="mc-merge-chip" data-field="{fullName}"  data-target="mcBody">{fullName}</button>
-                        <button type="button" class="mc-merge-chip" data-field="{link}"      data-target="mcBody">{link}</button>
-                        <button type="button" class="mc-merge-chip" data-field="{year}"      data-target="mcBody">{year}</button>
+                        <button type="button" class="mc-merge-chip" data-field="{firstName}"       data-target="mcBody">First Name</button>
+                        <button type="button" class="mc-merge-chip" data-field="{lastName}"        data-target="mcBody">Last Name</button>
+                        <button type="button" class="mc-merge-chip" data-field="{fullName}"        data-target="mcBody">Full Name</button>
+                        <button type="button" class="mc-merge-chip" data-field="{link}"            data-target="mcBody">RSVP Link</button>
+                        <button type="button" class="mc-merge-chip" data-field="{year}"            data-target="mcBody">Convention Year</button>
+                        <button type="button" class="mc-merge-chip" data-field="{shiftDate}"       data-target="mcBody">Shift Date</button>
+                        <button type="button" class="mc-merge-chip" data-field="{shiftDay}"        data-target="mcBody">Shift Day</button>
+                        <button type="button" class="mc-merge-chip" data-field="{shiftStart}"      data-target="mcBody">Shift Start Time</button>
+                        <button type="button" class="mc-merge-chip" data-field="{shiftEnd}"        data-target="mcBody">Shift End Time</button>
+                        <button type="button" class="mc-merge-chip" data-field="{shiftType}"       data-target="mcBody">Shift Type</button>
+                        <button type="button" class="mc-merge-chip" data-field="{shiftLabel}"      data-target="mcBody">Shift</button>
+                        <button type="button" class="mc-merge-chip" data-field="{locationName}"    data-target="mcBody">Location</button>
+                        <button type="button" class="mc-merge-chip" data-field="{locationAddress}" data-target="mcBody">Address</button>
+                        <button type="button" class="mc-merge-chip" data-field="{locationMapsUrl}" data-target="mcBody">Google Maps Link</button>
                     </div>
                     <textarea class="form-control" id="mcBody" rows="8" placeholder="Hi {firstName}, …"></textarea>
                 </div>

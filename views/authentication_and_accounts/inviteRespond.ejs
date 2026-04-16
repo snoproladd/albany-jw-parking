@@ -217,7 +217,7 @@
                                 <input type="hidden" id="rsvpChannel"    value="<%= invitation.channel %>" />
                                 <input type="hidden" id="rsvpToken"      value="<%= invitation.token %>" />
                                 <input type="hidden" id="rsvpCsrf"       value="<%= csrfToken %>" />
-                                <input type="hidden" id="rsvpResponse"   value="" />
+                                <input type="hidden" id="rsvpResponse"   name="response" value="" />
 
                                 <div class="d-grid gap-2">
 
@@ -240,7 +240,7 @@
 
                                 <%# SMS opt-in consent notice (shown only when invite was SMS or both) %>
                                 <% if (isSms) { %>
-                                    <p class="text-muted mt-3 mb-0" style="font-size:0.72rem; line-height:1.4">
+                                    <p class="text-muted mt-3 mb-0 ir-sms-consent">
                                         <i class="fa-solid fa-shield-halved me-1"></i>
                                         By responding, you consent to receive SMS messages from the Albany JW
                                         Convention parking team regarding your volunteer assignment.
