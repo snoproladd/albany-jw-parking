@@ -1,0 +1,26 @@
+/**
+ * reports.css
+ * Styles specific to the Oversight Reports page.
+ */
+
+/* Sortable column headers */
+th.sortable {
+    user-select: none;
+    white-space: nowrap;
+}
+
+th.sortable:hover {
+    background-color: var(--bs-table-hover-bg, rgba(0, 0, 0, 0.04));
+}
+
+/* Keep thead visible during scroll */
+#appStatusTable thead.sticky-top th {
+    z-index: 1;
+    background-color: var(--bs-light);
+}
+
+/* Cap table height and enable scroll on tall lists */
+.table-responsive {
+    max-height: 68vh;
+    overflow-y: auto;
+}

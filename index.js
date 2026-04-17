@@ -387,6 +387,23 @@ const server = http.createServer(app);
 
     const csrfProtection = csurf({ cookie: true });
 
+    /**
+     * Prevent browsers from caching authenticated pages.
+     * Without this, hitting the back button after logout restores the cached
+     * page from bfcache, bypassing session checks entirely.
+     */
+    app.use((req, res, next) => {
+      if (req.session?.userId) {
+        res.setHeader(
+          "Cache-Control",
+          "no-store, no-cache, must-revalidate, private",
+        );
+        res.setHeader("Pragma", "no-cache");
+        res.setHeader("Expires", "0");
+      }
+      next();
+    });
+
     // ========================================================
     // Mount Routers
     // ========================================================
@@ -422,6 +439,23 @@ const server = http.createServer(app);
         logError,
       }),
     );
+
+    /**
+     * Prevent browsers from caching authenticated pages.
+     * Without this, hitting the back button after logout restores the cached
+     * page from bfcache, bypassing session checks entirely.
+     */
+    app.use((req, res, next) => {
+      if (req.session?.userId) {
+        res.setHeader(
+          "Cache-Control",
+          "no-store, no-cache, must-revalidate, private",
+        );
+        res.setHeader("Pragma", "no-cache");
+        res.setHeader("Expires", "0");
+      }
+      next();
+    });
 
     // Login + My Account router
     app.use("/", loginRouter({ csrfProtection, logError }));

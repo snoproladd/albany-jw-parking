@@ -53,8 +53,9 @@ document.addEventListener("DOMContentLoaded", () => {
    */
   function allLocked() {
     const bodies = /** @type {HTMLElement[]} */ (
-      Array.from(root.querySelectorAll(".accordion-body"))
-      .filter((s) => s.dataset.section !== "status")
+      Array.from(root.querySelectorAll(".accordion-body")).filter(
+        (s) => s.dataset.section !== "status",
+      )
     );
     if (!bodies.length) return true;
     return bodies.every((s) => s.dataset.editing !== "true");
@@ -103,6 +104,11 @@ document.addEventListener("DOMContentLoaded", () => {
     updateFinalizeState();
   }
 
+  /**
+   * Show or hide the assigned vs visiting congregation blocks based on
+   * the current state of the congAssigned radio buttons.
+   * @returns {void}
+   */
   function updateVisitingCongregationVisibility() {
     const assignedYes = document.querySelector(
       'input[name="congAssigned"][value="yes"]',
@@ -199,13 +205,11 @@ document.addEventListener("DOMContentLoaded", () => {
   // ---------------------------------------------------------------------
 
   root.querySelectorAll(".accordion-body").forEach((sec) => {
-    if (sec.dataset.section ==="status") return; // skip status section if present
+    if (sec.dataset.section === "status") return;
     setSectionEditing(sec, false);
   });
 
   updateVisitingCongregationVisibility();
-
-  // IMPORTANT: initialize button + picker states once on load
   updateFinalizeState();
   updateVolunteerPickerState();
 
@@ -226,7 +230,6 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Track previous selection so cancel can restore it.
     let lastValue = pickerSelect.value;
 
     pickerSelect.addEventListener("focus", () => {
@@ -236,7 +239,6 @@ document.addEventListener("DOMContentLoaded", () => {
     pickerSelect.addEventListener("change", () => {
       if (!pickerSelect.value) return;
 
-      // If any section is currently editing, block switching.
       if (anySectionEditing()) {
         alert(
           "Please SAVE (or cancel) your edits before switching volunteers.",
@@ -245,7 +247,6 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // If there are cached-but-unfinalized changes, confirm discard.
       if (userHasUnsavedChanges()) {
         const ok = confirm(
           "You have unsaved changes for this volunteer. Switch volunteers and discard them?",
@@ -256,45 +257,35 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
 
-      // Avoid double beforeunload prompts on intentional navigation
       window.__suppressBeforeUnload = true;
-
       clearEditVolunteerCache();
-
       updateVisitingCongregationVisibility();
-
-      // Guaranteed submit (does not require a submit button)
       pickerForm.submit();
     });
   })();
 
   // ---------------------------------------------------------------------
-  // Volunteer filter (status + approval buttons)
+  // Volunteer filter (status + active buttons)
   // ---------------------------------------------------------------------
 
   /**
    * Initialise the filter button panel above the volunteer select.
-   * Filters are applied client-side against data-status / data-active
-   * attributes on each <option>. The select is reset to the placeholder
-   * whenever the visible set changes and the current selection is hidden.
    * @returns {void}
    */
   (function initVolunteerFilter() {
     const select = /** @type {HTMLSelectElement | null} */ (
-      root.querySelector('#volunteerSelect')
+      root.querySelector("#volunteerSelect")
     );
-    const countEl = document.getElementById('volunteerFilterCount');
+    const countEl = document.getElementById("volunteerFilterCount");
     if (!select) return;
 
     /** @type {string} */
-    let activeStatus = 'all';
+    let activeStatus = "all";
     /** @type {string} */
-    let activeApproval = 'all';
+    let activeApproval = "all";
 
     /**
      * Apply current filter state to the select options.
-     * Options that don't match are hidden and disabled so they cannot
-     * be submitted or selected via keyboard navigation.
      * @returns {void}
      */
     function applyFilter() {
@@ -303,13 +294,15 @@ document.addEventListener("DOMContentLoaded", () => {
       const currentVal = select.value;
 
       Array.from(select.options).forEach((opt) => {
-        if (!opt.value) return; // skip placeholder
+        if (!opt.value) return;
 
-        const matchStatus = activeStatus === 'all' || opt.dataset.status === activeStatus;
-        const matchApproval = activeApproval === 'all' || opt.dataset.active === activeApproval;
+        const matchStatus =
+          activeStatus === "all" || opt.dataset.status === activeStatus;
+        const matchApproval =
+          activeApproval === "all" || opt.dataset.active === activeApproval;
         const show = matchStatus && matchApproval;
 
-        opt.hidden   = !show;
+        opt.hidden = !show;
         opt.disabled = !show;
 
         if (show) {
@@ -318,37 +311,37 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
 
-      // If the currently selected volunteer is now hidden, reset to placeholder
       if (currentVal && !currentStillVisible) {
-        select.value = '';
+        select.value = "";
       }
 
       if (countEl) {
-        countEl.textContent = `${visible} volunteer${visible !== 1 ? 's' : ''}`;
+        countEl.textContent = `${visible} volunteer${visible !== 1 ? "s" : ""}`;
       }
     }
 
-    // Wire status filter buttons
-    root.querySelectorAll('.status-filter-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        root.querySelectorAll('.status-filter-btn').forEach((b) => b.classList.remove('active'));
-        btn.classList.add('active');
-        activeStatus = btn.dataset.filterStatus || 'all';
+    root.querySelectorAll(".status-filter-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        root
+          .querySelectorAll(".status-filter-btn")
+          .forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        activeStatus = btn.dataset.filterStatus || "all";
         applyFilter();
       });
     });
 
-    // Wire approval filter buttons
-    root.querySelectorAll('.active-filter-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        root.querySelectorAll('.active-filter-btn').forEach((b) => b.classList.remove('active'));
-        btn.classList.add('active');
-        activeApproval = btn.dataset.filterActive || 'all';
+    root.querySelectorAll(".active-filter-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        root
+          .querySelectorAll(".active-filter-btn")
+          .forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        activeApproval = btn.dataset.filterActive || "all";
         applyFilter();
       });
     });
 
-    // Run once on load to populate the count
     applyFilter();
   })();
 
@@ -364,8 +357,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // ---------------------------------------------------------------------
-  // Privilege rules init (safe even if target not selected)
-  // Uses shared enforcer API exposed by privilegeEnforcer.js [1](https://jakeofalltradespropertyserv-my.sharepoint.com/personal/jladd_jakeofalltradespropertyserv_onmicrosoft_com/Documents/Microsoft%20Copilot%20Chat%20Files/parking_website.txt)
+  // Privilege rules init
   // ---------------------------------------------------------------------
 
   (function initPrivilegeRulesForOversight() {
@@ -387,10 +379,81 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   })();
 
+  // ---------------------------------------------------------------------
+  // Collapse guard — prevent opening/closing while a section is in edit mode
+  // ---------------------------------------------------------------------
+
   /**
-   * Cache values for a section based on its name.
+   * Intercept Bootstrap's collapse show/hide events on the accordion.
+   *
+   * hide.bs.collapse — if the panel being closed is still in edit mode,
+   *   cancel the collapse and flash its SAVE button.
+   *
+   * show.bs.collapse — if any OTHER panel is currently in edit mode,
+   *   cancel the open and flash that panel's SAVE button.
+   *
+   * Both events fire on the .accordion-collapse element itself.
+   * The .accordion-body is a direct child of that element.
+   *
+   * @returns {void}
+   */
+  function initCollapseGuard() {
+    const accordion = root.querySelector("#accountAccordion");
+    if (!accordion) return;
+
+    /**
+     * Briefly flash the SAVE button on a section body.
+     * @param {HTMLElement} body
+     * @returns {void}
+     */
+    function flashSaveBtn(body) {
+      const saveBtn = /** @type {HTMLButtonElement | null} */ (
+        body.querySelector(".summary-edit-btn")
+      );
+      if (!saveBtn) return;
+
+      saveBtn.classList.add("btn-warning", "shake-once");
+      saveBtn.classList.remove("btn-success");
+      setTimeout(() => {
+        saveBtn.classList.remove("btn-warning", "shake-once");
+        saveBtn.classList.add("btn-success");
+      }, 1200);
+    }
+
+    accordion.addEventListener("hide.bs.collapse", (ev) => {
+      const collapseEl = /** @type {HTMLElement} */ (ev.target);
+      const body = collapseEl.querySelector(":scope > .accordion-body");
+      if (!body || body.dataset.editing !== "true") return;
+
+      ev.preventDefault();
+      flashSaveBtn(/** @type {HTMLElement} */ (body));
+    });
+
+    accordion.addEventListener("show.bs.collapse", (ev) => {
+      const collapseEl = /** @type {HTMLElement} */ (ev.target);
+      const editingBody = Array.from(
+        accordion.querySelectorAll(".accordion-body"),
+      ).find((body) => {
+        const parentCollapse = body.closest(".accordion-collapse");
+        return parentCollapse !== collapseEl && body.dataset.editing === "true";
+      });
+
+      if (!editingBody) return;
+
+      ev.preventDefault();
+      flashSaveBtn(/** @type {HTMLElement} */ (editingBody));
+    });
+  }
+
+  // ---------------------------------------------------------------------
+  // Cache section values
+  // ---------------------------------------------------------------------
+
+  /**
+   * Cache the current form values for a section by name.
    * @param {HTMLElement} sec
    * @param {string} section
+   * @returns {void}
    */
   function cacheSection(sec, section) {
     switch (section) {
@@ -463,12 +526,18 @@ document.addEventListener("DOMContentLoaded", () => {
         break;
     }
   }
+
+  // ---------------------------------------------------------------------
+  // congAssigned radio change → update visibility
+  // ---------------------------------------------------------------------
+
   root.addEventListener("change", (ev) => {
     const target = ev.target;
     if (target instanceof HTMLInputElement && target.name === "congAssigned") {
       updateVisitingCongregationVisibility();
     }
   });
+
   // ---------------------------------------------------------------------
   // EDIT/SAVE click handler (single source of truth)
   // ---------------------------------------------------------------------
@@ -485,7 +554,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (isEditing) {
       // SAVE
-      // cacheSection must exist elsewhere in your file (as you already had)
       cacheSection(sec, sectionName);
       hasCachedChanges = true;
 
@@ -531,7 +599,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ---------------------------------------------------------------------
-  // Finalize handler (only if button exists)
+  // Finalize handler
   // ---------------------------------------------------------------------
 
   if (finalizeBtn && finalizeStatus) {
@@ -563,10 +631,8 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       try {
-        // Split assignment out — it has its own endpoint
         const { assignment, ...coreCache } = window.editVolunteerCache;
 
-        // Fire both requests in parallel if assignment data is present
         const fetchPromises = [
           fetch("/edit-volunteer/finalize", {
             method: "POST",
@@ -574,10 +640,7 @@ document.addEventListener("DOMContentLoaded", () => {
               "Content-Type": "application/json",
               "X-CSRF-Token": csrf,
             },
-            body: JSON.stringify({
-              targetUserId,
-              ...coreCache,
-            }),
+            body: JSON.stringify({ targetUserId, ...coreCache }),
           }),
         ];
 
@@ -589,10 +652,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 "Content-Type": "application/json",
                 "X-CSRF-Token": csrf,
               },
-              body: JSON.stringify({
-                targetUserId,
-                ...assignment,
-              }),
+              body: JSON.stringify({ targetUserId, ...assignment }),
             }),
           );
         }
@@ -616,9 +676,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (assignment && (!assignRes?.ok || !assignData.success)) {
           finalizeStatus.innerHTML = `
-                                <div class="alert alert-danger">
-                                    ${assignData.message || "Failed to save assignment changes."}
-                                </div>`;
+                        <div class="alert alert-danger">
+                            ${assignData.message || "Failed to save assignment changes."}
+                        </div>`;
           finalizeBtn.disabled = false;
           finalizeBtn.textContent = "Finalize Changes";
           return;
@@ -644,15 +704,14 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
+
   // ---------------------------------------------------------------------
-  // Active / inactive toggle (immediate AJAX — does not go through finalize)
+  // Active / inactive toggle (immediate AJAX)
   // ---------------------------------------------------------------------
 
   /**
-   * Initialise the active_current_year toggle.
-   * Fires a standalone POST immediately on change so the state is persisted
-   * without requiring the user to go through the full finalize flow.
-   *
+   * Initialise the active_current_year toggle switch.
+   * Fires a standalone POST immediately on change — does not go through finalize.
    * @returns {void}
    */
   function initActiveToggle() {
@@ -670,7 +729,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const csrf = document.querySelector('input[name="_csrf"]')?.value || "";
 
       if (!targetUserId) {
-        toggle.checked = !active; // revert
+        toggle.checked = !active;
         return;
       }
 
@@ -692,7 +751,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const data = await res.json().catch(() => ({}));
 
         if (!res.ok || !data.success) {
-          toggle.checked = !active; // revert on failure
+          toggle.checked = !active;
           if (status) {
             status.textContent = data.message || "Failed to save.";
             status.className = "small text-danger";
@@ -709,7 +768,6 @@ document.addEventListener("DOMContentLoaded", () => {
           status.className = "small text-success";
         }
 
-        // Update the badge in the accordion header to reflect the new state
         const headerBadge = document.querySelector(
           "#statusAccordionItem .accordion-button .badge",
         );
@@ -720,13 +778,12 @@ document.addEventListener("DOMContentLoaded", () => {
             : "badge bg-secondary ms-2";
         }
 
-        // Clear the status message after 3 s
         setTimeout(() => {
           if (status) status.textContent = "";
         }, 3000);
       } catch (err) {
         console.error("[oversight] activeToggle error:", err);
-        toggle.checked = !active; // revert
+        toggle.checked = !active;
         if (status) {
           status.textContent = "Server error.";
           status.className = "small text-danger";
@@ -736,4 +793,5 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   initActiveToggle();
+  initCollapseGuard();
 });

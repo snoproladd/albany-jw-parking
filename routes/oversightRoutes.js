@@ -76,7 +76,10 @@ import {
   getInvitableDaysWithShifts,
   setVolunteerSmsOptIn,
   handleSmsOptOutWebhook,
+  promoteIfComplete,
+  getVolunteerReportRows,
 } from "../lib/dbSync.js";
+
 import { verifyPassword, hashPassword } from "../lib/passwordVer.js";
 
 import { INCOMPATIBILITIES } from "../src/config/privilegeRules.js";
@@ -84,6 +87,8 @@ import { INCOMPATIBILITIES } from "../src/config/privilegeRules.js";
 import { requirePermission, canAssignRole, ROLE_HIERARCHY, PERMISSIONS } from "../src/config/roles.js";
 
 import { sendResetEmail, sendResetSms, getBaseUrl } from '../lib/messaging.js';   
+
+import { isProfileComplete } from "../lib/volunteerStatus.js";
 
 
 /**
@@ -2722,7 +2727,7 @@ export function oversightRouter({
       let sent = 0;
 
       const baseUrl = getBaseUrl(req);
-       // ── Fetch shift context for merge fields ────────────────────────────
+      // ── Fetch shift context for merge fields ────────────────────────────
       // Fetches location names, address, maps_url, times, and day context
       // for the linked shift. Null when no event is linked to the batch.
       let shiftContext = null;
@@ -2730,7 +2735,10 @@ export function oversightRouter({
         try {
           shiftContext = await getInvitationBatch(batchId);
         } catch (err) {
-          (logError || console.error)("messaging/send getInvitationBatch for merge fields error:", err);
+          (logError || console.error)(
+            "messaging/send getInvitationBatch for merge fields error:",
+            err,
+          );
           // Non-fatal — merge fields will resolve to empty strings
         }
       }
@@ -3387,5 +3395,40 @@ export function oversightRouter({
     },
   );
 
+  // ===========================
+  // VOLUNTEER REPORTS
+  // ===========================
+
+  /**
+   * GET /oversight/tools/reports
+   * Landing page for Oversight Reports. Currently surfaces the
+   * Volunteer Application Status report.
+   * Requires OVERSEER or above (createAssignments permission).
+   */
+  router.get(
+    "/oversight/tools/reports",
+    requireAuth,
+    requirePermission("createAssignments"),
+    csrfProtection,
+    async (req, res) => {
+      try {
+        const rows = await getVolunteerReportRows();
+
+        // Attach completeness data to each volunteer row
+        const volunteers = rows.map((v) => {
+          const { complete, missing } = isProfileComplete(v);
+          return { ...v, isComplete: complete, missingFields: missing };
+        });
+
+        return res.render("authentication_and_accounts/reports", {
+          csrfToken: req.csrfToken(),
+          volunteers,
+        });
+      } catch (err) {
+        (logError || console.error)("reports GET error:", err);
+        return res.status(500).send("Server error");
+      }
+    },
+  );
   return router;
 };

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Reports — Albany JW Parking</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+  <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+  <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+  <link rel="stylesheet" type="text/css" href="/styles/reports.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+</head>
+
+<body class="min-vh-100 bg-body-tertiary" data-authed="true">
+  <%- include('../partials/header') %>
+
+  <main class="container-fluid py-4 px-4">
+    <div class="row justify-content-center">
+      <div class="col-12 col-xl-11 col-xxl-10">
+
+        <!-- Page header -->
+        <div class="d-flex align-items-center gap-3 mb-4">
+          <a href="/oversight/tools" class="btn btn-sm btn-outline-secondary">
+            <i class="fa-solid fa-arrow-left me-1"></i>Tools
+          </a>
+          <h1 class="h3 mb-0">
+            <i class="fa-solid fa-chart-bar me-2 text-info"></i>Reports
+          </h1>
+        </div>
+
+        <!-- Report nav tabs -->
+        <ul class="nav nav-tabs mb-4" id="reportTabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link active"
+              id="tab-app-status"
+              data-bs-toggle="tab"
+              data-bs-target="#panel-app-status"
+              type="button"
+              role="tab"
+              aria-controls="panel-app-status"
+              aria-selected="true">
+              <i class="fa-solid fa-clipboard-list me-1"></i>Application Status
+            </button>
+          </li>
+          <!-- Future reports slot in here as additional <li> elements -->
+        </ul>
+
+        <!-- Tab panels -->
+        <div class="tab-content">
+
+          <!-- ══ Application Status report ══ -->
+          <div
+            class="tab-pane fade show active"
+            id="panel-app-status"
+            role="tabpanel"
+            aria-labelledby="tab-app-status">
+
+            <section class="card shadow-sm">
+              <header class="card-header d-flex flex-wrap align-items-center gap-3">
+                <div class="me-auto">
+                  <h2 class="h5 mb-0">Volunteer Application Status</h2>
+                  <p class="text-muted small mb-0">
+                    All non-archived volunteers — <span id="visibleCount">0</span> shown
+                  </p>
+                </div>
+
+                <!-- Status filter -->
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                  <label class="visually-hidden" for="statusFilter">Filter by status</label>
+                  <select id="statusFilter" class="form-select form-select-sm" style="width:auto;">
+                    <option value="all">All statuses</option>
+                    <option value="completed">Completed</option>
+                    <option value="draft">Draft / Incomplete</option>
+                  </select>
+
+                  <label class="visually-hidden" for="reportSearch">Search volunteers</label>
+                  <input
+                    id="reportSearch"
+                    type="search"
+                    class="form-control form-control-sm"
+                    placeholder="Search name or email…"
+                    style="width:220px;" />
+                </div>
+              </header>
+
+              <div class="card-body p-0">
+                <div class="table-responsive">
+                  <table class="table table-hover table-sm mb-0" id="appStatusTable">
+                    <thead class="table-light sticky-top">
+                      <tr>
+                        <th class="ps-3 sortable" data-col="name" aria-sort="ascending">
+                          Name <i class="fa-solid fa-sort ms-1 sort-icon"></i>
+                        </th>
+                        <th class="sortable" data-col="email">
+                          Email <i class="fa-solid fa-sort ms-1 sort-icon"></i>
+                        </th>
+                        <th class="sortable" data-col="status">
+                          Status <i class="fa-solid fa-sort ms-1 sort-icon"></i>
+                        </th>
+                        <th>Missing Fields</th>
+                        <th class="sortable" data-col="updated">
+                          Last Updated <i class="fa-solid fa-sort ms-1 sort-icon"></i>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody id="appStatusBody">
+                      <!-- Populated by reports.js -->
+                    </tbody>
+                  </table>
+                </div>
+
+                <!-- Empty state -->
+                <div id="appStatusEmpty" class="text-center py-5 text-muted d-none">
+                  <i class="fa-solid fa-magnifying-glass fa-2x mb-2 d-block"></i>
+                  No volunteers match the current filter.
+                </div>
+              </div>
+            </section>
+
+          </div><!-- /.tab-pane -->
+
+        </div><!-- /.tab-content -->
+
+      </div>
+    </div>
+  </main>
+
+  <%- include('../partials/footer') %>
+
+  <!-- Volunteer data passed to JS -->
+  <script>
+    window.REPORT_DATA = {
+      volunteers: <%- JSON.stringify(volunteers) %>
+    };
+  </script>
+
+  <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+  <script src="/js/reports.js" type="module"></script>
+</body>
+</html>
