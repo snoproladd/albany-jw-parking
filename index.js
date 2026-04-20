@@ -13,8 +13,12 @@ import csurf from "csurf";
 import { RedisStore } from "connect-redis";
 import { createClient } from "redis";
 
+import { createRequire } from "module";
 import { getConfig, getSqlPool } from "./src/config/azureConfig.js";
 import { INCOMPATIBILITIES } from "./src/config/privilegeRules.js";
+
+const require = createRequire(import.meta.url);
+const { version: APP_VERSION } = require("./package.json");
 
 // Routers
 import { createRegistrationRouter } from "./routes/registrationRoutes.js";
@@ -370,6 +374,7 @@ const server = http.createServer(app);
 
       res.locals.userRole = userRole;
       res.locals.userPermissions = s.permissions || {};
+      res.locals.appVersion = APP_VERSION;
 
       res.locals.nav = {
         isLoggedIn,

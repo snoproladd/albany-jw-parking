@@ -30,6 +30,8 @@ import {
   getDecentlyExportRows,
   markDecentlyExported,
   setVolunteerActive,
+  softDeleteVolunteer,
+  reinstateVolunteer,
   getVolunteersForImportMatch,
   applyDecentlyImport,
   getLocationsTasks,
@@ -68,6 +70,7 @@ import {
   getInvitationBatches,
   getInvitationBatch,
   createInvitationBatch,
+  updateInvitationBatch,
   suggestBatchName,
   revokeInvitation,
   reinstateInvitation,
@@ -162,30 +165,34 @@ export function oversightRouter({
       const id = await req.session.userId;
       const pwError = req.query.pwError === "1";
       const pwSuccess = req.query.pwSuccess === "1";
+      const includeDeleted = req.query.includeDeleted === "1";
+      const actorRole = req.session.userRole || "NON_REGISTERED";
+      const perms = req.session.permissions ?? {};
+      const canDelete = !!(perms[actorRole]?.deleteVolunteer);
+
       try {
-        const volunteers = (await getActiveVolunteers()) || [];
+        const volunteers = (await getActiveVolunteers({ includeDeleted })) || [];
         const user = await getVolunteerById(id);
 
         if (!user) {
-          // If the record disappeared, force re-login
           req.session.destroy?.(() => {});
           return res.redirect("/login");
         }
 
         const congregations = await getCongregations();
-        const gender = null; // populated in the edit page based on the selected volunteer, not the logged-in user
 
         res.render("volunteerAccountOversight", {
           csrfToken: req.csrfToken(),
           editor: user,
-          targetUser: null, // populated in the edit page based on the selected volunteer
-          volunteers: volunteers,
+          targetUser: null,
+          volunteers,
           privilegeRulesJSON: JSON.stringify(INCOMPATIBILITIES),
           congregations,
           pwError,
           pwSuccess,
+          canDelete,
+          includeDeleted,
         });
-        // Implementation for showing volunteer selection/edit page
       } catch (err) {
         (logError || console.error)("editVolunteer GET error:", err);
         res.status(500).send("Server error");
@@ -209,9 +216,14 @@ export function oversightRouter({
         return res.redirect("/editVolunteer");
       }
 
+      const includeDeleted = req.body.includeDeleted === "1" || req.query.includeDeleted === "1";
+      const actorRole = req.session.userRole || "NON_REGISTERED";
+      const perms = req.session.permissions ?? {};
+      const canDelete = !!(perms[actorRole]?.deleteVolunteer);
+
       try {
         const targetUser = await getVolunteerById(Number(targetUserId));
-        const volunteers = await getActiveVolunteers();
+        const volunteers = await getActiveVolunteers({ includeDeleted });
         const editor = await getVolunteerById(req.session.userId);
         const congregations = await getCongregations();
 
@@ -222,6 +234,8 @@ export function oversightRouter({
           volunteers,
           congregations,
           privilegeRulesJSON: JSON.stringify(INCOMPATIBILITIES),
+          canDelete,
+          includeDeleted,
         });
       } catch (err) {
         (logError || console.error)("selectVolEdit error:", err);
@@ -323,6 +337,73 @@ export function oversightRouter({
       }
     },
   );
+  /**
+   * POST /edit-volunteer/delete
+   * Soft-delete a volunteer (sets registration_status = 'deleted').
+   * Requires deleteVolunteer permission (ASSISTANT_ADMIN+).
+   *
+   * Body (JSON): { targetUserId: number }
+   * Response: { success: boolean, message?: string }
+   */
+  router.post(
+    "/edit-volunteer/delete",
+    requireAuth,
+    requirePermission("deleteVolunteer"),
+    csrfProtection,
+    async (req, res) => {
+      const { targetUserId } = req.body || {};
+      const id = Number(targetUserId);
+
+      if (!id)
+        return res.status(400).json({ success: false, message: "No volunteer selected." });
+
+      if (id === req.session.userId)
+        return res.status(400).json({ success: false, message: "You cannot delete your own account." });
+
+      try {
+        const ok = await softDeleteVolunteer(id, req.session.userEmail || "admin");
+        if (!ok)
+          return res.status(404).json({ success: false, message: "Volunteer not found or already deleted." });
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("edit-volunteer/delete POST error:", err);
+        return res.status(500).json({ success: false, message: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * POST /edit-volunteer/reinstate
+   * Reinstate a soft-deleted volunteer by restoring their prior status.
+   * Requires deleteVolunteer permission (ASSISTANT_ADMIN+).
+   *
+   * Body (JSON): { targetUserId: number }
+   * Response: { success: boolean, message?: string }
+   */
+  router.post(
+    "/edit-volunteer/reinstate",
+    requireAuth,
+    requirePermission("deleteVolunteer"),
+    csrfProtection,
+    async (req, res) => {
+      const { targetUserId } = req.body || {};
+      const id = Number(targetUserId);
+
+      if (!id)
+        return res.status(400).json({ success: false, message: "No volunteer selected." });
+
+      try {
+        const ok = await reinstateVolunteer(id, req.session.userEmail || "admin");
+        if (!ok)
+          return res.status(404).json({ success: false, message: "Volunteer not found or not currently deleted." });
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("edit-volunteer/reinstate POST error:", err);
+        return res.status(500).json({ success: false, message: "Server error." });
+      }
+    },
+  );
+
   // CONTACT
   router.post(
     "/my-account/update/contact",
@@ -588,7 +669,12 @@ export function oversightRouter({
 
         await Promise.all(promises);
 
-        return res.json({ success: true });
+        // Attempt promotion for draft volunteers — safe to call on every save;
+        // promoteIfComplete is a no-op if the volunteer is already completed/archived
+        // or if the profile is still missing required fields.
+        const { promoted } = await promoteIfComplete(targetId, editorEmail);
+
+        return res.json({ success: true, promoted });
       } catch (err) {
         (logError || console.error)("oversight finalize error:", err);
         return res.status(500).json({
@@ -2590,6 +2676,8 @@ export function oversightRouter({
         campaignMode = "new",
         batchName = null,
         existingBatchId = null,
+        parentBatchId = null,
+        responseNeeded = true,
         conventionDayId = null,
         sessionId = null,
         shiftId = null,
@@ -2602,6 +2690,7 @@ export function oversightRouter({
       const resolvedSess = sessionId ? Number(sessionId) : null;
       const resolvedShift = shiftId ? Number(shiftId) : null;
       const resolvedBatch = existingBatchId ? Number(existingBatchId) : null;
+      const resolvedParent = parentBatchId ? Number(parentBatchId) : null;
 
       // ── Input validation ────────────────────────────────────────────────
       if (!Array.isArray(volunteerIds) || volunteerIds.length === 0)
@@ -2620,10 +2709,27 @@ export function oversightRouter({
         return res
           .status(400)
           .json({ success: false, error: "Campaign name is required." });
+      if (campaignMode === "followup" && !resolvedParent)
+        return res
+          .status(400)
+          .json({ success: false, error: "Select a parent campaign for the follow-up." });
+      if (campaignMode === "followup" && !batchName?.trim())
+        return res
+          .status(400)
+          .json({ success: false, error: "Campaign name is required." });
       if (campaignMode === "add_to" && !resolvedBatch)
         return res
           .status(400)
           .json({ success: false, error: "Select an existing campaign." });
+
+      // Creating a new campaign (new or followup) requires createCampaign permission
+      if (campaignMode !== "add_to") {
+        const perms = req.session.permissions ?? {};
+        const role  = req.session.userRole ?? "NON_REGISTERED";
+        if (!perms[role]?.createCampaign) {
+          return res.status(403).json({ success: false, error: "You do not have permission to create campaigns." });
+        }
+      }
 
       // ── Fetch volunteers ────────────────────────────────────────────────
       let volunteers;
@@ -2708,6 +2814,8 @@ export function oversightRouter({
             messageBody: body.trim(),
             year,
             createdBy: sentBy,
+            parentBatchId: campaignMode === "followup" ? resolvedParent : null,
+            responseNeeded: responseNeeded !== false && responseNeeded !== "false",
           });
         }
       } catch (err) {
@@ -3250,6 +3358,74 @@ export function oversightRouter({
   );
 
   /**
+   * PUT /oversight/tools/messaging/batches/:id
+   * Update an existing invitation batch's editable fields.
+   * Restricted to users with the manageCampaigns permission (ADMIN by default).
+   *
+   * Body (JSON): {
+   *   name:           string,
+   *   messageSubject: string|null,
+   *   messageBody:    string,
+   *   parentBatchId:  number|null,
+   *   responseNeeded: boolean,
+   *   active:         boolean
+   * }
+   * Response: { success: boolean, error?: string }
+   *
+   * @requires manageCampaigns permission
+   */
+  router.put(
+    "/oversight/tools/messaging/batches/:id",
+    requireAuth,
+    requirePermission("manageCampaigns"),
+    csrfProtection,
+    async (req, res) => {
+      const id = Number(req.params.id);
+      if (!id)
+        return res.status(400).json({ success: false, error: "Invalid id." });
+
+      const {
+        name,
+        messageSubject,
+        messageBody,
+        parentBatchId,
+        responseNeeded,
+        active,
+      } = req.body || {};
+
+      if (!name?.trim())
+        return res.status(400).json({ success: false, error: "Name is required." });
+      if (!messageBody?.trim())
+        return res.status(400).json({ success: false, error: "Message body is required." });
+
+      // Prevent a batch from being its own parent
+      const resolvedParent = parentBatchId ? Number(parentBatchId) : null;
+      if (resolvedParent === id)
+        return res.status(400).json({ success: false, error: "A campaign cannot be its own parent." });
+
+      try {
+        const ok = await updateInvitationBatch({
+          id,
+          name: name.trim(),
+          messageSubject: messageSubject?.trim() || null,
+          messageBody: messageBody.trim(),
+          parentBatchId: resolvedParent,
+          responseNeeded: responseNeeded !== false && responseNeeded !== "false",
+          active: active !== false && active !== "false",
+        });
+
+        if (!ok)
+          return res.status(404).json({ success: false, error: "Campaign not found." });
+
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("messaging/batches PUT error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
    * GET /oversight/tools/messaging/tracker
    * Render the Invitation Tracker page.
    * Now supports filtering by batch in addition to day and response.
@@ -3300,6 +3476,7 @@ export function oversightRouter({
           activeBatch: batchId,
           activeResponse: responseFilter,
           includeRevoked,
+          canManageCampaigns: !!(req.session.permissions ?? {})[req.session.userRole ?? ""]?.manageCampaigns,
         });
       } catch (err) {
         (logError || console.error)("messaging/tracker GET error:", err);

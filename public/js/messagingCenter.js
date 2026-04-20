@@ -56,6 +56,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Campaign mode
   const modeNewBtn = document.getElementById("mcModeNew");
   const modeAddToBtn = document.getElementById("mcModeAddTo");
+  const modeFollowupBtn = document.getElementById("mcModeFollowup");
   const campaignNameWrap = document.getElementById("mcCampaignNameWrap");
   const campaignNameInput = document.getElementById("mcCampaignName");
   const suggestNameBtn = document.getElementById("mcSuggestNameBtn");
@@ -64,6 +65,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const batchPreview = document.getElementById("mcBatchPreview");
   const batchPreviewText = document.getElementById("mcBatchPreviewText");
   const batchTrackerLink = document.getElementById("mcBatchTrackerLink");
+  const parentBatchWrap = document.getElementById("mcParentBatchWrap");
+  const parentBatchSelect = document.getElementById("mcParentBatch");
+  const responseNeededWrap = document.getElementById("mcResponseNeededWrap");
+  const responseNeededChk = document.getElementById("mcResponseNeeded");
   const eventPickerWrap = document.getElementById("mcEventPickerWrap");
 
   // Event picker
@@ -90,7 +95,7 @@ document.addEventListener("DOMContentLoaded", () => {
   /** @type {Set<number>} */
   const selectedIds = new Set();
 
-  /** @type {'new'|'add_to'} */
+  /** @type {'new'|'add_to'|'followup'} */
   let campaignMode = "new";
 
   /** @type {number|null} */
@@ -433,33 +438,79 @@ function updateChipAreaVisibility() {
    * @param {'new'|'add_to'} mode
    * @returns {void}
    */
+  /**
+   * Switch between New Campaign, Add to Existing, and Follow-up modes.
+   * Controls visibility of campaign name, parent picker, response needed,
+   * existing batch picker, and event picker panels.
+   * @param {'new'|'add_to'|'followup'} mode
+   * @returns {void}
+   */
   function setCampaignMode(mode) {
     campaignMode = mode;
     const isNew = mode === "new";
+    const isAddTo = mode === "add_to";
+    const isFollowup = mode === "followup";
 
-    modeNewBtn?.classList.toggle("active", isNew);
-    modeNewBtn?.classList.toggle("btn-primary", isNew);
-    modeNewBtn?.classList.toggle("btn-outline-primary", !isNew);
-    modeAddToBtn?.classList.toggle("active", !isNew);
-    modeAddToBtn?.classList.toggle("btn-primary", !isNew);
-    modeAddToBtn?.classList.toggle("btn-outline-primary", isNew);
+    // Button active states
+    for (const [btn, active] of [
+      [modeNewBtn,     isNew],
+      [modeAddToBtn,   isAddTo],
+      [modeFollowupBtn, isFollowup],
+    ]) {
+      btn?.classList.toggle("active", active);
+      btn?.classList.toggle("btn-primary", active);
+      btn?.classList.toggle("btn-outline-primary", !active);
+    }
 
-    campaignNameWrap?.classList.toggle("d-none", !isNew);
-    existingBatchWrap?.classList.toggle("d-none", isNew);
-    eventPickerWrap?.classList.toggle("d-none", !isNew);
+    // Panel visibility
+    campaignNameWrap?.classList.toggle("d-none", isAddTo);
+    existingBatchWrap?.classList.toggle("d-none", !isAddTo);
+    parentBatchWrap?.classList.toggle("d-none", !isFollowup);
+    responseNeededWrap?.classList.toggle("d-none", isAddTo);
+    eventPickerWrap?.classList.toggle("d-none", isAddTo);
+
     if (isNew) clearInviteStatusBadges();
 
-    // In add-to mode, pre-fill subject/body from the selected batch
-    if (!isNew) {
-      const sel = existingBatchSelect;
-      if (sel?.value) onExistingBatchChange();
-    }
+    // Pre-fill subject/body from selected batch
+    if (isAddTo && existingBatchSelect?.value) onExistingBatchChange();
+
+    // Auto-suggest follow-up name when parent is already selected
+    if (isFollowup && parentBatchSelect?.value) onParentBatchChange();
 
     updateSendButton();
   }
 
   modeNewBtn?.addEventListener("click", () => setCampaignMode("new"));
   modeAddToBtn?.addEventListener("click", () => setCampaignMode("add_to"));
+  modeFollowupBtn?.addEventListener("click", () => setCampaignMode("followup"));
+
+  /**
+   * Handle parent batch selection change in follow-up mode.
+   * Auto-suggests campaign name and pre-fills subject/body from parent.
+   * @returns {void}
+   */
+  function onParentBatchChange() {
+    const opt = parentBatchSelect?.options[parentBatchSelect.selectedIndex];
+    if (!opt?.value) return;
+
+    // Auto-suggest name: "Follow-up: <parent name>"
+    const parentName = opt.dataset.name || opt.textContent.trim();
+    if (campaignNameInput && !campaignNameInput.value.trim()) {
+      campaignNameInput.value = `Follow-up: ${parentName}`;
+    }
+
+    // Pre-fill subject/body from parent if fields are empty
+    if (subjectInput && !subjectInput.value.trim()) {
+      subjectInput.value = opt.dataset.subject || "";
+    }
+    if (bodyInput && !bodyInput.value.trim()) {
+      bodyInput.value = opt.dataset.body || "";
+    }
+
+    updateSendButton();
+  }
+
+  parentBatchSelect?.addEventListener("change", onParentBatchChange);
 
   /**
    * Remove all invitation status badges from the volunteer list.
@@ -751,7 +802,9 @@ function updateSubjectVisibility() {
     const hasName =
       campaignMode === "add_to"
         ? !!existingBatchSelect?.value
-        : (campaignNameInput?.value.trim().length || 0) > 0;
+        : campaignMode === "followup"
+          ? !!parentBatchSelect?.value && (campaignNameInput?.value.trim().length || 0) > 0
+          : (campaignNameInput?.value.trim().length || 0) > 0;
 
     if (sendBtn)
       sendBtn.disabled = !(hasRecipients && hasChannel && hasBody && hasName);
@@ -822,16 +875,25 @@ function updateSubjectVisibility() {
     const { conventionDayId, sessionId, shiftId } = getSelectedEvent();
 
     const batchName =
-      campaignMode === "new" ? campaignNameInput?.value.trim() || "" : null;
+      campaignMode === "add_to" ? null : campaignNameInput?.value.trim() || "";
     const existingBatchId =
       campaignMode === "add_to"
         ? Number(existingBatchSelect?.value) || null
         : null;
+    const parentBatchId =
+      campaignMode === "followup"
+        ? Number(parentBatchSelect?.value) || null
+        : null;
+    const responseNeeded = responseNeededChk?.checked ?? true;
 
     const channelLabel =
       sendEmail && sendSms ? "email and SMS" : sendEmail ? "email" : "SMS";
     const modeLabel =
-      campaignMode === "add_to" ? "to existing campaign" : "as new campaign";
+      campaignMode === "add_to"
+        ? "to existing campaign"
+        : campaignMode === "followup"
+          ? "as follow-up campaign"
+          : "as new campaign";
 
     const confirmed = confirm(
       `Send to ${recipientIds.length} recipient${recipientIds.length !== 1 ? "s" : ""} via ${channelLabel} (${modeLabel})?`,
@@ -861,6 +923,8 @@ function updateSubjectVisibility() {
           campaignMode,
           batchName,
           existingBatchId,
+          parentBatchId,
+          responseNeeded,
           conventionDayId,
           sessionId,
           shiftId,

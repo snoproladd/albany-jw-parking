@@ -46,18 +46,7 @@
                 <i class="fa-solid fa-chart-gantt me-2"></i>Invitation Tracker
             </h1>
             <div class="d-flex gap-2 flex-wrap">
-                <% if (totalPending > 0) { %>
-                    <% if (activeBatch) { %>
-                        <a href="/oversight/tools/messaging?batchId=<%= activeBatch %>&selectPending=1"
-                           class="btn btn-warning btn-sm">
-                            <i class="fa-solid fa-bell me-1"></i>Remind <%= totalPending %> pending
-                        </a>
-                    <% } else { %>
-                        <button type="button" class="btn btn-secondary btn-sm" id="itRemindNoBatch">
-                            <i class="fa-solid fa-bell me-1"></i>Remind <%= totalPending %> pending
-                        </button>
-                    <% } %>
-                <% } %>
+                <div id="itRemindWrap" data-pending-count="<%= totalPending %>"></div>
                 <a href="/oversight/tools/messaging" class="btn btn-primary btn-sm">
                     <i class="fa-solid fa-paper-plane me-1"></i>Messaging Center
                 </a>
@@ -71,45 +60,37 @@
         <div class="row g-3 mb-4">
             <div class="col-6 col-sm-4 col-md-2">
                 <div class="it-stat-card">
-                    <div class="it-stat-value"><%= totalSent %></div>
+                    <div class="it-stat-value" id="itStatTotal"><%= totalSent %></div>
                     <div class="it-stat-label">Total Sent</div>
                 </div>
             </div>
             <div class="col-6 col-sm-4 col-md-2">
                 <div class="it-stat-card it-stat-card--yes">
-                    <div class="it-stat-value"><%= totalYes %></div>
+                    <div class="it-stat-value" id="itStatYes"><%= totalYes %></div>
                     <div class="it-stat-label">Yes</div>
                 </div>
             </div>
             <div class="col-6 col-sm-4 col-md-2">
                 <div class="it-stat-card it-stat-card--no">
-                    <div class="it-stat-value"><%= totalNo %></div>
+                    <div class="it-stat-value" id="itStatNo"><%= totalNo %></div>
                     <div class="it-stat-label">No</div>
                 </div>
             </div>
             <div class="col-6 col-sm-4 col-md-2">
                 <div class="it-stat-card it-stat-card--maybe">
-                    <div class="it-stat-value"><%= totalMaybe %></div>
+                    <div class="it-stat-value" id="itStatMaybe"><%= totalMaybe %></div>
                     <div class="it-stat-label">Maybe</div>
                 </div>
             </div>
-            <div class="col-6 col-sm-4 col-md-2">
-                <% if (activeBatch && totalPending > 0) { %>
-                    <a href="/oversight/tools/messaging/tracker?batchId=<%= activeBatch %>&response=pending&includeRevoked=0"
-                       class="it-stat-card it-stat-card--pending text-decoration-none d-block">
-                        <div class="it-stat-value"><%= totalPending %></div>
-                        <div class="it-stat-label">Pending <i class="fa-solid fa-arrow-right ms-1 it-stat-arrow"></i></div>
-                    </a>
-                <% } else { %>
-                    <div class="it-stat-card it-stat-card--pending">
-                        <div class="it-stat-value"><%= totalPending %></div>
-                        <div class="it-stat-label">Pending</div>
-                    </div>
-                <% } %>
+            <div class="col-6 col-sm-4 col-md-2" id="itStatPendingWrap">
+                <div class="it-stat-card it-stat-card--pending">
+                    <div class="it-stat-value" id="itStatPending"><%= totalPending %></div>
+                    <div class="it-stat-label" id="itStatPendingLabel">Pending</div>
+                </div>
             </div>
             <div class="col-6 col-sm-4 col-md-2">
                 <div class="it-stat-card it-stat-card--revoked">
-                    <div class="it-stat-value"><%= totalRevoked %></div>
+                    <div class="it-stat-value" id="itStatRevoked"><%= totalRevoked %></div>
                     <div class="it-stat-label">Revoked</div>
                 </div>
             </div>
@@ -122,17 +103,27 @@
 
                     <div>
                         <label class="form-label form-label-sm mb-1" for="itBatchFilter">Campaign</label>
-                        <select class="form-select form-select-sm it-filter-select" id="itBatchFilter">
-                            <option value="">All campaigns</option>
-                            <% batches.forEach(function(b) { %>
-                                <option value="<%= b.id %>"
-                                    <%= activeBatch === b.id ? 'selected' : '' %>>
-                                    <%= b.name %>
-                                    <% if (b.day_label) { %> — <%= b.day_label %><% } %>
-                                    (<%= b.volunteer_count %>)
-                                </option>
-                            <% }); %>
-                        </select>
+                        <div class="d-flex gap-1 align-items-center">
+                            <select class="form-select form-select-sm it-filter-select" id="itBatchFilter">
+                                <option value="">All campaigns</option>
+                                <% batches.forEach(function(b) { %>
+                                    <option value="<%= b.id %>"
+                                        data-response-needed="<%= b.response_needed ? '1' : '0' %>"
+                                        data-parent-id="<%= b.parent_batch_id || '' %>"
+                                        <%= activeBatch === b.id ? 'selected' : '' %>>
+                                        <%= b.parent_batch_id ? '↳ ' : '' %><%= b.name %><% if (b.day_label) { %> — <%= b.day_label %><% } %> (<%= b.volunteer_count %>)
+                                    </option>
+                                <% }); %>
+                            </select>
+                            <% if (canmanagecampaigns) { %>
+                                <button type="button"
+                                    class="btn btn-outline-secondary btn-sm d-none"
+                                    id="iteditcampaignbtn"
+                                    title="edit this campaign">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>
+                            <% } %>
+                        </div>
                     </div>
 
                     <div>
@@ -241,6 +232,9 @@
 
                                         <td class="it-col-campaign">
                                             <% if (inv.batch_name) { %>
+                                                <% if (inv.parent_batch_id) { %>
+                                                    <span class="text-muted small me-1" title="follow-up campaign">↳</span>
+                                                <% } %>
                                                 <span class="small"><%= inv.batch_name %></span>
                                             <% } else { %>
                                                 <span class="text-muted">—</span>
@@ -347,6 +341,91 @@
             </div>
         </div>
     </main>
+
+    <% if (canManageCampaigns) { %>
+    <%# ── Edit Campaign Modal ─────────────────────────────────────────────── %>
+    <div class="modal fade" id="itEditCampaignModal" tabindex="-1" aria-labelledby="itEditCampaignModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="itEditCampaignModalLabel">
+                        <i class="fa-solid fa-pen-to-square me-2"></i>Edit Campaign
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+
+                    <%# Name %>
+                    <div class="mb-3">
+                        <label class="form-label" for="itEditName">Campaign name</label>
+                        <input type="text" class="form-control" id="itEditName" maxlength="150" />
+                    </div>
+
+                    <%# Subject %>
+                    <div class="mb-3">
+                        <label class="form-label" for="itEditSubject">Subject <span class="text-muted fw-normal small">(email only)</span></label>
+                        <input type="text" class="form-control" id="itEditSubject" maxlength="255" />
+                    </div>
+
+                    <%# Body %>
+                    <div class="mb-3">
+                        <label class="form-label" for="itEditBody">Message body</label>
+                        <textarea class="form-control" id="itEditBody" rows="7"></textarea>
+                    </div>
+
+                    <%# Parent batch %>
+                    <div class="mb-3">
+                        <label class="form-label" for="itEditParent">
+                            Parent campaign
+                            <span class="text-muted fw-normal small ms-1">— leave blank for a top-level campaign</span>
+                        </label>
+                        <select class="form-select" id="itEditParent">
+                            <option value="">— None (top-level) —</option>
+                            <% batches.forEach(function(b) { %>
+                                <option value="<%= b.id %>">
+                                    <%= b.name %><% if (b.day_label) { %> — <%= b.day_label %><% } %>
+                                </option>
+                            <% }); %>
+                        </select>
+                        <div class="form-text" id="itEditParentHint"></div>
+                    </div>
+
+                    <%# Response needed %>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="itEditResponseNeeded" />
+                            <label class="form-check-label" for="itEditResponseNeeded">
+                                Response needed
+                                <span class="text-muted fw-normal small ms-1">— uncheck for info-only sends</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <%# Active toggle %>
+                    <div class="mb-1 p-3 border rounded" style="border-color: var(--bs-danger-border-subtle) !important; background: var(--bs-danger-bg-subtle);">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch" id="itEditActive" />
+                            <label class="form-check-label" for="itEditActive">
+                                Campaign active
+                                <span class="text-muted fw-normal small ms-1">— inactive campaigns are hidden from filters</span>
+                            </label>
+                        </div>
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <span class="text-danger small me-auto d-none" id="itEditError"></span>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="itEditSaveBtn">
+                        <i class="fa-solid fa-floppy-disk me-1"></i>Save changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script id="it-batches-data" type="application/json"><%- JSON.stringify(batches) %></script>
+    <% } %>
 
     <input type="hidden" id="itCsrfToken" value="<%= csrfToken %>" />
 

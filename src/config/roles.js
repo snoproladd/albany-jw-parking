@@ -47,6 +47,10 @@ export const PERMISSIONS = {
     manageRoles: false,
     accessAdminConsole: false,
     createVolunteerAccounts: false,
+    sendMessages: false,
+    createCampaign: false,
+    manageCampaigns: false,
+    deleteVolunteer: false,
   },
   REGISTERED: {
     submitInfo: true,
@@ -65,6 +69,9 @@ export const PERMISSIONS = {
     manageRoles: false,
     accessAdminConsole: false,
     createVolunteerAccounts: false,
+    createCampaign: false,
+    manageCampaigns: false,
+    deleteVolunteer: false,
   },
   KEYMAN: {
     submitInfo: true,
@@ -83,6 +90,9 @@ export const PERMISSIONS = {
     manageRoles: false,
     accessAdminConsole: false,
     createVolunteerAccounts: false,
+    createCampaign: false,
+    manageCampaigns: false,
+    deleteVolunteer: false,
   },
   OVERSEER: {
     submitInfo: true,
@@ -101,6 +111,9 @@ export const PERMISSIONS = {
     manageRoles: false,
     accessAdminConsole: false,
     createVolunteerAccounts: true,
+    createCampaign: true,
+    manageCampaigns: false,
+    deleteVolunteer: false,
   },
   ASSISTANT_ADMIN: {
     submitInfo: true,
@@ -119,6 +132,9 @@ export const PERMISSIONS = {
     manageRoles: true,
     accessAdminConsole: true,
     createVolunteerAccounts: true,
+    createCampaign: true,
+    manageCampaigns: false,
+    deleteVolunteer: true,
   },
   ADMIN: {
     submitInfo: true,
@@ -137,6 +153,9 @@ export const PERMISSIONS = {
     manageRoles: true,
     accessAdminConsole: true,
     createVolunteerAccounts: true,
+    createCampaign: true,
+    manageCampaigns: true,
+    deleteVolunteer: true,
   },
 };
 

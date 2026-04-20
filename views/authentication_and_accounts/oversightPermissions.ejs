@@ -67,25 +67,46 @@
                 // Derive the ordered permission list from the first role's keys
                 const permissionKeys = Object.keys(PERMISSIONS['NON_REGISTERED']);
 
-                // Human-readable labels
+
+                // Human-readable labels for all permission keys
                 const permLabels = {
-                  submitInfo:              'Submit Info',
-                  viewSchedules:           'View Schedules',
-                  viewMaps:                'View Maps',
-                  printMaps:               'Print Maps',
-                  printSchedules:          'Print Schedules',
-                  viewVolunteerInfo:       'View Volunteer Info',
-                  editVolunteerInfo:       'Edit Volunteer Info',
-                  createAssignments:       'Create Assignments',
-                  manageShifts:            'Manage Shifts',
-                  uploadMaps:              'Upload Maps',
-                  sendMessages:            'Send Messages',
-                  printUserData:           'Print User Data',
-                  editSelf:                'Edit Self',
-                  manageRoles:             'Manage Roles',
-                  accessAdminConsole:      'Access Admin Console',
-                  createVolunteerAccounts: 'Create Volunteer Accounts',
+                  editSelf:                'Edit own profile',
+                  submitInfo:              'Submit registration info',
+                  viewSchedules:           'View schedules',
+                  printSchedules:          'Print schedules',
+                  manageShifts:            'Manage shifts',
+                  createAssignments:       'Create assignments',
+                  viewMaps:                'View maps',
+                  printMaps:               'Print maps',
+                  uploadMaps:              'Upload maps',
+                  viewVolunteerInfo:       'View volunteer info',
+                  editVolunteerInfo:       'Edit volunteer info',
+                  printUserData:           'Print volunteer data',
+                  createVolunteerAccounts: 'Create volunteer accounts',
+                  deleteVolunteer:         'Delete volunteers'
+                  sendMessages:            'Send messages',
+                  createCampaign:          'Create campaigns',
+                  manageCampaigns:         'Manage campaigns',
+                  accessAdminConsole:      'Access admin console',
+                  manageRoles:             'Manage roles',
                 };
+
+                // Grouped permission order — drives both rendering and sequence.
+                // Any key present in PERMISSIONS but absent here will be appended
+                // under an "Other" group automatically.
+                const permGroups = [
+                  { label: 'Self',           perms: ['editSelf', 'submitInfo'] },
+                  { label: 'Scheduling',     perms: ['viewSchedules', 'printSchedules', 'manageShifts', 'createAssignments'] },
+                  { label: 'Maps',           perms: ['viewMaps', 'printMaps', 'uploadMaps'] },
+                  { label: 'Volunteers',     perms: ['viewVolunteerInfo', 'editVolunteerInfo', 'printUserData', 'createVolunteerAccounts', 'deleteVolunteer'] },
+                  { label: 'Messaging',      perms: ['sendMessages', 'createCampaign', 'manageCampaigns'] },
+                  { label: 'Administration', perms: ['accessAdminConsole', 'manageRoles'] },
+                ];
+
+                // Safety net — catch any future permissions not yet added to a group
+                const allKnown = new Set(permGroups.flatMap(g => g.perms));
+                const orphans  = Object.keys(PERMISSIONS['NON_REGISTERED']).filter(p => !allKnown.has(p));
+                if (orphans.length) permGroups.push({ label: 'Other', perms: orphans });
               %>
 
               <div class="table-responsive">
@@ -94,49 +115,58 @@
                     <tr>
                       <th>Permission</th>
                       <% ROLE_HIERARCHY.forEach(role => { %>
-                        <th class="role-header"><%= role.replace('_', ' ') %></th>
+                        <th class="role-header"><%= role.replace(/_/g, ' ') %></th>
                       <% }) %>
                     </tr>
                   </thead>
                   <tbody>
-                    <% permissionKeys.forEach(perm => { %>
-                      <tr>
-                        <td class="fw-medium"><%= permLabels[perm] || perm %></td>
-                        <% ROLE_HIERARCHY.forEach(role => { %>
-                          <%
-                            const defaultVal  = PERMISSIONS[role][perm] === true;
-                            const overrideKey = role + '.' + perm;
-                            const hasOverride = overrideLookup.hasOwnProperty(overrideKey);
-                            const effectiveVal = hasOverride ? overrideLookup[overrideKey] : defaultVal;
-                            const isLocked = role === 'ADMIN' && perm === 'manageRoles';
-                          %>
-                          <td class="toggle-cell">
-                            <div class="form-check form-switch d-flex justify-content-center align-items-center gap-1">
-                              <input
-                                class="form-check-input perm-toggle"
-                                type="checkbox"
-                                role="switch"
-                                id="toggle-<%= role %>-<%= perm %>"
-                                data-role="<%= role %>"
-                                data-permission="<%= perm %>"
-                                data-default="<%= defaultVal %>"
-                                <%= effectiveVal ? 'checked' : '' %>
-                                <%= isLocked ? 'disabled title="Cannot remove manageRoles from ADMIN"' : '' %>
-                              />
-                              <% if (hasOverride) { %>
-                                <span class="badge bg-warning text-dark saving-indicator" title="DB override active">
-                                  <i class="fa-solid fa-database"></i>
-                                </span>
-                              <% } %>
-                            </div>
-                          </td>
-                        <% }) %>
+                    <% permGroups.forEach(group => { %>
+
+                      <%# Group header row %>
+                      <tr class="perm-group-header">
+                        <td colspan="<%= ROLE_HIERARCHY.length + 1 %>"><%= group.label %></td>
                       </tr>
+
+                      <% group.perms.forEach(perm => { %>
+                        <% if (!PERMISSIONS['NON_REGISTERED'].hasOwnProperty(perm)) return; %>
+                        <tr>
+                          <td class="fw-medium ps-3"><%= permLabels[perm] || perm %></td>
+                          <% ROLE_HIERARCHY.forEach(role => { %>
+                            <%
+                              const defaultVal   = PERMISSIONS[role][perm] === true;
+                              const overrideKey  = role + '.' + perm;
+                              const hasOverride  = overrideLookup.hasOwnProperty(overrideKey);
+                              const effectiveVal = hasOverride ? overrideLookup[overrideKey] : defaultVal;
+                              const isLocked     = role === 'ADMIN' && perm === 'manageRoles';
+                            %>
+                            <td class="toggle-cell">
+                              <div class="form-check form-switch d-flex justify-content-center align-items-center gap-1">
+                                <input
+                                  class="form-check-input perm-toggle"
+                                  type="checkbox"
+                                  role="switch"
+                                  id="toggle-<%= role %>-<%= perm %>"
+                                  data-role="<%= role %>"
+                                  data-permission="<%= perm %>"
+                                  data-default="<%= defaultVal %>"
+                                  <%= effectiveVal ? 'checked' : '' %>
+                                  <%= isLocked ? 'disabled title="Cannot remove manageRoles from ADMIN"' : '' %>
+                                />
+                                <% if (hasOverride) { %>
+                                  <span class="badge bg-warning text-dark saving-indicator" title="DB override active">
+                                    <i class="fa-solid fa-database"></i>
+                                  </span>
+                                <% } %>
+                              </div>
+                            </td>
+                          <% }) %>
+                        </tr>
+                      <% }) %>
+
                     <% }) %>
                   </tbody>
                 </table>
               </div>
-
               <p class="text-muted small mt-2">
                 <i class="fa-solid fa-database me-1"></i>
                 <span class="badge bg-warning text-dark">DB</span> badge indicates a DB override is active for that cell.

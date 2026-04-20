@@ -10,8 +10,22 @@
 
 // ─── Data ──────────────────────────────────────────────────────────────────
 
-/** @type {{ volunteers: Array<object> }} */
-const { volunteers } = window.REPORT_DATA;
+/**
+ * Load volunteer rows embedded in the page as a JSON data block.
+ * Uses the same CSP-safe pattern as the Messaging Center.
+ * @returns {Array<object>}
+ */
+function loadVolunteers() {
+  try {
+    const el = document.getElementById("report-volunteer-data");
+    return el ? JSON.parse(el.textContent) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** @type {Array<object>} */
+const volunteers = loadVolunteers();
 
 // ─── DOM references ────────────────────────────────────────────────────────
 

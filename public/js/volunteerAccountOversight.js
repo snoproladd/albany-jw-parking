@@ -343,6 +343,29 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     applyFilter();
+
+    // "Show deleted" checkbox — reloads page with includeDeleted param
+    // since deleted volunteers come from the server, not client-side filtering.
+    const deletedChk = /** @type {HTMLInputElement|null} */ (
+      document.getElementById("includeDeletedChk")
+    );
+    const pickerFormForDeleted = /** @type {HTMLFormElement|null} */ (
+      root.querySelector('form[action="/selectVolEdit"]')
+    );
+    deletedChk?.addEventListener("change", () => {
+      if (!pickerFormForDeleted) return;
+      const hiddenInput = /** @type {HTMLInputElement|null} */ (
+        pickerFormForDeleted.querySelector('input[name="includeDeleted"]')
+      );
+      if (hiddenInput) hiddenInput.value = deletedChk.checked ? "1" : "0";
+      // Clear selected volunteer and reload list
+      const sel = /** @type {HTMLSelectElement|null} */ (
+        pickerFormForDeleted.querySelector("#volunteerSelect")
+      );
+      if (sel) sel.value = "";
+      window.__suppressBeforeUnload = true;
+      pickerFormForDeleted.submit();
+    });
   })();
 
   // ---------------------------------------------------------------------
@@ -714,6 +737,124 @@ document.addEventListener("DOMContentLoaded", () => {
    * Fires a standalone POST immediately on change — does not go through finalize.
    * @returns {void}
    */
+  /**
+   * Wire the delete and reinstate buttons in the danger zone panel.
+   * Delete opens a confirmation modal; reinstate confirms inline then POSTs.
+   * Both reload the page on success to resync the volunteer list.
+   * @returns {void}
+   */
+  function initDeleteReinstateActions() {
+    const deleteBtn    = document.getElementById("deleteVolunteerBtn");
+    const reinstateBtn = document.getElementById("reinstateVolunteerBtn");
+    const modalEl      = document.getElementById("deleteVolunteerModal");
+    const modalNameEl  = document.getElementById("deleteModalName");
+    const modalErrEl   = document.getElementById("deleteModalError");
+    const confirmBtn   = document.getElementById("deleteModalConfirmBtn");
+    const statusEl     = document.getElementById("deleteActionStatus");
+
+    /** @returns {string} */
+    function getCsrf() {
+      return document.querySelector('input[name="_csrf"]')?.value || "";
+    }
+
+    // ── Delete button → open modal ──────────────────────────────────────
+    deleteBtn?.addEventListener("click", () => {
+      const name = deleteBtn.dataset.name || "this volunteer";
+      if (modalNameEl) modalNameEl.textContent = name;
+      if (modalErrEl)  modalErrEl.classList.add("d-none");
+      if (confirmBtn)  { confirmBtn.disabled = false; confirmBtn.innerHTML = `<i class="fa-solid fa-trash me-1"></i>Delete`; }
+      if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    });
+
+    // ── Modal confirm → POST delete ────────────────────────────────────
+    confirmBtn?.addEventListener("click", async () => {
+      const targetUserId = getTargetUserId();
+      if (!targetUserId) return;
+
+      confirmBtn.disabled = true;
+      confirmBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Deleting…`;
+      if (modalErrEl) modalErrEl.classList.add("d-none");
+
+      try {
+        const res = await fetch("/edit-volunteer/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-CSRF-Token": getCsrf() },
+          body: JSON.stringify({ targetUserId }),
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok || !data.success) {
+          if (modalErrEl) {
+            modalErrEl.textContent = data.message || "Delete failed — please try again.";
+            modalErrEl.classList.remove("d-none");
+          }
+          confirmBtn.disabled = false;
+          confirmBtn.innerHTML = `<i class="fa-solid fa-trash me-1"></i>Delete`;
+          return;
+        }
+
+        // Close modal then reload so the volunteer list resyncs
+        if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+        window.__suppressBeforeUnload = true;
+        window.location.reload();
+
+      } catch (err) {
+        console.error("[oversight] delete error:", err);
+        if (modalErrEl) {
+          modalErrEl.textContent = "Network error — please try again.";
+          modalErrEl.classList.remove("d-none");
+        }
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = `<i class="fa-solid fa-trash me-1"></i>Delete`;
+      }
+    });
+
+    // ── Reinstate button → confirm inline → POST ───────────────────────
+    reinstateBtn?.addEventListener("click", async () => {
+      const targetUserId = getTargetUserId();
+      if (!targetUserId) return;
+
+      if (!confirm("Reinstate this volunteer? Their previous status will be restored.")) return;
+
+      reinstateBtn.disabled = true;
+      reinstateBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Reinstating…`;
+      if (statusEl) { statusEl.textContent = ""; statusEl.classList.add("d-none"); }
+
+      try {
+        const res = await fetch("/edit-volunteer/reinstate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-CSRF-Token": getCsrf() },
+          body: JSON.stringify({ targetUserId }),
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok || !data.success) {
+          if (statusEl) {
+            statusEl.textContent = data.message || "Reinstate failed — please try again.";
+            statusEl.className = "mt-2 small text-danger";
+            statusEl.classList.remove("d-none");
+          }
+          reinstateBtn.disabled = false;
+          reinstateBtn.innerHTML = `<i class="fa-solid fa-rotate-left me-1"></i>Reinstate volunteer`;
+          return;
+        }
+
+        window.__suppressBeforeUnload = true;
+        window.location.reload();
+
+      } catch (err) {
+        console.error("[oversight] reinstate error:", err);
+        if (statusEl) {
+          statusEl.textContent = "Network error — please try again.";
+          statusEl.className = "mt-2 small text-danger";
+          statusEl.classList.remove("d-none");
+        }
+        reinstateBtn.disabled = false;
+        reinstateBtn.innerHTML = `<i class="fa-solid fa-rotate-left me-1"></i>Reinstate volunteer`;
+      }
+    });
+  }
+
   function initActiveToggle() {
     const toggle = /** @type {HTMLInputElement | null} */ (
       document.getElementById("activeToggle")
@@ -792,6 +933,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  initDeleteReinstateActions();
   initActiveToggle();
   initCollapseGuard();
 });

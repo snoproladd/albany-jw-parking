@@ -41,6 +41,21 @@
     text-align: center;
 }
 
+/* group header rows */
+.perm-table tr.perm-group-header td {
+    background-color: var(--bs-secondary-bg, #e9ecef);
+    color: var(--bs-secondary-color, #6c757d);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    padding-top: 0.6rem;
+    padding-bottom: 0.35rem;
+    border-bottom: none;
+    position: sticky;
+    left: 0;
+}
+
 /* Sticky first column — permission label stays visible on scroll */
 .perm-table th:first-child,
 .perm-table td:first-child {

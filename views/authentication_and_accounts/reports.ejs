@@ -24,7 +24,7 @@
 
         <!-- Page header -->
         <div class="d-flex align-items-center gap-3 mb-4">
-          <a href="/oversight/tools" class="btn btn-sm btn-outline-secondary">
+          <a href="/oversight/tools" class="btn btn-sm btn-secondary">
             <i class="fa-solid fa-arrow-left me-1"></i>Tools
           </a>
           <h1 class="h3 mb-0">
@@ -132,12 +132,7 @@
 
   <%- include('../partials/footer') %>
 
-  <!-- Volunteer data passed to JS -->
-  <script>
-    window.REPORT_DATA = {
-      volunteers: <%- JSON.stringify(volunteers) %>
-    };
-  </script>
+  <script id="report-volunteer-data" type="application/json"><%- JSON.stringify(volunteers) %></script>
 
   <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
   <script src="/js/reports.js" type="module"></script>

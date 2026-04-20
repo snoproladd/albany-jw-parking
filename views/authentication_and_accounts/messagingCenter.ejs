@@ -276,6 +276,10 @@
                             <%= batches.length === 0 ? 'disabled title="No existing campaigns yet"' : '' %>>
                             <i class="fa-solid fa-user-plus me-1"></i>Add to Existing
                         </button>
+                        <button type="button" class="btn btn-outline-primary" id="mcModeFollowup"
+                            <%= batches.length === 0 ? 'disabled title="No existing campaigns yet"' : '' %>>
+                            <i class="fa-solid fa-reply me-1"></i>Follow-up
+                        </button>
                     </div>
                 </div>
 
@@ -325,6 +329,40 @@
                         <a href="#" class="ms-2 small" id="mcBatchTrackerLink" target="_blank">
                             View in tracker <i class="fa-solid fa-arrow-up-right-from-square ms-1"></i>
                         </a>
+                    </div>
+                </div>
+
+                <%# ── Follow-up mode — parent campaign picker ───────────────── %>
+                <div class="mb-3 d-none" id="mcParentBatchWrap">
+                    <label class="form-label" for="mcParentBatch">
+                        Follow-up to
+                        <span class="text-muted small fw-normal ms-1">— links this campaign to the original</span>
+                    </label>
+                    <select class="form-select" id="mcParentBatch">
+                        <option value="">— Choose a parent campaign —</option>
+                        <% batches.forEach(function(b) { %>
+                            <option
+                                value="<%= b.id %>"
+                                data-subject="<%= b.message_subject || '' %>"
+                                data-body="<%= b.message_body || '' %>"
+                                data-name="<%= b.name %>"
+                            >
+                                <%= b.name %>
+                                <% if (b.day_label) { %> — <%= b.day_label %><% } %>
+                                (<%= b.volunteer_count %> sent)
+                            </option>
+                        <% }); %>
+                    </select>
+                </div>
+
+                <%# ── Response needed (new + follow-up modes only) ──────────── %>
+                <div class="mb-3 d-none" id="mcResponseNeededWrap">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="mcResponseNeeded" checked />
+                        <label class="form-check-label" for="mcResponseNeeded">
+                            Response needed
+                            <span class="text-muted small fw-normal ms-1">— volunteers will be prompted to RSVP yes / no / maybe</span>
+                        </label>
                     </div>
                 </div>
 

@@ -80,21 +80,42 @@
                             <!-- ============================= -->
                             <form action="/selectVolEdit" method="POST" class="mb-3">
                               <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                              <input type="hidden" name="includeDeleted" value="<%= includeDeleted ? '1' : '0' %>" />
 
-                              <label class="form-label small">
-                                Volunteers (Begin typing or use dropdown)
-                              </label>
+                              <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                                <label class="form-label small mb-0">
+                                  Volunteers — <span id="volunteerFilterCount"></span>
+                                </label>
+                                <div class="d-flex flex-wrap gap-2 align-items-center">
+                                  <%# Active / inactive filter %>
+                                  <div class="btn-group btn-group-sm" role="group" aria-label="Active filter">
+                                    <button type="button" class="btn btn-outline-secondary active-filter-btn active" data-filter-active="all">All</button>
+                                    <button type="button" class="btn btn-outline-secondary active-filter-btn" data-filter-active="true">Active</button>
+                                    <button type="button" class="btn btn-outline-secondary active-filter-btn" data-filter-active="false">Inactive</button>
+                                  </div>
+                                  <%# Deleted checkbox — round-trips to server %>
+                                  <% if (canDelete) { %>
+                                    <div class="form-check mb-0 ms-1">
+                                      <input class="form-check-input" type="checkbox" id="includeDeletedChk"
+                                        <%= includeDeleted ? 'checked' : '' %> />
+                                      <label class="form-check-label small" for="includeDeletedChk">
+                                        Show deleted
+                                      </label>
+                                    </div>
+                                  <% } %>
+                                </div>
+                              </div>
 
                               <select id="volunteerSelect" name="targetUserId" class="form-select">
                                 <option value="">Select a volunteer...</option>
-
-                                <% volunteers.forEach(v=> { %>
-                                  <option value="<%= v.id %>" <%=targetUser && targetUser.id===v.id ? 'selected' : '' %>
-                                    >
-                                    <%= v.lastName %>, <%= v.firstName %><%= v.suffix ? ' ' + v.suffix : '' %><%= !v.active ? ' (inactive)' : '' %>
-
+                                <% volunteers.forEach(function(v) { %>
+                                  <option value="<%= v.id %>"
+                                    data-active="<%= v.active ? 'true' : 'false' %>"
+                                    data-status="<%= v.registration_status %>"
+                                    <%= targetUser && targetUser.id === v.id ? 'selected' : '' %>>
+                                    <%= v.lastName %>, <%= v.firstName %><%= v.suffix ? ' ' + v.suffix : '' %><%= !v.active ? ' (inactive)' : '' %><%= v.registration_status === 'deleted' ? ' 🗑 deleted' : '' %>
                                   </option>
-                                  <% }) %>
+                                <% }) %>
                               </select>
                             </form>
 
@@ -139,6 +160,7 @@
                                           Inactive volunteers are excluded from scheduling and exports for the current year.
                                           This does not delete or archive their account.
                                         </p>
+                                        <p class="text small mb-3">Note: A volunteer <span><strong>MUST</strong></span> be approved by their Congregation Service Committee for the <span><strong>CURRENT</strong></span> year before being marked 'ACTIVE'.</p>
 
                                         <div class="d-flex align-items-center gap-3">
                                           <div class="form-check form-switch">
@@ -159,7 +181,35 @@
                                       </div>
                                     </div>
                                   </div>
-                                  <!-- ASSIGNMENT (role + crew) — OVERSEER+ only -->
+                                  <%# ── Delete / Reinstate (ASSISTANT_ADMIN+ only) ──────────────── %>
+                                <% if (canDelete) { %>
+                                  <div class="mt-3 mb-1 p-3 border rounded border-danger-subtle bg-danger-subtle" id="deleteVolunteerPanel">
+                                    <% if (targetUser.registration_status === 'deleted') { %>
+                                      <div class="d-flex align-items-center gap-3 flex-wrap">
+                                        <div>
+                                          <strong class="text-danger small d-block">This volunteer has been deleted.</strong>
+                                          <span class="text-muted small">
+                                            Deleted <%= targetUser.deleted_at ? new Date(targetUser.deleted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '' %><% if (targetUser.deleted_by) { %> by <%= targetUser.deleted_by %><% } %>.
+                                          </span>
+                                        </div>
+                                        <button type="button" class="btn btn-outline-success btn-sm ms-auto" id="reinstateVolunteerBtn">
+                                          <i class="fa-solid fa-rotate-left me-1"></i>Reinstate volunteer
+                                        </button>
+                                      </div>
+                                    <% } else { %>
+                                      <div class="d-flex align-items-center gap-3 flex-wrap">
+                                        <span class="text-muted small">Permanently removes this volunteer from active use. Can be reinstated.</span>
+                                        <button type="button" class="btn btn-outline-danger btn-sm ms-auto" id="deleteVolunteerBtn"
+                                          data-name="<%= targetUser.firstName %> <%= targetUser.lastName %>">
+                                          <i class="fa-solid fa-trash me-1"></i>Delete volunteer
+                                        </button>
+                                      </div>
+                                    <% } %>
+                                    <div class="mt-2 d-none small" id="deleteActionStatus"></div>
+                                  </div>
+                                <% } %>
+
+                                <!-- ASSIGNMENT (role + crew) — OVERSEER+ only -->
                                   <div class="accordion-item" id="assignmentAccordionItem">
                                     <h2 class="accordion-header">
                                       <button class="accordion-button" type="button" data-bs-toggle="collapse"
@@ -611,6 +661,33 @@
         </div>
       </div>
     </main>
+
+    <%# ── Delete confirmation modal ──────────────────────────────────── %>
+    <% if (canDelete) { %>
+    <div class="modal fade" id="deleteVolunteerModal" tabindex="-1" aria-labelledby="deleteVolunteerModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header border-danger">
+            <h5 class="modal-title text-danger" id="deleteVolunteerModalLabel">
+              <i class="fa-solid fa-triangle-exclamation me-2"></i>Delete volunteer?
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p>You are about to delete <strong id="deleteModalName"></strong>.</p>
+            <p class="text-muted small mb-0">This volunteer will be hidden from all active lists and tools. You can reinstate them at any time by showing deleted volunteers in the selector.</p>
+          </div>
+          <div class="modal-footer">
+            <span class="text-danger small me-auto d-none" id="deleteModalError"></span>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-danger" id="deleteModalConfirmBtn">
+              <i class="fa-solid fa-trash me-1"></i>Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <% } %>
 
     <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
     <script src="/js/mobileDropdownSafety.js"></script>
