@@ -10,7 +10,6 @@
  *  - Row count update after filtering or actions.
  *  - Add-volunteers shortcut link — updates href dynamically to match
  *    the currently selected campaign filter.
- *  - Remind-no-batch toast.
  */
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -114,19 +113,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const rows = document.querySelectorAll(".it-row");
     let visible = 0;
-    let cntTotal = 0,
-      cntYes = 0,
-      cntNo = 0,
-      cntMaybe = 0,
-      cntPending = 0,
-      cntRevoked = 0;
+
+    // Sets of volunteer IDs per response bucket — deduplicates volunteers
+    // who have multiple historical rows from pre-reminder sends.
+    const seenTotal   = new Set();
+    const seenYes     = new Set();
+    const seenNo      = new Set();
+    const seenMaybe   = new Set();
+    const seenPending = new Set();
+    const seenRevoked = new Set();
 
     rows.forEach((row) => {
-      const name = row.dataset.name || "";
-      const batchId = row.dataset.batchId || "";
-      const dayId = row.dataset.dayId || "";
-      const response = row.dataset.response || "";
-      const revoked = row.dataset.revoked === "true";
+      const name      = row.dataset.name      || "";
+      const batchId   = row.dataset.batchId   || "";
+      const dayId     = row.dataset.dayId     || "";
+      const response  = row.dataset.response  || "";
+      const revoked   = row.dataset.revoked   === "true";
+      const volId     = row.dataset.volunteerId || "";
 
       // Revoked visibility
       if (revoked && !showRevoked) {
@@ -165,13 +168,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
       row.hidden = false;
       visible++;
-      cntTotal++;
-      if (revoked) cntRevoked++;
-      else if (response === "yes") cntYes++;
-      else if (response === "no") cntNo++;
-      else if (response === "maybe") cntMaybe++;
-      else if (response === "pending") cntPending++;
+      seenTotal.add(volId);
+      if (revoked)                     seenRevoked.add(volId);
+      else if (response === "yes")     seenYes.add(volId);
+      else if (response === "no")      seenNo.add(volId);
+      else if (response === "maybe")   seenMaybe.add(volId);
+      else if (response === "pending") seenPending.add(volId);
     });
+
+    const cntTotal   = seenTotal.size;
+    const cntYes     = seenYes.size;
+    const cntNo      = seenNo.size;
+    const cntMaybe   = seenMaybe.size;
+    const cntPending = seenPending.size;
+    const cntRevoked = seenRevoked.size;
 
     // Pending count scoped to the selected parent batch only — used for the
     // Remind button so its number matches what Messaging Center will actually act on.
@@ -622,6 +632,30 @@ document.addEventListener("DOMContentLoaded", () => {
         const countMatch = opt.textContent.match(/\(\d+\)$/);
         const countSuffix = countMatch ? ` ${countMatch[0]}` : "";
         opt.textContent = `${prefix}${name}${countSuffix}`;
+      }
+
+      // Sync the in-memory batches array so re-opening the edit modal
+      // pre-fills with the values that were just saved, not stale page-load data.
+      const batchesEl = document.getElementById("it-batches-data");
+      if (batchesEl) {
+        try {
+          const batches = JSON.parse(batchesEl.textContent);
+          const idx = batches.findIndex((b) => b.id === editingBatchId);
+          if (idx !== -1) {
+            batches[idx] = {
+              ...batches[idx],
+              name,
+              message_subject:  messageSubject,
+              message_body:     messageBody,
+              parent_batch_id:  parentBatchId,
+              response_needed:  responseNeeded,
+              active,
+            };
+            batchesEl.textContent = JSON.stringify(batches);
+          }
+        } catch {
+          // Non-fatal — worst case the modal pre-fills with stale data
+        }
       }
 
       // Close modal
