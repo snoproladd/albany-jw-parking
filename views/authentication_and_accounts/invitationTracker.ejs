@@ -203,6 +203,7 @@
                                     <th class="it-col-event">Event / Shift</th>
                                     <th class="it-col-channel">Ch.</th>
                                     <th class="it-col-sent">Sent</th>
+                                    <th class="it-col-reminded">Reminded</th>
                                     <th class="it-col-response">Response</th>
                                     <th class="it-col-responded">Responded</th>
                                     <th class="it-col-actions"></th>
@@ -227,7 +228,11 @@
                                         data-revoked="<%= inv.revoked ? 'true' : 'false' %>"
                                         data-batch-id="<%= inv.batch_id || '' %>"
                                         data-day-id="<%= inv.convention_day_id || '' %>"
-                                        data-response="<%= inv.response || (inv.revoked ? 'revoked' : 'pending') %>">
+                                        data-response="<%= inv.response || (inv.revoked ? 'revoked' : 'pending') %>"
+                                        data-reminder-count="<%= inv.reminder_count || 0 %>"
+                                        data-last-reminded-channel="<%= inv.last_reminded_channel || '' %>"
+                                        data-vol-status="<%= inv.volunteer_status || '' %>"
+                                        data-volunteer-id="<%= inv.volunteer_id %>">
 
                                         <td class="it-col-name fw-semibold"><%= volName %></td>
 
@@ -272,6 +277,27 @@
                                         </td>
 
                                         <td class="it-col-sent text-muted small"><%= sentDate %></td>
+
+                                        <td class="it-col-reminded text-muted small">
+                                            <% if (inv.last_reminded_at && inv.reminder_count > 0) { %>
+                                                <%= new Date(inv.last_reminded_at).toLocaleDateString('en-US', {
+                                                    month: 'short', day: 'numeric', year: 'numeric'
+                                                }) %>
+                                                <span class="ms-1">
+                                                    <% if (inv.last_reminded_channel === 'email' || inv.last_reminded_channel === 'both') { %>
+                                                        <i class="fa-solid fa-envelope text-info me-1" title="Email"></i>
+                                                    <% } %>
+                                                    <% if (inv.last_reminded_channel === 'sms' || inv.last_reminded_channel === 'both') { %>
+                                                        <i class="fa-solid fa-comment-sms text-success" title="SMS"></i>
+                                                    <% } %>
+                                                </span>
+                                                <% if (inv.reminder_count > 1) { %>
+                                                    <span class="badge bg-secondary ms-1" title="<%= inv.reminder_count %> reminders sent">×<%= inv.reminder_count %></span>
+                                                <% } %>
+                                            <% } else { %>
+                                                <span class="text-muted">—</span>
+                                            <% } %>
+                                        </td>
 
                                         <td class="it-col-response">
                                             <% if (inv.revoked) { %>

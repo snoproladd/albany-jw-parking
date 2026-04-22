@@ -58,6 +58,8 @@ import {
   copyConventionDay,
   getVolunteersForMessaging,
   createInvitation,
+  remindInvitation,
+  getInvitationByVolunteerBatch,
   getInvitationByToken,
   markInvitationResponded,
   getMessageTemplates,
@@ -2603,7 +2605,16 @@ export function oversightRouter({
               response: "pending",
               includeRevoked: false,
             });
-            pendingVolunteerIds = pendingInvs.map((i) => i.volunteer_id);
+            // Only include IDs present in the messageable volunteer list so the
+            // auto-selected count in Messaging Center matches the remind button count.
+            const messageableIds = new Set(volunteers.map((v) => v.id));
+            pendingVolunteerIds = [
+              ...new Set(
+                pendingInvs
+                  .map((i) => i.volunteer_id)
+                  .filter((id) => messageableIds.has(id))
+              ),
+            ];
           }
         }
 
@@ -2682,6 +2693,7 @@ export function oversightRouter({
         sessionId = null,
         shiftId = null,
         force = false,
+        isReminder = false,
       } = req.body || {};
 
       const sentBy = req.session.userEmail || "admin";
@@ -2753,7 +2765,8 @@ export function oversightRouter({
           .json({ success: false, error: "No valid volunteers found." });
 
       // ── Double-send warning ─────────────────────────────────────────────
-      if (!force) {
+      // Reminders intentionally re-contact existing invitees — skip the check.
+      if (!force && !isReminder) {
         try {
           let pendingIds = [];
 
@@ -2872,7 +2885,22 @@ export function oversightRouter({
           continue;
         }
 
-        const token = crypto.randomUUID();
+        // Reminder path — reuse the existing invitation row and token.
+        // Falls through to INSERT if no existing row is found (e.g. revoked
+        // and reinstated, or called with isReminder=true by mistake).
+        let existingInvitation = null;
+        if (isReminder && batchId) {
+          try {
+            existingInvitation = await getInvitationByVolunteerBatch(vol.id, batchId);
+          } catch (err) {
+            (logError || console.error)(
+              `messaging/send getInvitationByVolunteerBatch error for vol ${vol.id}:`,
+              err,
+            );
+          }
+        }
+
+        const token = existingInvitation ? existingInvitation.token : crypto.randomUUID();
         const rsvpUrl = `${baseUrl}/invite/respond/${encodeURIComponent(token)}`;
 
         /**
@@ -2951,23 +2979,31 @@ export function oversightRouter({
         const channel =
           willEmail && willSms ? "both" : willEmail ? "email" : "sms";
 
-        // Store invitation
+        // Store or update invitation record
         try {
-          await createInvitation({
-            volunteerId: vol.id,
-            token,
-            channel,
-            messageSubject: resolvedSubject || null,
-            messageBody: resolvedBody,
-            sentBy,
-            conventionDayId: dayId,
-            sessionId: resolvedSess,
-            shiftId: resolvedShift,
-            batchId,
-          });
+          if (existingInvitation) {
+            await remindInvitation({
+              id: existingInvitation.id,
+              channel,
+              remindedBy: sentBy,
+            });
+          } else {
+            await createInvitation({
+              volunteerId: vol.id,
+              token,
+              channel,
+              messageSubject: resolvedSubject || null,
+              messageBody: resolvedBody,
+              sentBy,
+              conventionDayId: dayId,
+              sessionId: resolvedSess,
+              shiftId: resolvedShift,
+              batchId,
+            });
+          }
         } catch (err) {
           (logError || console.error)(
-            `messaging/send createInvitation error for vol ${vol.id}:`,
+            `messaging/send ${existingInvitation ? "remindInvitation" : "createInvitation"} error for vol ${vol.id}:`,
             err,
           );
           errors.push({

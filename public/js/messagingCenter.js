@@ -519,7 +519,7 @@ function updateChipAreaVisibility() {
    */
   function clearInviteStatusBadges() {
     getAllItems().forEach((li) => {
-      li.querySelector(".mc-invite-status")?.remove();
+      li.querySelectorAll(".mc-invite-status").forEach((el) => el.remove());
       li.classList.remove("mc-vol-already-invited");
     });
   }
@@ -929,6 +929,9 @@ function updateSubjectVisibility() {
           sessionId,
           shiftId,
           force,
+          // True when the page was loaded via ?selectPending=1 — tells the
+          // route to UPDATE existing invitation rows rather than INSERT new ones.
+          isReminder: campaignMode === "add_to" && (pendingVolIds?.length ?? 0) > 0,
         }),
       });
       return res.json().catch(() => ({}));
@@ -1257,7 +1260,10 @@ function updateSubjectVisibility() {
     if (opt) {
       existingBatchSelect.value = String(preselectedBatch.id);
       setCampaignMode("add_to");
-      onExistingBatchChange();
+      // onExistingBatchChange() is already invoked inside setCampaignMode
+      // when isAddTo is true and a batch value is present — calling it
+      // again here would double-fire applyInviteStatusBadges and duplicate
+      // the invite-status badges on each volunteer row.
     }
   }
 

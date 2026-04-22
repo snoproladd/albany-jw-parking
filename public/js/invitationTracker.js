@@ -109,11 +109,17 @@ document.addEventListener("DOMContentLoaded", () => {
     const responseVal = responseFilter?.value || "all";
     const showRevoked = revokedChk?.checked ?? true;
 
-    const { ids: relatedBatchIds, childCount: batchChildCount } = getRelatedBatchIds(batchVal);
+    const { ids: relatedBatchIds, childCount: batchChildCount } =
+      getRelatedBatchIds(batchVal);
 
     const rows = document.querySelectorAll(".it-row");
     let visible = 0;
-    let cntTotal = 0, cntYes = 0, cntNo = 0, cntMaybe = 0, cntPending = 0, cntRevoked = 0;
+    let cntTotal = 0,
+      cntYes = 0,
+      cntNo = 0,
+      cntMaybe = 0,
+      cntPending = 0,
+      cntRevoked = 0;
 
     rows.forEach((row) => {
       const name = row.dataset.name || "";
@@ -160,38 +166,56 @@ document.addEventListener("DOMContentLoaded", () => {
       row.hidden = false;
       visible++;
       cntTotal++;
-      if (revoked)                     cntRevoked++;
-      else if (response === "yes")     cntYes++;
-      else if (response === "no")      cntNo++;
-      else if (response === "maybe")   cntMaybe++;
+      if (revoked) cntRevoked++;
+      else if (response === "yes") cntYes++;
+      else if (response === "no") cntNo++;
+      else if (response === "maybe") cntMaybe++;
       else if (response === "pending") cntPending++;
     });
 
     // Pending count scoped to the selected parent batch only — used for the
     // Remind button so its number matches what Messaging Center will actually act on.
+    // Count unique volunteers (not rows) so duplicates from pre-reminder sends
+    // don't inflate the number shown on the Remind button.
     const cntPendingParentOnly = batchVal
-      ? Array.from(rows).filter((r) =>
-          !r.hidden &&
-          r.dataset.batchId === batchVal &&
-          r.dataset.response === "pending"
-        ).length
-      : cntPending;
+      ? new Set(
+          Array.from(rows)
+            .filter(
+              (r) =>
+                !r.hidden &&
+                r.dataset.batchId === batchVal &&
+                r.dataset.response === "pending" &&
+                r.dataset.volStatus === "completed",
+            )
+            .map((r) => r.dataset.volunteerId),
+        ).size
+      : new Set(
+          Array.from(rows)
+            .filter(
+              (r) =>
+                !r.hidden &&
+                r.dataset.response === "pending" &&
+                r.dataset.volStatus === "completed" &&
+                batchResponseNeededMap.get(r.dataset.batchId) !== false,
+            )
+            .map((r) => r.dataset.volunteerId),
+        ).size;
 
     if (rowCount) {
       rowCount.textContent = `Showing ${visible} invitation${visible !== 1 ? "s" : ""}`;
     }
 
     // Update stat cards
-    const statTotal   = document.getElementById("itStatTotal");
-    const statYes     = document.getElementById("itStatYes");
-    const statNo      = document.getElementById("itStatNo");
-    const statMaybe   = document.getElementById("itStatMaybe");
+    const statTotal = document.getElementById("itStatTotal");
+    const statYes = document.getElementById("itStatYes");
+    const statNo = document.getElementById("itStatNo");
+    const statMaybe = document.getElementById("itStatMaybe");
     const statPending = document.getElementById("itStatPending");
     const statRevoked = document.getElementById("itStatRevoked");
-    if (statTotal)   statTotal.textContent   = String(cntTotal);
-    if (statYes)     statYes.textContent     = String(cntYes);
-    if (statNo)      statNo.textContent      = String(cntNo);
-    if (statMaybe)   statMaybe.textContent   = String(cntMaybe);
+    if (statTotal) statTotal.textContent = String(cntTotal);
+    if (statYes) statYes.textContent = String(cntYes);
+    if (statNo) statNo.textContent = String(cntNo);
+    if (statMaybe) statMaybe.textContent = String(cntMaybe);
     if (statPending) statPending.textContent = String(cntPending);
     if (statRevoked) statRevoked.textContent = String(cntRevoked);
 
@@ -199,8 +223,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const groupNote = document.getElementById("itBatchGroupNote");
     if (groupNote) {
       if (batchVal && batchChildCount > 0) {
-        groupNote.textContent =
-          `Includes ${batchChildCount} follow-up campaign${batchChildCount !== 1 ? "s" : ""}`;
+        groupNote.textContent = `Includes ${batchChildCount} follow-up campaign${batchChildCount !== 1 ? "s" : ""}`;
         groupNote.classList.remove("d-none");
       } else {
         groupNote.textContent = "";
@@ -297,8 +320,9 @@ document.addEventListener("DOMContentLoaded", () => {
         if (card) {
           card.style.cursor = "pointer";
           card.onclick = () => {
-            window.location.href =
-              `/oversight/tools/messaging/tracker?batchId=${batchVal}&response=pending&includeRevoked=0`;
+            if (responseFilter) responseFilter.value = "pending";
+            if (revokedChk) revokedChk.checked = false;
+            applyFilters();
           };
         }
         if (pendingLabel) {
@@ -314,15 +338,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!remindWrap) return;
 
     if (!batchVal) {
-      remindWrap.innerHTML = `
-        <button type="button" class="btn btn-secondary btn-sm" id="itRemindNoBatch">
-          <i class="fa-solid fa-bell me-1"></i>Remind ${pendingCount} pending
-        </button>`;
-      const btn = remindWrap.querySelector("#itRemindNoBatch");
-      const toastEl = document.getElementById("itNoBatchToast");
-      btn?.addEventListener("click", () => {
-        if (toastEl) bootstrap.Toast.getOrCreateInstance(toastEl).show();
-      });
+      remindWrap.innerHTML = "";
       return;
     }
 

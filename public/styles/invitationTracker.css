@@ -90,6 +90,11 @@
     white-space: nowrap;
 }
 
+.it-col-reminded {
+    width: 140px;
+    white-space: nowrap;
+}
+
 .it-col-response {
     width: 100px;
     text-align: center;
