@@ -25,19 +25,20 @@ document.addEventListener("DOMContentLoaded", () => {
   const emptyState = document.getElementById("arEmpty");
   /** @type {HTMLElement|null} */
   /** @type {HTMLElement|null} */
+  /** @type {HTMLElement|null} */
   const daySummary = document.getElementById("arDaySummary");
   /** @type {HTMLElement|null} */
   const sumAttended = document.getElementById("arSumAttended");
   /** @type {HTMLElement|null} */
-  const filterBar = document.getElementById("arFilterBar");
+  const filterBar   = document.getElementById("arFilterBar");
   /** @type {HTMLSelectElement|null} */
-  const filterType = document.getElementById("arFilterType");
+  const filterType  = document.getElementById("arFilterType");
   /** @type {HTMLSelectElement|null} */
-  const filterRsvp = document.getElementById("arFilterRsvp");
+  const filterRsvp  = document.getElementById("arFilterRsvp");
   /** @type {HTMLSelectElement|null} */
-  const filterAtt = document.getElementById("arFilterAttended");
+  const filterAtt   = document.getElementById("arFilterAttended");
   /** @type {HTMLInputElement|null} */
-  const filterName = document.getElementById("arFilterName");
+  const filterName  = document.getElementById("arFilterName");
   /** @type {HTMLButtonElement|null} */
   const filterReset = document.getElementById("arFilterReset");
   /** @type {HTMLElement|null} */
@@ -100,12 +101,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if (emptyState) emptyState.classList.add("d-none");
     if (daySummary) daySummary.classList.add("d-none");
-    if (filterBar) filterBar.classList.add("d-none");
+    if (filterBar)   filterBar.classList.add("d-none");
+    if (filterType)  filterType.value  = "";
+    if (filterRsvp)  filterRsvp.value  = "";
+    if (filterAtt)   filterAtt.value   = "";
+    if (filterName)  filterName.value  = "";
     if (filterCount) filterCount.textContent = "";
-    if (filterType) filterType.value = "";
-    if (filterRsvp) filterRsvp.value = "";
-    if (filterAtt) filterAtt.value = "";
-    if (filterName) filterName.value = "";
   }
 
   /**
@@ -474,80 +475,79 @@ document.addEventListener("DOMContentLoaded", () => {
             </div>`;
   }
 
+  // =========================================================
+  // Filters
+  // =========================================================
+
   /**
-// =========================================================
-    // Filters
-    // =========================================================
+   * Test whether all characters of the query appear in order
+   * within the target string (subsequence match).
+   * @param {string} query  - Lowercased search string.
+   * @param {string} target - Lowercased name to test against.
+   * @returns {boolean}
+   */
+  function fuzzyMatch(query, target) {
+    let qi = 0;
+    for (let ti = 0; ti < target.length && qi < query.length; ti++) {
+      if (target[ti] === query[qi]) qi++;
+    }
+    return qi === query.length;
+  }
 
-    /**
-     * Apply all active filters to every .at-row across the accordion.
-     * Updates the filter count label after each run.
-     * @returns {void}
-     */
+  /**
+   * Apply all active filters to every .at-row across the accordion.
+   * Handles Type, RSVP, Attended dropdowns and fuzzy name search.
+   * Updates the visible count label after each run.
+   * @returns {void}
+   */
   function applyReportFilters() {
-    const typeVal = filterType?.value || "";
-    const rsvpVal = filterRsvp?.value || "";
-    const attVal = filterAtt?.value || "";
-    const nameVal = (filterName?.value || "").trim().toLowerCase();
-
-    const rows = Array.from(accordion?.querySelectorAll(".at-row") || []);
-    let visible = 0;
+    const query   = (filterName?.value || "").trim().toLowerCase();
+    const typeVal = filterType?.value  || "";
+    const rsvpVal = filterRsvp?.value  || "";
+    const attVal  = filterAtt?.value   || "";
+    const rows    = Array.from(accordion?.querySelectorAll(".at-row") || []);
+    let visible   = 0;
 
     rows.forEach((row) => {
-      const walkIn = row.dataset.walkIn === "true";
+      const name     = row.dataset.name     || "";
+      const walkIn   = row.dataset.walkIn   === "true";
       const attended = row.dataset.attended === "true";
-      const rsvp = row.dataset.rsvp || "";
-      const name = row.dataset.name || "";
+      const rsvp     = row.dataset.rsvp     || "";
 
-      if (typeVal === "invited" && walkIn) {
-        row.hidden = true;
-        return;
-      }
-      if (typeVal === "walkin" && !walkIn) {
-        row.hidden = true;
-        return;
-      }
-      if (rsvpVal && rsvp !== rsvpVal) {
-        row.hidden = true;
-        return;
-      }
-      if (attVal === "yes" && !attended) {
-        row.hidden = true;
-        return;
-      }
-      if (attVal === "no" && attended) {
-        row.hidden = true;
-        return;
-      }
-      if (nameVal && !name.includes(nameVal)) {
-        row.hidden = true;
-        return;
-      }
+      if (typeVal === "invited" && walkIn)       { row.hidden = true; return; }
+      if (typeVal === "walkin"  && !walkIn)      { row.hidden = true; return; }
+      if (rsvpVal && rsvp !== rsvpVal)           { row.hidden = true; return; }
+      if (attVal  === "yes"    && !attended)     { row.hidden = true; return; }
+      if (attVal  === "no"     && attended)      { row.hidden = true; return; }
+      if (query   && !fuzzyMatch(query, name))   { row.hidden = true; return; }
 
       row.hidden = false;
       visible++;
     });
 
+    const anyActive = query || typeVal || rsvpVal || attVal;
     if (filterCount) {
-      filterCount.textContent = `${visible} volunteer${visible !== 1 ? "s" : ""}`;
+      filterCount.textContent = anyActive
+        ? `${visible} volunteer${visible !== 1 ? "s" : ""}`
+        : "";
     }
   }
 
-  // Wire filter controls
-  [filterType, filterRsvp, filterAtt].forEach((el) => {
-    el?.addEventListener("change", applyReportFilters);
-  });
   filterName?.addEventListener("input", applyReportFilters);
+  [filterType, filterRsvp, filterAtt].forEach((el) =>
+    el?.addEventListener("change", applyReportFilters)
+  );
   filterReset?.addEventListener("click", () => {
-    if (filterType) filterType.value = "";
-    if (filterRsvp) filterRsvp.value = "";
-    if (filterAtt) filterAtt.value = "";
-    if (filterName) filterName.value = "";
+    if (filterType)  filterType.value  = "";
+    if (filterRsvp)  filterRsvp.value  = "";
+    if (filterAtt)   filterAtt.value   = "";
+    if (filterName)  filterName.value  = "";
     applyReportFilters();
   });
 
   /**
-   * Build the RSVP badge HTML for a report table row.   * @param {string|null} response
+   * Build the RSVP badge HTML for a report table row.
+   * @param {string|null} response
    * @param {boolean} walkIn
    * @returns {string}
    */
@@ -564,4 +564,4 @@ document.addEventListener("DOMContentLoaded", () => {
         return `<span class="at-badge-pending">Pending</span>`;
     }
   }
-})
+});

@@ -62,6 +62,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const rowCount = document.getElementById("atRowCount");
   /** @type {HTMLButtonElement|null} */
   const walkInBtn = document.getElementById("atWalkInBtn");
+  /** @type {HTMLInputElement|null} */
+  const searchInput = document.getElementById("atSearch");
 
   // =========================================================
   // State
@@ -146,11 +148,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const hasShifts = day.sessions?.some((s) => s.shifts?.length > 0);
     if (!hasShifts) {
       const opt = document.createElement("option");
-      opt.value             = "day-only";
-      opt.dataset.dayId     = String(day.id);
+      opt.value = "day-only";
+      opt.dataset.dayId = String(day.id);
       opt.dataset.sessionId = "";
       opt.dataset.isDayOnly = "true";
-      opt.textContent       = "Full Day";
+      opt.textContent = "Full Day";
       shiftSelect.appendChild(opt);
 
       // Auto-select and load — there's no other choice for this day
@@ -180,7 +182,6 @@ document.addEventListener("DOMContentLoaded", () => {
   daySelect?.addEventListener("change", () => {
     hideShiftContent();
     populateShiftPicker();
-
   });
 
   // =========================================================
@@ -243,6 +244,8 @@ document.addEventListener("DOMContentLoaded", () => {
    */
   async function loadShiftVolunteers() {
     if (!currentShift) return;
+
+    if (searchInput) searchInput.value = "";
 
     // Show skeleton
     tableCard?.classList.remove("d-none");
@@ -351,7 +354,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 <tr class="at-row ${rowClass}"
                     data-volunteer-id="${v.volunteer_id}"
                     data-attended="${v.attended ? "true" : "false"}"
-                    data-walk-in="${v.walk_in ? "true" : "false"}">
+                    data-walk-in="${v.walk_in ? "true" : "false"}"
+                    data-name="${escAttr(`${v.lastName} ${v.firstName}`.toLowerCase())}">
                     <td class="at-col-name fw-semibold">${name}</td>
                     <td class="at-col-badge">${typeBadge}</td>
                     <td class="at-col-rsvp">${rsvpBadgeHtml(v.rsvp_response, v.walk_in)}</td>
@@ -381,6 +385,54 @@ document.addEventListener("DOMContentLoaded", () => {
     updateHeader(volunteers, volunteers.length);
     statsRow?.classList.remove("d-none");
   }
+
+  // =========================================================
+  // Live name search (fuzzy)
+  // =========================================================
+
+  /**
+   * Test whether all characters of the query appear in order
+   * within the target string (subsequence match).
+   * @param {string} query  - Lowercased search string.
+   * @param {string} target - Lowercased name to test against.
+   * @returns {boolean}
+   */
+  function fuzzyMatch(query, target) {
+    let qi = 0;
+    for (let ti = 0; ti < target.length && qi < query.length; ti++) {
+      if (target[ti] === query[qi]) qi++;
+    }
+    return qi === query.length;
+  }
+
+  /**
+   * Show or hide rows based on the current search query.
+   * Updates the row count label after each run.
+   * @returns {void}
+   */
+  function applySearch() {
+    const query = (searchInput?.value || "").trim().toLowerCase();
+    const rows = Array.from(tableBody?.querySelectorAll(".at-row") || []);
+    let visible = 0;
+
+    rows.forEach((row) => {
+      const name = row.dataset.name || "";
+      if (query && !fuzzyMatch(query, name)) {
+        row.hidden = true;
+      } else {
+        row.hidden = false;
+        visible++;
+      }
+    });
+
+    if (rowCount) {
+      rowCount.textContent = query
+        ? `${visible} volunteer${visible !== 1 ? "s" : ""}`
+        : `${rows.length} volunteer${rows.length !== 1 ? "s" : ""}`;
+    }
+  }
+
+  searchInput?.addEventListener("input", applySearch);
 
   // =========================================================
   // Stats + header

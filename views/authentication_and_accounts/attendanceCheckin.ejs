@@ -111,13 +111,18 @@
 
         <%# ── Volunteer table ───────────────────────────────────────────── %>
         <div class="card shadow-sm d-none" id="atTableCard">
-            <div class="card-header d-flex align-items-center justify-content-between py-2">
-                <span class="fw-semibold small" id="atTableTitle">Volunteers</span>
-                <div class="d-flex gap-2 align-items-center">
-                    <span class="text-muted small" id="atRowCount"></span>
-                    <button type="button" class="btn btn-outline-info btn-sm" id="atWalkInBtn">
-                        <i class="fa-solid fa-person-walking-arrow-right me-1"></i>Walk-In
-                    </button>
+            <div class="card-header py-2">
+                <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                    <span class="fw-semibold small" id="atTableTitle">Volunteers</span>
+                    <div class="d-flex gap-2 align-items-center flex-wrap">
+                        <input type="text" class="form-control form-control-sm"
+                               id="atSearch" placeholder="Find volunteer…"
+                               autocomplete="off" style="min-width:180px" />
+                        <span class="text-muted small" id="atRowCount"></span>
+                        <button type="button" class="btn btn-outline-info btn-sm" id="atWalkInBtn">
+                            <i class="fa-solid fa-person-walking-arrow-right me-1"></i>Walk-In
+                        </button>
+                    </div>
                 </div>
             </div>
             <div class="card-body p-0">
