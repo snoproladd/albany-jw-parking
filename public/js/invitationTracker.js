@@ -51,6 +51,29 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // =========================================================
+  // Batch group expansion
+  // =========================================================
+
+  /**
+   * Build a Set of batch IDs to include for a given filter value.
+   *
+   * If the selected batch is a parent (other options point to it via
+   * data-parent-id), the Set includes the parent plus all direct children.
+   * If the selected batch is itself a child, only that child is included —
+   * the user explicitly narrowed to a single follow-up.
+   *
+   * @param {string} batchVal - The selected batch option value, or "" for all.
+   * @returns {{ ids: Set<string>, childCount: number }}
+   */
+  function getRelatedBatchIds(batchVal) {
+    if (!batchVal) return { ids: new Set(), childCount: 0 };
+    const children = Array.from(
+      batchFilter?.querySelectorAll(`option[data-parent-id="${batchVal}"]`) || []
+    ).map((opt) => opt.value);
+    return { ids: new Set([batchVal, ...children]), childCount: children.length };
+  }
+
+  // =========================================================
   // Event dot colors (CSP-safe)
   // =========================================================
 
@@ -86,6 +109,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const responseVal = responseFilter?.value || "all";
     const showRevoked = revokedChk?.checked ?? true;
 
+    const { ids: relatedBatchIds, childCount: batchChildCount } = getRelatedBatchIds(batchVal);
+
     const rows = document.querySelectorAll(".it-row");
     let visible = 0;
     let cntTotal = 0, cntYes = 0, cntNo = 0, cntMaybe = 0, cntPending = 0, cntRevoked = 0;
@@ -103,8 +128,8 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // Campaign filter
-      if (batchVal && batchId !== batchVal) {
+      // Campaign filter — expand to include direct child (follow-up) batches
+      if (batchVal && !relatedBatchIds.has(batchId)) {
         row.hidden = true;
         return;
       }
@@ -135,12 +160,22 @@ document.addEventListener("DOMContentLoaded", () => {
       row.hidden = false;
       visible++;
       cntTotal++;
-      if (revoked)              cntRevoked++;
-      else if (response === "yes")   cntYes++;
-      else if (response === "no")    cntNo++;
-      else if (response === "maybe") cntMaybe++;
+      if (revoked)                     cntRevoked++;
+      else if (response === "yes")     cntYes++;
+      else if (response === "no")      cntNo++;
+      else if (response === "maybe")   cntMaybe++;
       else if (response === "pending") cntPending++;
     });
+
+    // Pending count scoped to the selected parent batch only — used for the
+    // Remind button so its number matches what Messaging Center will actually act on.
+    const cntPendingParentOnly = batchVal
+      ? Array.from(rows).filter((r) =>
+          !r.hidden &&
+          r.dataset.batchId === batchVal &&
+          r.dataset.response === "pending"
+        ).length
+      : cntPending;
 
     if (rowCount) {
       rowCount.textContent = `Showing ${visible} invitation${visible !== 1 ? "s" : ""}`;
@@ -160,8 +195,21 @@ document.addEventListener("DOMContentLoaded", () => {
     if (statPending) statPending.textContent = String(cntPending);
     if (statRevoked) statRevoked.textContent = String(cntRevoked);
 
+    // Update batch group note
+    const groupNote = document.getElementById("itBatchGroupNote");
+    if (groupNote) {
+      if (batchVal && batchChildCount > 0) {
+        groupNote.textContent =
+          `Includes ${batchChildCount} follow-up campaign${batchChildCount !== 1 ? "s" : ""}`;
+        groupNote.classList.remove("d-none");
+      } else {
+        groupNote.textContent = "";
+        groupNote.classList.add("d-none");
+      }
+    }
+
     updateAddVolunteersLink();
-    updateRemindButton(cntPending);
+    updateRemindButton(cntPendingParentOnly);
   }
 
   // Wire all filter controls
