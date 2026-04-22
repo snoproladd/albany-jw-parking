@@ -20,7 +20,7 @@
     <%- include('../partials/header') %>
 
     <%
-        const _ROLE_ORDER = ['NON_REGISTERED','REGISTERED','KEYMAN','OVERSEER','ASSISTANT_ADMIN','ADMIN'];
+        const _ROLE_ORDER = ['NON_REGISTERED','REGISTERED','DESK', KEYMAN','OVERSEER','ASSISTANT_ADMIN','ADMIN'];
         const _role       = typeof userRole        !== 'undefined' ? userRole        : 'NON_REGISTERED';
         const _perms      = typeof userPermissions !== 'undefined' ? userPermissions : {};
         const roleLevel   = _ROLE_ORDER.indexOf(_role);

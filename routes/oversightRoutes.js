@@ -83,6 +83,11 @@ import {
   handleSmsOptOutWebhook,
   promoteIfComplete,
   getVolunteerReportRows,
+  getConventionDaysWithShifts,
+  getShiftAttendanceData,
+  upsertAttendance,
+  getAttendanceReportForDay,
+  getAttendanceDayData,
 } from "../lib/dbSync.js";
 
 import { verifyPassword, hashPassword } from "../lib/passwordVer.js";
@@ -3643,5 +3648,181 @@ export function oversightRouter({
       }
     },
   );
+  // ============================================================
+  // ATTENDANCE
+  // ============================================================
+
+  /**
+   * GET /oversight/tools/attendance/checkin
+   * Render the live check-in tool. Embeds the full day/shift hierarchy
+   * as JSON for the client-side cascading picker.
+   */
+  router.get(
+    "/oversight/tools/attendance/checkin",
+    requireAuth,
+    requirePermission("logAttendance"),
+    csrfProtection,
+    async (req, res) => {
+      try {
+        const year = new Date().getFullYear();
+        const [days, volunteers] = await Promise.all([
+          getConventionDaysWithShifts(year),
+          getVolunteersForMessaging(),
+        ]);
+        return res.render("authentication_and_accounts/attendanceCheckin", {
+          csrfToken: req.csrfToken(),
+          days,
+          volunteers,
+        });
+      } catch (err) {
+        (logError || console.error)("attendance/checkin GET error:", err);
+        return res.status(500).send("Server error");
+      }
+    },
+  );
+
+  /**
+   * GET /oversight/tools/attendance/report
+   * Render the attendance report page. Embeds convention days for the
+   * day picker; shift data loads on demand via AJAX.
+   */
+  router.get(
+    "/oversight/tools/attendance/report",
+    requireAuth,
+    requirePermission("viewAttendance"),
+    csrfProtection,
+    async (req, res) => {
+      try {
+        const year = new Date().getFullYear();
+        const conventionDays = await getConventionDays(year);
+        return res.render("authentication_and_accounts/attendanceReport", {
+          csrfToken: req.csrfToken(),
+          conventionDays,
+        });
+      } catch (err) {
+        (logError || console.error)("attendance/report GET error:", err);
+        return res.status(500).send("Server error");
+      }
+    },
+  );
+
+  /**
+   * GET /oversight/tools/attendance/shift-data/:shiftId
+   * AJAX — returns invited volunteers + walk-ins + existing attendance
+   * records for the given shift.
+   *
+   * Response: { success: boolean, volunteers: Array }
+   */
+  router.get(
+    "/oversight/tools/attendance/shift-data/:shiftId",
+    requireAuth,
+    requirePermission("logAttendance"),
+    async (req, res) => {
+      const shiftId = Number(req.params.shiftId);
+      if (!shiftId) return res.status(400).json({ success: false, error: "Invalid shift ID." });
+      try {
+        const volunteers = await getShiftAttendanceData(shiftId);
+        return res.json({ success: true, volunteers });
+      } catch (err) {
+        (logError || console.error)("attendance/shift-data GET error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * POST /oversight/tools/attendance/record
+   * AJAX — upsert a single attendance row.
+   *
+   * Body: { volunteerId, conventionDayId, sessionId, shiftId,
+   *         attended, notes?, walkIn? }
+   * Response: { success: boolean }
+   */
+  router.post(
+    "/oversight/tools/attendance/record",
+    requireAuth,
+    requirePermission("logAttendance"),
+    csrfProtection,
+    async (req, res) => {
+      const {
+        volunteerId,
+        conventionDayId,
+        sessionId = null,
+        shiftId,
+        attended,
+        notes    = null,
+        walkIn   = false,
+      } = req.body || {};
+
+      if (!volunteerId || !conventionDayId) {
+        return res.status(400).json({ success: false, error: "volunteerId and conventionDayId are required." });
+      }
+
+      try {
+        await upsertAttendance({
+          volunteerId:     Number(volunteerId),
+          conventionDayId: Number(conventionDayId),
+          sessionId:       sessionId ? Number(sessionId) : null,
+          shiftId:         shiftId ? Number(shiftId) : null,
+          attended:        !!attended,
+          notes:           notes || null,
+          recordedBy:      req.session.userEmail || null,
+          walkIn:          !!walkIn,
+        });
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("attendance/record POST error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * GET /oversight/tools/attendance/day-checkin/:dayId
+   * AJAX — returns invited volunteers + walk-ins for a day with no shifts.
+   *
+   * Response: { success: boolean, volunteers: Array }
+   */
+  router.get(
+    "/oversight/tools/attendance/day-checkin/:dayId",
+    requireAuth,
+    requirePermission("logAttendance"),
+    async (req, res) => {
+      const dayId = Number(req.params.dayId);
+      if (!dayId) return res.status(400).json({ success: false, error: "Invalid day ID." });
+      try {
+        const volunteers = await getAttendanceDayData(dayId);
+        return res.json({ success: true, volunteers });
+      } catch (err) {
+        (logError || console.error)("attendance/day-checkin GET error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * GET /oversight/tools/attendance/day-report/:dayId
+   * AJAX — returns all shifts for a convention day with attendance stats.
+   * Used by the report page accordion.
+   *
+   * Response: { success: boolean, shifts: Array }
+   */
+  router.get(
+    "/oversight/tools/attendance/day-report/:dayId",
+    requireAuth,
+    requirePermission("viewAttendance"),
+    async (req, res) => {
+      const dayId = Number(req.params.dayId);
+      if (!dayId) return res.status(400).json({ success: false, error: "Invalid day ID." });
+      try {
+        const shifts = await getAttendanceReportForDay(dayId);
+        return res.json({ success: true, shifts });
+      } catch (err) {
+        (logError || console.error)("attendance/day-report GET error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
   return router;
 };

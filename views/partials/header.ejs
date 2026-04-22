@@ -35,7 +35,7 @@
           const showMyAccount       = navState.isLoggedIn;
           const showAccountDropdown = showUpgrade || showContinueReg || showMyAccount;
 
-          const _ROLE_ORDER_NAV = ['NON_REGISTERED','REGISTERED','KEYMAN','OVERSEER','ASSISTANT_ADMIN','ADMIN'];
+          const _ROLE_ORDER_NAV = ['NON_REGISTERED','REGISTERED', 'DESK', 'KEYMAN','OVERSEER','ASSISTANT_ADMIN','ADMIN'];
           const _navRole        = navState.userRole || 'NON_REGISTERED';
           const _navRoleLevel   = _ROLE_ORDER_NAV.indexOf(_navRole);
           const isAtLeast       = (r) => _navRoleLevel >= _ROLE_ORDER_NAV.indexOf(r);

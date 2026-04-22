@@ -18,7 +18,7 @@
   <%- include('../partials/header') %>
 
   <%
-    const _ROLE_ORDER = ['NON_REGISTERED','REGISTERED','KEYMAN','OVERSEER','ASSISTANT_ADMIN','ADMIN'];
+    const _ROLE_ORDER = ['NON_REGISTERED','REGISTERED', 'DESK', 'KEYMAN','OVERSEER','ASSISTANT_ADMIN','ADMIN'];
     const _role       = typeof userRole        !== 'undefined' ? userRole        : 'NON_REGISTERED';
     const _perms      = typeof userPermissions !== 'undefined' ? userPermissions : {};
     const roleLevel   = _ROLE_ORDER.indexOf(_role);
@@ -229,7 +229,49 @@
             <% } %>
 
             <%# ══════════════════════════════════════════════
-                4. DECENTLY SYNC
+                4. ATTENDANCE
+            ══════════════════════════════════════════════ %>
+            <% if (can('logAttendance') || can('viewAttendance')) { %>
+              <h2 class="tools-group-heading">
+                <i class="fa-solid fa-clipboard-check me-2"></i>Attendance
+              </h2>
+              <div class="row g-4 mb-5">
+
+                <% if (can('logAttendance')) { %>
+                  <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="admin-tool-card h-100">
+                      <div class="admin-tool-icon text-info">
+                        <i class="fa-solid fa-clipboard-check"></i>
+                      </div>
+                      <h3 class="admin-tool-title">Check-In Tool</h3>
+                      <p class="admin-tool-desc">Log volunteer attendance shift by shift. Mark arrivals, add walk-ins, and record notes in real time.</p>
+                      <a href="/oversight/tools/attendance/checkin" class="btn btn-info admin-tool-btn">
+                        Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                      </a>
+                    </div>
+                  </div>
+                <% } %>
+
+                <% if (can('viewAttendance')) { %>
+                  <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="admin-tool-card h-100">
+                      <div class="admin-tool-icon text-primary">
+                        <i class="fa-solid fa-chart-bar"></i>
+                      </div>
+                      <h3 class="admin-tool-title">Attendance Report</h3>
+                      <p class="admin-tool-desc">View attendance across all shifts for a convention day. See invited, RSVP, attended, and no-show counts per shift.</p>
+                      <a href="/oversight/tools/attendance/report" class="btn btn-primary admin-tool-btn">
+                        Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                      </a>
+                    </div>
+                  </div>
+                <% } %>
+
+              </div>
+            <% } %>
+
+            <%# ══════════════════════════════════════════════
+                5. DECENTLY SYNC
             ══════════════════════════════════════════════ %>
             <% if (can('accessAdminConsole')) { %>
               <h2 class="tools-group-heading">
@@ -267,7 +309,7 @@
             <% } %>
 
             <%# ══════════════════════════════════════════════
-                5. ADMINISTRATION
+                6. ADMINISTRATION
             ══════════════════════════════════════════════ %>
             <% if (can('manageRoles') && isAtLeast('ADMIN')) { %>
               <h2 class="tools-group-heading">
