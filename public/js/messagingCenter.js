@@ -845,9 +845,9 @@ function updateSubjectVisibility() {
    */
   function insertAtCursor(el, field) {
     const start = el.selectionStart ?? el.value.length;
-    const end = el.selectionEnd ?? el.value.length;
+    const end   = el.selectionEnd   ?? el.value.length;
     el.value = el.value.slice(0, start) + field + el.value.slice(end);
-    el.focus();
+    el.focus({ preventScroll: true });
     el.selectionStart = el.selectionEnd = start + field.length;
     el.dispatchEvent(new Event("input", { bubbles: true }));
   }
@@ -900,6 +900,9 @@ function updateSubjectVisibility() {
     );
     if (!confirmed) return;
 
+    /** Whether this send is a reminder — reuse existing tokens rather than INSERT. */
+    const isReminder = campaignMode === "add_to" && (pendingVolIds?.length ?? 0) > 0;
+
     sendBtn.disabled = true;
     sendBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>Sending…`;
 
@@ -929,9 +932,7 @@ function updateSubjectVisibility() {
           sessionId,
           shiftId,
           force,
-          // True when the page was loaded via ?selectPending=1 — tells the
-          // route to UPDATE existing invitation rows rather than INSERT new ones.
-          isReminder: campaignMode === "add_to" && (pendingVolIds?.length ?? 0) > 0,
+          isReminder,
         }),
       });
       return res.json().catch(() => ({}));
@@ -955,6 +956,46 @@ function updateSubjectVisibility() {
       }
 
       renderResults(data);
+
+      // After a successful reminder, offer to overwrite the campaign's saved
+      // message template with the tweaked nudge version.
+      if (isReminder && data.success && data.batchId && preselectedBatch) {
+        const update = confirm(
+          "Reminder sent. Do you want to update this campaign\u2019s saved message with the version you just sent?"
+        );
+        if (update) {
+          try {
+            const putRes = await fetch(
+              `/oversight/tools/messaging/batches/${data.batchId}`,
+              {
+                method: "PUT",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-CSRF-Token": getCsrf(),
+                },
+                body: JSON.stringify({
+                  name:            preselectedBatch.name,
+                  messageSubject:  subject || null,
+                  messageBody:     body,
+                  parentBatchId:   preselectedBatch.parent_batch_id || null,
+                  responseNeeded:  preselectedBatch.response_needed !== false,
+                  active:          preselectedBatch.active !== false,
+                }),
+              }
+            );
+            const putData = await putRes.json().catch(() => ({}));
+            const note = document.createElement("div");
+            note.className = `alert ${putData.success ? "alert-success" : "alert-warning"} mt-2 mb-0`;
+            note.innerHTML = putData.success
+              ? `<i class="fa-solid fa-circle-check me-1"></i>Campaign message updated.`
+              : `<i class="fa-solid fa-triangle-exclamation me-1"></i>Could not update campaign message — changes were not saved.`;
+            resultsBody?.appendChild(note);
+          } catch {
+            // Non-fatal — send already succeeded
+          }
+        }
+      }
+
     } catch (err) {
       console.error("[messagingCenter] send error:", err);
       renderResults({
