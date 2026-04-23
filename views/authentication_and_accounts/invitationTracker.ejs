@@ -20,7 +20,7 @@
     <%- include('../partials/header') %>
 
     <%
-        const _ROLE_ORDER = ['NON_REGISTERED','REGISTERED','DESK', KEYMAN','OVERSEER','ASSISTANT_ADMIN','ADMIN'];
+        const _ROLE_ORDER = ['NON_REGISTERED','REGISTERED','DESK', 'KEYMAN','OVERSEER','ASSISTANT_ADMIN','ADMIN'];
         const _role       = typeof userRole        !== 'undefined' ? userRole        : 'NON_REGISTERED';
         const _perms      = typeof userPermissions !== 'undefined' ? userPermissions : {};
         const roleLevel   = _ROLE_ORDER.indexOf(_role);
@@ -280,9 +280,8 @@
 
                                         <td class="it-col-reminded text-muted small">
                                             <% if (inv.last_reminded_at && inv.reminder_count > 0) { %>
-                                                <%= new Date(inv.last_reminded_at).toLocaleDateString('en-US', {
-                                                    month: 'short', day: 'numeric', year: 'numeric'
-                                                }) %>
+                                                <% let remindedDate = new Date(inv.last_reminded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); %>
+                                                <%= remindedDate %>
                                                 <span class="ms-1">
                                                     <% if (inv.last_reminded_channel === 'email' || inv.last_reminded_channel === 'both') { %>
                                                         <i class="fa-solid fa-envelope text-info me-1" title="Email"></i>
