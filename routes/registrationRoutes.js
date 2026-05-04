@@ -706,5 +706,14 @@ router.post("/submit-emailPass", csrfProtection, async (req, res) => {
         });
     }
 });
-return router;
+/**
+   * GET /create-profile
+   * Landing page where volunteers choose between a Standard or Enhanced account.
+   * No authentication required.
+   */
+  router.get("/create-profile", (req, res) => {
+    res.render("registration/createProfileLaunch");
+  });
+
+  return router;
 }

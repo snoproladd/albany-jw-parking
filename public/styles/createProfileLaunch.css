@@ -1,0 +1,209 @@
+/* ============================================================
+   createProfileLaunch.css — Account type selection page
+   Albany JW Parking
+   ============================================================ */
+
+/* ── Launch hero ──────────────────────────────────────────── */
+
+.launch-hero {
+    background: rgba(15, 30, 60, 0.82);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    padding: 2.75rem 1rem;
+    text-align: center;
+}
+
+.launch-hero h1 {
+    color: #ffffff;
+}
+
+.launch-hero p {
+    color: rgba(255, 255, 255, 0.82);
+    max-width: 600px;
+    margin: 0.5rem auto 0;
+    font-size: 0.975rem;
+}
+
+/* ── Choice section ───────────────────────────────────────── */
+
+.account-type-section {
+    padding: 2.5rem 0 3rem;
+}
+
+.choice-row {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+/* ── Account cards ────────────────────────────────────────── */
+
+/**
+ * Base account type card.
+ * Uses flex column so the CTA button always sits flush at the bottom.
+ */
+.account-card {
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 14px;
+    padding: 1.75rem;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.account-card:hover {
+    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.13);
+    transform: translateY(-2px);
+}
+
+/**
+ * Enhanced account card — blue border accent marks it as the
+ * featured/recommended option, matching Bootstrap's info emphasis.
+ */
+.account-card.enhanced {
+    border: 2px solid var(--Secondary);
+    background: rgba(255, 255, 255, 0.96);
+}
+
+/* ── Account badge ────────────────────────────────────────── */
+
+.account-badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-bottom: 0.8rem;
+}
+
+.badge-standard {
+    background: #e9ecef;
+    color: #495057;
+}
+
+.badge-enhanced {
+    background: rgba(37, 99, 235, 0.1);
+    color: var(--Secondary);
+}
+
+/* ── Card body content ────────────────────────────────────── */
+
+.account-card h3 {
+    font-size: 1.2rem;
+    color: var(--Primary);
+    margin-bottom: 0.35rem;
+}
+
+.account-desc {
+    font-size: 0.875rem;
+    color: #6c757d;
+    line-height: 1.55;
+    margin-bottom: 1rem;
+}
+
+/* ── Feature checklist ────────────────────────────────────── */
+
+.account-features {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1.5rem;
+    flex: 1;
+}
+
+.account-features li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: #495057;
+    padding: 0.35rem 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.account-features li:last-child {
+    border-bottom: none;
+}
+
+/**
+ * Check/cross icon circles.
+ * .yes = green filled, .no = light grey.
+ */
+.feat-check {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 0.6rem;
+}
+
+.feat-check.yes {
+    background: #198754;
+    color: #fff;
+}
+
+.feat-check.no {
+    background: #dee2e6;
+    color: #6c757d;
+}
+
+/* ── Password note ────────────────────────────────────────── */
+
+.pwd-note {
+    margin-top: 0.65rem;
+    font-size: 0.78rem;
+    color: #6c757d;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4rem;
+    line-height: 1.45;
+}
+
+.pwd-note i {
+    margin-top: 0.15rem;
+    flex-shrink: 0;
+    color: var(--Secondary);
+}
+
+/* ── Upgrade notice ───────────────────────────────────────── */
+
+.upgrade-notice {
+    max-width: 800px;
+    margin: 1.5rem auto 0;
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 10px;
+    padding: 0.8rem 1.1rem;
+    font-size: 0.875rem;
+    color: #495057;
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.upgrade-notice i {
+    color: var(--Accent);
+    font-size: 1.05rem;
+    flex-shrink: 0;
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+
+@media (max-width: 767.98px) {
+    .account-type-section {
+        padding: 1.5rem 0 2rem;
+    }
+
+    .account-card {
+        margin-bottom: 0.5rem;
+    }
+
+    .upgrade-notice {
+        margin: 1rem 1rem 0;
+    }
+}

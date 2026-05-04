@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Create Your Profile — Albany JW Parking</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css">
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css">
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css">
+    <link rel="stylesheet" type="text/css" href="/styles/createProfileLaunch.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+</head>
+<body class="bg-body-tertiary">
+
+    <%- include('../partials/header.ejs') %>
+
+    <main>
+        <section class="launch-hero">
+            <h1 class="h2 fw-bold mb-2">Welcome, Convention Volunteers!</h1>
+            <p class="lead">
+                Thank you for your willingness to serve in the Parking Department at the
+                Albany Regional Convention of Jehovah's Witnesses. Please create a profile
+                so your information is on file with the team.
+            </p>
+        </section>
+
+        <section class="account-type-section">
+            <div class="container">
+                <p class="text-center text-body-secondary mb-4 small fw-semibold text-uppercase">
+                    Choose your account type
+                </p>
+
+                <div class="row row-cols-1 row-cols-md-2 g-4 choice-row">
+
+                    <!-- Standard Account -->
+                    <div class="col">
+                        <div class="account-card">
+                            <span class="account-badge badge-standard">Standard</span>
+                            <h3>Standard account</h3>
+                            <p class="account-desc">
+                                Quick setup with no password required. Your contact information
+                                will be on file with the parking team.
+                            </p>
+                            <ul class="account-features">
+                                <li>
+                                    <span class="feat-check yes"><i class="fa-solid fa-check"></i></span>
+                                    Submit your information
+                                </li>
+                                <li>
+                                    <span class="feat-check yes"><i class="fa-solid fa-check"></i></span>
+                                    Update contact details anytime
+                                </li>
+                                <li>
+                                    <span class="feat-check no"><i class="fa-solid fa-xmark"></i></span>
+                                    View crew schedules
+                                </li>
+                                <li>
+                                    <span class="feat-check no"><i class="fa-solid fa-xmark"></i></span>
+                                    Access maps &amp; resources
+                                </li>
+                                <li>
+                                    <span class="feat-check no"><i class="fa-solid fa-xmark"></i></span>
+                                    Other member features
+                                </li>
+                            </ul>
+                            <a href="/nonProfile" class="btn btn-secondary btn-lg w-100">
+                                Continue as standard
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Enhanced Account -->
+                    <div class="col">
+                        <div class="account-card enhanced">
+                            <span class="account-badge badge-enhanced">&#9733; Enhanced</span>
+                            <h3>Enhanced account</h3>
+                            <p class="account-desc">
+                                Full access to schedules, maps, and volunteer resources.
+                                Requires creating a secure password.
+                            </p>
+                            <ul class="account-features">
+                                <li>
+                                    <span class="feat-check yes"><i class="fa-solid fa-check"></i></span>
+                                    Submit your information
+                                </li>
+                                <li>
+                                    <span class="feat-check yes"><i class="fa-solid fa-check"></i></span>
+                                    Update contact details anytime
+                                </li>
+                                <li>
+                                    <span class="feat-check yes"><i class="fa-solid fa-check"></i></span>
+                                    View crew schedules
+                                </li>
+                                <li>
+                                    <span class="feat-check yes"><i class="fa-solid fa-check"></i></span>
+                                    Access maps &amp; resources
+                                </li>
+                                <li>
+                                    <span class="feat-check yes"><i class="fa-solid fa-check"></i></span>
+                                    Other member features
+                                </li>
+                            </ul>
+                            <a href="/email-pass" class="btn btn-primary btn-lg w-100">
+                                Create enhanced account
+                            </a>
+                            <p class="pwd-note">
+                                <i class="fa-solid fa-circle-info"></i>
+                                You will be asked to create a password to secure your account
+                                and enable future logins.
+                            </p>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="upgrade-notice">
+                    <i class="fa-solid fa-bolt"></i>
+                    <span>
+                        Not sure which to choose? <strong>Start with a Standard account</strong> —
+                        you can upgrade to Enhanced at any time without losing your information.
+                    </span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <%- include('../partials/footer.ejs') %>
+
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+
+</body>
+</html>

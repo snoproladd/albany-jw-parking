@@ -1,85 +1,94 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Convention Volunteer Home Page</title>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
-  <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css">
-  <link rel="stylesheet" href="/styles/fontawesome/css/all.css">
-  <link rel="stylesheet" type="text/css" href="/styles/styles.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+    <title>Convention Volunteer Home Page</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css">
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css">
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css">
+    <link rel="stylesheet" type="text/css" href="/styles/index.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
 </head>
 <body>
 
-  <%- include('partials/header.ejs') %>
+    <%- include('partials/header.ejs') %>
 
-  <main>
-    <section id="hero" class="bg-body-tertiary">
-      <div class="container vh-50">
-        <div class="hero-text-contain d-flex flex-column text-center align-items-center justify-content-between h-100">
-          <h1 class="text-body-emphasis hero-heading p-3">
-            Albany Regional Convention of Jehovah's Witnesses
-          </h1>
-          <h2 class="mt-4 text-body-emphasis hero-subheading p-3">
-            Welcome, Convention Volunteers!
-          </h2>
-          <p class="lead mt-4 hero-subheading p-3">
-            Thank you for your willingness to serve in the Parking Department at the
-            Albany Regional Convention of Jehovah's Witnesses. Please use this site to
-            enter your information, and to access schedules, instructions, and updates.
-          </p>
-        </div>
-      </div>
-    </section>
-
-    <section id="features">
-      <div class="container px-4 py-5">
-        <div class="row row-cols-1 row-cols-md-2 align-items-md-center g-5 p-2 py-5">
-          <div class="col d-flex flex-column align-items-start gap-2">
-            <h2 class="fw-bold text-body-emphasis">Create a User Profile</h2>
-            <p class="text-body-secondary feature-showcase">To get the most from this site please create a profile. Without a profile you will still be able to volunteer, but you will not have access to crew schedules, assignments, or other information.</p>
-            <div class="row flex-row gap-1 row-cols-auto m-1 justify-content-between">
-              <a href="/email-pass" class="btn btn-primary btn-lg">Create Profile</a>
-              <a href="/nonProfile" class="btn btn-secondary btn-lg">Enter Info as Guest</a>
+    <main>
+        <section id="hero" class="bg-body-tertiary">
+            <div class="container">
+                <div class="hero-text-contain d-flex flex-column text-center align-items-center h-100">
+                    <h1 class="text-body-emphasis hero-heading p-3">
+                        Albany Regional Convention of Jehovah's Witnesses
+                    </h1>
+                    <h2 class="mt-3 text-body-emphasis hero-subheading p-3">
+                        Welcome, Convention Volunteers!
+                    </h2>
+                    <div class="hero-cta-wrap">
+                        <a href="/create-profile" class="hero-cta">
+                            <i class="fa-solid fa-user-plus me-2"></i>Create Your Profile
+                        </a>
+                        <span class="hero-cta-hint">Get started in just a few minutes</span>
+                        <div class="hero-signin">
+                            <a href="/login">Already have an account? Sign in</a>
+                        </div>
+                    </div>
+                </div>
             </div>
-          </div>
-          <div class="col">
-            <div class="row row-cols-1 row-cols-sm-2 g-4">
-              <div class="col d-flex flex-column gap-2">
-                <a href="/my-account" class="feature-icon-small d-inline-flex align-items-center justify-content-center fs-4 rounded-3">
-                  <img src='../images/information-svgrepo-com.svg' alt='List with adjacent letter I' class='feature-icon'>
-                </a>
-                <h4 class="fw-semibold mb-0 text-body-emphasis">View my information</h4>
-                <p class="text-body-secondary">View and edit your contact information</p>
-              </div>
-              <div class="col d-flex flex-column gap-2">
-                <div class="feature-icon-small d-inline-flex align-items-center justify-content-center fs-4 rounded-3">
-                  <img src='../images/weekly-calendar-monthly-calendar-svgrepo-com.svg' alt='Calendar with a date circled' class='feature-icon'>
-                </div>
-                <h4 class="fw-semibold mb-0 text-body-emphasis">Parking Schedules</h4>
-                <p class="text-body-secondary">View and download most current schedules</p>
-              </div>
-              <div class="col d-flex flex-column gap-2">
-                <div class="feature-icon-small d-inline-flex align-items-center justify-content-center fs-4 rounded-3">
-                  <img src='../images/maps-and-flags-map-location-svgrepo-com.svg' alt='Map with a pin pointing to a location' class='feature-icon'>
-                </div>
-                <h4 class="fw-semibold mb-0 text-body-emphasis">Maps</h4>
-                <p class="text-body-secondary">View various maps related to parking.</p>
-              </div>
-             </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  </main>
+        </section>
 
-  <%- include('partials/footer.ejs') %>
+        <section id="home-features">
+            <div class="container px-4">
+                <div class="row row-cols-1 row-cols-md-3 g-4 justify-content-center py-5">
 
-  <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+                    <div class="col d-flex flex-column gap-2 home-feature-tile">
+                        <div class="feature-icon-small d-inline-flex align-items-center justify-content-center fs-4 rounded-3">
+                            <img src="../images/information-svgrepo-com.svg"
+                                 alt="List with adjacent letter I"
+                                 class="feature-icon">
+                        </div>
+                        <h4 class="fw-semibold mb-0 text-body-emphasis">View my information</h4>
+                        <p class="text-body-secondary mb-0">View and edit your contact information</p>
+                    </div>
+
+                    <div class="col d-flex flex-column gap-2 home-feature-tile">
+                        <div class="feature-icon-small d-inline-flex align-items-center justify-content-center fs-4 rounded-3">
+                            <img src="../images/weekly-calendar-monthly-calendar-svgrepo-com.svg"
+                                 alt="Calendar with a date circled"
+                                 class="feature-icon">
+                        </div>
+                        <h4 class="fw-semibold mb-0 text-body-emphasis">Parking schedules</h4>
+                        <p class="text-body-secondary mb-0">View and download your crew schedule</p>
+                        <span class="feature-lock-badge">
+                            <i class="fa-solid fa-lock"></i> Enhanced account
+                        </span>
+                    </div>
+
+                    <div class="col d-flex flex-column gap-2 home-feature-tile">
+                        <div class="feature-icon-small d-inline-flex align-items-center justify-content-center fs-4 rounded-3">
+                            <img src="../images/maps-and-flags-map-location-svgrepo-com.svg"
+                                 alt="Map with a pin pointing to a location"
+                                 class="feature-icon">
+                        </div>
+                        <h4 class="fw-semibold mb-0 text-body-emphasis">Maps</h4>
+                        <p class="text-body-secondary mb-0">View various maps related to parking</p>
+                        <span class="feature-lock-badge">
+                            <i class="fa-solid fa-lock"></i> Enhanced account
+                        </span>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <%- include('partials/footer.ejs') %>
+
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
 
 </body>
 </html>
