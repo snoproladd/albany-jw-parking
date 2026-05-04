@@ -50,6 +50,22 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // =========================================================
+  // Batch metadata maps — built once from filter option data attributes
+  // =========================================================
+
+  /**
+   * Maps batch ID string → whether response is needed (boolean).
+   * Used by applyFilters to exclude info-only campaigns from the
+   * pending count shown on the Remind button.
+   * @type {Map<string, boolean>}
+   */
+  const batchResponseNeededMap = new Map(
+    Array.from(batchFilter?.querySelectorAll("option[value]") || [])
+      .filter((opt) => opt.value)
+      .map((opt) => [opt.value, opt.dataset.responseNeeded !== "0"]),
+  );
+
+  // =========================================================
   // Batch group expansion
   // =========================================================
 
@@ -91,12 +107,6 @@ document.addEventListener("DOMContentLoaded", () => {
   // =========================================================
 
   /**
-   * Apply all active filters to the table rows.
-   * Filters are read from the DOM controls on each call so this
-   * function can be called from any event listener.
-   * @returns {void}
-   */
-  /**
    * Apply all active filters to the table rows, then recompute and update
    * the summary stat cards and remind button from the visible rows.
    * @returns {void}
@@ -122,6 +132,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const seenMaybe   = new Set();
     const seenPending = new Set();
     const seenRevoked = new Set();
+
+    /**
+     * Accumulates each volunteer's response states across all their visible
+     * rows before resolving to stat card buckets. Prevents a volunteer who
+     * responded to the parent campaign from also counting as pending because
+     * they appear in a follow-up campaign row.
+     * @type {Map<string, {yes:boolean, no:boolean, maybe:boolean, pending:boolean, revoked:boolean}>}
+     */
+    const volResponseAccum = new Map();
 
     rows.forEach((row) => {
       const name      = row.dataset.name      || "";
@@ -168,13 +187,32 @@ document.addEventListener("DOMContentLoaded", () => {
 
       row.hidden = false;
       visible++;
-      seenTotal.add(volId);
-      if (revoked)                     seenRevoked.add(volId);
-      else if (response === "yes")     seenYes.add(volId);
-      else if (response === "no")      seenNo.add(volId);
-      else if (response === "maybe")   seenMaybe.add(volId);
-      else if (response === "pending") seenPending.add(volId);
+
+      // Accumulate this row's response state for later per-volunteer resolution
+      if (!volResponseAccum.has(volId)) {
+        volResponseAccum.set(volId, { yes: false, no: false, maybe: false, pending: false, revoked: false });
+      }
+      const accum = volResponseAccum.get(volId);
+      if (revoked)                   accum.revoked = true;
+      else if (response === "yes")   accum.yes     = true;
+      else if (response === "no")    accum.no      = true;
+      else if (response === "maybe") accum.maybe   = true;
+      else                           accum.pending  = true;
     });
+
+    // Resolve per-volunteer accumulated responses to stat card buckets.
+    // A volunteer with any definitive response (yes/no/maybe) in any
+    // visible row is NOT counted as pending — even if they also have a
+    // pending row from a follow-up campaign they were re-invited to.
+    for (const [vid, accum] of volResponseAccum) {
+      const hasResponded = accum.yes || accum.no || accum.maybe;
+      seenTotal.add(vid);
+      if (accum.yes)                      seenYes.add(vid);
+      if (accum.no)                       seenNo.add(vid);
+      if (accum.maybe)                    seenMaybe.add(vid);
+      if (!hasResponded && accum.pending) seenPending.add(vid);
+      if (!hasResponded && accum.revoked) seenRevoked.add(vid);
+    }
 
     const cntTotal   = seenTotal.size;
     const cntYes     = seenYes.size;
@@ -183,10 +221,22 @@ document.addEventListener("DOMContentLoaded", () => {
     const cntPending = seenPending.size;
     const cntRevoked = seenRevoked.size;
 
-    // Pending count scoped to the selected parent batch only — used for the
-    // Remind button so its number matches what Messaging Center will actually act on.
-    // Count unique volunteers (not rows) so duplicates from pre-reminder sends
-    // don't inflate the number shown on the Remind button.
+    /**
+     * Returns true if a volunteer has responded (yes/no/maybe) in any
+     * visible row — used to exclude them from the Remind count even if
+     * their row in the parent batch is still marked pending.
+     * @param {string} volId
+     * @returns {boolean}
+     */
+    const hasRespondedAnywhere = (volId) => {
+      const accum = volResponseAccum.get(volId);
+      return !!accum && (accum.yes || accum.no || accum.maybe);
+    };
+
+    // Pending count for the Remind button — mirrors the Pending stat card.
+    // Scoped to the selected parent batch only (not follow-ups), and excludes
+    // any volunteer who has responded in ANY visible row (including follow-ups),
+    // keeping it in sync with cntPending.
     const cntPendingParentOnly = batchVal
       ? new Set(
           Array.from(rows)
@@ -195,7 +245,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 !r.hidden &&
                 r.dataset.batchId === batchVal &&
                 r.dataset.response === "pending" &&
-                r.dataset.volStatus === "completed",
+                r.dataset.volStatus === "completed" &&
+                !hasRespondedAnywhere(r.dataset.volunteerId),
             )
             .map((r) => r.dataset.volunteerId),
         ).size
@@ -206,7 +257,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 !r.hidden &&
                 r.dataset.response === "pending" &&
                 r.dataset.volStatus === "completed" &&
-                batchResponseNeededMap.get(r.dataset.batchId) !== false,
+                batchResponseNeededMap.get(r.dataset.batchId) !== false &&
+                !hasRespondedAnywhere(r.dataset.volunteerId),
             )
             .map((r) => r.dataset.volunteerId),
         ).size;
@@ -320,29 +372,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const responseNeeded = !selectedOpt || selectedOpt.dataset.responseNeeded !== "0";
 
     // ── Pending stat card ───────────────────────────────────────────────
-    const pendingWrap = document.getElementById("itStatPendingWrap");
+    // No click behaviour — setting the response filter to "pending" hides
+    // all responded rows, which breaks the volResponseAccum dedup logic
+    // and causes the Remind button count to inflate back to the raw total.
     const pendingLabel = document.getElementById("itStatPendingLabel");
-    if (pendingWrap) {
-      const card = pendingWrap.querySelector(".it-stat-card");
-      if (batchVal && responseNeeded && pendingCount > 0) {
-        // Make the card a clickable drill-down link
-        pendingWrap.style.cursor = "pointer";
-        if (card) {
-          card.style.cursor = "pointer";
-          card.onclick = () => {
-            if (responseFilter) responseFilter.value = "pending";
-            if (revokedChk) revokedChk.checked = false;
-            applyFilters();
-          };
-        }
-        if (pendingLabel) {
-          pendingLabel.innerHTML = `Pending <i class="fa-solid fa-arrow-right ms-1 it-stat-arrow"></i>`;
-        }
-      } else {
-        if (card) { card.style.cursor = ""; card.onclick = null; }
-        if (pendingLabel) pendingLabel.textContent = "Pending";
-      }
-    }
+    if (pendingLabel) pendingLabel.textContent = "Pending";
 
     // ── Remind button ───────────────────────────────────────────────────
     if (!remindWrap) return;
@@ -628,10 +662,7 @@ document.addEventListener("DOMContentLoaded", () => {
         opt.dataset.responseNeeded = responseNeeded ? "1" : "0";
         opt.dataset.parentId       = parentBatchId ? String(parentBatchId) : "";
         const prefix = parentBatchId ? "↳ " : "";
-        // Preserve the (count) suffix already in the option text
-        const countMatch = opt.textContent.match(/\(\d+\)$/);
-        const countSuffix = countMatch ? ` ${countMatch[0]}` : "";
-        opt.textContent = `${prefix}${name}${countSuffix}`;
+        opt.textContent = `${prefix}${name}`;
       }
 
       // Sync the in-memory batches array so re-opening the edit modal

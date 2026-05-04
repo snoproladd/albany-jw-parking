@@ -2602,22 +2602,43 @@ export function oversightRouter({
         if (batchId) {
           preselectedBatch = batches.find((b) => b.id === batchId) || null;
 
-          // If selectPending=1, fetch unanswered unrevoked invitations for this batch
-          // so the client can auto-select those volunteers.
+          // If selectPending=1, compute truly-pending volunteers using the same
+          // cross-campaign dedup logic the tracker applies client-side.
+          // A volunteer is "pending" only if they have NO responded_at in ANY
+          // row across this batch or its follow-up campaigns — including rows
+          // from earlier re-sends within the same batch.
           if (selectPending) {
-            const pendingInvs = await getInvitationsForTracker({
-              batchId,
-              response: "pending",
-              includeRevoked: false,
+            const childBatchIds = batches
+              .filter((b) => b.parent_batch_id === batchId)
+              .map((b) => b.id);
+
+            // Fetch all rows for this batch plus all follow-up batches in parallel.
+            const [allBatchInvs, ...childInvArrays] = await Promise.all([
+              getInvitationsForTracker({ batchId, includeRevoked: false }),
+              ...childBatchIds.map((bid) =>
+                getInvitationsForTracker({ batchId: bid, includeRevoked: false }),
+              ),
+            ]);
+            const allRelatedInvs = [...allBatchInvs, ...childInvArrays.flat()];
+
+            // Per-volunteer state: did they respond anywhere, and are they
+            // pending in the parent batch (at least one unresponded row)?
+            /** @type {Map<number, { responded: boolean, pendingInParent: boolean }>} */
+            const volState = new Map();
+            allRelatedInvs.forEach((inv) => {
+              const vid = inv.volunteer_id;
+              if (!volState.has(vid)) volState.set(vid, { responded: false, pendingInParent: false });
+              const s = volState.get(vid);
+              if (inv.responded_at && !inv.revoked) s.responded = true;
+              if (inv.batch_id === batchId && !inv.responded_at && !inv.revoked) s.pendingInParent = true;
             });
-            // Only include IDs present in the messageable volunteer list so the
-            // auto-selected count in Messaging Center matches the remind button count.
+
             const messageableIds = new Set(volunteers.map((v) => v.id));
             pendingVolunteerIds = [
               ...new Set(
-                pendingInvs
-                  .map((i) => i.volunteer_id)
-                  .filter((id) => messageableIds.has(id))
+                [...volState.entries()]
+                  .filter(([vid, s]) => s.pendingInParent && !s.responded && messageableIds.has(vid))
+                  .map(([vid]) => vid),
               ),
             ];
           }

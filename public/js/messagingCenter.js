@@ -469,7 +469,10 @@ function updateChipAreaVisibility() {
     responseNeededWrap?.classList.toggle("d-none", isAddTo);
     eventPickerWrap?.classList.toggle("d-none", isAddTo);
 
-    if (isNew) clearInviteStatusBadges();
+    // Always clear stale badges when switching modes. The subsequent
+    // onExistingBatchChange / onParentBatchChange calls will re-apply
+    // badges if a campaign is already selected in the new mode.
+    clearInviteStatusBadges();
 
     // Pre-fill subject/body from selected batch
     if (isAddTo && existingBatchSelect?.value) onExistingBatchChange();
@@ -489,6 +492,14 @@ function updateChipAreaVisibility() {
    * Auto-suggests campaign name and pre-fills subject/body from parent.
    * @returns {void}
    */
+  /**
+   * Handle parent batch selection change in follow-up mode.
+   * Auto-suggests a campaign name from the parent and applies
+   * invite-status badges so the user can see who responded.
+   * Compose fields are intentionally left blank — the follow-up
+   * message should be written fresh.
+   * @returns {void}
+   */
   function onParentBatchChange() {
     const opt = parentBatchSelect?.options[parentBatchSelect.selectedIndex];
     if (!opt?.value) return;
@@ -499,13 +510,9 @@ function updateChipAreaVisibility() {
       campaignNameInput.value = `Follow-up: ${parentName}`;
     }
 
-    // Pre-fill subject/body from parent if fields are empty
-    if (subjectInput && !subjectInput.value.trim()) {
-      subjectInput.value = opt.dataset.subject || "";
-    }
-    if (bodyInput && !bodyInput.value.trim()) {
-      bodyInput.value = opt.dataset.body || "";
-    }
+    // Show parent campaign's invite statuses so the user can see
+    // who responded, who declined, and who never replied.
+    applyInviteStatusBadges(Number(opt.value));
 
     updateSendButton();
   }
@@ -579,8 +586,11 @@ function updateChipAreaVisibility() {
         badge.textContent = statusLabel;
         li.appendChild(badge);
 
-        // Auto-select pending volunteers (no response, not revoked)
-        if (!inv.revoked && !inv.response) {
+        // Auto-select pending volunteers only in the "add volunteers" flow.
+        // When reminding (?selectPending=1), pendingVolIds is the authoritative
+        // pre-selection — auto-selecting here would override it with stale
+        // parent-batch-only data that ignores follow-up responses.
+        if (!inv.revoked && !inv.response && !(pendingVolIds?.length > 0)) {
           setItemSelected(li, true);
         }
       });
@@ -608,13 +618,17 @@ function updateChipAreaVisibility() {
       return;
     }
 
-    // Pre-fill compose fields from batch data
-    if (subjectInput && opt.dataset.subject !== undefined) {
-      subjectInput.value = opt.dataset.subject || "";
-    }
-    if (bodyInput && opt.dataset.body !== undefined) {
-      bodyInput.value = opt.dataset.body || "";
-      bodyInput.dispatchEvent(new Event("input", { bubbles: true }));
+    // Pre-fill compose fields only for tracker-originated reminder flows.
+    // When a user manually selects a campaign, the compose area stays blank
+    // to prevent accidentally re-sending an old message.
+    if (preselectedBatch) {
+      if (subjectInput && opt.dataset.subject !== undefined) {
+        subjectInput.value = opt.dataset.subject || "";
+      }
+      if (bodyInput && opt.dataset.body !== undefined) {
+        bodyInput.value = opt.dataset.body || "";
+        bodyInput.dispatchEvent(new Event("input", { bubbles: true }));
+      }
     }
 
     // Show preview + tracker link
