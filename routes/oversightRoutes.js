@@ -2724,11 +2724,28 @@ export function oversightRouter({
 
       const sentBy = req.session.userEmail || "admin";
       const year = new Date().getFullYear();
-      const dayId = conventionDayId ? Number(conventionDayId) : null;
-      const resolvedSess = sessionId ? Number(sessionId) : null;
-      const resolvedShift = shiftId ? Number(shiftId) : null;
+      let dayId = conventionDayId ? Number(conventionDayId) : null;
+      let resolvedSess = sessionId ? Number(sessionId) : null;
+      let resolvedShift = shiftId ? Number(shiftId) : null;
       const resolvedBatch = existingBatchId ? Number(existingBatchId) : null;
       const resolvedParent = parentBatchId ? Number(parentBatchId) : null;
+
+      // Follow-up campaigns inherit the parent's event context when none is provided.
+      // This ensures follow-up invitation rows stay tied to the same day/shift as
+      // the original campaign, so they appear correctly in attendance check-in.
+      if (campaignMode === "followup" && resolvedParent && !dayId && !resolvedShift) {
+        try {
+          const parentBatch = await getInvitationBatch(resolvedParent);
+          if (parentBatch) {
+            dayId        = parentBatch.convention_day_id ?? null;
+            resolvedSess = parentBatch.session_id        ?? null;
+            resolvedShift = parentBatch.shift_id         ?? null;
+          }
+        } catch (err) {
+          (logError || console.error)("messaging/send inherit parent event context error:", err);
+          // Non-fatal — proceed without inherited context
+        }
+      }
 
       // ── Input validation ────────────────────────────────────────────────
       if (!Array.isArray(volunteerIds) || volunteerIds.length === 0)

@@ -5,6 +5,20 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [2.5.2] — 2026-05-06
+### Fixed
+- Follow-up campaigns now automatically inherit the parent batch's `convention_day_id`,
+  `session_id`, and `shift_id` when no event is selected in the Messaging Center.
+  Previously, follow-up invitation rows were stored with NULL event context, causing
+  them to be excluded from attendance check-in.
+- Retroactive DB patch applied to batch 3 ("Meeting date omission") to inherit
+  `convention_day_id = 15` from parent batch 2 ("Training · May 23").
+- Attendance check-in deduplication — volunteers invited via multiple campaigns
+  to the same shift no longer appear as duplicate rows. `ROW_NUMBER()` CTE picks
+  the most relevant invitation (responded first, then most recent) per volunteer.
+
+---
+
 ## [2.5.1] — 2026-05-06
 ### Added
 - RSVP history accordion panel on My Account — shows current-year invitations
