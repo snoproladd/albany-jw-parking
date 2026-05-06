@@ -18,6 +18,7 @@ import {
   getVolunteerByEmailNonArchived,
   getVolunteerById,
   loadMergedPermissions,
+  getVolunteerRsvpHistory,
 } from "../lib/dbSync.js";
 import { verifyPassword, hashPassword } from "../lib/passwordVer.js";
 
@@ -105,6 +106,93 @@ export function loginRouter({ csrfProtection, logError }) {
     }
   }
 
+  /**
+   * Format raw RSVP history rows for display in myAccount.ejs.
+   * Converts raw DB values to pre-formatted display strings so EJS
+   * contains no logic.
+   *
+   * @param {Array<object>} rows - Raw rows from getVolunteerRsvpHistory.
+   * @returns {Array<object>} Rows augmented with display-ready string fields.
+   */
+  function formatRsvpHistory(rows) {
+    /**
+     * Format a MSSQL TIME column (epoch-anchored Date) to "h:MM".
+     * @param {Date|string|null} val
+     * @returns {string}
+     */
+    function fmtTime(val) {
+      if (!val) return "";
+      const d = new Date(val);
+      const h = d.getUTCHours();
+      const m = String(d.getUTCMinutes()).padStart(2, "0");
+      return `${h % 12 || 12}:${m}`;
+    }
+
+    /**
+     * Format a MSSQL TIME column to "AM" or "PM".
+     * @param {Date|string|null} val
+     * @returns {string}
+     */
+    function fmtAmPm(val) {
+      if (!val) return "";
+      return new Date(val).getUTCHours() >= 12 ? "PM" : "AM";
+    }
+
+    const channelMap = { email: "Email", sms: "SMS", both: "Email & SMS" };
+    const responseMap = { yes: "Yes", no: "No", maybe: "Maybe" };
+
+    return rows.map((r) => {
+      // Convention date: "Fri, Jul 11"
+      const conventionDateFmt = r.convention_date
+        ? new Date(r.convention_date).toLocaleDateString("en-US", {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+            timeZone: "UTC",
+          })
+        : "—";
+
+      // Shift time: "8:00–10:00 AM" or "8:00 AM–12:00 PM"
+      let shiftTimeFmt = null;
+      if (r.shift_start && r.shift_end) {
+        const startAp = fmtAmPm(r.shift_start);
+        const endAp = fmtAmPm(r.shift_end);
+        shiftTimeFmt =
+          startAp === endAp
+            ? `${fmtTime(r.shift_start)}–${fmtTime(r.shift_end)} ${endAp}`
+            : `${fmtTime(r.shift_start)} ${startAp}–${fmtTime(r.shift_end)} ${endAp}`;
+      }
+
+      // Last sent: "Jul 10"
+      const lastSentFmt = r.last_sent_at
+        ? new Date(r.last_sent_at).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+          })
+        : "—";
+
+      // Responded at: "Jul 11" or "—"
+      const respondedAtFmt = r.responded_at
+        ? new Date(r.responded_at).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+          })
+        : "—";
+
+      return {
+        ...r,
+        conventionDateFmt,
+        shiftDisplay: r.shift_label || "Full Day",
+        shiftTimeFmt,
+        lastSentFmt,
+        respondedAtFmt,
+        channelDisplay: channelMap[r.channel] || r.channel,
+        responseDisplay: r.response
+          ? responseMap[r.response] || r.response
+          : "Pending",
+      };
+    });
+  }
   // Render the global "account disabled" page
   function renderAccountDisabled(req, res) {
     return res.render("authentication_and_accounts/accountDisabled", {
@@ -699,8 +787,12 @@ export function loginRouter({ csrfProtection, logError }) {
         return res.redirect("/login");
       }
 
-      const congregations = await getCongregations();
+      const [congregations, rawRsvpHistory] = await Promise.all([
+        getCongregations(),
+        getVolunteerRsvpHistory(id, new Date().getFullYear()),
+      ]);
       const gender = user.gender || "";
+      const rsvpHistory = formatRsvpHistory(rawRsvpHistory);
 
       res.render("myAccount", {
         csrfToken: req.csrfToken(),
@@ -710,6 +802,7 @@ export function loginRouter({ csrfProtection, logError }) {
         gender,
         pwError,
         pwSuccess,
+        rsvpHistory,
       });
     } catch (err) {
       (logError || console.error)("myAccount GET error:", err);

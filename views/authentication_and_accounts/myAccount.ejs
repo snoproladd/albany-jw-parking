@@ -725,6 +725,67 @@
                         </div>
                       </div>
                     </div>
+                    <!-- CONVENTION INVITATIONS (read-only) -->
+                    <% if (rsvpHistory && rsvpHistory.length > 0) { %>
+                    <div class="accordion-item">
+                      <h2 class="accordion-header" id="headingInvitations">
+                        <button class="accordion-button collapsed"
+                          type="button"
+                          data-bs-toggle="collapse"
+                          data-bs-target="#collapseInvitations">
+                          Convention Invitations
+                        </button>
+                      </h2>
+
+                      <div id="collapseInvitations" class="accordion-collapse collapse">
+                        <div class="accordion-body p-0">
+                          <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0 small">
+                              <thead class="table-light">
+                                <tr>
+                                  <th>Convention Day</th>
+                                  <th>Shift</th>
+                                  <th>Last Date Sent</th>
+                                  <th>RSVP</th>
+                                  <th>Responded On</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <% rsvpHistory.forEach(function(inv) { %>
+                                  <tr class="<%= inv.revoked ? 'text-muted' : '' %>">
+                                    <td>
+                                      <%= inv.day_label ? inv.day_label + ' — ' : '' %><%= inv.conventionDateFmt %>
+                                    </td>
+                                    <td>
+                                      <%= inv.shiftDisplay %>
+                                      <% if (inv.shiftTimeFmt) { %>
+                                        <span class="text-muted ms-1"><%= inv.shiftTimeFmt %></span>
+                                      <% } %>
+                                    </td>
+                                    <td><%= inv.lastSentFmt %></td>
+                                    <td>
+                                      <% if (inv.revoked) { %>
+                                        <span class="badge bg-secondary">Revoked</span>
+                                      <% } else if (inv.response === 'yes') { %>
+                                        <span class="badge bg-success">Yes</span>
+                                      <% } else if (inv.response === 'no') { %>
+                                        <span class="badge bg-danger">No</span>
+                                      <% } else if (inv.response === 'maybe') { %>
+                                        <span class="badge bg-warning text-dark">Maybe</span>
+                                      <% } else { %>
+                                        <span class="badge bg-light text-muted border">Pending</span>
+                                      <% } %>
+                                    </td>
+                                    <td><%= inv.respondedAtFmt %></td>
+                                  </tr>
+                                <% }); %>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <% } %>
 
                   </div> <!-- END accordion -->
                   <div class="text-end mt-4 sticky-action">
