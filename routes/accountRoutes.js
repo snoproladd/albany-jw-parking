@@ -84,8 +84,10 @@ export function loginRouter({ csrfProtection, logError }) {
       case "":
       case null:
       case undefined:
-        case "emailPass":
+      case "emailPass":
         return "/volunteerIn";
+      case "nonProfile":
+        return "/nonProfile";
       case "volunteerIn":
         return "/personalInfo";
       case "personalInfo":
@@ -180,13 +182,21 @@ export function loginRouter({ csrfProtection, logError }) {
       // Restore the existing registration_id into session so
       // requireDraft guards on subsequent steps don't kick the
       // user back to /email-pass.
-     if (user.registration_id) {
-       req.session.registrationId = user.registration_id;
-       req.session.disableNameFields = true;
-     }
+      if (user.registration_id) {
+        req.session.registrationId = user.registration_id;
+        req.session.disableNameFields = true;
+      }
 
-     const nextStep = getNextRegistrationStep(user.last_step);
-     return res.redirect(nextStep);
+      const nextStep = getNextRegistrationStep(user.last_step);
+
+      // Non-registered users have no login credentials so mid-flow
+      // resume is unreliable. Restart their draft from the beginning.
+      if (nextStep === "/nonProfile") {
+        req.session.disableNameFields = null;
+        return res.redirect("/nonProfile?resume=1");
+      }
+
+      return res.redirect(nextStep);
     } catch (err) {
       logError("Auto-resume continue-registration failed:", err);
       return res.redirect("/volunteerIn");
@@ -665,11 +675,10 @@ export function loginRouter({ csrfProtection, logError }) {
   //==========================
   // Disallow GET on logout for security reasons (avoid CSRF issues)
   // ==========================
-  
+
   router.get("/logout", (req, res) => {
     res.status(405).send("Logout must be POST");
   });
-
 
   // ===========================
   // MY ACCOUNT ROUTES

@@ -30,7 +30,11 @@ router.get("/volunteers/exists", async (req, res, next) => {
     }
 
     const exists = await db.emailExists(email);
-    return res.json({ exists });
+    if (exists) {
+      const draft = await db.getDraftByEmail(email);
+      return res.json({ exists, isDraft: !!draft });
+    }
+    return res.json({ exists, isDraft: false });
   } catch (err) {
     return next(err);
   }

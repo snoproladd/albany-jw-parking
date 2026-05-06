@@ -166,9 +166,36 @@
       </div>
     </main>
 
+ <!-- Identity Confirmation Modal -->
+    <div class="modal fade" id="confirmIdentityModal" tabindex="-1" aria-labelledby="confirmIdentityLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="confirmIdentityLabel">
+              <i class="fa-solid fa-circle-question text-warning me-2"></i>Is this you?
+            </h5>
+          </div>
+          <div class="modal-body">
+            <p>We found an unfinished profile for this email address registered to:</p>
+            <p class="fw-bold fs-5 text-center my-3" id="confirmIdentityName"></p>
+            <p>If this is you, enter your password below to upgrade your profile to an enhanced account.</p>
+            <input type="password" id="confirmIdentityPassword" class="form-control mt-2" placeholder="Enter your password" />
+            <div id="confirmIdentityError" class="text-danger mt-2 d-none"></div>
+          </div>
+          <div class="modal-footer d-flex justify-content-between align-items-center">
+            <button type="button" class="btn btn-outline-secondary" id="confirmIdentityNo">Use different email</button>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-outline-primary" id="confirmIdentityStandard">Continue as Standard</button>
+              <button type="button" class="btn btn-primary" id="confirmIdentityYes">Yes, upgrade account</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
     <script src="/js/email-validation.js"></script>
     <script src="/js/passwords.js"></script>
     <script src="/js/formListeners.js"></script>
-    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/emailPass.js"></script>
   </body>
 </html>

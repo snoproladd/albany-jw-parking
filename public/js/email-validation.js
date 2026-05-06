@@ -319,7 +319,9 @@
           return null;
         }
 
-        emailTaken = !!data.exists;
+        // Drafts are not treated as taken — the submit flow handles
+        // identity confirmation for returning non-registered users.
+        emailTaken = !!data.exists && !data.isDraft;
 
         if (emailTaken) {
           setStatusError(emailStatus, "This email is already registered.");

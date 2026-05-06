@@ -437,6 +437,7 @@ const server = http.createServer(app);
           emailExists: db.emailExists,
           nameExists: db.nameExists,
           phoneExists: db.phoneExists,
+          getDraftByEmail: db.getDraftByEmail,
           markDraftCompleted: db.markDraftCompleted,
           upgradeDraftEmailPass: db.upgradeDraftEmailPass,
           getVolunteerById: db.getVolunteerById,

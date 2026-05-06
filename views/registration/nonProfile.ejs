@@ -155,12 +155,52 @@
           </section>
         </div>
       </div>
+      <!-- Identity Confirmation Modal -->
+      <div class="modal fade" id="confirmIdentityModal" tabindex="-1" aria-labelledby="confirmIdentityLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="confirmIdentityLabel">
+                <i class="fa-solid fa-circle-question text-warning me-2"></i>Is this you?
+              </h5>
+            </div>
+            <div class="modal-body">
+              <p>We found an unfinished profile for this email address registered to:</p>
+              <p class="fw-bold fs-5 text-center my-3" id="confirmIdentityName"></p>
+              <p class="mb-0">If this is you, press <strong>Yes, that's me</strong> to continue your registration. Otherwise press <strong>No</strong> to use a different email address.</p>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-secondary" id="confirmIdentityNo">No</button>
+              <button type="button" class="btn btn-primary" id="confirmIdentityYes">Yes, that's me</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Resume Registration Modal -->
+      <div class="modal fade" id="resumeModal" tabindex="-1" aria-labelledby="resumeModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="resumeModalLabel">
+                <i class="fa-solid fa-circle-check text-success me-2"></i>Profile Found
+              </h5>
+            </div>
+            <div class="modal-body">
+              <p class="mb-0">We found your unfinished profile. Would you like to pick up where you left off?</p>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-secondary" id="resumeUpdateBtn">Update my info</button>
+              <a href="/volunteerIn?disable=true" class="btn btn-primary">Continue Registration</a>
+            </div>
+          </div>
+        </div>
+      </div>
     </main>
 
     <!-- Custom JS -->
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
     <script src="/js/email-validation.js"></script>
     <script src="/js/formListeners.js"></script>
-    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
-
+    <script src="/js/nonProfile.js"></script>
   </body>
 </html>

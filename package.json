@@ -1,6 +1,6 @@
 {
   "name": "parking",
-  "version": "2.4.1",
+  "version": "2.5.0",
   "description": "Express app with Kickbox email validation and Azure Key Vault integration",
   "homepage": "https://github.com/snoproladd/legendary-waffle#readme",
   "bugs": {
@@ -45,6 +45,7 @@
     "jq": "^1.7.2",
     "kickbox": "^2.0.4",
     "mssql": "^12.2.0",
+    "netstat": "^0.0.2",
     "nodemailer": "^8.0.4",
     "path-to-regexp": "^8.3.0",
     "redis": "^5.11.0",

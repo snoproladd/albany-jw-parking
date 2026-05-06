@@ -347,6 +347,14 @@
         if (!resp.ok) {
           if (contentType.includes("application/json")) {
             data = await resp.json().catch(() => ({}));
+            if (data.requiresConfirmation && data.maskedName) {
+              // Expired session — found an abandoned draft matching this email.
+              // Show the identity confirmation modal rather than an error.
+              isSubmitting = false;
+              if (nextBtn) nextBtn.disabled = false;
+              window.initConfirmIdentityModal?.(data.maskedName, csrfToken);
+              return;
+            }
             if (data.fieldErrors) {
               applyFieldErrors(data.fieldErrors);
               updateNextButtonState();

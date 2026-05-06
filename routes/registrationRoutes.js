@@ -44,9 +44,10 @@ export function createRegistrationRouter(deps) {
     emailExists,
     nameExists,
     phoneExists,
+    getDraftByEmail,
     markDraftCompleted,
     upgradeDraftEmailPass,
-    getVolunteerById,  
+    getVolunteerById,
   } = db;
 
   const router = express.Router();
@@ -101,21 +102,20 @@ export function createRegistrationRouter(deps) {
     res.render("index", { csrfToken: req.csrfToken() });
   });
 
-router.get("/email-pass", csrfProtection, (req, res) => {
-  const pending = (req.session.emailPassSetup || "").trim().toLowerCase();
-  const isUpgrade = !!pending;
+  router.get("/email-pass", csrfProtection, (req, res) => {
+    const pending = (req.session.emailPassSetup || "").trim().toLowerCase();
+    const isUpgrade = !!pending;
 
-  // We deliberately do NOT pass the email to the view for upgrade,
-  // to avoid showing it in a visible field. For new signups, the
-  // user will type the email directly.
-  res.render("emailPass", {
-    csrfToken: req.csrfToken(),
-    email: "", // keep blank in the UI
-    isUpgrade, // let the template adapt text if desired
-    error: null,
+    // We deliberately do NOT pass the email to the view for upgrade,
+    // to avoid showing it in a visible field. For new signups, the
+    // user will type the email directly.
+    res.render("emailPass", {
+      csrfToken: req.csrfToken(),
+      email: "", // keep blank in the UI
+      isUpgrade, // let the template adapt text if desired
+      error: null,
+    });
   });
-});
-
 
   router.get("/nonProfile", csrfProtection, (req, res) => {
     console.log("[GET /nonProfile] session:", req.session);
@@ -173,44 +173,45 @@ router.get("/email-pass", csrfProtection, (req, res) => {
     res.render("notes", { csrfToken: req.csrfToken() });
   });
 
-router.get("/volunteerSummary", csrfProtection, async (req, res) => {
-  if (!requireDraft(req, res)) return;
+  router.get("/volunteerSummary", csrfProtection, async (req, res) => {
+    if (!requireDraft(req, res)) return;
 
-  try {
-    const registrationId = req.session.registrationId;
+    try {
+      const registrationId = req.session.registrationId;
 
-    // Try cache first — may be cold on fresh login resume
-    let volunteer =
-      req.app.locals.volunteerCache?.byRegistrationId?.[registrationId] || null;
+      // Try cache first — may be cold on fresh login resume
+      let volunteer =
+        req.app.locals.volunteerCache?.byRegistrationId?.[registrationId] ||
+        null;
 
-    // Cache miss — load directly from DB using userId
-    if (!volunteer && req.session.userId) {
-      volunteer = await getVolunteerById(req.session.userId);
+      // Cache miss — load directly from DB using userId
+      if (!volunteer && req.session.userId) {
+        volunteer = await getVolunteerById(req.session.userId);
+      }
+
+      if (!volunteer) {
+        return res.status(404).render("404", { url: req.originalUrl });
+      }
+
+      const congregations = await getCongregations();
+      const gender =
+        typeof req.session.gender === "string"
+          ? req.session.gender
+          : volunteer.gender || null;
+
+      res.render("formSummary", {
+        volunteer,
+        congregations,
+        csrfToken: req.csrfToken(),
+        privilegeRulesJSON: JSON.stringify(INCOMPATIBILITIES),
+        gender,
+        disableNameFields: !!req.session.disableNameFields,
+      });
+    } catch (err) {
+      logError("Error rendering /volunteerSummary:", err);
+      res.status(500).send("Internal Server Error");
     }
-
-    if (!volunteer) {
-      return res.status(404).render("404", { url: req.originalUrl });
-    }
-
-    const congregations = await getCongregations();
-    const gender =
-      typeof req.session.gender === "string"
-        ? req.session.gender
-        : volunteer.gender || null;
-
-    res.render("formSummary", {
-      volunteer,
-      congregations,
-      csrfToken: req.csrfToken(),
-      privilegeRulesJSON: JSON.stringify(INCOMPATIBILITIES),
-      gender,
-      disableNameFields: !!req.session.disableNameFields,
-    });
-  } catch (err) {
-    logError("Error rendering /volunteerSummary:", err);
-    res.status(500).send("Internal Server Error");
-  }
-});
+  });
 
   router.get("/formDone", csrfProtection, (req, res) => {
     if (!requireDraft(req, res)) return;
@@ -243,6 +244,31 @@ router.get("/volunteerSummary", csrfProtection, async (req, res) => {
       const errors = {};
 
       if (await emailExists(email, regId)) {
+        // Email is taken — check if it belongs to an abandoned draft.
+        // If so, issue a confirmation challenge rather than a hard error.
+        const existingDraft = await getDraftByEmail(email);
+        if (existingDraft) {
+          const mask = (str) =>
+            str ? str[0] + "*".repeat(Math.max(str.length - 1, 2)) : "";
+          const maskedName = [
+            mask(existingDraft.firstName),
+            existingDraft.suffix ? mask(existingDraft.suffix) : null,
+            mask(existingDraft.lastName),
+          ]
+            .filter(Boolean)
+            .join(" ");
+
+          req.session.pendingDraftRecovery = {
+            registrationId: existingDraft.registration_id,
+            userId: existingDraft.id,
+          };
+
+          return res.status(409).json({
+            success: false,
+            requiresConfirmation: true,
+            maskedName,
+          });
+        }
         errors.email = "This email address is already registered.";
       }
 
@@ -317,7 +343,8 @@ router.get("/volunteerSummary", csrfProtection, async (req, res) => {
       console.log("[payload]", req.body);
       console.log("[session BEFORE]", req.session);
 
-      const { firstName, lastName, suffix, phone, SMSCapable, whatsappid } = req.body;
+      const { firstName, lastName, suffix, phone, SMSCapable, whatsappid } =
+        req.body;
       const namesEditable = !req.session.disableNameFields;
       const regId = req.session.registrationId;
 
@@ -365,7 +392,7 @@ router.get("/volunteerSummary", csrfProtection, async (req, res) => {
         namesEditable ? suffix : null,
         phone,
         SMSCapable,
-        whatsappid
+        whatsappid,
       );
 
       if (!row) {
@@ -619,8 +646,10 @@ router.get("/volunteerSummary", csrfProtection, async (req, res) => {
   // POST — EmailPass (registered users)
   // ------------------------------------------------------------
 
-router.post("/submit-emailPass", csrfProtection, async (req, res) => {
-    const sessionEmail = (req.session.emailPassSetup || "").trim().toLowerCase();
+  router.post("/submit-emailPass", csrfProtection, async (req, res) => {
+    const sessionEmail = (req.session.emailPassSetup || "")
+      .trim()
+      .toLowerCase();
     const formEmail = (req.body.email || "").trim().toLowerCase();
     const { password } = req.body || {};
     const rawPassword = password || "";
@@ -630,89 +659,175 @@ router.post("/submit-emailPass", csrfProtection, async (req, res) => {
     const isUpgrade = !!sessionEmail;
 
     if (!effectiveEmail || !rawPassword) {
-        return res.status(400).render("emailPass", {
-            csrfToken: req.csrfToken(),
-            email: "",
-            isUpgrade,
-            error: "Email and password are required.",
-        });
+      return res.status(400).render("emailPass", {
+        csrfToken: req.csrfToken(),
+        email: "",
+        isUpgrade,
+        error: "Email and password are required.",
+      });
     }
 
     try {
-        let row;
+      let row;
 
-        if (isUpgrade) {
-          // UPGRADE: update existing volunteer_in row
-          row = await upgradeDraftEmailPass(effectiveEmail, rawPassword);
+      if (isUpgrade) {
+        // UPGRADE: update existing volunteer_in row
+        row = await upgradeDraftEmailPass(effectiveEmail, rawPassword);
 
-          if (!row) {
-            console.error(
-              "submit-emailPass upgrade: row not found or update failed",
-            );
-            return res.status(500).render("emailPass", {
-              csrfToken: req.csrfToken(),
-              email: "",
-              isUpgrade,
-              error: "Failed to upgrade registration. Please try again.",
-            });
-          }
-
-          // Clear the upgrade flag
-          req.session.emailPassSetup = null;
-        } else {
-          // REPLACE WITH:
-          // NEW SIGNUP: pre-check for duplicate before inserting.
-          // Exclude draft-status rows so a user who started registration
-          // but abandoned it can retry with the same email.
-          if (await emailExists(effectiveEmail, null, true)) {
-            return res.status(409).render("emailPass", {
-              csrfToken: req.csrfToken(),
-              email: "",
-              isUpgrade: false,
-              error:
-                "This email is already registered. Try logging in instead.",
-            });
-          }
-
-          row = await insertDraftEmailPass(effectiveEmail, rawPassword);
-
-          if (!row) {
-            return res.status(500).render("emailPass", {
-              csrfToken: req.csrfToken(),
-              email: "",
-              isUpgrade: false,
-              error: "Failed to create registration. Please try again.",
-            });
-          }
-        }
-
-        // Shared session setup for both new signups and upgrades
-        req.session.userId = row.id;
-        req.session.registrationId = row.registration_id;
-        req.session.formCache = { email: effectiveEmail };
-
-        return res.redirect("/volunteerIn");
-    } catch (err) {
-        // SQL unique constraint violation — email registered between check and insert
-        if (err?.number === 2627 || err?.number === 2601) {
-            return res.status(409).render("emailPass", {
-                csrfToken: req.csrfToken(),
-                email: "",
-                isUpgrade,
-                error: "This email is already registered. Try logging in instead.",
-            });
-        }
-
-        console.error("submit-emailPass error:", err);
-        return res.status(500).render("emailPass", {
+        if (!row) {
+          console.error(
+            "submit-emailPass upgrade: row not found or update failed",
+          );
+          return res.status(500).render("emailPass", {
             csrfToken: req.csrfToken(),
             email: "",
             isUpgrade,
-            error: "Something went wrong. Please try again.",
+            error: "Failed to upgrade registration. Please try again.",
+          });
+        }
+
+        // Clear the upgrade flag
+        req.session.emailPassSetup = null;
+      } else {
+        // REPLACE WITH:
+        // NEW SIGNUP: pre-check for duplicate before inserting.
+        // Exclude draft-status rows so a user who started registration
+        // but abandoned it can retry with the same email.
+        if (await emailExists(effectiveEmail, null, true)) {
+          return res.status(409).render("emailPass", {
+            csrfToken: req.csrfToken(),
+            email: "",
+            isUpgrade: false,
+            error: "This email is already registered. Try logging in instead.",
+          });
+        }
+
+        // Check for an abandoned non-registered draft with this email.
+        // Redirect back to the form with a pending flag so emailPass.js
+        // can show the identity confirmation modal.
+        const existingDraft = await getDraftByEmail(effectiveEmail);
+        if (existingDraft) {
+          const mask = (str) =>
+            str ? str[0] + "*".repeat(Math.max(str.length - 1, 2)) : "";
+          const maskedName = [
+            mask(existingDraft.firstName),
+            existingDraft.suffix ? mask(existingDraft.suffix) : null,
+            mask(existingDraft.lastName),
+          ]
+            .filter(Boolean)
+            .join(" ");
+
+          req.session.pendingEmailPassRecovery = {
+            registrationId: existingDraft.registration_id,
+            userId: existingDraft.id,
+            email: effectiveEmail,
+          };
+
+          return res.redirect(
+            `/email-pass?pending=1&maskedName=${encodeURIComponent(maskedName)}`,
+          );
+        }
+
+        row = await insertDraftEmailPass(effectiveEmail, rawPassword);
+
+        if (!row) {
+          return res.status(500).render("emailPass", {
+            csrfToken: req.csrfToken(),
+            email: "",
+            isUpgrade: false,
+            error: "Failed to create registration. Please try again.",
+          });
+        }
+      }
+
+      // Shared session setup for both new signups and upgrades
+      req.session.userId = row.id;
+      req.session.registrationId = row.registration_id;
+      req.session.formCache = { email: effectiveEmail };
+
+      return res.redirect("/volunteerIn");
+    } catch (err) {
+      // SQL unique constraint violation — email registered between check and insert
+      if (err?.number === 2627 || err?.number === 2601) {
+        return res.status(409).render("emailPass", {
+          csrfToken: req.csrfToken(),
+          email: "",
+          isUpgrade,
+          error: "This email is already registered. Try logging in instead.",
         });
+      }
+
+      console.error("submit-emailPass error:", err);
+      return res.status(500).render("emailPass", {
+        csrfToken: req.csrfToken(),
+        email: "",
+        isUpgrade,
+        error: "Something went wrong. Please try again.",
+      });
     }
-});
-/**
+  });
+
+  /**
+   * POST /confirm-draft-recovery
+   * Called when the user confirms "yes, that's me" on the identity modal.
+   * Promotes the pending draft recovery into the active session.
+   */
+  /**
+   * POST /confirm-emailpass-recovery
+   * Called when the user confirms identity on the emailPass confirmation modal.
+   * Converts the pending non-registered draft to a registered draft using
+   * the supplied password, then sets up the session.
+   */
+  router.post("/confirm-emailpass-recovery", csrfProtection, async (req, res) => {
+    const pending = req.session.pendingEmailPassRecovery;
+    if (!pending) {
+      return res.status(400).json({ success: false, error: "No pending recovery." });
+    }
+
+    const { password, continueAsStandard } = req.body || {};
+
+    // User chose to continue their existing standard account without upgrading.
+    if (continueAsStandard) {
+      req.session.registrationId = pending.registrationId;
+      req.session.userId = pending.userId;
+      req.session.disableNameFields = true;
+      req.session.pendingEmailPassRecovery = null;
+      return res.json({ success: true });
+    }
+
+    if (!password) {
+      return res.status(400).json({ success: false, error: "Password is required." });
+    }
+
+    const row = await insertDraftEmailPass(pending.email, password);
+    if (!row) {
+      return res.status(500).json({ success: false, error: "Failed to convert profile. Please try again." });
+    }
+
+    req.session.userId = row.id;
+    req.session.registrationId = row.registration_id;
+    req.session.formCache = { email: pending.email };
+    req.session.pendingEmailPassRecovery = null;
+
+    return res.json({ success: true });
+  });
+
+  router.post("/confirm-draft-recovery", csrfProtection, (req, res) => {
+    const pending = req.session.pendingDraftRecovery;
+    if (!pending) {
+      return res
+        .status(400)
+        .json({ success: false, error: "No pending recovery." });
+    }
+
+    req.session.registrationId = pending.registrationId;
+    req.session.userId = pending.userId;
+    req.session.disableNameFields = true;
+    req.session.pendingDraftRecovery = null;
+
+    return res.json({ success: true });
+  });
+  /**
    * GET /create-profile
    * Landing page where volunteers choose between a Standard or Enhanced account.
    * No authentication required.
