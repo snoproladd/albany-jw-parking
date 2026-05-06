@@ -438,6 +438,7 @@ const server = http.createServer(app);
           nameExists: db.nameExists,
           phoneExists: db.phoneExists,
           markDraftCompleted: db.markDraftCompleted,
+          upgradeDraftEmailPass: db.upgradeDraftEmailPass,
           getVolunteerById: db.getVolunteerById,
         },
         INCOMPATIBILITIES,
