@@ -5,6 +5,25 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [2.5.3] — 2026-05-11
+### Added
+- External service watchdog — periodic background checks verify Twilio (every 5 min)
+  and SMTP (every 10 min) connectivity. Resets cached clients on failure so the next
+  real request triggers a clean re-initialization rather than reusing a broken client.
+  Both intervals use `.unref()` to avoid blocking graceful shutdown.
+- `resetSmsClient()` exported from `lib/messaging.js` so the watchdog can null the
+  cached Twilio SMS client independently of the main `index.js` client.
+
+### Fixed
+- `initTwilio()` now throws a descriptive error when `TWILIO_ACCOUNT_SID` or
+  `TWILIO_AUTH_TOKEN` are missing, instead of passing `undefined` to the Twilio SDK
+  and receiving a cryptic "username is required" failure.
+- Root cause of phone verification outage identified — stale container had cached
+  empty credentials from before Key Vault secrets were accessible. Restart resolved;
+  watchdog prevents silent recurrence.
+
+---
+
 ## [2.5.2] — 2026-05-06
 ### Fixed
 - Follow-up campaigns now automatically inherit the parent batch's `convention_day_id`,

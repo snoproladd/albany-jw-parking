@@ -31,7 +31,7 @@ import upgradeRoutes from "./routes/upgradeRoutes.js";
 import * as db from "./lib/dbSync.js";
 
 import {oversightRouter} from "./routes/oversightRoutes.js";
-import { getBaseUrl } from "./lib/messaging.js";
+import { getBaseUrl, resetSmsClient } from "./lib/messaging.js";
 
 
 
@@ -108,21 +108,86 @@ if (typeof globalThis.crypto === "undefined") {
 // ============================================================
 // Twilio
 // ============================================================
-
-/** @type {import("twilio").Twilio | undefined} */
-let twClient;
-
+let twClient = null;
 /**
- * Initialize Twilio client if necessary.
- * @returns {Promise<import("twilio").Twilio>}
+ * Initialize (or return cached) Twilio REST client.
+ * Throws if credentials are missing so callers get a clear error
+ * instead of a confusing SDK-level "username is required" failure.
+ *
+ * @returns {Promise<import('twilio').Twilio>}
  */
 async function initTwilio() {
   if (!twClient) {
+    if (!config.TWILIO_ACCOUNT_SID || !config.TWILIO_AUTH_TOKEN) {
+      throw new Error('Twilio credentials not configured — check Key Vault secrets TwilioSID and TwilioAuthToken.');
+    }
     const mod = await import("twilio");
     const twRoot = mod.default ?? mod;
     twClient = twRoot(config.TWILIO_ACCOUNT_SID, config.TWILIO_AUTH_TOKEN);
   }
   return twClient;
+}
+
+// ============================================================
+// External service watchdog
+// ============================================================
+
+/**
+ * Periodically verify Twilio and SMTP connectivity.
+ * Resets cached clients on failure so the next caller triggers
+ * a fresh init rather than re-using a broken connection.
+ *
+ * Twilio: lightweight accounts.fetch() — read-only, no cost.
+ * SMTP:   nodemailer transporter.verify() — opens a test connection.
+ *
+ * Intervals use .unref() so they don't block graceful shutdown.
+ *
+ * @returns {void}
+ */
+function startExternalServiceWatchdog() {
+  // ── Twilio — every 5 minutes ──────────────────────────────
+  const twilioInterval = setInterval(async () => {
+    try {
+      if (!twClient) return; // not yet initialized, skip
+      await twClient.api.accounts(config.TWILIO_ACCOUNT_SID).fetch();
+      log('Watchdog: Twilio OK.');
+    } catch (err) {
+      logError('Watchdog: Twilio check failed — resetting client:', err.message);
+      twClient = undefined;
+      resetSmsClient();
+    }
+  }, 5 * 60 * 1000);
+  twilioInterval.unref();
+
+  // ── SMTP — every 10 minutes ───────────────────────────────
+  const smtpInterval = setInterval(async () => {
+    const user = config.IONOS_SMTP_USER_INFO;
+    const pass = config.IONOS_SMTP_PASS;
+    const host = config.IONOS_SMTP_HOST;
+    const port = config.IONOS_SMTP_PORT;
+
+    if (!user || !pass || !host) {
+      logError('Watchdog: SMTP credentials not configured — skipping check.');
+      return;
+    }
+
+    let transporter;
+    try {
+      const nodemailer = (await import('nodemailer')).default ?? (await import('nodemailer'));
+      transporter = nodemailer.createTransport({
+        host, port: port || 587, secure: false,
+        auth: { user, pass },
+        tls: { rejectUnauthorized: false },
+      });
+      await transporter.verify();
+      log('Watchdog: SMTP OK.');
+    } catch (err) {
+      logError('Watchdog: SMTP check failed:', err.message);
+    } finally {
+      transporter?.close?.();
+    }
+  }, 10 * 60 * 1000);
+  smtpInterval.unref();
 }
 
 // ============================================================
@@ -859,7 +924,9 @@ const server = http.createServer(app);
       log(`Server running at http://${HOST}:${PORT}`),
     );
 
-    await initTwilio();
+    await initTwilio
+        startExternalServiceWatchdog();
+
   } catch (err) {
     logError("Failed to start server:", err);
     // eslint-disable-next-line no-process-exit
