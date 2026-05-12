@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Attendance Report — Albany JW Parking</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" href="/styles/styles.css" />
+    <link rel="stylesheet" href="/styles/attendance.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+</head>
+
+<body class="min-vh-100 bg-body-tertiary" data-authed="true">
+
+    <%- include('../partials/header') %>
+
+    <%
+        const _ROLE_ORDER = ['NON_REGISTERED','REGISTERED','DESK','KEYMAN','OVERSEER','ASSISTANT_ADMIN','ADMIN'];
+        const _role       = typeof userRole        !== 'undefined' ? userRole        : 'NON_REGISTERED';
+        const _perms      = typeof userPermissions !== 'undefined' ? userPermissions : {};
+        const roleLevel   = _ROLE_ORDER.indexOf(_role);
+        const isAtLeast   = (r) => roleLevel >= _ROLE_ORDER.indexOf(r);
+        const can         = (permission) => !!(_perms[_role] && _perms[_role][permission]);
+    %>
+
+    <main class="container-fluid py-4 px-4">
+
+        <%# ── Page header ──────────────────────────────────────────────── %>
+        <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+            <h1 class="h3 mb-0">
+                <i class="fa-solid fa-chart-bar me-2"></i>Attendance Report
+            </h1>
+            <div class="d-flex gap-2 flex-wrap">
+                <% if (can('logAttendance')) { %>
+                    <a href="/oversight/tools/attendance/checkin" class="btn btn-info btn-sm">
+                        <i class="fa-solid fa-clipboard-check me-1"></i>Check-In Tool
+                    </a>
+                <% } %>
+                <a href="/oversight/tools" class="btn btn-secondary btn-sm">
+                    <i class="fa-solid fa-arrow-left me-1"></i>Tools
+                </a>
+            </div>
+        </div>
+
+        <%# ── Day picker ────────────────────────────────────────────────── %>
+        <div class="card shadow-sm mb-4 at-picker-card">
+            <div class="card-body py-3">
+                <div class="d-flex flex-wrap gap-3 align-items-end">
+                    <div>
+                        <label class="form-label form-label-sm mb-1" for="arDaySelect">Convention Day</label>
+                        <select class="form-select form-select-sm" id="arDaySelect" style="min-width:220px">
+                            <option value="">— Select a day —</option>
+                            <% conventionDays.forEach(function(day) { %>
+                                <option value="<%= day.id %>">
+                                    <%= day.label %> —
+                                    <%= new Date(day.convention_date).toLocaleDateString('en-US', {
+                                        weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC'
+                                    }) %>
+                                </option>
+                            <% }); %>
+                        </select>
+                    </div>
+                    <div id="arDaySummary" class="d-none">
+                        <span class="at-stat-card at-stat-card--invited d-inline-flex align-items-center gap-2 px-3 py-2">
+                            <strong id="arSumAttended">0</strong>
+                            <span class="at-stat-label mb-0">attended across all shifts</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <%# ── Filter bar (hidden until day loaded) ──────────────────────── %>
+        <div class="card shadow-sm mb-4 d-none" id="arFilterBar">
+            <div class="card-body py-3">
+                <div class="d-flex flex-wrap gap-3 align-items-end">
+
+                    <div>
+                        <label class="form-label form-label-sm mb-1" for="arFilterType">Type</label>
+                        <select class="form-select form-select-sm" id="arFilterType" style="min-width:120px">
+                            <option value="">All</option>
+                            <option value="invited">Invited</option>
+                            <option value="walkin">Walk-In</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="form-label form-label-sm mb-1" for="arFilterRsvp">RSVP</label>
+                        <select class="form-select form-select-sm" id="arFilterRsvp" style="min-width:120px">
+                            <option value="">All</option>
+                            <option value="yes">Yes</option>
+                            <option value="maybe">Maybe</option>
+                            <option value="no">No</option>
+                            <option value="pending">Pending</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="form-label form-label-sm mb-1" for="arFilterAttended">Attended</label>
+                        <select class="form-select form-select-sm" id="arFilterAttended" style="min-width:130px">
+                            <option value="">All</option>
+                            <option value="yes">Attended</option>
+                            <option value="no">Not Recorded</option>
+                        </select>
+                    </div>
+
+                    <div class="ms-auto">
+                        <label class="form-label form-label-sm mb-1" for="arFilterName">Search name</label>
+                        <input type="text" class="form-control form-control-sm" id="arFilterName"
+                               placeholder="Last, First…" autocomplete="off" style="min-width:160px" />
+                    </div>
+
+                    <div class="align-self-end">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="arFilterReset">
+                            <i class="fa-solid fa-xmark me-1"></i>Reset
+                        </button>
+                    </div>
+
+                    <div class="align-self-end text-muted small" id="arFilterCount"></div>
+
+                </div>
+            </div>
+        </div>
+
+        
+
+        <%# ── Loader ────────────────────────────────────────────────────── %>
+        <div id="arLoader" class="text-center py-5 d-none">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading…</span>
+            </div>
+        </div>
+
+        <%# ── Report accordion ──────────────────────────────────────────── %>
+        <div id="arAccordion" class="accordion d-none"></div>
+
+        <%# ── Empty state ───────────────────────────────────────────────── %>
+        <div id="arEmpty" class="at-empty-state d-none">
+            <i class="fa-solid fa-calendar-xmark fa-2x mb-2 d-block"></i>
+            No shifts found for this day.
+        </div>
+
+    </main>
+
+
+
+    <input type="hidden" id="arCsrfToken" value="<%= csrfToken %>" />
+
+    <%- include('../partials/footer') %>
+
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/attendanceReport.js"></script>
+
+</body>
+</html>

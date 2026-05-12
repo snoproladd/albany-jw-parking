@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Invitation Tracker — Albany JW Parking</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" href="/styles/styles.css" />
+    <link rel="stylesheet" href="/styles/invitationTracker.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+</head>
+
+<body class="min-vh-100 bg-body-tertiary" data-authed="true">
+
+    <%- include('../partials/header') %>
+
+    <%
+        const _ROLE_ORDER = ['NON_REGISTERED','REGISTERED','DESK', 'KEYMAN','OVERSEER','ASSISTANT_ADMIN','ADMIN'];
+        const _role       = typeof userRole        !== 'undefined' ? userRole        : 'NON_REGISTERED';
+        const _perms      = typeof userPermissions !== 'undefined' ? userPermissions : {};
+        const roleLevel   = _ROLE_ORDER.indexOf(_role);
+        const isAtLeast   = (r) => roleLevel >= _ROLE_ORDER.indexOf(r);
+        const can         = (permission) => !!(_perms[_role] && _perms[_role][permission]);
+    %>
+
+    <main class="container-fluid py-4 px-4">
+
+        <%# ── Stats (calculated first so header can reference totalPending) ── %>
+        <%
+            const totalSent    = invitations.length;
+            const totalYes     = invitations.filter(i => i.response === 'yes').length;
+            const totalNo      = invitations.filter(i => i.response === 'no').length;
+            const totalMaybe   = invitations.filter(i => i.response === 'maybe').length;
+            const totalPending = invitations.filter(i => !i.responded_at && !i.revoked).length;
+            const totalRevoked = invitations.filter(i => i.revoked).length;
+        %>
+
+        <%# ── Page header ──────────────────────────────────────────────────── %>
+        <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+            <h1 class="h3 mb-0">
+                <i class="fa-solid fa-chart-gantt me-2"></i>Invitation Tracker
+            </h1>
+            <div class="d-flex gap-2 flex-wrap">
+                <div id="itRemindWrap" data-pending-count="<%= totalPending %>"></div>
+                <a href="/oversight/tools/messaging" class="btn btn-primary btn-sm">
+                    <i class="fa-solid fa-paper-plane me-1"></i>Messaging Center
+                </a>
+                <a href="/oversight/tools" class="btn btn-secondary btn-sm">
+                    <i class="fa-solid fa-arrow-left me-1"></i>Tools
+                </a>
+            </div>
+        </div>
+
+        <%# ── Summary stats ─────────────────────────────────────────────────── %>
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-sm-4 col-md-2">
+                <div class="it-stat-card">
+                    <div class="it-stat-value" id="itStatTotal"><%= totalSent %></div>
+                    <div class="it-stat-label">Total Sent</div>
+                </div>
+            </div>
+            <div class="col-6 col-sm-4 col-md-2">
+                <div class="it-stat-card it-stat-card--yes">
+                    <div class="it-stat-value" id="itStatYes"><%= totalYes %></div>
+                    <div class="it-stat-label">Yes</div>
+                </div>
+            </div>
+            <div class="col-6 col-sm-4 col-md-2">
+                <div class="it-stat-card it-stat-card--no">
+                    <div class="it-stat-value" id="itStatNo"><%= totalNo %></div>
+                    <div class="it-stat-label">No</div>
+                </div>
+            </div>
+            <div class="col-6 col-sm-4 col-md-2">
+                <div class="it-stat-card it-stat-card--maybe">
+                    <div class="it-stat-value" id="itStatMaybe"><%= totalMaybe %></div>
+                    <div class="it-stat-label">Maybe</div>
+                </div>
+            </div>
+            <div class="col-6 col-sm-4 col-md-2" id="itStatPendingWrap">
+                <div class="it-stat-card it-stat-card--pending">
+                    <div class="it-stat-value" id="itStatPending"><%= totalPending %></div>
+                    <div class="it-stat-label" id="itStatPendingLabel">Pending</div>
+                </div>
+            </div>
+            <div class="col-6 col-sm-4 col-md-2">
+                <div class="it-stat-card it-stat-card--revoked">
+                    <div class="it-stat-value" id="itStatRevoked"><%= totalRevoked %></div>
+                    <div class="it-stat-label">Revoked</div>
+                </div>
+            </div>
+        </div>
+
+        <%# ── Filters (all client-side) ────────────────────────────────────── %>
+        <div class="card shadow-sm mb-4">
+            <div class="card-body py-3">
+                <div class="d-flex flex-wrap gap-3 align-items-end">
+
+                    <div>
+                        <label class="form-label form-label-sm mb-1" for="itBatchFilter">Campaign</label>
+                        <div class="d-flex gap-1 align-items-center">
+                            <select class="form-select form-select-sm it-filter-select" id="itBatchFilter">
+                                <option value="">All campaigns</option>
+                                <% batches.forEach(function(b) { %>
+                                    <option value="<%= b.id %>"
+                                        data-response-needed="<%= b.response_needed ? '1' : '0' %>"
+                                        data-parent-id="<%= b.parent_batch_id || '' %>"
+                                        <%= activeBatch === b.id ? 'selected' : '' %>>
+                                        <%= b.parent_batch_id ? '↳ ' : '' %><%= b.name %><% if (b.day_label) { %> — <%= b.day_label %><% } %>
+                                    </option>
+                                <% }); %>
+                            </select>
+                            <% if (canManageCampaigns) { %>
+                                <button type="button"
+                                    class="btn btn-outline-secondary btn-sm d-none"
+                                    id="iteditcampaignbtn"
+                                    title="edit this campaign">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>
+                            <% } %>
+                        </div>
+                        <div id="itBatchGroupNote" class="form-text d-none"></div>
+                    </div>
+
+                    <div>
+                        <label class="form-label form-label-sm mb-1" for="itDayFilter">Convention Day</label>
+                        <select class="form-select form-select-sm it-filter-select" id="itDayFilter">
+                            <option value="">All days</option>
+                            <% conventionDays.forEach(function(day) { %>
+                                <option value="<%= day.id %>"
+                                    <%= activeDay === day.id ? 'selected' : '' %>>
+                                    <%= day.label %> — <%= new Date(day.convention_date).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', timeZone:'UTC' }) %>
+                                </option>
+                            <% }); %>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="form-label form-label-sm mb-1" for="itResponseFilter">Response</label>
+                        <select class="form-select form-select-sm it-filter-select" id="itResponseFilter">
+                            <option value="all"     <%= activeResponse === 'all'     ? 'selected' : '' %>>All</option>
+                            <option value="pending" <%= activeResponse === 'pending' ? 'selected' : '' %>>Pending</option>
+                            <option value="yes"     <%= activeResponse === 'yes'     ? 'selected' : '' %>>Yes</option>
+                            <option value="maybe"   <%= activeResponse === 'maybe'   ? 'selected' : '' %>>Maybe</option>
+                            <option value="no"      <%= activeResponse === 'no'      ? 'selected' : '' %>>No</option>
+                        </select>
+                    </div>
+
+                    <div class="d-flex align-items-end gap-2">
+                        <div class="form-check mb-1">
+                            <input class="form-check-input" type="checkbox" id="itIncludeRevoked"
+                                   <%= includeRevoked ? 'checked' : '' %> />
+                            <label class="form-check-label form-label-sm" for="itIncludeRevoked">
+                                Show revoked
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="itResetFilters">
+                            <i class="fa-solid fa-xmark me-1"></i>Reset
+                        </button>
+                    </div>
+
+                    <%# Live name search %>
+                    <div class="ms-auto">
+                        <label class="form-label form-label-sm mb-1" for="itSearch">Search name</label>
+                        <input type="text" class="form-control form-control-sm" id="itSearch"
+                               placeholder="Last, First…" autocomplete="off" />
+                    </div>
+
+                    <%# Add-to-campaign shortcut %>
+                    <div id="itAddVolunteersWrap" class="<%= activeBatch ? '' : 'd-none' %>">
+                        <a href="#" class="btn btn-outline-primary btn-sm" id="itAddVolunteersBtn">
+                            <i class="fa-solid fa-user-plus me-1"></i>Add volunteers to this campaign
+                        </a>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <%# ── Table ─────────────────────────────────────────────────────────── %>
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                <% if (invitations.length === 0) { %>
+                    <div class="text-center text-muted py-5">
+                        <i class="fa-solid fa-inbox fa-2x mb-3 d-block"></i>
+                        No invitations found for the current filters.
+                    </div>
+                <% } else { %>
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm it-table mb-0" id="itTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="it-col-name">Volunteer</th>
+                                    <th class="it-col-campaign">Campaign</th>
+                                    <th class="it-col-event">Event / Shift</th>
+                                    <th class="it-col-channel">Ch.</th>
+                                    <th class="it-col-sent">Sent</th>
+                                    <th class="it-col-reminded">Reminded</th>
+                                    <th class="it-col-response">Response</th>
+                                    <th class="it-col-responded">Responded</th>
+                                    <th class="it-col-actions"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="itTableBody">
+                                <% invitations.forEach(function(inv) { %>
+                                    <%
+                                        const volName  = inv.lastName + ', ' + inv.firstName;
+                                        const sentDate = new Date(inv.sent_at).toLocaleDateString('en-US', {
+                                            month:'short', day:'numeric', year:'numeric'
+                                        });
+                                        const respDate = inv.responded_at
+                                            ? new Date(inv.responded_at).toLocaleDateString('en-US', {
+                                                month:'short', day:'numeric', year:'numeric'
+                                              })
+                                            : null;
+                                    %>
+                                    <tr class="it-row <%= inv.revoked ? 'it-row--revoked' : '' %>"
+                                        data-id="<%= inv.id %>"
+                                        data-name="<%= volName.toLowerCase() %>"
+                                        data-revoked="<%= inv.revoked ? 'true' : 'false' %>"
+                                        data-batch-id="<%= inv.batch_id || '' %>"
+                                        data-day-id="<%= inv.convention_day_id || '' %>"
+                                        data-response="<%= inv.response || (inv.revoked ? 'revoked' : 'pending') %>"
+                                        data-reminder-count="<%= inv.reminder_count || 0 %>"
+                                        data-last-reminded-channel="<%= inv.last_reminded_channel || '' %>"
+                                        data-vol-status="<%= inv.volunteer_status || '' %>"
+                                        data-volunteer-id="<%= inv.volunteer_id %>">
+
+                                        <td class="it-col-name fw-semibold"><%= volName %></td>
+
+                                        <td class="it-col-campaign">
+                                            <% if (inv.batch_name) { %>
+                                                <% if (inv.parent_batch_id) { %>
+                                                    <span class="text-muted small me-1" title="follow-up campaign">↳</span>
+                                                <% } %>
+                                                <span class="small"><%= inv.batch_name %></span>
+                                            <% } else { %>
+                                                <span class="text-muted">—</span>
+                                            <% } %>
+                                        </td>
+
+                                        <td class="it-col-event">
+                                            <% if (inv.day_label) { %>
+                                                <span class="it-event-label">
+                                                    <% if (inv.event_type_color) { %>
+                                                        <span class="it-event-dot"
+                                                              data-color="<%= inv.event_type_color %>"></span>
+                                                    <% } %>
+                                                    <%= inv.day_label %>
+                                                    <% if (inv.shift_label) { %>
+                                                        <span class="text-muted">
+                                                            · <%= inv.event_type_name %>
+                                                            (<%= inv.shift_label %>)
+                                                        </span>
+                                                    <% } %>
+                                                </span>
+                                            <% } else { %>
+                                                <span class="text-muted">—</span>
+                                            <% } %>
+                                        </td>
+
+                                        <td class="it-col-channel text-center">
+                                            <% if (inv.channel === 'email' || inv.channel === 'both') { %>
+                                                <i class="fa-solid fa-envelope text-info me-1" title="Email"></i>
+                                            <% } %>
+                                            <% if (inv.channel === 'sms' || inv.channel === 'both') { %>
+                                                <i class="fa-solid fa-comment-sms text-success" title="SMS"></i>
+                                            <% } %>
+                                        </td>
+
+                                        <td class="it-col-sent text-muted small"><%= sentDate %></td>
+
+                                        <td class="it-col-reminded text-muted small">
+                                            <% if (inv.last_reminded_at && inv.reminder_count > 0) { %>
+                                                <% let remindedDate = new Date(inv.last_reminded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); %>
+                                                <%= remindedDate %>
+                                                <span class="ms-1">
+                                                    <% if (inv.last_reminded_channel === 'email' || inv.last_reminded_channel === 'both') { %>
+                                                        <i class="fa-solid fa-envelope text-info me-1" title="Email"></i>
+                                                    <% } %>
+                                                    <% if (inv.last_reminded_channel === 'sms' || inv.last_reminded_channel === 'both') { %>
+                                                        <i class="fa-solid fa-comment-sms text-success" title="SMS"></i>
+                                                    <% } %>
+                                                </span>
+                                                <% if (inv.reminder_count > 1) { %>
+                                                    <span class="badge bg-secondary ms-1" title="<%= inv.reminder_count %> reminders sent">×<%= inv.reminder_count %></span>
+                                                <% } %>
+                                            <% } else { %>
+                                                <span class="text-muted">—</span>
+                                            <% } %>
+                                        </td>
+
+                                        <td class="it-col-response">
+                                            <% if (inv.revoked) { %>
+                                                <span class="badge it-badge-revoked">
+                                                    <i class="fa-solid fa-ban me-1"></i>Revoked
+                                                </span>
+                                            <% } else if (!inv.responded_at) { %>
+                                                <span class="badge it-badge-pending">Pending</span>
+                                            <% } else if (inv.response === 'yes') { %>
+                                                <span class="badge it-badge-yes">
+                                                    <i class="fa-solid fa-circle-check me-1"></i>Yes
+                                                </span>
+                                            <% } else if (inv.response === 'no') { %>
+                                                <span class="badge it-badge-no">
+                                                    <i class="fa-solid fa-circle-xmark me-1"></i>No
+                                                </span>
+                                            <% } else if (inv.response === 'maybe') { %>
+                                                <span class="badge it-badge-maybe">
+                                                    <i class="fa-solid fa-circle-question me-1"></i>Maybe
+                                                </span>
+                                            <% } %>
+                                        </td>
+
+                                        <td class="it-col-responded text-muted small">
+                                            <%= respDate || '—' %>
+                                        </td>
+
+                                        <td class="it-col-actions text-end">
+                                            <% if (inv.revoked) { %>
+                                                <button type="button"
+                                                    class="btn btn-outline-success btn-sm it-reinstate-btn"
+                                                    data-id="<%= inv.id %>"
+                                                    data-name="<%= volName %>"
+                                                    title="Reinstate invitation">
+                                                    <i class="fa-solid fa-rotate-left"></i>
+                                                </button>
+                                            <% } else { %>
+                                                <button type="button"
+                                                    class="btn btn-outline-danger btn-sm it-revoke-btn"
+                                                    data-id="<%= inv.id %>"
+                                                    data-name="<%= volName %>"
+                                                    title="Revoke invitation">
+                                                    <i class="fa-solid fa-ban"></i>
+                                                </button>
+                                            <% } %>
+                                        </td>
+
+                                    </tr>
+                                <% }); %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } %>
+            </div>
+        </div>
+
+        <p class="text-muted small mt-2 mb-0" id="itRowCount">
+            Showing <%= invitations.length %> invitation<%= invitations.length !== 1 ? 's' : '' %>
+        </p>
+        <div class="it-toast-container">
+            <div id="itNoBatchToast" class="toast align-items-center text-bg-secondary border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="fa-solid fa-circle-info me-2"></i>Please select a Campaign to remind volunteers.
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <% if (canManageCampaigns) { %>
+    <%# ── Edit Campaign Modal ─────────────────────────────────────────────── %>
+    <div class="modal fade" id="itEditCampaignModal" tabindex="-1" aria-labelledby="itEditCampaignModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="itEditCampaignModalLabel">
+                        <i class="fa-solid fa-pen-to-square me-2"></i>Edit Campaign
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+
+                    <%# Name %>
+                    <div class="mb-3">
+                        <label class="form-label" for="itEditName">Campaign name</label>
+                        <input type="text" class="form-control" id="itEditName" maxlength="150" />
+                    </div>
+
+                    <%# Subject %>
+                    <div class="mb-3">
+                        <label class="form-label" for="itEditSubject">Subject <span class="text-muted fw-normal small">(email only)</span></label>
+                        <input type="text" class="form-control" id="itEditSubject" maxlength="255" />
+                    </div>
+
+                    <%# Body %>
+                    <div class="mb-3">
+                        <label class="form-label" for="itEditBody">Message body</label>
+                        <textarea class="form-control" id="itEditBody" rows="7"></textarea>
+                    </div>
+
+                    <%# Parent batch %>
+                    <div class="mb-3">
+                        <label class="form-label" for="itEditParent">
+                            Parent campaign
+                            <span class="text-muted fw-normal small ms-1">— leave blank for a top-level campaign</span>
+                        </label>
+                        <select class="form-select" id="itEditParent">
+                            <option value="">— None (top-level) —</option>
+                            <% batches.forEach(function(b) { %>
+                                <option value="<%= b.id %>">
+                                    <%= b.name %><% if (b.day_label) { %> — <%= b.day_label %><% } %>
+                                </option>
+                            <% }); %>
+                        </select>
+                        <div class="form-text" id="itEditParentHint"></div>
+                    </div>
+
+                    <%# Response needed %>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="itEditResponseNeeded" />
+                            <label class="form-check-label" for="itEditResponseNeeded">
+                                Response needed
+                                <span class="text-muted fw-normal small ms-1">— uncheck for info-only sends</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <%# Active toggle %>
+                    <div class="mb-1 p-3 border rounded" style="border-color: var(--bs-danger-border-subtle) !important; background: var(--bs-danger-bg-subtle);">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch" id="itEditActive" />
+                            <label class="form-check-label" for="itEditActive">
+                                Campaign active
+                                <span class="text-muted fw-normal small ms-1">— inactive campaigns are hidden from filters</span>
+                            </label>
+                        </div>
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <span class="text-danger small me-auto d-none" id="itEditError"></span>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="itEditSaveBtn">
+                        <i class="fa-solid fa-floppy-disk me-1"></i>Save changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script id="it-batches-data" type="application/json"><%- JSON.stringify(batches) %></script>
+    <% } %>
+
+    <input type="hidden" id="itCsrfToken" value="<%= csrfToken %>" />
+
+    <%- include('../partials/footer') %>
+
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/invitationTracker.js"></script>
+
+</body>
+</html>

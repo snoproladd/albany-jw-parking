@@ -1,7 +1,7 @@
 {
   "name": "parking",
-  "version": "1.0.0",
-  "description": "Express app with Kickbox email validation and Azure Key Vault integration",
+  "version": "2.5.3",
+  "description": "Volunteer management platform for Albany JW Regional Convention parking operations — registration, scheduling, messaging, and oversight tools.",
   "homepage": "https://github.com/snoproladd/legendary-waffle#readme",
   "bugs": {
     "url": "https://github.com/snoproladd/legendary-waffle/issues"
@@ -19,37 +19,39 @@
   },
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon --require ./set-local-env.js index.js",
-    "build": "vite build"
+    "dev": "nodemon --require ./set-local-env.js index.js"
   },
   "dependencies": {
     "@azure/identity": "^4.13.0",
     "@azure/keyvault-secrets": "^4.10.0",
     "@azure/msal-common": "^15.13.3",
     "@azure/msal-node": "^2.16.3",
-    "bind": "^0.1.6",
     "body-parser": "^2.2.1",
-    "build": "^0.1.4",
+    "bootstrap": "^5.3.8",
+    "connect-redis": "^9.0.0",
     "cookie": "^1.1.1",
     "cookie-parser": "^1.4.7",
     "csurf": "^1.2.2",
-    "docker": "^0.2.14",
-    "dotenv": "^17.2.3",
+    "dotenv": "^17.3.1",
     "ejs": "^3.1.10",
+    "eslint": "^10.2.1",
     "express": "^5.2.1",
     "express-session": "^1.18.2",
     "helmet": "^8.1.0",
     "imask": "^7.6.1",
-    "jq": "^1.7.2",
-    "kickbox": "^2.0.4",
     "mssql": "^12.2.0",
+    "nodemailer": "^8.0.4",
     "path-to-regexp": "^8.3.0",
+    "redis": "^5.11.0",
     "twilio": "^5.10.7",
     "uuid": "9.0.0"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",
-    "nodemon": "^3.1.11",
+    "nodemon": "^3.1.14",
     "vite": "^7.2.7"
+  },
+  "engines": {
+    "node": ">=24.0.0"
   }
 }

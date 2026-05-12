@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Decently Export — Albany JW Parking</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+  </head>
+
+  <body class="min-vh-100 bg-body-tertiary" data-authed="true">
+    <%- include('../partials/header') %>
+
+    <main class="container py-4">
+      <div class="row justify-content-center">
+        <div class="col-12 col-md-8 col-lg-6">
+
+          <section class="card shadow-lg admin-console-card">
+            <header class="card-header text-center">
+              <h1 class="h2 my-2">
+                <i class="fa-solid fa-file-csv me-2"></i>Decently Export
+              </h1>
+              <p class="mb-0">
+                Generate a CSV of volunteers not yet sent to Decently.
+                Download marks them as exported.
+              </p>
+            </header>
+
+            <div class="card-body">
+
+              <% if (success) { %>
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                  <i class="fa-solid fa-circle-check me-2"></i><%= success %>
+                  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+              <% } %>
+              <% if (error) { %>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                  <i class="fa-solid fa-triangle-exclamation me-2"></i><%= error %>
+                  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+              <% } %>
+
+              <% if (hasCache) { %>
+                <!-- Ready to download -->
+                <div class="alert alert-success">
+                  <i class="fa-solid fa-circle-check me-2"></i>
+                  <strong><%= rowCount %> volunteer<%= rowCount !== 1 ? 's' : '' %></strong>
+                  ready to export.
+                  Downloading will mark them as exported in the database.
+                </div>
+
+                <div class="d-flex gap-3 flex-wrap mb-3">
+                  
+                  <a  href="/oversight/tools/decently-export/download"
+                    class="btn btn-success"
+                  >
+                    <i class="fa-solid fa-download me-2"></i>Download CSV
+                  </a>
+                  <form action="/oversight/tools/decently-export" method="POST" class="d-inline">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                    <button type="submit" class="btn btn-outline-secondary">
+                      <i class="fa-solid fa-rotate me-2"></i>Regenerate
+                    </button>
+                  </form>
+                </div>
+
+                <p class="text-muted small">
+                  <i class="fa-solid fa-circle-info me-1"></i>
+                  The download link is valid for this session only.
+                  If you log out before downloading, you will need to regenerate.
+                </p>
+
+              <% } else { %>
+                <!-- Nothing generated yet -->
+                <p class="text-muted mb-4">
+                  Click Generate to query all volunteers who have not yet been
+                  exported to Decently. You will get a chance to review the count
+                  before downloading.
+                </p>
+
+                <form action="/oversight/tools/decently-export" method="POST">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                  <button type="submit" class="btn btn-primary">
+                    <i class="fa-solid fa-magnifying-glass me-2"></i>Generate Export
+                  </button>
+                </form>
+
+              <% } %>
+
+              <div class="mt-4">
+                <a href="/oversight/tools" class="btn btn-outline-secondary btn-sm">
+                  <i class="fa-solid fa-arrow-left me-1"></i>Back to Oversight Tools
+                </a>
+              </div>
+
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <%- include('../partials/footer') %>
+
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>

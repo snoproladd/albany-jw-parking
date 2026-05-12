@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Oversight Tools — Albany JW Parking</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+  <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+  <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+</head>
+
+<body class="min-vh-100 bg-body-tertiary" data-authed="true">
+  <%- include('../partials/header') %>
+
+  <%
+    const _ROLE_ORDER = ['NON_REGISTERED','REGISTERED', 'DESK', 'KEYMAN','OVERSEER','ASSISTANT_ADMIN','ADMIN'];
+    const _role       = typeof userRole        !== 'undefined' ? userRole        : 'NON_REGISTERED';
+    const _perms      = typeof userPermissions !== 'undefined' ? userPermissions : {};
+    const roleLevel   = _ROLE_ORDER.indexOf(_role);
+    const isAtLeast   = (r) => roleLevel >= _ROLE_ORDER.indexOf(r);
+    const can         = (permission) => !!(_perms[_role] && _perms[_role][permission]);
+  %>
+
+  <main class="container-fluid py-4 px-4">
+    <div class="row justify-content-center">
+      <div class="col-12 col-xl-10 col-xxl-9">
+
+        <section class="card shadow-lg admin-console-card">
+          <header class="card-header text-center">
+            <h1 class="h2 my-2">
+              <i class="fa-solid fa-screwdriver-wrench me-2"></i>Oversight Tools
+            </h1>
+            <p class="mb-0">Tools available based on your role.</p>
+          </header>
+
+          <div class="card-body py-4 px-4">
+
+            <%# ══════════════════════════════════════════════
+                1. COMMUNICATIONS
+            ══════════════════════════════════════════════ %>
+            <% if (can('accessAdminConsole')) { %>
+              <h2 class="tools-group-heading">
+                <i class="fa-solid fa-paper-plane me-2"></i>Communications
+              </h2>
+              <div class="row g-4 mb-5">
+
+                <div class="col-12 col-sm-6 col-lg-4">
+                  <div class="admin-tool-card h-100">
+                    <div class="admin-tool-icon text-primary">
+                      <i class="fa-solid fa-envelope-open-text"></i>
+                    </div>
+                    <h3 class="admin-tool-title">Messaging Center</h3>
+                    <p class="admin-tool-desc">Send convention invites via email or SMS. Manage campaigns, templates, and track RSVP responses.</p>
+                    <a href="/oversight/tools/messaging" class="btn btn-primary admin-tool-btn">
+                      Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                    </a>
+                  </div>
+                </div>
+
+                <div class="col-12 col-sm-6 col-lg-4">
+                  <div class="admin-tool-card h-100">
+                    <div class="admin-tool-icon text-success">
+                      <i class="fa-solid fa-chart-gantt"></i>
+                    </div>
+                    <h3 class="admin-tool-title">Invitation Tracker</h3>
+                    <p class="admin-tool-desc">View sent invitations, filter by campaign or response, and identify volunteers who haven't responded.</p>
+                    <a href="/oversight/tools/messaging/tracker" class="btn btn-success admin-tool-btn">
+                      Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                    </a>
+                  </div>
+                </div>
+
+                <div class="col-12 col-sm-6 col-lg-4">
+                  <div class="admin-tool-card h-100">
+                    <div class="admin-tool-icon text-warning">
+                      <i class="fa-solid fa-link"></i>
+                    </div>
+                    <h3 class="admin-tool-title">Send Reset Link</h3>
+                    <p class="admin-tool-desc">Send password reset or account completion links to volunteers with incomplete registrations.</p>
+                    <a href="/oversight/tools/send-reset" class="btn btn-warning admin-tool-btn">
+                      Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                    </a>
+                  </div>
+                </div>
+
+              </div>
+            <% } %>
+
+            <%# ══════════════════════════════════════════════
+                2. VOLUNTEER MANAGEMENT
+            ══════════════════════════════════════════════ %>
+            <% if (can('manageRoles') || can('editVolunteerInfo') || can('createVolunteerAccounts') || isAtLeast('OVERSEER')) { %>
+              <h2 class="tools-group-heading">
+                <i class="fa-solid fa-users me-2"></i>Volunteer Management
+              </h2>
+              <div class="row g-4 mb-5">
+
+                <% if (can('editVolunteerInfo')) { %>
+                  <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="admin-tool-card h-100">
+                      <div class="admin-tool-icon text-success">
+                        <i class="fa-solid fa-id-card"></i>
+                      </div>
+                      <h3 class="admin-tool-title">Edit Volunteer</h3>
+                      <p class="admin-tool-desc">View and edit volunteer account information including contact, congregation, and spiritual details.</p>
+                      <a href="/editVolunteer" class="btn btn-success admin-tool-btn">
+                        Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                      </a>
+                    </div>
+                  </div>
+                <% } %>
+
+                <% if (can('createVolunteerAccounts')) { %>
+                  <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="admin-tool-card h-100">
+                      <div class="admin-tool-icon text-info">
+                        <i class="fa-solid fa-user-plus"></i>
+                      </div>
+                      <h3 class="admin-tool-title">Create Volunteer</h3>
+                      <p class="admin-tool-desc">Manually create a new volunteer account. A temporary password is set automatically.</p>
+                      <a href="/oversight/tools/create-volunteer" class="btn btn-info admin-tool-btn">
+                        Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                      </a>
+                    </div>
+                  </div>
+                <% } %>
+
+                <% if (can('manageRoles') || isAtLeast('OVERSEER')) { %>
+                  <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="admin-tool-card h-100">
+                      <div class="admin-tool-icon text-primary">
+                        <i class="fa-solid fa-user-shield"></i>
+                      </div>
+                      <h3 class="admin-tool-title">Role Management</h3>
+                      <p class="admin-tool-desc">Assign and update volunteer roles. Roles control what each user can see and do across the site.</p>
+                      <a href="/oversight/roles" class="btn btn-primary admin-tool-btn">
+                        Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                      </a>
+                    </div>
+                  </div>
+                <% } %>
+
+              </div>
+            <% } %>
+            <%# ══════════════════════════════════════════════
+                3. REPORTS
+            ══════════════════════════════════════════════ %>
+            <% if (isAtLeast('OVERSEER')) { %>
+              <h2 class="tools-group-heading">
+                <i class="fa-solid fa-chart-bar me-2"></i>Reports
+              </h2>
+              <div class="row g-4 mb-5">
+
+                <div class="col-12 col-sm-6 col-lg-4">
+                  <div class="admin-tool-card h-100">
+                    <div class="admin-tool-icon text-info">
+                      <i class="fa-solid fa-clipboard-list"></i>
+                    </div>
+                    <h3 class="admin-tool-title">Volunteer Application Status</h3>
+                    <p class="admin-tool-desc">View all volunteers with their registration status and identify accounts with missing required information.</p>
+                    <a href="/oversight/tools/reports" class="btn btn-info admin-tool-btn">
+                      Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                    </a>
+                  </div>
+                </div>
+
+              </div>
+            <% } %>
+            <%# ══════════════════════════════════════════════
+                4. SCHEDULING
+            ══════════════════════════════════════════════ %>
+            <% if (can('manageShifts') || can('accessAdminConsole')) { %>
+              <h2 class="tools-group-heading">
+                <i class="fa-regular fa-calendar-days me-2"></i>Scheduling
+              </h2>
+              <div class="row g-4 mb-5">
+
+                <% if (can('manageShifts')) { %>
+                  <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="admin-tool-card h-100">
+                      <div class="admin-tool-icon text-warning">
+                        <i class="fa-regular fa-clock"></i>
+                      </div>
+                      <h3 class="admin-tool-title">Timelines</h3>
+                      <p class="admin-tool-desc">Define convention days, sessions, and event shifts. Mark shifts as invitable and attach locations.</p>
+                      <a href="/oversight/tools/timelines" class="btn btn-warning admin-tool-btn">
+                        Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                      </a>
+                    </div>
+                  </div>
+                <% } %>
+
+                <% if (can('manageShifts')) { %>
+                  <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="admin-tool-card h-100">
+                      <div class="admin-tool-icon text-primary">
+                        <i class="fa-solid fa-map-pin"></i>
+                      </div>
+                      <h3 class="admin-tool-title">Locations</h3>
+                      <p class="admin-tool-desc">Define parking locations and zones for the current year. Used to build shift assignments.</p>
+                      <a href="/oversight/tools/locationsAndTasks" class="btn btn-primary admin-tool-btn">
+                        Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                      </a>
+                    </div>
+                  </div>
+                <% } %>
+
+                <% if (can('accessAdminConsole')) { %>
+                  <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="admin-tool-card h-100">
+                      <div class="admin-tool-icon text-secondary">
+                        <i class="fa-solid fa-tags"></i>
+                      </div>
+                      <h3 class="admin-tool-title">Event Types</h3>
+                      <p class="admin-tool-desc">Manage shift categories used in scheduling — Ingress, Egress, Security, and more.</p>
+                      <a href="/oversight/tools/timelines/event-types" class="btn btn-secondary admin-tool-btn">
+                        Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                      </a>
+                    </div>
+                  </div>
+                <% } %>
+
+              </div>
+            <% } %>
+
+            <%# ══════════════════════════════════════════════
+                4. ATTENDANCE
+            ══════════════════════════════════════════════ %>
+            <% if (can('logAttendance') || can('viewAttendance')) { %>
+              <h2 class="tools-group-heading">
+                <i class="fa-solid fa-clipboard-check me-2"></i>Attendance
+              </h2>
+              <div class="row g-4 mb-5">
+
+                <% if (can('logAttendance')) { %>
+                  <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="admin-tool-card h-100">
+                      <div class="admin-tool-icon text-info">
+                        <i class="fa-solid fa-clipboard-check"></i>
+                      </div>
+                      <h3 class="admin-tool-title">Check-In Tool</h3>
+                      <p class="admin-tool-desc">Log volunteer attendance shift by shift. Mark arrivals, add walk-ins, and record notes in real time.</p>
+                      <a href="/oversight/tools/attendance/checkin" class="btn btn-info admin-tool-btn">
+                        Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                      </a>
+                    </div>
+                  </div>
+                <% } %>
+
+                <% if (can('viewAttendance')) { %>
+                  <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="admin-tool-card h-100">
+                      <div class="admin-tool-icon text-primary">
+                        <i class="fa-solid fa-chart-bar"></i>
+                      </div>
+                      <h3 class="admin-tool-title">Attendance Report</h3>
+                      <p class="admin-tool-desc">View attendance across all shifts for a convention day. See invited, RSVP, attended, and no-show counts per shift.</p>
+                      <a href="/oversight/tools/attendance/report" class="btn btn-primary admin-tool-btn">
+                        Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                      </a>
+                    </div>
+                  </div>
+                <% } %>
+
+              </div>
+            <% } %>
+
+            <%# ══════════════════════════════════════════════
+                5. DECENTLY SYNC
+            ══════════════════════════════════════════════ %>
+            <% if (can('accessAdminConsole')) { %>
+              <h2 class="tools-group-heading">
+                <i class="fa-solid fa-rotate me-2"></i>Decently Sync
+              </h2>
+              <div class="row g-4 mb-5">
+
+                <div class="col-12 col-sm-6 col-lg-4">
+                  <div class="admin-tool-card h-100">
+                    <div class="admin-tool-icon text-secondary">
+                      <i class="fa-solid fa-file-export"></i>
+                    </div>
+                    <h3 class="admin-tool-title">Export to Decently</h3>
+                    <p class="admin-tool-desc">Download a CSV of volunteers not yet exported and mark them as exported in the system.</p>
+                    <a href="/oversight/tools/decently-export" class="btn btn-secondary admin-tool-btn">
+                      Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                    </a>
+                  </div>
+                </div>
+
+                <div class="col-12 col-sm-6 col-lg-4">
+                  <div class="admin-tool-card h-100">
+                    <div class="admin-tool-icon text-success">
+                      <i class="fa-solid fa-file-import"></i>
+                    </div>
+                    <h3 class="admin-tool-title">Import from Decently</h3>
+                    <p class="admin-tool-desc">Upload an approved volunteer CSV from Decently. Matches records, sets active status, and flags new volunteers.</p>
+                    <a href="/oversight/tools/decently-import" class="btn btn-success admin-tool-btn">
+                      Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                    </a>
+                  </div>
+                </div>
+
+              </div>
+            <% } %>
+
+            <%# ══════════════════════════════════════════════
+                6. ADMINISTRATION
+            ══════════════════════════════════════════════ %>
+            <% if (can('manageRoles') && isAtLeast('ADMIN')) { %>
+              <h2 class="tools-group-heading">
+                <i class="fa-solid fa-gear me-2"></i>Administration
+              </h2>
+              <div class="row g-4 mb-2">
+
+                <div class="col-12 col-sm-6 col-lg-4">
+                  <div class="admin-tool-card h-100">
+                    <div class="admin-tool-icon text-danger">
+                      <i class="fa-solid fa-sliders"></i>
+                    </div>
+                    <h3 class="admin-tool-title">Permission Matrix</h3>
+                    <p class="admin-tool-desc">Override default role permissions at runtime. Changes take effect on next login.</p>
+                    <a href="/oversight/tools/permissions" class="btn btn-danger admin-tool-btn">
+                      Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                    </a>
+                  </div>
+                </div>
+
+              </div>
+            <% } %>
+
+          </div><!-- /.card-body -->
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <%- include('../partials/footer') %>
+
+  <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

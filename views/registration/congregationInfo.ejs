@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Congregation Information</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Georama:wght@100..900&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:wght@100..900&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+
+  <body
+    class="min-vh-100 d-flex justify-content-center align-items-center bg-body-tertiary entry-body"
+  >
+    <main class="container body-container">
+      <div class="row justify-content-center">
+        <div class="col-12 col-md-10 col-lg-8 form-entry">
+          <section id="congregation-card" class="card shadow-lg entry-card">
+            <header class="card-header text-center">
+              <h1 class="text-center mb-1">
+                Tell us about your congregation and responsibilities.
+              </h1>
+              <p class="footnote mt-3">
+                <span class="asterix">*</span> Indicates required fields
+              </p>
+            </header>
+
+            <div class="card-body">
+              <form action="/submitCongregation" method="POST" id="account-form">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+                <!-- ============================================================
+                     SECTION 1 — Assigned?
+                     ============================================================ -->
+                <fieldset
+                  class="border-0 p-0 mt-3 scroll-section"
+                  id="congAssigned-section"
+                >
+                  <legend class="form-label mb-2">
+                    Is your Congregation assigned to this convention?
+                    <span class="asterix">*</span>
+                  </legend>
+
+                  <div class="form-text mb-2">
+                    Select <strong>Yes</strong> if your congregation is assigned.
+                  </div>
+
+                  <div
+                    class="d-flex flex-wrap align-items-center gap-4"
+                    role="radiogroup"
+                  >
+                    <div class="form-check">
+                      <input
+                        class="form-check-input"
+                        type="radio"
+                        name="congAssigned"
+                        id="congAssignedYes"
+                        value="yes"
+                        required
+                      />
+                      <label class="form-check-label" for="congAssignedYes"
+                        >Yes</label
+                      >
+                    </div>
+
+                    <div class="form-check">
+                      <input
+                        class="form-check-input"
+                        type="radio"
+                        name="congAssigned"
+                        id="congAssignedNo"
+                        value="no"
+                      />
+                      <label class="form-check-label" for="congAssignedNo"
+                        >No</label
+                      >
+                    </div>
+                  </div>
+                </fieldset>
+
+                <!-- ============================================================
+                     SECTION 2 — Assigned Congregation (Yes)
+                     ============================================================ -->
+                <div class="mb-3 d-none scroll-section" id="congregation-group">
+                  <label for="congregation" class="form-label">
+                    Which congregation are you assigned to?
+                    <span class="asterix">*</span>
+                  </label>
+
+                  <select
+                    id="congregation"
+                    name="congregation"
+                    class="form-control"
+                    required
+                  >
+                 <option value="">Select your congregation:</option>
+                  <% if (congregations && congregations.length) { %>
+                    <% congregations
+                        .filter(c => c && c.trim() !== "")
+                        .forEach(c => { %>
+                          <option value="<%= c %>"><%= c %></option>
+                    <% }) %>
+                  <% } else { %>
+                    <option disabled>No congregations found</option>
+                  <% } %>
+                  </select>
+                </div>
+
+                <!-- ============================================================
+                     SECTION 3 — Visiting Congregation (No)
+                     ============================================================ -->
+                <div class="mb-3 d-none scroll-section" id="congregationEnter">
+                  <label for="congregationOtherCity" class="form-label">
+                    Which congregation are you visiting from?
+                    <span class="asterix">*</span>
+                  </label>
+
+                  <label class="input-label">City <span class="asterix">*</span></label>
+                  <input
+                    type="text"
+                    id="congregationOtherCity"
+                    name="congregationOtherCity"
+                    class="form-control"
+                  />
+
+                  <label class="input-label">State <span class="asterix">*</span></label>
+                  <input
+                    type="text"
+                    id="congregationOtherState"
+                    name="congregationOtherState"
+                    class="form-control"
+                  />
+
+                  <label class="input-label">Language <span class="asterix">*</span></label>
+                  <input
+                    type="text"
+                    id="congregationOtherLang"
+                    name="congregationOtherLang"
+                    class="form-control"
+                  />
+                </div>
+
+                <!-- ============================================================
+                     SECTION 4 — Extra Convention?
+                     ============================================================ -->
+                <fieldset
+                  class="border-0 p-0 mt-3 scroll-section"
+                  id="extraAttend-section"
+                >
+                  <legend class="form-label mb-2">
+                    Will you be attending an additional convention this year?
+                    <span class="asterix">*</span>
+                  </legend>
+
+                  <div class="form-text mb-2">
+                    Choose <strong>Yes</strong> if you plan to attend another one.
+                  </div>
+
+                  <div class="d-flex flex-wrap align-items-center gap-4">
+                    <div class="form-check">
+                      <input
+                        class="form-check-input"
+                        type="radio"
+                        name="extraAttend"
+                        id="extraAttendYes"
+                        value="yes"
+                        required
+                      />
+                      <label class="form-check-label" for="extraAttendYes"
+                        >Yes</label
+                      >
+                    </div>
+
+                    <div class="form-check">
+                      <input
+                        class="form-check-input"
+                        type="radio"
+                        name="extraAttend"
+                        id="extraAttendNo"
+                        value="no"
+                      />
+                      <label class="form-check-label" for="extraAttendNo"
+                        >No</label
+                      >
+                    </div>
+                  </div>
+                </fieldset>
+              </form>
+            </div>
+
+            <!-- ============================================================
+                 STICKY SUBMIT + UNIFIED STATUS FOOTER
+                 ============================================================ -->
+            <div class="scroll-section sticky-action">
+
+              <!-- All section-specific statuses -->
+              <div id="section-status" class="w-100">
+
+                <!-- Section 1 -->
+                <div id="congAssignedStatus" class="inputStatus"></div>
+
+                <!-- Section 2 -->
+                <div id="congregationStatus" class="inputStatus"></div>
+
+                <!-- Section 3 -->
+                <div id="congregationOtherCityStatus" class="inputStatus"></div>
+                <div id="congregationOtherStateStatus" class="inputStatus"></div>
+                <div id="congregationOtherLangStatus" class="inputStatus"></div>
+
+                <!-- Section 4 -->
+                <div id="extraAttendStatus" class="inputStatus"></div>
+              </div>
+
+              <!-- Global submit status -->
+              <div id="submitStatus" class="status mt-2 submitStatus"></div>
+
+              <!-- Submit button -->
+              <button type="submit" class="btn btn-primary w-100 mt-1">
+                Submit
+              </button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <!-- JS -->
+    <script src="/js/formListeners.js"></script>
+    <script src="/lib/autocomplete.js"></script>
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/mobileDropdownSafety.js"></script>
+  </body>
+</html>

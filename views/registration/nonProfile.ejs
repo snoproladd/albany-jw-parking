@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Enter Information</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" href="/styles/styles.css" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+
+  <body
+    class="min-vh-100 d-flex justify-content-center align-items-center bg-body-tertiary entry-body"
+  >
+    <main class="container body-container">
+      <div class="row justify-content-center">
+        <div class="col-12 col-md-10 col-lg-8 form-entry">
+
+          <section id="nonProfileCard" class="card shadow-lg entry-card">
+            <header class="card-header text-center">
+              <h1 class="text-center mb-1">Enter Information</h1>
+              <p class="footnote mt-3">
+                <span class="asterix">*</span> Indicates required fields
+              </p>
+            </header>
+
+            <div class="card-body">
+              <form action="/submit-nonProfileInfo" method="POST" id="account-form">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+                <!-- ============================================================
+                     SECTION 1 — Name Fields
+                     ============================================================ -->
+                <div class="scroll-section mb-3" id="namesSection">
+                  <label for="firstName" class="form-label">
+                    First Name:<span class="asterix">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="firstName"
+                    name="firstName"
+                    class="form-control"
+                    aria-describedby="firstNameStatus"
+                    required
+                  />
+
+                  <label for="lastName" class="form-label mt-3">
+                    Last Name:<span class="asterix">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="lastName"
+                    name="lastName"
+                    class="form-control"
+                    aria-describedby="lastNameStatus"
+                    required
+                  />
+
+                  <label for="suffix" class="form-label mt-3">Suffix (optional)</label>
+                  <input
+                    type="text"
+                    id="suffix"
+                    name="suffix"
+                    class="form-control"
+                  />
+                </div>
+
+                <!-- ============================================================
+                     SECTION 2 — Email Fields
+                     ============================================================ -->
+                <div class="scroll-section mb-3" id="emailsSection">
+                  <label for="email" class="form-label">
+                    Email:<span class="asterix">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    class="form-control"
+                    placeholder="Enter your email"
+                    aria-describedby="emailStatus"
+                    required
+                  />
+
+                  <label for="confirmEmail" class="form-label mt-3">
+                    Confirm Email:<span class="asterix">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    id="confirmEmail"
+                    name="confirmEmail"
+                    class="form-control"
+                    placeholder="Confirm your email"
+                    aria-describedby="confirmEmailStatus"
+                    required
+                  />
+                </div>
+
+              </form>
+            </div>
+
+            <!-- ============================================================
+                 UNIFIED STICKY FOOTER (Statuses + Submit)
+                 ============================================================ -->
+            <div class="scroll-section sticky-action">
+
+              <!-- All status messages for both sections -->
+              <div id="section-status" class="w-100">
+
+                <!-- Name statuses -->
+                <div id="firstNameStatus" class="inputStatus"></div>
+                <div id="lastNameStatus" class="inputStatus"></div>
+
+                <!-- Email statuses -->
+                <div id="emailStatus" class="inputStatus"></div>
+                <div id="confirmEmailStatus" class="inputStatus"></div>
+              </div>
+
+              <!-- Submit status -->
+              <div id="submitStatus" class="status mt-2 submitStatus"></div>
+
+              <!-- Submit button (outside form, JS triggers requestSubmit) -->
+              <button
+                type="submit"
+                class="btn btn-primary w-100 mt-1"
+                id="nonProfile-next"
+              >
+                Next
+              </button>
+
+              <!-- Form progression message -->
+              <!-- <div
+                id="nonProfile-next-status"
+                class="form-text text-muted mt-2"
+                aria-live="polite"
+              >
+                Complete email validation to continue.
+              </div> -->
+
+            </div>
+
+          </section>
+        </div>
+      </div>
+      <!-- Identity Confirmation Modal -->
+      <div class="modal fade" id="confirmIdentityModal" tabindex="-1" aria-labelledby="confirmIdentityLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="confirmIdentityLabel">
+                <i class="fa-solid fa-circle-question text-warning me-2"></i>Is this you?
+              </h5>
+            </div>
+            <div class="modal-body">
+              <p>We found an unfinished profile for this email address registered to:</p>
+              <p class="fw-bold fs-5 text-center my-3" id="confirmIdentityName"></p>
+              <p class="mb-0">If this is you, press <strong>Yes, that's me</strong> to continue your registration. Otherwise press <strong>No</strong> to use a different email address.</p>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-secondary" id="confirmIdentityNo">No</button>
+              <button type="button" class="btn btn-primary" id="confirmIdentityYes">Yes, that's me</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Resume Registration Modal -->
+      <div class="modal fade" id="resumeModal" tabindex="-1" aria-labelledby="resumeModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="resumeModalLabel">
+                <i class="fa-solid fa-circle-check text-success me-2"></i>Profile Found
+              </h5>
+            </div>
+            <div class="modal-body">
+              <p class="mb-0">We found your unfinished profile. Would you like to pick up where you left off?</p>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-secondary" id="resumeUpdateBtn">Update my info</button>
+              <a href="/volunteerIn?disable=true" class="btn btn-primary">Continue Registration</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Custom JS -->
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/email-validation.js"></script>
+    <script src="/js/formListeners.js"></script>
+    <script src="/js/nonProfile.js"></script>
+  </body>
+</html>

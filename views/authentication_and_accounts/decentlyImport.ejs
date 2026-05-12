@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Decently Import — Albany JW Parking</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+    <meta name="csrf-token" content="<%= csrfToken %>" />
+  </head>
+
+  <body class="min-vh-100 bg-body-tertiary" data-authed="true">
+    <%- include('../partials/header') %>
+
+    <main class="container py-4">
+      <div class="row justify-content-center">
+        <div class="col-12 col-lg-11 col-xl-10">
+
+          <section class="card shadow-lg admin-console-card">
+            <header class="card-header text-center">
+              <h1 class="h2 my-2">
+                <i class="fa-solid fa-file-import me-2"></i>Decently Import
+              </h1>
+              <p class="mb-0">
+                Upload an approved volunteer CSV from Decently to sync active status.
+              </p>
+            </header>
+
+            <div class="card-body">
+
+              <%# ── Phase 1: Upload ── %>
+              <div id="phase-upload">
+                <p class="text-muted mb-3">
+                  Upload the CSV exported from Decently. The file must contain
+                  <strong>Name</strong>, <strong>Email</strong>, and <strong>Phone</strong> columns.
+                </p>
+
+                <div class="mb-3">
+                  <label for="csvFileInput" class="form-label">Select CSV file</label>
+                  <input type="file" class="form-control" id="csvFileInput" accept=".csv" />
+                </div>
+
+                <button type="button" class="btn btn-primary" id="parseBtn" disabled>
+                  <i class="fa-solid fa-magnifying-glass me-2"></i>Parse &amp; Match
+                </button>
+
+                <div id="uploadStatus" class="mt-3"></div>
+              </div>
+
+              <%# ── Phase 2: Review ── %>
+              <div id="phase-review" class="d-none">
+
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <h2 class="h5 mb-0">Review Matches</h2>
+                  <button type="button" class="btn btn-outline-secondary btn-sm" id="resetBtn">
+                    <i class="fa-solid fa-rotate-left me-1"></i>Start Over
+                  </button>
+                </div>
+
+                <div id="reviewStatus" class="mb-3"></div>
+
+                <%# Exact matches %>
+                <div id="matchedSection" class="mb-4 d-none">
+                  <h3 class="h6 text-uppercase text-muted border-bottom pb-1 mb-2">
+                    <i class="fa-solid fa-circle-check text-success me-1"></i>
+                    Exact Matches <span class="badge bg-success ms-1" id="matchedCount">0</span>
+                  </h3>
+                  <p class="text-muted small mb-2">These will be marked <strong>active</strong> and logged as imported.</p>
+                  <div class="table-responsive">
+                    <table class="table table-sm table-hover align-middle" id="matchedTable">
+                      <thead class="table-light">
+                        <tr>
+                          <th>CSV Name</th>
+                          <th>CSV Email</th>
+                          <th>CSV Phone</th>
+                          <th>Matched To</th>
+                          <th>Via</th>
+                        </tr>
+                      </thead>
+                      <tbody></tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <%# Fuzzy matches — require manual selection %>
+                <div id="fuzzySection" class="mb-4 d-none">
+                  <h3 class="h6 text-uppercase text-muted border-bottom pb-1 mb-2">
+                    <i class="fa-solid fa-circle-question text-warning me-1"></i>
+                    Close Matches — Confirm or Skip <span class="badge bg-warning text-dark ms-1" id="fuzzyCount">0</span>
+                  </h3>
+                  <p class="text-muted small mb-2">
+                    Select the correct DB record for each CSV row, or choose <em>Skip</em> to treat as unrecognised.
+                  </p>
+                  <div class="table-responsive">
+                    <table class="table table-sm table-hover align-middle" id="fuzzyTable">
+                      <thead class="table-light">
+                        <tr>
+                          <th>CSV Name</th>
+                          <th>CSV Email</th>
+                          <th>CSV Phone</th>
+                          <th>Map to volunteer</th>
+                        </tr>
+                      </thead>
+                      <tbody></tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <%# DB volunteers not in CSV — will be marked inactive %>
+                <div id="inactiveSection" class="mb-4 d-none">
+                  <h3 class="h6 text-uppercase text-muted border-bottom pb-1 mb-2">
+                    <i class="fa-solid fa-circle-minus text-secondary me-1"></i>
+                    Not in CSV — Will Be Marked Inactive <span class="badge bg-secondary ms-1" id="inactiveCount">0</span>
+                  </h3>
+                  <p class="text-muted small mb-2">
+                    These volunteers are in the database but not in the uploaded CSV.
+                    They will be set to <strong>inactive</strong> for the current year.
+                  </p>
+                  <div class="table-responsive">
+                    <table class="table table-sm table-hover align-middle" id="inactiveTable">
+                      <thead class="table-light">
+                        <tr>
+                          <th>Name</th>
+                          <th>Email</th>
+                          <th>Phone</th>
+                        </tr>
+                      </thead>
+                      <tbody></tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <%# CSV rows with no DB match — offered for creation after apply %>
+                <div id="unmatchedCsvSection" class="mb-4 d-none">
+                  <h3 class="h6 text-uppercase text-muted border-bottom pb-1 mb-2">
+                    <i class="fa-solid fa-circle-xmark text-danger me-1"></i>
+                    No DB Match Found <span class="badge bg-danger ms-1" id="unmatchedCsvCount">0</span>
+                  </h3>
+                  <p class="text-muted small mb-2">
+                    These names are in the CSV but could not be matched to any DB volunteer.
+                    After applying, you will be offered the option to create accounts for them.
+                  </p>
+                  <div class="table-responsive">
+                    <table class="table table-sm table-hover align-middle" id="unmatchedCsvTable">
+                      <thead class="table-light">
+                        <tr>
+                          <th>CSV Name</th>
+                          <th>CSV Email</th>
+                          <th>CSV Phone</th>
+                        </tr>
+                      </thead>
+                      <tbody></tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div class="d-flex gap-2 mt-4">
+                  <button type="button" class="btn btn-success" id="applyBtn">
+                    <i class="fa-solid fa-check me-2"></i>Apply Import
+                  </button>
+                  <div id="applyStatus" class="align-self-center ms-2"></div>
+                </div>
+              </div>
+
+            </div>
+          </section>
+
+          <div class="mt-3">
+            <a href="/oversight/tools" class="btn btn-secondary btn-sm">
+              <i class="fa-solid fa-arrow-left me-1"></i>Back to Oversight Tools
+            </a>
+          </div>
+
+        </div>
+      </div>
+    </main>
+
+  <%# ── Phase 3: Create Unmatched ── %>
+<div class="modal fade" id="createUnmatchedModal" tabindex="-1"
+  aria-labelledby="createUnmatchedModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title h5" id="createUnmatchedModalLabel">
+          <i class="fa-solid fa-user-plus me-2"></i>Create Unrecognised Volunteers
+        </h2>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3">
+          These volunteers appeared in the CSV but have no matching record.
+          Email and phone will be validated before creation. Invalid rows will be flagged.
+        </p>
+        <div id="createUnmatchedList"></div>
+        <div id="createAllStatus" class="mt-3"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="skipCreateBtn">
+          Skip — don't create
+        </button>
+        <button type="button" class="btn btn-success" id="createAllBtn">
+          <i class="fa-solid fa-user-plus me-2"></i>Validate &amp; Create All
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%# ── Phase 4: Send Welcome Links ── %>
+<div class="modal fade" id="sendWelcomeModal" tabindex="-1"
+  aria-labelledby="sendWelcomeModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h2 class="modal-title h5" id="sendWelcomeModalLabel">
+          <i class="fa-solid fa-paper-plane me-2"></i>Send Welcome &amp; Password Links
+        </h2>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3">
+          Accounts have been created. Send each volunteer a link to set their password and log in.
+        </p>
+        <div id="sendWelcomeList"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+    <%- include('../partials/footer') %>
+
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/decentlyImport.js"></script>
+  </body>
+</html>

@@ -1,5 +1,11 @@
-
-</main> <!-- Ensure this matches the opening <main> in your layout -->
+<button
+  id="scrollToTopBtn"
+  class="btn btn-secondary"
+  aria-label="Scroll to top"
+  title="Back to top"
+>
+  <i class="fa-solid fa-chevron-up"></i>
+</button>
 
 <footer>
   <p class="footer-text">
@@ -14,11 +20,11 @@
     This website is not sponsored, created, or controlled by Jehovah's Witnesses or www.JW.org,
     legally known as the Watch Tower Bible and Tract Society of Pennsylvania.
   </p>
+  <p class="footer-text">v<%= typeof appVersion !== 'undefined' ? appVersion : '—' %></p>
 </footer>
 
-<!-- If you have client-side JS, reference the actual JS file under your domain -->
-<!-- Example: -->
-<!-- <script src="/static/js/main.js" defer></script> -->
-
-</body>
-</html>
+<script src="/js/scrollToTop.js"></script>
+<% if (typeof nav !== 'undefined' && nav && nav.isLoggedIn) { %>
+  <script src="/js/sessionKeepAlive.js"></script>
+  <script src="/js/bfcacheGuard.js"></script>
+<% } %>

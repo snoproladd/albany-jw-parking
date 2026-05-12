@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Convention Invite — Albany JW Parking</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" href="/styles/styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+</head>
+
+<body class="min-vh-100 bg-body-tertiary">
+
+    <%- include('../partials/header') %>
+
+    <%
+        /**
+         * Format a TIME value to h:MM AM/PM.
+         * mssql TIME columns come back as epoch-anchored Date objects —
+         * always use UTC hours/minutes.
+         * @param {Date|string|null} val
+         * @returns {string}
+         */
+        function fmtTime(val) {
+            if (!val) return '';
+            const d = new Date(val);
+            if (isNaN(d.valueOf())) return String(val).slice(0, 5);
+            const h  = d.getUTCHours();
+            const m  = String(d.getUTCMinutes()).padStart(2, '0');
+            const ap = h >= 12 ? 'PM' : 'AM';
+            return `${h % 12 || 12}:${m} ${ap}`;
+        }
+
+        const hasEvent = !!invitation.convention_day_id;
+        const hasShift = !!invitation.shift_id;
+        const isSms    = invitation.channel === 'sms' || invitation.channel === 'both';
+
+        const eventDate = hasEvent
+            ? new Date(invitation.convention_date).toLocaleDateString('en-US', {
+                weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC'
+              })
+            : null;
+    %>
+
+    <main class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-12 col-sm-10 col-md-7 col-lg-5">
+
+                <div class="card shadow-lg">
+
+                    <%# ── Card header ─────────────────────────────────────── %>
+                    <div class="card-header text-center py-3">
+                        <div class="mb-2">
+                            <i class="fa-solid fa-car-side fa-2x text-primary"></i>
+                        </div>
+                        <h1 class="h4 mb-0">Albany JW Parking</h1>
+                        <p class="text-muted small mb-0">Convention Volunteer Invite</p>
+                    </div>
+
+                    <div class="card-body p-4">
+
+                        <% if (invitation.revoked) { %>
+
+                            <%# ── Revoked ────────────────────────────────────── %>
+                            <div class="text-center py-3">
+                                <i class="fa-solid fa-ban fa-3x text-danger mb-3"></i>
+                                <h2 class="h5">This invitation is no longer active</h2>
+                                <p class="text-muted">
+                                    Hi <%= invitation.firstName %>, this invite link has been
+                                    deactivated by the parking team.
+                                </p>
+                                <p class="text-muted small">
+                                    If you think this is a mistake, please contact your
+                                    parking overseer directly.
+                                </p>
+                            </div>
+
+                        <% } else if (responded) { %>
+
+                            <%# ── Just submitted ────────────────────────────── %>
+                            <div class="text-center py-3">
+                                <i class="fa-solid fa-circle-check fa-3x text-success mb-3"></i>
+                                <h2 class="h5">Response recorded!</h2>
+                                <p class="text-muted">
+                                    Thanks, <%= invitation.firstName %>. Your response has been
+                                    saved and the parking team has been notified.
+                                </p>
+                                <p class="text-muted small">You can close this page.</p>
+                            </div>
+
+                        <% } else if (alreadyResponded) { %>
+
+                            <%# ── Already responded ──────────────────────────── %>
+                            <div class="text-center py-3">
+                                <i class="fa-solid fa-circle-info fa-3x text-info mb-3"></i>
+                                <h2 class="h5">Already responded</h2>
+                                <p class="text-muted">
+                                    Hi <%= invitation.firstName %>, we already have your response
+                                    on file — <strong><%= invitation.response %></strong>.
+                                </p>
+                                <p class="text-muted small">
+                                    If you need to change your answer, contact your parking
+                                    overseer directly.
+                                </p>
+                            </div>
+
+                        <% } else { %>
+
+                            <%# ── Response form ──────────────────────────────── %>
+                            <h2 class="h5 mb-1">Hi <%= invitation.firstName %>,</h2>
+                            <p class="text-muted small mb-3">
+                                You received this invite from the Albany JW Convention parking team.
+                            </p>
+
+                            <%# ── Event context block ────────────────────────── %>
+                            <% if (hasEvent) { %>
+                                <div class="ir-event-block mb-4">
+
+                                    <div class="ir-event-header">
+                                        <i class="fa-regular fa-calendar-days me-2 text-primary"></i>
+                                        <span class="fw-semibold"><%= invitation.day_label %></span>
+                                    </div>
+
+                                    <div class="ir-event-date"><%= eventDate %></div>
+
+                                    <% if (hasShift) { %>
+                                        <div class="ir-event-details mt-2">
+
+                                            <div class="ir-event-detail-row">
+                                                <span class="ir-detail-label">
+                                                    <i class="fa-regular fa-clock me-1"></i>Time
+                                                </span>
+                                                <span class="ir-detail-value">
+                                                    <%= fmtTime(invitation.shift_start) %> – <%= fmtTime(invitation.shift_end) %>
+                                                </span>
+                                            </div>
+
+                                            <% if (invitation.event_type_name) { %>
+                                                <div class="ir-event-detail-row">
+                                                    <span class="ir-detail-label">
+                                                        <i class="fa-solid fa-tag me-1"></i>Type
+                                                    </span>
+                                                    <span class="ir-detail-value">
+                                                        <% if (invitation.event_type_color) { %>
+                                                            <span class="ir-type-dot"
+                                                                data-color="<%= invitation.event_type_color %>"></span>
+                                                        <% } %>
+                                                        <%= invitation.event_type_name %>
+                                                        <% if (invitation.shift_label) { %>
+                                                            <span class="text-muted">(<%= invitation.shift_label %>)</span>
+                                                        <% } %>
+                                                    </span>
+                                                </div>
+                                            <% } %>
+
+                                            <% if (invitation.location_name) { %>
+                                                <div class="ir-event-detail-row">
+                                                    <span class="ir-detail-label">
+                                                        <i class="fa-solid fa-map-pin me-1"></i>Location
+                                                    </span>
+                                                    <span class="ir-detail-value">
+                                                        <%= invitation.location_name %>
+                                                    </span>
+                                                </div>
+                                            <% } %>
+
+                                        </div>
+                                    <% } else { %>
+                                        <div class="ir-event-detail-row mt-2">
+                                            <span class="ir-detail-label">
+                                                <i class="fa-regular fa-clock me-1"></i>Program
+                                            </span>
+                                            <span class="ir-detail-value">
+                                                <%= fmtTime(invitation.program_start) %> – <%= fmtTime(invitation.program_end) %>
+                                            </span>
+                                        </div>
+                                    <% } %>
+
+                                </div>
+                            <% } %>
+
+                            <%# ── Message body ───────────────────────────────── %>
+                            <% if (invitation.message_subject) { %>
+                                <p class="fw-semibold mb-2"><%= invitation.message_subject %></p>
+                            <% } %>
+
+                            <% if (invitation.message_body) { %>
+                                <div class="mc-invite-body mb-4">
+                                    <%- invitation.message_body.replace(/\n/g, '<br>') %>
+                                </div>
+                            <% } %>
+
+                            <% if (error === 'invalid') { %>
+                                <div class="alert alert-danger py-2 small">
+                                    Please select a response before submitting.
+                                </div>
+                            <% } %>
+
+                            <hr class="my-3" />
+
+                            <p class="fw-semibold mb-3">
+                                Will you be volunteering<% if (hasShift) { %> for this shift<% } %> this year?
+                            </p>
+
+                            <form
+                                id="rsvpForm"
+                                action="/invite/respond/<%= encodeURIComponent(invitation.token) %>"
+                                method="POST"
+                            >
+                                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                                <%# Carry the channel so the JS can decide whether to stamp opt-in %>
+                                <input type="hidden" id="rsvpChannel"    value="<%= invitation.channel %>" />
+                                <input type="hidden" id="rsvpToken"      value="<%= invitation.token %>" />
+                                <input type="hidden" id="rsvpCsrf"       value="<%= csrfToken %>" />
+                                <input type="hidden" id="rsvpResponse"   name="response" value="" />
+
+                                <div class="d-grid gap-2">
+
+                                    <button type="button" class="btn btn-success btn-lg rsvp-btn"
+                                            data-response="yes">
+                                        <i class="fa-solid fa-circle-check me-2"></i>Yes, I'll be there
+                                    </button>
+
+                                    <button type="button" class="btn btn-warning btn-lg rsvp-btn"
+                                            data-response="maybe">
+                                        <i class="fa-solid fa-circle-question me-2"></i>Maybe — not sure yet
+                                    </button>
+
+                                    <button type="button" class="btn btn-outline-danger btn-lg rsvp-btn"
+                                            data-response="no">
+                                        <i class="fa-solid fa-circle-xmark me-2"></i>No, I can't make it
+                                    </button>
+
+                                </div>
+
+                                <%# SMS opt-in consent notice (shown only when invite was SMS or both) %>
+                                <% if (isSms) { %>
+                                    <p class="text-muted mt-3 mb-0 ir-sms-consent">
+                                        <i class="fa-solid fa-shield-halved me-1"></i>
+                                        By responding, you consent to receive SMS messages from the Albany JW
+                                        Convention parking team regarding your volunteer assignment.
+                                        Reply STOP at any time to opt out.
+                                    </p>
+                                <% } %>
+
+                            </form>
+
+                        <% } %>
+
+                    </div>
+
+                    <%# ── Card footer ─────────────────────────────────────── %>
+                    <div class="card-footer text-center text-muted small py-2">
+                        Albany JW Regional Convention Parking Team
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <%- include('../partials/footer') %>
+
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/inviteRespond.js"></script>
+
+</body>
+</html>

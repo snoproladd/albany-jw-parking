@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Login</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Bootstrap & theme styles -->
+  <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+  <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+  <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap"
+    rel="stylesheet"
+  />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap"
+    rel="stylesheet"
+  />
+</head>
+
+<body class="min-vh-100 d-flex justify-content-center align-items-center bg-body-tertiary entry-body" data-login-success="<%= loginSuccess ? 'true' : 'false' %>">
+  <main class="container body-container">
+    <div class="row justify-content-center">
+      <div class="col-12 col-md-10 col-lg-8 form-entry">
+        <!-- Card -->
+        <section id="login-card" class="card shadow-lg entry-card">
+          <header class="card-header text-center">
+            <h1 class="h3 my-2">Login</h1>
+          </header>
+          <div class="card-body">
+            <% if (typeof error === "string" && error) { %>
+              <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <%= error %>
+              </div>
+            <% } %>
+            <div id="login-status"></div>
+            <form action="/login" method="POST" id="account-form" novalidate>
+              <!-- CSRF token -->
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+              <!-- Email -->
+              <div class="mb-3">
+                <label for="email" class="form-label">
+                  Email <span class="asterix">*</span>
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  class="form-control"
+                  autocomplete="email"
+                  required
+                  value="<%= typeof email === 'string' ? email : '' %>"
+                />
+              </div>
+
+              <!-- Password -->
+              <div class="mb-3">
+                <label for="password" class="form-label">
+                  Password <span class="asterix">*</span>
+                </label>
+                <div class="input-group">
+                  <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    class="form-control"
+                    autocomplete="current-password"
+                    required
+                  />
+                  <!-- Optional eye icon (passwords.js toggle will just no-op if not present) -->
+                  <button
+                    class="btn btn-outline-secondary"
+                    type="button"
+                    id="togglePassword"
+                    aria-label="Show or hide password"
+                  >
+                    <i class="fa-solid fa-eye"></i>
+                  </button>
+                </div>
+                <div class="mt-2 text-end">
+                  <a href="/upgrade" class="small text-secondary">
+                    Forgot password?
+                  </a>
+                </div>
+                <div id="passwords-matched-status" class="status mt-2"></div>
+              </div>
+
+              <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3">
+                <div class="form-text mb-2 mb-md-0">
+                  Don’t have an account?
+                  <a href="/email-pass">Sign up</a>
+                  or
+                  <a href="/nonProfile">enter info only</a>.
+                </div>
+              </div>
+
+                <div class="d-flex justify-content-end gap-2">
+                  <a href="/" class="btn btn-outline-secondary">Cancel</a>
+                  <button type="submit" class="btn btn-primary">
+                    Login
+                  </button>
+             </div>
+           </form>
+           
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <!-- Scripts (all of these safely no-op if their expected forms/fields aren't present) -->
+  <script src="/js/loginSuccess.js"> </script>
+  <script src="/js/email-validation.js"></script>
+  <script src="/js/passwords.js"></script>
+  <script src="/js/formListeners.js"></script>
+  <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Send Links — Albany JW Parking</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+  </head>
+
+  <body class="min-vh-100 bg-body-tertiary" data-authed="true">
+    <%- include('../partials/header') %>
+
+    <main class="container py-4">
+      <div class="row justify-content-center">
+        <div class="col-12 admin-console-card">
+
+          <section class="card shadow-lg admin-console-card">
+            <header class="card-header text-center">
+              <h1 class="h2 my-2">
+                <i class="fa-solid fa-paper-plane me-2"></i>Send Links
+              </h1>
+              <p class="mb-0">
+                Send resume or password reset links to volunteers.
+              </p>
+            </header>
+
+            <div class="card-body">
+
+              <% if (success) { %>
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                  <i class="fa-solid fa-circle-check me-2"></i><%= success %>
+                  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+              <% } %>
+              <% if (error) { %>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                  <i class="fa-solid fa-triangle-exclamation me-2"></i><%= error %>
+                  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+              <% } %>
+
+              <%
+                /**
+                 * Compute per-channel cooldown state for a volunteer row.
+                 * Returns { emailCooldown, smsCooldown, emailLabel, smsLabel }
+                 * @param {Date|null} emailSent
+                 * @param {Date|null} smsSent
+                 */
+                function cooldownState(emailSent, smsSent) {
+                  const MS = 24 * 60 * 60 * 1000;
+                  function info(lastDate) {
+                    if (!lastDate) return { onCooldown: false, label: '' };
+                    const ms   = Date.now() - new Date(lastDate).getTime();
+                    if (ms >= MS) return { onCooldown: false, label: '' };
+                    const left = MS - ms;
+                    const hrs  = Math.floor(left / (60*60*1000));
+                    const mins = Math.floor((left % (60*60*1000)) / (60*1000));
+                    const label = hrs > 0 ? `${hrs}h ${mins > 0 ? mins+'m ' : ''}left` : `${mins}m left`;
+                    return { onCooldown: true, label };
+                  }
+                  return {
+                    email: info(emailSent),
+                    sms:   info(smsSent),
+                  };
+                }
+              %>
+
+              <!-- Tab toggle -->
+              <ul class="nav nav-tabs mb-3" role="tablist">
+                <li class="nav-item" role="presentation">
+                  <a
+                    class="nav-link <%= activeTab === 'draft' ? 'active' : '' %>"
+                    href="/oversight/tools/send-reset?tab=draft"
+                    role="tab"
+                  >
+                    <i class="fa-solid fa-hourglass-half me-1"></i>
+                    Draft Accounts
+                    <span class="badge bg-warning text-dark ms-1"><%= drafts.length %></span>
+                  </a>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <a
+                    class="nav-link <%= activeTab === 'registered' ? 'active' : '' %>"
+                    href="/oversight/tools/send-reset?tab=registered"
+                    role="tab"
+                  >
+                    <i class="fa-solid fa-user-check me-1"></i>
+                    Registered Accounts
+                    <span class="badge bg-success ms-1"><%= registered.length %></span>
+                  </a>
+                </li>
+              </ul>
+
+              <!-- Search -->
+              <div class="mb-3">
+                <input
+                  type="text"
+                  id="tableSearch"
+                  class="form-control"
+                  placeholder="Search by name or email..."
+                  autocomplete="off"
+                />
+              </div>
+
+              <!-- ══════════════════════════════════════════
+                   DRAFT TAB
+              ══════════════════════════════════════════ -->
+              <div id="tabDraft" class="<%= activeTab === 'draft' ? '' : 'd-none' %>">
+
+                <% if (drafts.length === 0) { %>
+                  <div class="alert alert-info">
+                    <i class="fa-solid fa-circle-info me-2"></i>
+                    No incomplete draft registrations found.
+                  </div>
+                <% } else { %>
+
+                  <div class="table-responsive">
+                    <table class="table table-hover align-middle" id="draftTable">
+                      <thead class="table-light">
+                        <tr>
+                          <th>Name</th>
+                          <th>Last step</th>
+                          <th>Email</th>
+                          <th>Phone</th>
+                          <th>Last updated</th>
+                          <th>Send resume link via</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <% drafts.forEach(v => { %>
+                          <%
+                            const name = [v.lastName, v.firstName].filter(Boolean).join(', ') || '—';
+                            const lastUpdated = v.last_updated
+                              ? new Date(v.last_updated).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                              : '—';
+                            const stepLabel = {
+                              emailPass:        'Email/password',
+                              volunteerIn:      'Phone',
+                              personalInfo:     'Personal info',
+                              congregationInfo: 'Congregation',
+                              spiritualInfo:    'Spiritual info',
+                              notes:            'Notes',
+                              formSummary:      'Summary',
+                            }[v.last_step] || v.last_step || '—';
+                            const cd = cooldownState(v.last_resume_email_sent_at, v.last_resume_sms_sent_at);
+                          %>
+                          <tr class="searchable-row">
+                            <td><strong><%= name %></strong></td>
+                            <td><span class="badge bg-warning text-dark"><%= stepLabel %></span></td>
+                            <td class="text-muted small"><%= v.email || '—' %></td>
+                            <td class="text-muted small"><%= v.phone || '—' %></td>
+                            <td class="text-muted small"><%= lastUpdated %></td>
+                            <td>
+                              <div class="d-flex gap-2 flex-wrap align-items-center">
+                                <% if (v.email) { %>
+                                  <% if (cd.email.onCooldown) { %>
+                                    <span class="text-muted small">
+                                      <i class="fa-solid fa-clock me-1"></i>Email — <%= cd.email.label %>
+                                    </span>
+                                  <% } else { %>
+                                    <form action="/oversight/tools/send-reset" method="POST">
+                                      <input type="hidden" name="_csrf"     value="<%= csrfToken %>" />
+                                      <input type="hidden" name="targetId"  value="<%= v.id %>" />
+                                      <input type="hidden" name="method"    value="email" />
+                                      <input type="hidden" name="linkType"  value="resume" />
+                                      <button type="submit" class="btn btn-sm btn-outline-primary">
+                                        <i class="fa-solid fa-envelope me-1"></i>Email
+                                      </button>
+                                    </form>
+                                  <% } %>
+                                <% } %>
+                                <% if (v.phone) { %>
+                                  <% if (cd.sms.onCooldown) { %>
+                                    <span class="text-muted small">
+                                      <i class="fa-solid fa-clock me-1"></i>SMS — <%= cd.sms.label %>
+                                    </span>
+                                  <% } else { %>
+                                    <form action="/oversight/tools/send-reset" method="POST">
+                                      <input type="hidden" name="_csrf"     value="<%= csrfToken %>" />
+                                      <input type="hidden" name="targetId"  value="<%= v.id %>" />
+                                      <input type="hidden" name="method"    value="phone" />
+                                      <input type="hidden" name="linkType"  value="resume" />
+                                      <button type="submit" class="btn btn-sm btn-outline-success">
+                                        <i class="fa-solid fa-comment-sms me-1"></i>SMS
+                                      </button>
+                                    </form>
+                                  <% } %>
+                                <% } %>
+                                <% if (!v.email && !v.phone) { %>
+                                  <span class="text-muted small">No contact info</span>
+                                <% } %>
+                              </div>
+                            </td>
+                          </tr>
+                        <% }) %>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <p class="text-muted small mt-2">
+                    <i class="fa-solid fa-circle-info me-1"></i>
+                    <%= drafts.length %> draft registration<%= drafts.length !== 1 ? 's' : '' %> found.
+                  </p>
+
+                <% } %>
+              </div>
+
+              <!-- ══════════════════════════════════════════
+                   REGISTERED TAB
+              ══════════════════════════════════════════ -->
+              <div id="tabRegistered" class="<%= activeTab === 'registered' ? '' : 'd-none' %>">
+
+                <% if (registered.length === 0) { %>
+                  <div class="alert alert-info">
+                    <i class="fa-solid fa-circle-info me-2"></i>
+                    No registered volunteers found.
+                  </div>
+                <% } else { %>
+
+                  <div class="table-responsive">
+                    <table class="table table-hover align-middle" id="registeredTable">
+                      <thead class="table-light">
+                        <tr>
+                          <th>Name</th>
+                          <th>Email</th>
+                          <th>Phone</th>
+                          <th>Send password reset via</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <% registered.forEach(v => { %>
+                          <%
+                            const name = [v.lastName, v.firstName].filter(Boolean).join(', ') || '—';
+                            const cd = cooldownState(v.last_reset_email_sent_at, v.last_reset_sms_sent_at);
+                          %>
+                          <tr class="searchable-row">
+                            <td><strong><%= name %></strong></td>
+                            <td class="text-muted small"><%= v.email || '—' %></td>
+                            <td class="text-muted small"><%= v.phone || '—' %></td>
+                            <td>
+                              <div class="d-flex gap-2 flex-wrap align-items-center">
+                                <% if (v.email) { %>
+                                  <% if (cd.email.onCooldown) { %>
+                                    <span class="text-muted small">
+                                      <i class="fa-solid fa-clock me-1"></i>Email — <%= cd.email.label %>
+                                    </span>
+                                  <% } else { %>
+                                    <form action="/oversight/tools/send-reset" method="POST">
+                                      <input type="hidden" name="_csrf"     value="<%= csrfToken %>" />
+                                      <input type="hidden" name="targetId"  value="<%= v.id %>" />
+                                      <input type="hidden" name="method"    value="email" />
+                                      <input type="hidden" name="linkType"  value="reset" />
+                                      <button type="submit" class="btn btn-sm btn-outline-primary">
+                                        <i class="fa-solid fa-envelope me-1"></i>Email
+                                      </button>
+                                    </form>
+                                  <% } %>
+                                <% } %>
+                                <% if (v.phone) { %>
+                                  <% if (cd.sms.onCooldown) { %>
+                                    <span class="text-muted small">
+                                      <i class="fa-solid fa-clock me-1"></i>SMS — <%= cd.sms.label %>
+                                    </span>
+                                  <% } else { %>
+                                    <form action="/oversight/tools/send-reset" method="POST">
+                                      <input type="hidden" name="_csrf"     value="<%= csrfToken %>" />
+                                      <input type="hidden" name="targetId"  value="<%= v.id %>" />
+                                      <input type="hidden" name="method"    value="phone" />
+                                      <input type="hidden" name="linkType"  value="reset" />
+                                      <button type="submit" class="btn btn-sm btn-outline-success">
+                                        <i class="fa-solid fa-comment-sms me-1"></i>SMS
+                                      </button>
+                                    </form>
+                                  <% } %>
+                                <% } %>
+                                <% if (!v.email && !v.phone) { %>
+                                  <span class="text-muted small">No contact info</span>
+                                <% } %>
+                              </div>
+                            </td>
+                          </tr>
+                        <% }) %>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <p class="text-muted small mt-2">
+                    <i class="fa-solid fa-circle-info me-1"></i>
+                    <%= registered.length %> registered volunteer<%= registered.length !== 1 ? 's' : '' %> found.
+                  </p>
+
+                <% } %>
+              </div>
+
+              <div class="mt-3">
+                <a href="/oversight/tools" class="btn btn-outline-secondary btn-sm">
+                  <i class="fa-solid fa-arrow-left me-1"></i>Back to Oversight Tools
+                </a>
+              </div>
+
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <%- include('../partials/footer') %>
+
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script nonce="<%= nonce %>">
+      document.getElementById('tableSearch').addEventListener('input', function () {
+        const term = this.value.toLowerCase();
+        document.querySelectorAll('.searchable-row').forEach(row => {
+          row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
+        });
+      });
+    </script>
+  </body>
+</html>

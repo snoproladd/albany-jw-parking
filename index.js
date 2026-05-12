@@ -1,855 +1,945 @@
-// =========================
 // index.js - Main Server
-// Purpose:
-//   - Boots Express with security, sessions, and CSP
-//   - Wires all page routes (GET/POST) and validation endpoints
-//   - Integrates Twilio (phone validation) and Kickbox (email verification)
-//   - Connects to Azure SQL via config helpers
-//   - Manages an in-memory volunteer cache with periodic refresh
-//
-// Works With:
-//   - ./src/config/azureConfig.js  → getConfig(), getSqlPool(), etc.
-//   - ./lib/dbSync.js             → DB CRUD helpers and cache loaders
-//   - ./routes/apiRoutes.js       → Additional API routes mounted at /api
-//   - /views/*.ejs                → Server-rendered pages
-//   - /public/*                   → Static assets and client-side JS
 // =========================
 
-//#region Imports & Core Setup
-import http from 'http';
-import express from 'express';
-import path, { dirname } from 'path';
-import helmet from 'helmet';
-import { fileURLToPath } from 'url';
-import crypto from 'crypto';
-import cookieParser from 'cookie-parser';
-import session from 'express-session';
-import csurf from 'csurf';
+import http from "http";
+import express from "express";
+import path, { dirname } from "path";
+import helmet from "helmet";
+import { fileURLToPath } from "url";
+import crypto from "crypto";
+import cookieParser from "cookie-parser";
+import session from "express-session";
+import csurf from "csurf";
+import { RedisStore } from "connect-redis";
+import { createClient } from "redis";
 
-import { DefaultAzureCredential } from '@azure/identity';
-import { SecretClient } from '@azure/keyvault-secrets';
+import { createRequire } from "module";
+import { getConfig, getSqlPool } from "./src/config/azureConfig.js";
+import { INCOMPATIBILITIES } from "./src/config/privilegeRules.js";
 
-import { getConfig, getSqlPool } from './src/config/azureConfig.js';
-import { getCongregations } from './lib/dbSync.js';
-import apiRoutes from './routes/apiRoutes.js';
+const require = createRequire(import.meta.url);
+const { version: APP_VERSION } = require("./package.json");
 
+// Routers
+import { createRegistrationRouter } from "./routes/registrationRoutes.js";
+import apiRoutes from "./routes/apiRoutes.js";
+import { loginRouter } from "./routes/accountRoutes.js";
+import upgradeRoutes from "./routes/upgradeRoutes.js";
+
+
+// Database helpers
+import * as db from "./lib/dbSync.js";
+
+import {oversightRouter} from "./routes/oversightRoutes.js";
+import { getBaseUrl, resetSmsClient } from "./lib/messaging.js";
+
+
+
+// Resolve paths
 const config = await getConfig();
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
-
-const isProd = config.NODE_ENV === 'production';
+const isProd = config.NODE_ENV === "production";
 const PORT = process.env.PORT || config.PORT || (isProd ? 80 : 3000);
-const HOST = '0.0.0.0';
-//#endregion
+const HOST = "0.0.0.0";
 
-//#region Logging Utilities
+// Logging helpers
 /**
- * Log helper for normal application messages.
- * @param {...any} args - Values to log.
+ * @param {...any} args
  */
 function log(...args) {
   console.log(`[${new Date().toISOString()}] [index.js]`, ...args);
 }
-
 /**
- * Log helper for error messages.
- * @param {...any} args - Error details to log.
+ * @param {...any} args
  */
 function logError(...args) {
   console.error(`[${new Date().toISOString()}] [index.js]`, ...args);
 }
-//#endregion
 
-//#region Crypto (Node Global Polyfill)
+// Mask credentials in logs (redis://:password@host -> redis://:***@host)
 /**
- * Ensure `globalThis.crypto` is available in Node.js environment.
- * Fallbacks to Node's `crypto` or `webcrypto` implementation if needed.
+ * @param {string} url
+ * @returns {string}
  */
-if (typeof globalThis.crypto === 'undefined') {
-  import('crypto')
+function maskRedisUrl(url) {
+  try {
+    return url.replace(/:(?:[^@]*)@/, ":***@");
+  } catch {
+    return "<redacted>";
+  }
+}
+
+// Build redis URL from either REDIS_URL (direct) or VALKEY_HOST + VALKEY_PASSWORD
+/**
+ * @returns {string | null}
+ */
+function resolveRedisUrl() {
+  const valkeyHost = process.env.VALKEY_HOST;
+  const valkeyPassword = process.env.VALKEY_PASSWORD;
+  const valkeyPort = process.env.VALKEY_PORT || 6379;
+
+  if (valkeyHost && valkeyPassword) {
+    const encPwd = encodeURIComponent(valkeyPassword);
+    return `redis://:${encPwd}@${valkeyHost}:${valkeyPort}`;
+  }
+
+  const directRedisUrl = config.REDIS_URL || process.env.REDIS_URL;
+  if (directRedisUrl) return directRedisUrl;
+
+  return null;
+}
+
+// ============================================================
+// Crypto Polyfill (for environments without globalThis.crypto)
+// ============================================================
+
+if (typeof globalThis.crypto === "undefined") {
+  import("crypto")
     .then(({ webcrypto, default: cjsCrypto }) => {
+      // @ts-ignore
       globalThis.crypto = webcrypto ?? cjsCrypto;
     })
-    .catch(err => logError('Failed to load Node crypto:', err));
+    .catch((err) => logError("Failed to load crypto:", err));
 }
-//#endregion
 
-//#region Azure Key Vault Setup
+// ============================================================
+// Twilio
+// ============================================================
+let twClient = null;
 /**
- * Azure Key Vault client for retrieving secrets.
- * Vault used: ApiStorage
- */
-const vaultName = 'ApiStorage';
-const vaultUrl = `https://${vaultName}.vault.azure.net`;
-const credential = new DefaultAzureCredential();
-const secretClient = new SecretClient(vaultUrl, credential);
-// (Currently not used directly here, but likely used in getConfig / elsewhere.)
-//#endregion
-
-//#region Twilio Initialization
-let twClient;
-
-/**
- * Lazily initialize and return a Twilio REST client instance.
- * Uses TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN from config.
- * @returns {Promise<any>} Twilio client instance.
+ * Initialize (or return cached) Twilio REST client.
+ * Throws if credentials are missing so callers get a clear error
+ * instead of a confusing SDK-level "username is required" failure.
+ *
+ * @returns {Promise<import('twilio').Twilio>}
  */
 async function initTwilio() {
   if (!twClient) {
-    log('Initializing Twilio...');
-    const mod = await import('twilio');
+    if (!config.TWILIO_ACCOUNT_SID || !config.TWILIO_AUTH_TOKEN) {
+      throw new Error('Twilio credentials not configured — check Key Vault secrets TwilioSID and TwilioAuthToken.');
+    }
+    const mod = await import("twilio");
     const twRoot = mod.default ?? mod;
     twClient = twRoot(config.TWILIO_ACCOUNT_SID, config.TWILIO_AUTH_TOKEN);
-    log('Twilio client initialized.');
   }
   return twClient;
 }
-//#endregion
 
-//#region Email Verification (Kickbox)
+// ============================================================
+// External service watchdog
+// ============================================================
+
 /**
- * Verify an email address using the Kickbox API.
+ * Periodically verify Twilio and SMTP connectivity.
+ * Resets cached clients on failure so the next caller triggers
+ * a fresh init rather than re-using a broken connection.
  *
- * @param {string} email - The email address to verify.
- * @param {Object} [options]
- * @param {number} [options.timeoutMs=8000] - Request timeout in milliseconds.
- * @returns {Promise<Object>} Kickbox verification response.
- * @throws {Error} When API key is missing, request fails, or times out.
+ * Twilio: lightweight accounts.fetch() — read-only, no cost.
+ * SMTP:   nodemailer transporter.verify() — opens a test connection.
+ *
+ * Intervals use .unref() so they don't block graceful shutdown.
+ *
+ * @returns {void}
+ */
+function startExternalServiceWatchdog() {
+  // ── Twilio — every 5 minutes ──────────────────────────────
+  const twilioInterval = setInterval(async () => {
+    try {
+      if (!twClient) return; // not yet initialized, skip
+      await twClient.api.accounts(config.TWILIO_ACCOUNT_SID).fetch();
+      log('Watchdog: Twilio OK.');
+    } catch (err) {
+      logError('Watchdog: Twilio check failed — resetting client:', err.message);
+      twClient = undefined;
+      resetSmsClient();
+    }
+  }, 5 * 60 * 1000);
+  twilioInterval.unref();
+
+  // ── SMTP — every 10 minutes ───────────────────────────────
+  const smtpInterval = setInterval(async () => {
+    const user = config.IONOS_SMTP_USER_INFO;
+    const pass = config.IONOS_SMTP_PASS;
+    const host = config.IONOS_SMTP_HOST;
+    const port = config.IONOS_SMTP_PORT;
+
+    if (!user || !pass || !host) {
+      logError('Watchdog: SMTP credentials not configured — skipping check.');
+      return;
+    }
+
+    let transporter;
+    try {
+      const nodemailer = (await import('nodemailer')).default ?? (await import('nodemailer'));
+      transporter = nodemailer.createTransport({
+        host, port: port || 587, secure: false,
+        auth: { user, pass },
+        tls: { rejectUnauthorized: false },
+      });
+      await transporter.verify();
+      log('Watchdog: SMTP OK.');
+    } catch (err) {
+      logError('Watchdog: SMTP check failed:', err.message);
+    } finally {
+      transporter?.close?.();
+    }
+  }, 10 * 60 * 1000);
+  smtpInterval.unref();
+}
+
+// ============================================================
+// Kickbox email verification
+// ============================================================
+
+/**
+ * Verify email via Kickbox API.
+ * @param {string} email
+ * @param {{timeoutMs?:number}} [options]
+ * @returns {Promise<any>}
  */
 async function verifyEmail(email, { timeoutMs = 8000 } = {}) {
-  if (!config.KICKBOX_API_KEY) {
-    throw new Error('KICKBOX_API_KEY missing');
-  }
+  if (!config.KICKBOX_API_KEY) throw new Error("KICKBOX_API_KEY missing");
 
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const url = new URL('https://api.kickbox.com/v2/verify');
-    url.searchParams.set('email', email);
-    url.searchParams.set('apikey', config.KICKBOX_API_KEY);
+    const url = new URL("https://api.kickbox.com/v2/verify");
+    url.searchParams.set("email", email);
+    url.searchParams.set("apikey", config.KICKBOX_API_KEY);
 
     const resp = await fetch(url.toString(), {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' },
+      method: "GET",
+      headers: { Accept: "application/json" },
       signal: controller.signal,
     });
 
-    if (!resp.ok) {
-      throw new Error(`Kickbox API error ${resp.status} ${resp.statusText}`);
-    }
+    if (!resp.ok) throw new Error(`Kickbox API error ${resp.status}`);
 
-    const data = await resp.json();
-    return data;
-  } catch (err) {
-    if (err.name === 'AbortError') {
-      throw new Error('Kickbox API request timed out');
-    }
-    throw err;
+    return await resp.json();
   } finally {
     clearTimeout(t);
   }
 }
-//#endregion
 
-//#region Volunteer Cache & DB Interval
+// ============================================================
+// Volunteer Cache Auto-Refresh
+// ============================================================
+
+/** @type {NodeJS.Timeout | null} */
 let dbUpdateInterval = null;
 
 /**
- * Refresh the in-memory volunteer cache from the database.
- *
- * @param {Function} loadVolunteerCacheFn - Function that loads the volunteer cache from DB.
- * @param {import('express').Express} appInstance - Express app instance to store cache on `locals`.
- * @returns {Promise<void>}
+ * Start periodic volunteer cache refresh.
+ * @param {() => Promise<any>} loadFn
+ * @param {import("express").Express} appInstance
  */
-async function refreshVolunteerCache(loadVolunteerCacheFn, appInstance) {
-  const cache = await loadVolunteerCacheFn();
-  appInstance.locals.volunteerCache = cache;
-}
-
-/**
- * Start periodic database-backed volunteer cache updates.
- *
- * @param {Function} loadVolunteerCacheFn - Function that loads the volunteer cache from DB.
- * @param {import('express').Express} appInstance - Express app instance to store cache on `locals`.
- */
-function startDbUpdate(loadVolunteerCacheFn, appInstance) {
+function startDbUpdate(loadFn, appInstance) {
   if (!dbUpdateInterval) {
     dbUpdateInterval = setInterval(async () => {
       try {
-        const cache = await loadVolunteerCacheFn();
-        appInstance.locals.volunteerCache = cache;
-        log('Volunteer cache refreshed.');
+        appInstance.locals.volunteerCache = await loadFn();
       } catch (err) {
-        logError('Failed to refresh volunteer cache:', err);
+        logError("Cache refresh failed:", err);
       }
     }, 30_000);
-    log('DB update interval started.');
   }
 }
 
 /**
- * Stop the periodic volunteer cache update interval.
+ * Stop periodic volunteer cache refresh.
  */
 function stopDbUpdate() {
   if (dbUpdateInterval) {
     clearInterval(dbUpdateInterval);
     dbUpdateInterval = null;
-    log('DB update interval stopped.');
   }
 }
-//#endregion
 
-//#region Early Middleware (Pre-Security / Static / JSON)
-/**
- * Host redirect middleware.
- * - Redirects plain `albanyjwparking.org` to `https://www.albanyjwparking.org`.
- */
-app.use((req, res, next) => {
-  const h = (req.hostname || "").toLowerCase();
-  if (h === "albanyjwparking.org") {
-    return res.redirect(301, "https://www.albanyjwparking.org" + req.originalUrl);
-  }
-  next();
-});
+// ============================================================
+// Express Middleware
+// ============================================================
 
-/**
- * Cookie parser & request body parsers (JSON + urlencoded).
- */
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, "public")));
 
-/**
- * Static asset serving from `/public`.
- */
-app.use(express.static(path.join(__dirname, 'public')));
 
-/**
- * Initial API routes (non-DB-backed version). This gets overridden later
- * by the DB-backed copy after secrets and pools are ready.
- */
-app.use('/api', apiRoutes);
 
-/**
- * View engine configuration for EJS templates.
- */
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
-//#endregion
+app.set("view engine", "ejs");
+app.set("views", [
+  path.join(__dirname, "views"),
+  path.join(__dirname, "views/registration"),
+  path.join(__dirname, "views/partials"),
+  path.join(__dirname, "views/errors"),
+  path.join(__dirname, "views/authentication_and_accounts"),
+  path.join(__dirname, "views/upgrade"), 
+]);
 
-//#region HTTP Server & Graceful Shutdown
-const server = http.createServer(app);
+// CSP nonce middleware
+app.use((req, res, next) => {
+  res.locals.nonce = crypto.randomBytes(16).toString("base64");
+  next();
+});
 
-/**
- * Handle graceful shutdown for SIGTERM/SIGINT.
- * @param {string} signal - The signal name triggering shutdown.
- */
-function shutdown(signal) {
-  log(`Received ${signal}. Closing server...`);
-  stopDbUpdate();
-  server.close(err => {
-    if (err) {
-      logError('Error during server close:', err);
-      process.exit(1);
-    }
-    log('Server closed. Exiting.');
-    process.exit(0);
-  });
+// Helmet CSP setup
+app.use(
+  helmet.contentSecurityPolicy({
+    useDefaults: true,
+    directives: {
+      "default-src": ["'self'"],
+      "script-src": [
+        "'self'",
+        "https://cdn.jsdelivr.net",
+        (req, res) => `'nonce-${res.locals.nonce}'`,
+      ],
+      "style-src": [
+        "'self'",
+        "https://cdn.jsdelivr.net",
+        "https://fonts.googleapis.com",
+        (req, res) => `'nonce-${res.locals.nonce}'`,
+      ],
+      "img-src": ["'self'", "data:"],
+      "font-src": ["'self'", "https://fonts.gstatic.com"],
+      "connect-src": isProd
+        ? ["'self'", "https:", "https://api.kickbox.com"]
+        : ["'self'", "http://localhost:3000", "https://api.kickbox.com"],
+    },
+  }),
+);
+
+// When behind Azure App Service (TLS termination), trust proxy
+if (isProd) {
+  app.set("trust proxy", 1);
 }
 
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT', () => shutdown('SIGINT'));
-//#endregion
+// ============================================================
+// Startup wrapper
+// ============================================================
 
-//#region Startup Sequence (Main Async IIFE)
+const server = http.createServer(app);
+
 (async () => {
   try {
-    // =========================
-    // DB Helpers & Routes Import
-    // =========================
-    //#region DB Imports & Helpers
-    /**
-     * Database-backed API routes and helpers.
-     * These are loaded after configuration and DB connections are ready.
-     */
-    const dbRoutes = (await import('./routes/apiRoutes.js')).default;
-    const {
-      exec,
-      insertEmailPass,
-      insertNameEmail,
-      insertNameAndPhone,
-      namePhoneExists,
-      loadVolunteerCache,
-      insertCongregationInfo,
-      insertSpiritualInfo
-    } = await import('./lib/dbSync.js');
-
     await getSqlPool();
-    //#endregion
 
-    // =========================
-    // Session & Security Middleware
-    // =========================
-    //#region Session & Security Middleware
-    /**
-     * Session management middleware.
-     * - Persists user session via cookies.
-     * - Used to track `userId` through registration steps.
-     */
-    app.use(session({
-      secret: config.sessionSecret || 'fallback-secret',
+    // -------------------------
+    // Session middleware
+    // -------------------------
+
+    const sessionSecret =
+      config.sessionSecret || process.env.SESSION_SECRET || "fallback-secret";
+
+    /** @type {session.SessionOptions} */
+    const sessionOptions = {
+      secret: sessionSecret,
       resave: false,
       saveUninitialized: false,
+      rolling: true, // Reset maxAge on every response
       cookie: {
-        secure: false,
+        secure: isProd,
         httpOnly: true,
-        naxAge: 5 * 60 * 1000 // 5 minutes in milliseconds (typo preserved from original)
-      }
-    }));
+        sameSite: "lax",
+        maxAge: 15 * 60 * 1000,
+      },
+    };
 
-    /**
-     * CSRF protection using csurf with cookie-based tokens.
-     */
+    if (isProd) {
+      const redisUrl = resolveRedisUrl();
+      if (!redisUrl) {
+        logError(
+          "Redis config missing. Set either REDIS_URL or (VALKEY_HOST and VALKEY_PASSWORD).",
+          {
+            hasREDIS_URL: Boolean(config.REDIS_URL || process.env.REDIS_URL),
+            hasVALKEY_HOST: Boolean(process.env.VALKEY_HOST),
+            hasVALKEY_PASSWORD: Boolean(process.env.VALKEY_PASSWORD),
+          },
+        );
+        // eslint-disable-next-line no-process-exit
+        process.exit(1);
+      }
+
+      log("Connecting to Redis/Valkey at:", maskRedisUrl(redisUrl));
+
+      const redisClient = createClient({
+        url: redisUrl,
+        socket: {
+          connectTimeout: 8000,
+          keepAlive: 5000,
+        },
+      });
+
+      redisClient.on("error", (err) => {
+        logError("Redis Client Error:", err);
+      });
+
+      await redisClient.connect();
+      log("Redis client connected.");
+
+      sessionOptions.store = new RedisStore({
+        client: redisClient,
+        prefix: "sess:",
+      });
+      log("Redis session store initialized.");
+    }
+
+    app.use(session(sessionOptions));
+    // Store the intended destination for post-login redirect.
+    // Only captures GET requests to non-auth, non-static paths.
+    app.use((req, res, next) => {
+      const isGet = req.method === "GET";
+      const isLoginPage = req.path === "/login";
+      const isLogoutPage = req.path === "/logout";
+      const isStatic =
+        req.path.startsWith("/vendor") ||
+        req.path.startsWith("/styles") ||
+        req.path.startsWith("/js") ||
+        req.path.startsWith("/images") ||
+        req.path.startsWith("/api") ||
+        req.path === "/health" ||
+        req.path === "/favicon.ico";
+      const isAuthed = !!req.session?.userId;
+
+      if (isGet && !isLoginPage && !isLogoutPage && !isStatic && !isAuthed) {
+        req.session.returnTo = req.originalUrl;
+      }
+
+      next();
+    });
+
+    // Derive navigation state from the session for use in views
+    app.use((req, res, next) => {
+      // e.g., "/", "/volunteerIn", "/my-account"
+      res.locals.currentPath = req.path;
+
+      const s = req.session || {};
+
+      // Logged-in
+      const isLoggedIn = !!s.userId;
+
+      // Detect draft or partial registration
+      const hasDraftRegistration =
+        !!s.registrationId || !!s.pendingEmail || s.last_step !== undefined;
+
+      // Detect completed registration if stored
+      const registrationCompleted = s.registration_status === "completed";
+
+      // Continue Registration is only shown if NOT completed
+      const showContinueRegistration =
+        hasDraftRegistration && !registrationCompleted;
+
+      const userInitials = s.userInitials || null;
+      const userRole = s.userRole || "REGISTERED";
+      const registrationStatus = s.registrationStatus || null;
+      const showDraftBanner = isLoggedIn && registrationStatus === "draft";
+
+      res.locals.userRole = userRole;
+      res.locals.userPermissions = s.permissions || {};
+      res.locals.appVersion = APP_VERSION;
+
+      res.locals.nav = {
+        isLoggedIn,
+        hasDraftRegistration,
+        registrationCompleted,
+        showContinueRegistration,
+        canUpgrade: !isLoggedIn,
+        userInitials,
+        userRole,
+        showDraftBanner,
+      };
+
+      next();
+    });
+
     const csrfProtection = csurf({ cookie: true });
 
     /**
-     * Per-request CSP nonce generator used by helmet's contentSecurityPolicy.
+     * Prevent browsers from caching authenticated pages.
+     * Without this, hitting the back button after logout restores the cached
+     * page from bfcache, bypassing session checks entirely.
      */
     app.use((req, res, next) => {
-      res.locals.nonce = crypto.randomBytes(16).toString('base64');
-      next();
-    });
-
-    /**
-     * Content Security Policy configuration using helmet.
-     * Restricts script, style, image, font, and connect sources.
-     */
-    app.use(helmet.contentSecurityPolicy({
-      useDefaults: true,
-      directives: {
-        "default-src": ["'self'"],
-        "script-src": [
-          "'self'",
-          "https://cdn.jsdelivr.net",
-          (req, res) => `'nonce-${res.locals.nonce}'`
-        ],
-        "style-src": [
-          "'self'",
-          "https://cdn.jsdelivr.net",
-          "https://fonts.googleapis.com",
-          (req, res) => `'nonce-${res.locals.nonce}'`
-        ],
-        "img-src": ["'self'", "data:"],
-        "font-src": ["'self'", "https://fonts.gstatic.com"],
-        "connect-src": isProd
-          ? ["'self'", "https:", "https://*.azurewebsites.net", "https://albanyjwparking.org", "https://api.kickbox.com"]
-          : ["'self'", "http://localhost:3000", "https://api.kickbox.com", "https://cdn.jsdelivr.net"]
-      }
-    }));
-    //#endregion
-
-    // =========================
-    // Session-based DB Interval Control Middleware
-    // =========================
-    //#region DB Interval Session Watcher
-    /**
-     * Middleware to stop the volunteer DB update interval
-     * when there's no active `userId` in the session.
-     */
-    app.use((req, res, next) => {
-      if (!req.session.userId) {
-        stopDbUpdate();
+      if (req.session?.userId) {
+        res.setHeader(
+          "Cache-Control",
+          "no-store, no-cache, must-revalidate, private",
+        );
+        res.setHeader("Pragma", "no-cache");
+        res.setHeader("Expires", "0");
       }
       next();
     });
-    //#endregion
 
-    // =========================
-    // API Routes (DB-backed)
-    // =========================
-    //#region API Routes Mount
-    /**
-     * Mount DB-backed API routes under `/api`.
-     */
-    app.use('/api', dbRoutes);
-    //#endregion
+    // ========================================================
+    // Mount Routers
+    // ========================================================
 
-    // =========================
-    // GET Routes
-    // =========================
-    //#region GET Routes
-    /**
-     * @route GET /health
-     * @description Simple health check endpoint.
-     * @returns {string} "OK"
-     */
-    app.get('/health', (req, res) => res.send('OK'));
+    // API
+    app.use("/api", apiRoutes);
 
-    /**
-     * @route GET /
-     * @description Render the main index page with CSRF token.
-     */
-    app.get('/', csrfProtection, (req, res) =>
-      res.render('index', { csrfToken: req.csrfToken() })
+    // Registration router (FULL FLOW)
+    app.use(
+      "/",
+      createRegistrationRouter({
+        csrfProtection,
+        loadVolunteerCache: db.loadVolunteerCache,
+        startDbUpdate,
+        stopDbUpdate,
+        getCongregations: db.getCongregations,
+        db: {
+          insertDraftEmailPass: db.insertDraftEmailPass,
+          insertDraftNameEmail: db.insertDraftNameEmail,
+          updateDraftNameEmail: db.updateDraftNameEmail,
+          updateDraftNamePhone: db.updateDraftNamePhone,
+          updateDraftPersonalInfo: db.updateDraftPersonalInfo,
+          updateDraftCongregationInfo: db.updateDraftCongregationInfo,
+          updateDraftSpiritualInfo: db.updateDraftSpiritualInfo,
+          updateDraftNotes: db.updateDraftNotes,
+          emailExists: db.emailExists,
+          nameExists: db.nameExists,
+          phoneExists: db.phoneExists,
+          getDraftByEmail: db.getDraftByEmail,
+          markDraftCompleted: db.markDraftCompleted,
+          upgradeDraftEmailPass: db.upgradeDraftEmailPass,
+          getVolunteerById: db.getVolunteerById,
+        },
+        INCOMPATIBILITIES,
+        logError,
+      }),
     );
 
     /**
-     * @route GET /email-pass
-     * @description
-     *  Renders email+password registration page.
-     *  Also starts DB update interval and loads volunteer cache.
+     * Prevent browsers from caching authenticated pages.
+     * Without this, hitting the back button after logout restores the cached
+     * page from bfcache, bypassing session checks entirely.
      */
-    app.get('/email-pass', csrfProtection, (req, res) => {
-      loadVolunteerCache();
-      startDbUpdate(loadVolunteerCache, app);
-      res.render('emailPass', { csrfToken: req.csrfToken() });
-    });
-
-    /**
-     * @route GET /nonProfile
-     * @description
-     *  Renders the non-profile registration page.
-     *  Also starts DB update interval and loads volunteer cache.
-     */
-    app.get('/nonProfile', csrfProtection, (req, res) => {
-      loadVolunteerCache();
-      startDbUpdate(loadVolunteerCache, app);
-      res.render('nonProfile', { csrfToken: req.csrfToken() });
-    });
-
-    /**
-     * @route GET /congregationInfo
-     * @description
-     *  Renders the congregation information page.
-     *  Populates the view with list of congregations from DB.
-     */
-    app.get('/congregationInfo', csrfProtection, async (req, res) => {
-      try {
-        const congregations = await getCongregations();
-        res.render('congregationInfo', {
-          congregations,
-          csrfToken: req.csrfToken()
-        });
-      } catch (error) {
-        console.error("Error fetching congregations: ", error);
-        res.status(500).send("Internal Server Error");
-      }
-    });
-
-    /**
-     * @route GET /spiritualInfo
-     * @description
-     *  Renders the spiritual info page (privileges, etc.).
-     *  Also starts DB update interval and loads volunteer cache.
-     */
-    app.get('/spiritualInfo', csrfProtection, (req, res) => {
-      loadVolunteerCache();
-      startDbUpdate(loadVolunteerCache, app);
-      res.render('spiritualInfo', { csrfToken: req.csrfToken() });
-    });
-
-    /**
-     * @route GET /volunteerIn
-     * @description
-     *  Main volunteer registration/landing page.
-     *  Can disable name fields based on `disable=true` query param.
-     */
-    app.get('/volunteerIn', csrfProtection, (req, res) => {
-      const disableNameFields = req.query.disable === 'true';
-      loadVolunteerCache();
-      startDbUpdate(loadVolunteerCache, app);
-      res.render('volunteerIn', {
-        disableNameFields,
-        csrfToken: req.csrfToken()
-      });
-    });
-
-    /**
-     * @route GET /personalInfo
-     * @description
-     *  Renders the personal info page (privileges, etc.).
-     *  Also starts DB update interval and loads volunteer cache.
-     */
-     app.get('/personalInfo', csrfProtection, (req, res) => {
-      loadVolunteerCache();
-      startDbUpdate(loadVolunteerCache, app);
-      res.render('personalInfo', { csrfToken: req.csrfToken() });
-    });
-
-    /**
-     * @route GET /db-test
-     * @description
-     *  Test endpoint to confirm DB connection and context.
-     *  Returns DB name, login, and DB user.
-     */
-    app.get('/db-test', async (req, res) => {
-      try {
-        const tsql =
-          "SELECT DB_NAME() AS db, SUSER_SNAME() AS login, USER_NAME() AS dbuser;";
-        const result = await exec(tsql, (r) => {});
-        res.json({ success: true, result });
-      } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-      }
-    });
-    //#endregion
-
-    // =========================
-    // POST Routes
-    // =========================
-    //#region POST Routes
-    /**
-     * @route POST /submit-nameEmail
-     * @description
-     *  Registers or associates a volunteer by name and email.
-     *  Sets `userId` and flags name fields as disabled in session.
-     */
-    app.post('/submit-nameEmail', csrfProtection, async (req, res) => {
-      const { firstName, lastName, suffix, email } = req.body;
-      try {
-        const row = await insertNameEmail(firstName, lastName, suffix, email);
-        if (!row) return res.status(409).send('Name or email already registered.');
-
-        req.session.userId = row.id;
-        req.session.disableNameFields = true;
-
-        await refreshVolunteerCache(loadVolunteerCache, app);
-        res.redirect('/volunteerIn?disable=true');
-      } catch (err) {
-        res.status(500).send('Registration failed: ' + err.message);
-      }
-    });
-
-    /**
-     * @route POST /submitCongregation
-     * @description
-     *  Saves congregation-related info for the current volunteer (session user).
-     */
-    app.post('/submitCongregation', csrfProtection, async (req, res) => {
-      const userId = req.session.userId;
-      if (!userId) {
-        return res.status(400).json({
-          success: false,
-          message: "Session expired or user not registered."
-        });
-      }
-
-      const {
-        congAssigned,
-        congregation,
-        extraAttend,
-        congregationOtherCity,
-        congregationOtherState,
-        congregationOtherLang
-      } = req.body;
-
-      try {
-        const row = await insertCongregationInfo(
-          userId,
-          congAssigned,
-          congregation,
-          extraAttend,
-          congregationOtherCity,
-          congregationOtherState,
-          congregationOtherLang
+    app.use((req, res, next) => {
+      if (req.session?.userId) {
+        res.setHeader(
+          "Cache-Control",
+          "no-store, no-cache, must-revalidate, private",
         );
-        if (!row) {
-          return res.status(409).json({
-            success: false,
-            message: "Update failed. Record may not exist."
-          });
-        }
-
-        await refreshVolunteerCache(loadVolunteerCache, app);
-        res.redirect('/spiritualInfo');
-      } catch (err) {
-        logError("Error updating volunteer info", err);
-        return res.status(500).json({
-          success: false,
-          message: "Server error: " + err.message
-        });
+        res.setHeader("Pragma", "no-cache");
+        res.setHeader("Expires", "0");
       }
+      next();
     });
 
+    // Login + My Account router
+    app.use("/", loginRouter({ csrfProtection, logError }));
+
+    // Upgrade Account (email/phone → send reset link)
+    app.use(
+      "/",
+      upgradeRoutes({
+        express,
+        csrfProtection,
+        db,
+        updateUserPassword: db.updateUserPassword,
+        twilioAccountSid: config.TWILIO_ACCOUNT_SID,
+        twilioAuthToken: config.TWILIO_AUTH_TOKEN,
+        twilioMsgSid: config.TWILIO_MSG_SID,
+        smtpConfig: {
+          host: config.IONOS_SMTP_HOST,
+          port: config.IONOS_SMTP_PORT,
+          user: config.IONOS_SMTP_USER,
+          pass: config.IONOS_SMTP_PASS,
+        },
+      }),
+    );
+
+    app.use(
+      "/",
+      oversightRouter({
+        csrfProtection,
+        logError,
+        twilioAccountSid: config.TWILIO_ACCOUNT_SID,
+        twilioAuthToken: config.TWILIO_AUTH_TOKEN,
+        twilioMsgSid: config.TWILIO_MSG_SID,
+        smtpConfig: {
+          host: config.IONOS_SMTP_HOST,
+          port: config.IONOS_SMTP_PORT,
+          user: config.IONOS_SMTP_USER_INFO,
+          pass: config.IONOS_SMTP_PASS,
+        },
+      }),
+    );
     /**
-     * @route POST /submitSpiritual
-     * @description
-     *  Saves spiritual privileges/roles for the current volunteer.
-     *  Accepts single or multiple `privileges` values.
+     * GET /api/session/touch
+     * Lightweight endpoint called by sessionKeepAlive.js to reset the
+     * rolling session timer while the user is active. Returns 401 when
+     * no session exists so the client knows to redirect to login.
      */
-    app.post('/submitSpiritual', csrfProtection, async (req, res) => {
-      const userId = req.session.userId;
-      if (!userId) {
-        return res.status(400).json({
-          success: false,
-          message: "Session expired or user not registered."
-        });
+    app.get("/api/session/touch", (req, res) => {
+      if (!req.session?.userId) {
+        return res.status(401).json({ ok: false, reason: "unauthenticated" });
       }
-
-      const { privileges } = req.body;
-      const privilegeList =
-        Array.isArray(privileges) ? privileges :
-        privileges ? [privileges] :
-        [];
-
-      console.log(privilegeList);
-
-      try {
-        const row = await insertSpiritualInfo(userId, privilegeList);
-        if (!row) {
-          return res.status(409).json({
-            success: false,
-            message: "Update failed. Record may not exist."
-          });
-        }
-
-        await refreshVolunteerCache(loadVolunteerCache, app);
-        res.redirect('/spiritualInfo');
-      } catch (err) {
-        logError("Error updating volunteer info", err);
-        return res.status(500).json({
-          success: false,
-          message: "Server error: " + err.message
-        });
-      }
+      // touching req.session marks it dirty so rolling re-saves it
+      req.session.lastTouched = Date.now();
+      return res.json({ ok: true });
     });
+    // ========================================================
+    // Validation Endpoints (Kickbox / Twilio)
+    // ========================================================
 
-    /**
-     * @route POST /submitPersonal
-     * @description
-     *  Saves personal information about volunteer.
-     *  Tracks Gender, DOB, and Stamina rating.
-     */
-    app.post('/submitPersonal', csrfProtection, async (req, res) =>{
-      const { gender, dobirth, stamina } = req.body;
-        const genderNormal = gender.toLowerCase().trim();
-        const dobirthNormal = (typeof dobirth !== number 
-          ? parseInt(dobirth )
-          : isNaN((new Date(dobirth)).valueOf()) 
-          ? console.log("Number is not a valid date") 
-          : new Date(dobirth))
-        const staminaNormal = (isNaN(stamina) 
-          ? parseInt(stamina) 
-          : stamina)
-      try{
-        const row = await insertPersonalInfo(gender, dobirth, stamina)
-      }catch(err){
-        logError("Error updating volunteer info", err);
-          return res.status(500).json({
-            success: false,
-            message: "Server error: " + err.message
-      })
-    }}
-  );
-
-
-
-    /**
-     * @route POST /submit-namePass
-     * @description
-     *  Registers user using email + password credential pair.
-     *  Sets `userId` in session.
-     */
-    app.post('/submit-namePass', csrfProtection, async (req, res) => {
-      const { email, password } = req.body;
-      try {
-        const row = await insertEmailPass(email, password);
-        if (!row) return res.status(409).send('Email already registered.');
-
-        req.session.userId = row.id;
-        await refreshVolunteerCache(loadVolunteerCache, app);
-        res.redirect('/volunteerIn');
-      } catch (err) {
-        res.status(500).send('Registration failed: ' + err.message);
-      }
-    });
-
-    /**
-     * @route POST /submit-namePhone
-     * @description
-     *  Adds/updates a volunteer's phone and normalized name info.
-     *  Performs duplicate check using normalized values.
-     */
-    app.post('/submit-namePhone', async (req, res) => {
-      const userId = req.session.userId;
-      if (!userId) {
-        return res.status(400).json({
-          success: false,
-          message: "Session expired or user not registered."
-        });
-      }
-
-      const { phone, firstName, lastName, suffix, SMSCapable } = req.body;
-      const normalizedPhone = phone ? phone.replace(/\D+/g, "") : null;
-
-      // Normalize names
-      const normalizedFirstName = firstName.trim().toLowerCase();
-      const normalizedLastName = lastName.trim().toLowerCase();
-      const normalizedSuffix = suffix ? suffix.trim().toLowerCase() : '';
-
-      try {
-        const exists = await namePhoneExists(
-          normalizedFirstName,
-          normalizedLastName,
-          normalizedPhone,
-          normalizedSuffix
-        );
-        if (exists) {
-          return res.json({
-            success: false,
-            message: "Duplicate record exists",
-            exists: true
-          });
-        }
-
-        const row = await insertNameAndPhone(
-          userId,
-          normalizedFirstName,
-          normalizedLastName,
-          normalizedPhone,
-          normalizedSuffix,
-          SMSCapable
-        );
-        if (!row) {
-          return res.status(409).json({
-            success: false,
-            message: "Update failed. Record may not exist."
-          });
-        }
-
-        await refreshVolunteerCache(loadVolunteerCache, app);
-        return res.json({
-          success: true,
-          message: "Info updated successfully",
-          exists: false
-        });
-      } catch (err) {
-        logError("Error updating volunteer info", err);
-        return res.status(500).json({
-          success: false,
-          message: "Server error: " + err.message
-        });
-      }
-    });
-    //#endregion
-
-    // =========================
-    // Validation & Utility Endpoints
-    // =========================
-    //#region Validation Endpoints
-    /**
-     * @route GET /validate-phone
-     * @description
-     *  Validates a phone number via Twilio Lookup API.
-     *  Normalizes to E.164 format and returns SMS capability status.
-     *
-     * @query {string} phone - Phone number in any format.
-     */
-    app.get('/validate-phone', async (req, res) => {
-      try {
-        const raw = (req.query.phone || '').toString();
-        const digits = raw.replace(/\D+/g, '');
-        if (!digits) {
-          return res.status(400).json({ error: 'Phone number required' });
-        }
-
-        const e164 = digits.length === 10 ? `+1${digits}` : `+${digits}`;
-        const tw = await initTwilio();
-        const lookup = await tw.lookups.v2.phoneNumbers(e164).fetch({
-          type: ['carrier']
-        });
-
-        const carrierType = lookup?.carrier?.type || '';
-        const SMSCapableRaw = req.body?.SMSCapable;   // safe optional chaining
-        const SMSCapable = SMSCapableRaw === 'yes';   // true if yes, false otherwise          carrierType === 'mobile' || carrierType === 'voip';
-
-        return res.status(200).json({
-          valid: true,
-          normalized: e164,
-          SMSCapable,
-          carrierType
-        });
-      } catch (err) {
-        if (err.status === 404) {
-          return res.status(200).json({
-            valid: false,
-            validation_errors: 'Invalid or unrecognized phone number.'
-          });
-        }
-        logError('Twilio Lookup error:', err);
-        return res.status(500).json({ error: 'Lookup failed' });
-      }
-    });
-
-    /**
-     * @route GET /validate-email
-     * @description
-     *  Validates an email address with Kickbox.
-     *  Rejects emails with `@jwpub.org` domain.
-     *
-     * @query {string} email - Email address to validate.
-     */
-    app.get('/validate-email', async (req, res) => {
-      const email = (req.query.email || '').toString().trim();
+    app.get("/validate-email", async (req, res) => {
+      const email = (req.query.email || "").toString().trim();
       if (!email) {
-        return res
-          .status(400)
-          .json({ valid: false, reason: 'Please enter an email address' });
+        return res.status(400).json({
+          valid: false,
+          reason: "Please enter an email address",
+        });
       }
 
-      if (email.toLowerCase().endsWith('@jwpub.org')) {
-        return res.json({ result: 'invalid', reason: 'Domain not allowed' });
+      if (email.toLowerCase().endsWith("@jwpub.org")) {
+        return res.json({
+          result: "invalid",
+          reason: "Domain not allowed",
+        });
       }
 
       try {
         const result = await verifyEmail(email);
-        res.json({ result: result.result, reason: result.reason });
+        res.json({
+          result: result.result,
+          reason: result.reason,
+        });
       } catch (err) {
-        logError('Kickbox verification error:', err);
-        res.status(500).json({ error: 'Verification failed' });
+        logError("Kickbox verification error:", err);
+        res.status(500).json({ error: "Verification failed" });
       }
     });
-    //#endregion
 
-    // =========================
-    // 404 Handler
-    // =========================
-    //#region 404 Handler
+    app.get("/validate-phone", async (req, res) => {
+      try {
+        const raw = (req.query.phone || "").toString();
+        const digits = raw.replace(/\D+/g, "");
+        if (!digits) {
+          return res.status(400).json({ error: "Phone number required" });
+        }
+
+        const e164 = digits.length === 10 ? `+1${digits}` : `+${digits}`;
+        const tw = await initTwilio();
+        const lookup = await tw.lookups.v2
+          .phoneNumbers(e164)
+          .fetch({ type: ["carrier"] });
+
+        return res.json({
+          valid: true,
+          normalized: e164,
+          carrierType: lookup?.carrier?.type || "",
+        });
+      } catch (err) {
+        // @ts-ignore Twilio errors often have status
+        if (err.status === 404) {
+          return res.json({
+            valid: false,
+            validation_errors: "Invalid or unrecognized phone number.",
+          });
+        }
+        logError("Twilio Lookup error:", err);
+        res.status(500).json({ error: "Lookup failed" });
+      }
+    });
+    // ========================================================
+    // Public RSVP — Invite Response
+    // No authentication required; token is the credential.
+    // ========================================================
+
     /**
-     * Catch-all 404 handler for unmatched routes.
-     * Renders a custom 404 page with the requested URL.
+     * GET /invite/respond/:token
+     * Show the RSVP response page for an invite link.
      */
+    app.get("/invite/respond/:token", csrfProtection, async (req, res) => {
+      const { token } = req.params;
+      try {
+        const invitation = await db.getInvitationByToken(token);
+        if (!invitation) {
+          return res.status(404).render("404", { url: req.originalUrl });
+        }
+        return res.render("authentication_and_accounts/inviteRespond", {
+          csrfToken: req.csrfToken(),
+          invitation,
+          alreadyResponded: !!invitation.responded_at && !invitation.revoked,
+          responded: req.query.responded === "1",
+          error: req.query.error || null,
+        });
+      } catch (err) {
+        logError("invite/respond GET error:", err);
+        return res.status(500).send("Server error");
+      }
+    });
+
+    /**
+     * POST /invite/respond/:token
+     * Record a volunteer's RSVP response.
+     * Revoked invitations cannot be responded to.
+     */
+    app.post("/invite/respond/:token", csrfProtection, async (req, res) => {
+      const { token } = req.params;
+      const { response } = req.body || {};
+
+      const valid = ["yes", "no", "maybe"];
+      if (!valid.includes(response)) {
+        return res.redirect(
+          `/invite/respond/${encodeURIComponent(token)}?error=invalid`,
+        );
+      }
+
+      try {
+        const invitation = await db.getInvitationByToken(token);
+        if (!invitation) {
+          return res.status(404).render("404", { url: req.originalUrl });
+        }
+        if (invitation.revoked) {
+          return res.redirect(`/invite/respond/${encodeURIComponent(token)}`);
+        }
+        if (invitation.responded_at) {
+          return res.redirect(
+            `/invite/respond/${encodeURIComponent(token)}?responded=1`,
+          );
+        }
+        await db.markInvitationResponded(token, response);
+        return res.redirect(
+          `/invite/respond/${encodeURIComponent(token)}?responded=1`,
+        );
+      } catch (err) {
+        logError("invite/respond POST error:", err);
+        return res.status(500).send("Server error");
+      }
+    });
+
+    // ========================================================
+    // Twilio SMS Webhook — Opt-out handling
+    // Receives STOP / UNSTOP / HELP messages from Twilio.
+    // Twilio sends application/x-www-form-urlencoded POST.
+    // Validated via X-Twilio-Signature — no CSRF or session needed.
+    // ========================================================
+
+    /**
+     * POST /api/sms/webhook
+     * Handle inbound SMS events from Twilio (STOP, UNSTOP, HELP).
+     * Twilio delivers these as URL-encoded form POST, not JSON.
+     *
+     * Validation: We check the X-Twilio-Signature header using the
+     * Twilio auth token to confirm the request genuinely came from Twilio.
+     * Invalid signatures are rejected with 403.
+     */
+    app.post(
+      "/api/sms/webhook",
+      express.urlencoded({ extended: false }),
+      async (req, res) => {
+        try {
+          // ── Signature validation ───────────────────────────────────
+          const twilioSignature = req.headers["x-twilio-signature"] || "";
+          const webhookUrl = `${getBaseUrl(req)}/api/sms/webhook`;
+
+          // Build the Twilio client to access the validator
+          const twilio = await import("twilio");
+          const twRoot = twilio.default ?? twilio;
+          const isValid = twRoot.validateRequest(
+            config.TWILIO_AUTH_TOKEN,
+            twilioSignature,
+            webhookUrl,
+            req.body || {},
+          );
+
+          if (!isValid) {
+            logError("SMS webhook: invalid Twilio signature — rejected");
+            return res.status(403).send("Forbidden");
+          }
+
+          // ── Extract fields from Twilio payload ─────────────────────
+          // Twilio sends: From, To, Body, MessageSid, etc.
+          const fromPhone = (req.body.From || "").trim();
+          const bodyText = (req.body.Body || "").trim().toUpperCase();
+          const rawPayload = JSON.stringify(req.body);
+
+          // ── Classify the event ─────────────────────────────────────
+          // STOP keywords: STOP, STOPALL, UNSUBSCRIBE, CANCEL, END, QUIT
+          // UNSTOP keywords: START, YES, UNSTOP
+          // HELP keywords: HELP, INFO
+          let eventType = null;
+
+          const stopWords = [
+            "STOP",
+            "STOPALL",
+            "UNSUBSCRIBE",
+            "CANCEL",
+            "END",
+            "QUIT",
+          ];
+          const unstopWords = ["START", "YES", "UNSTOP"];
+          const helpWords = ["HELP", "INFO"];
+
+          if (stopWords.includes(bodyText)) eventType = "STOP";
+          else if (unstopWords.includes(bodyText)) eventType = "UNSTOP";
+          else if (helpWords.includes(bodyText)) eventType = "HELP";
+
+          if (!eventType) {
+            // Not an opt-out keyword — acknowledge and ignore
+            res.set("Content-Type", "text/xml");
+            return res.send(
+              `<?xml version="1.0" encoding="UTF-8"?><Response></Response>`,
+            );
+          }
+
+          // ── Process the event ──────────────────────────────────────
+          await db.handleSmsOptOutWebhook({
+            phone: fromPhone,
+            eventType,
+            rawPayload,
+          });
+
+          log(`SMS webhook: ${eventType} from ${fromPhone}`);
+
+          // Twilio expects a TwiML response — empty is fine for opt-out
+          res.set("Content-Type", "text/xml");
+          return res.send(
+            `<?xml version="1.0" encoding="UTF-8"?><Response></Response>`,
+          );
+        } catch (err) {
+          logError("SMS webhook error:", err);
+          // Still return 200 so Twilio doesn't retry indefinitely
+          res.set("Content-Type", "text/xml");
+          return res.send(
+            `<?xml version="1.0" encoding="UTF-8"?><Response></Response>`,
+          );
+        }
+      },
+    );
+    // ========================================================
+    // Public — SMS opt-in stamp (called from RSVP page)
+    // ========================================================
+
+    /**
+     * POST /invite/opt-in/:token
+     * Stamp SMS opt-in on a volunteer when they submit their RSVP.
+     * Public route — no session auth, invitation token is the credential.
+     * Fire-and-forget from the client — always returns 200.
+     */
+    app.post("/invite/opt-in/:token", csrfProtection, async (req, res) => {
+      const { token } = req.params;
+      try {
+        const invitation = await db.getInvitationByToken(token);
+        if (invitation?.volunteer_id) {
+          await db.setVolunteerSmsOptIn(invitation.volunteer_id, "rsvp");
+        }
+      } catch (err) {
+        logError("invite/opt-in POST error:", err);
+      }
+      return res.json({ success: true });
+    });
+
+    // ========================================================
+    // Health & 404
+    // ========================================================
+
+    app.get("/health", (req, res) => res.send("OK"));
+
     app.use((req, res) => {
       res.status(404);
-      res.render('404', { url: req.originalUrl });
+      res.render("404", { url: req.originalUrl });
     });
-    //#endregion
 
-    // =========================
-    // Server Start & Final Init
-    // =========================
-    //#region Server Start & Init
+    // ========================================================
+    // Global Error Handler
+    // Must be registered after all routes and the 404 handler.
+    // Four-argument signature is required for Express to treat
+    // this as an error-handling middleware.
+    // ========================================================
+
     /**
-     * Start HTTP server and initialize Twilio + SQL pool.
+     * Global error handler.
+     * Handles CSRF token expiry with a user-friendly re-render.
+     * All other errors are logged and surfaced as a 500.
+     * @param {any} err
+     * @param {import("express").Request} req
+     * @param {import("express").Response} res
+     * @param {import("express").NextFunction} next
      */
+    // eslint-disable-next-line no-unused-vars
+    app.use((err, req, res, next) => {
+      if (err.code === "EBADCSRFTOKEN") {
+        logError("CSRF token invalid or expired:", req.method, req.path);
+
+        // Re-render whichever page the user was on with a clear message.
+        // We attempt to match the originating path to avoid dumping them
+        // on a random error page. Falls back to a plain 403 if the view
+        // can't be inferred.
+        const path = req.path;
+
+        if (path.startsWith("/submit-emailPass") || path === "/email-pass") {
+          return res.status(403).render("emailPass", {
+            csrfToken: req.csrfToken(),
+            email: "",
+            isUpgrade: !!req.session?.emailPassSetup,
+            error: "Your session expired. Please try again.",
+          });
+        }
+
+        if (
+          path.startsWith("/submit-nonProfileInfo") ||
+          path === "/nonProfile"
+        ) {
+          return res.status(403).render("nonProfile", {
+            csrfToken: req.csrfToken(),
+            error: "Your session expired. Please try again.",
+          });
+        }
+
+        if (
+          path.startsWith("/submit-volunteerInfo") ||
+          path === "/volunteerIn"
+        ) {
+          return res.status(403).render("volunteerIn", {
+            csrfToken: req.csrfToken(),
+            disableNameFields: !!req.session?.disableNameFields,
+            hasActiveRegistration: !!req.session?.registrationId,
+            error: "Your session expired. Please try again.",
+          });
+        }
+
+        // Fallback for any other CSRF-protected route
+        return res.status(403).render("404", {
+          url: req.originalUrl,
+          error: "Your session expired. Please go back and try again.",
+        });
+      }
+
+      // All other errors
+      logError("Unhandled error:", err);
+      res.status(500).send("An unexpected error occurred. Please try again.");
+    });
+
+    // ========================================================
+    // Start Server
+    // ========================================================
+
     server.listen(PORT, HOST, () =>
-      log(`✅ Server running on http://${HOST}:${PORT}`)
+      log(`Server running at http://${HOST}:${PORT}`),
     );
 
-    await initTwilio();
-    log('Twilio initialized.');
-
-    await getSqlPool();
-    log('✅ SQL pool initialized.');
-    //#endregion
+    await initTwilio
+        startExternalServiceWatchdog();
 
   } catch (err) {
-    logError('❌ Failed to start server:', err);
+    logError("Failed to start server:", err);
+    // eslint-disable-next-line no-process-exit
     process.exit(1);
   }
 })();
-//#endregion
+
+// Graceful shutdown
+process.on("SIGINT", () => {
+  stopDbUpdate();
+  server.close(() => process.exit(0));
+});
+process.on("SIGTERM", () => {
+  stopDbUpdate();
+  server.close(() => process.exit(0));
+});

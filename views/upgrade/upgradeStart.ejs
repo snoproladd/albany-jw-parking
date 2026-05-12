@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Upgrade Your Account</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+
+  <body class="min-vh-100 d-flex justify-content-center align-items-center bg-body-tertiary entry-body">
+    <main class="container body-container">
+      <div class="row justify-content-center">
+        <div class="col-12 col-md-10 col-lg-8 form-entry">
+
+          <section id="upgrade-start" class="card shadow-lg entry-card">
+            <header class="card-header text-center">
+              <h1 class="text-center mb-1">Upgrade Your Account</h1>
+              <p class="footnote mt-2 mb-0">
+                Enter your email or phone number to begin.
+              </p>
+            </header>
+
+            <div class="card-body">
+              <form action="/upgrade/find" method="POST" id="upgradeStart-form">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+                <!-- PHONE FIELD -->
+                <div class="mb-3 scroll-section" id="phoneSection">
+                  <label for="phone" class="form-label">Phone Number</label>
+                  <input
+                    type="tel"
+                    class="form-control"
+                    id="phone"
+                    name="phone"
+                    aria-describedby="phoneStatus"
+                    placeholder="(555) 123-4567"
+                  />
+                  <div id="phoneStatus" class="status" role="status"></div>
+                  <div id="phone-status" class="status"></div>
+                </div>
+
+                <!-- EMAIL FIELD -->
+                <div class="mb-3 scroll-section" id="emailsSection">
+                  <label for="email" class="form-label">Email Address</label>
+                  <input
+                    type="email"
+                    class="form-control"
+                    id="email"
+                    name="email"
+                    aria-describedby="emailStatus"
+                    placeholder="user@example.com"
+                  />
+                  <div id="emailStatus" class="status" role="status"></div>
+                  <div id="email-status" class="status"></div>
+
+                  <p class="form-text text-muted mt-1 info-note">
+                    <i class="fa-solid fa-circle-info me-1"></i>
+                    You may enter <strong>either</strong> a phone number
+                    <strong>or</strong> an email address to begin.
+                  </p>
+                </div>
+
+                <button
+                  type="submit"
+                  class="btn btn-primary w-100"
+                  id="upgradeStart-submit"
+                >
+                  Continue
+                </button>
+
+                <div id="submitStatus" class="mt-2" role="status"></div>
+              </form>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <script src="/js/phoneVer.js"></script>
+    <script src="/js/email-validation.js"></script>
+    <script src="/js/formListeners.js"></script>
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>

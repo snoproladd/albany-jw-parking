@@ -1,142 +1,172 @@
+// public/js/passwords.js
+// -----------------------------------------------------------------------------
+// Password validation + show/hide toggle
+// - Full mode (emailPass/resetPassword):
+//   * password + confirmPasswordInput + passwordsMatchedStatus
+//   * realtime "passwords match" check + submit gating
+//   * show/hide both fields
+// - Login mode:
+//   * only password + togglePasswordBtn present
+//   * just show/hide password (no match validation)
+// -----------------------------------------------------------------------------
+(() => {
+  "use strict";
 
-document.addEventListener('DOMContentLoaded', () => {
-  let debounceId;
+  document.addEventListener("DOMContentLoaded", initPasswordValidation);
 
-  // Elements
-  const form =
-    document.querySelector('form[action="/submit-namePass"]') ||
-    document.querySelector('#account-form') ||
-    document.querySelector('form');
+  function initPasswordValidation() {
+    /** @type {HTMLFormElement | null} */
+    const form =
+      document.querySelector('form[action="/submit-emailPass"]') ||
+      document.querySelector("#account-form") ||
+      document.querySelector("form");
 
-  const passwordInput        = document.querySelector('#password');
-  const confirmPasswordInput = document.querySelector('#confirm-password');
-  const statusDiv            = document.querySelector('#passwords-matched-status');
-  const togglePasswordBtn    = document.querySelector('#togglePassword');
+    /** @type {HTMLInputElement | null} */
+    const passwordInput = document.querySelector("#password");
+    /** @type {HTMLInputElement | null} */
+    const confirmPasswordInput = document.querySelector(
+      "#confirmPasswordInput",
+    );
+    /** @type {HTMLElement | null} */
+    const statusDiv =
+      document.querySelector("#passwordsMatchedStatus") ||
+      document.querySelector("#passwords-matched-status"); // login.ejs uses kebab-case
+    /** @type {HTMLElement | null} */
+    const togglePasswordBtn = document.querySelector("#togglePassword");
 
-  // Try to use the actual submit button; fall back gracefully
-  let submitBtn = form ? form.querySelector('button[type="submit"]') : null;
-  if (!submitBtn && form) {
-    submitBtn = form.querySelector('button.btn.btn-primary');
-  }
+    // If there isn't even a password input, nothing to do.
+    if (!passwordInput) return;
 
-  // If inputs are missing, abort (but don't require 'form' to exist just to compare)
-  if (!passwordInput || !confirmPasswordInput || !statusDiv) return;
+    // -------------------------------------------------------------------------
+    // Show/hide password toggle: always attach if the button exists
+    // (works on login, emailPass, resetPassword)
+    // -------------------------------------------------------------------------
+    if (togglePasswordBtn) {
+      togglePasswordBtn.addEventListener("click", () => {
+        const isText = passwordInput.getAttribute("type") === "text";
+        const newType = isText ? "password" : "text";
 
-  // Accessibility: screen readers announce updates
-  statusDiv.setAttribute('role', 'status');
-  statusDiv.setAttribute('aria-live', 'polite');
+        passwordInput.setAttribute("type", newType);
 
-  // Shared styling helpers (matching your email script style)
-  function clearStates() {
-    statusDiv.classList.remove('loading', 'success', 'error');
-    statusDiv.innerHTML = ''; // reset content
-  }
+        // If there is a confirm field on this page, keep it in sync
+        if (confirmPasswordInput) {
+          confirmPasswordInput.setAttribute("type", newType);
+        }
 
-  function setStatusLoading() {
-    clearStates();
-    statusDiv.classList.add('loading');
-    statusDiv.innerHTML =
-      '<span class="spinner-border spinner-border-sm text-secondary" role="status" aria-hidden="true"></span> Checking...';
-  }
+        // Optional: toggle the eye / eye-slash icon
+        const icon = togglePasswordBtn.querySelector("i");
+        if (icon) {
+          icon.classList.toggle("fa-eye");
+          icon.classList.toggle("fa-eye-slash");
+        }
+      });
+    }
 
-  function setStatusSuccess(msg = '✅ Passwords match') {
-    clearStates();
-    statusDiv.classList.add('success');
-    statusDiv.textContent = msg;
-  }
-
-  function setStatusError(msg = 'Passwords do not match.') {
-    clearStates();
-    statusDiv.classList.add('error');
-    statusDiv.innerHTML = `
-      <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        ❌ ${msg}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-      </div>
-    `;
-  }
-
-  // Button state handler
-  function setSubmitEnabled(enabled) {
-    if (submitBtn) submitBtn.disabled = !enabled;
-  }
-
-  // Core comparison logic
-  function comparePasswords() {
-    const pwd  = passwordInput.value.trim();
-    const conf = confirmPasswordInput.value.trim();
-
-    if (pwd === '' && conf === '') {
-      clearStates();
-      setSubmitEnabled(false);
+    // -------------------------------------------------------------------------
+    // If there's no confirm field OR no status div, skip match validation.
+    // This is the case on the login page.
+    // -------------------------------------------------------------------------
+    if (!confirmPasswordInput || !statusDiv) {
       return;
     }
 
-    if (pwd !== '' && conf === '') {
+    // From here on, we're in "full validation" mode (emailPass/resetPassword).
+
+    /** @type {HTMLButtonElement | null} */
+    let submitBtn =
+      form?.querySelector('button[type="submit"]') ||
+      form?.querySelector("button.btn.btn-primary") ||
+      null;
+
+    // Screen-reader accessibility
+    statusDiv.setAttribute("role", "status");
+    statusDiv.setAttribute("aria-live", "polite");
+
+    // -----------------------------------------------------------------------
+    // Status UI helpers
+    // -----------------------------------------------------------------------
+    function clearStates() {
+      statusDiv.classList.remove("loading", "success", "error");
+      statusDiv.innerHTML = "";
+    }
+
+    function setStatusLoading() {
       clearStates();
-      setSubmitEnabled(false);
-      return;
+      statusDiv.classList.add("loading");
+      statusDiv.innerHTML = `
+        <span class="spinner-border spinner-border-sm text-secondary"
+              role="status" aria-hidden="true"></span>
+        Checking...`;
     }
 
-    if (pwd === conf) {
-      setStatusSuccess('✅ Passwords match');
-      setSubmitEnabled(true);
-    } else {
-      setStatusError('Passwords do not match.');
-      setSubmitEnabled(false);
+    function setStatusSuccess(msg = "✅ Passwords match") {
+      clearStates();
+      statusDiv.classList.add("success");
+      statusDiv.textContent = msg;
     }
-  }
 
-  // Debounced handler
-  function debouncedCompare() {
-    clearTimeout(debounceId);
-    setStatusLoading();
-    debounceId = setTimeout(() => {
-      comparePasswords();
-    }, 500); // or 1000ms if you prefer slower checks
-  }
+    function setStatusError(msg = "Passwords do not match.") {
+      clearStates();
+      statusDiv.classList.add("error");
+      statusDiv.innerHTML = `
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+          ❌ ${msg}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"
+                  aria-label="Close"></button>
+        </div>`;
+    }
 
-  // Wire up events (listen on both fields)
-  passwordInput.addEventListener('input', debouncedCompare);
-  confirmPasswordInput.addEventListener('input', debouncedCompare);
+    function setSubmitEnabled(enabled) {
+      if (submitBtn) submitBtn.disabled = !enabled;
+    }
 
-  // Ensure submit starts disabled until a match is detected
-  setSubmitEnabled(false);
-
-  // Show/Hide password toggle (Bootstrap friendly)
-  if (togglePasswordBtn) {
-    togglePasswordBtn.addEventListener('click', () => {
-      const isText = passwordInput.getAttribute('type') === 'text';
-      passwordInput.setAttribute('type', isText ? 'password' : 'text');
-
-      // Sync the icon (if you use Font Awesome eye/eye-slash)
-      const icon = togglePasswordBtn.querySelector('i');
-      if (icon) {
-        icon.classList.toggle('fa-eye', isText);
-        icon.classList.toggle('fa-eye-slash', !isText);
-      }
-    });
-  }
-
-  // Only add a submit guard if the form exists
-  if (form) {
-    form.addEventListener('submit', (e) => {
-      const pwd  = passwordInput.value.trim();
+    // -----------------------------------------------------------------------
+    // Core logic: comparing the two password fields
+    // -----------------------------------------------------------------------
+    function comparePasswords() {
+      const pwd = passwordInput.value.trim();
       const conf = confirmPasswordInput.value.trim();
 
-      if (pwd === '' || conf === '') {
-        e.preventDefault();
-        setStatusError('Please complete both password fields.');
+      // No input: reset state, disable submit
+      if (pwd === "" && conf === "") {
+        clearStates();
         setSubmitEnabled(false);
         return;
       }
 
-      if (pwd !== conf) {
-        e.preventDefault();
-        setStatusError('Passwords do not match.');
+      // Confirm empty but password typed: show nothing yet
+      if (pwd !== "" && conf === "") {
+        clearStates();
         setSubmitEnabled(false);
         return;
       }
-    });
+
+      // Matching passwords
+      if (pwd === conf) {
+        setStatusSuccess("✅ Passwords match");
+        setSubmitEnabled(true);
+      } else {
+        setStatusError("Passwords do not match.");
+        setSubmitEnabled(false);
+      }
+    }
+
+    /** @type {number | undefined} */
+    let debounceId;
+
+    function debouncedCompare() {
+      clearTimeout(debounceId);
+      setStatusLoading();
+      debounceId = window.setTimeout(() => {
+        comparePasswords();
+      }, 500);
+    }
+
+    // Attach realtime listeners to both fields
+    passwordInput.addEventListener("input", debouncedCompare);
+    confirmPasswordInput.addEventListener("input", debouncedCompare);
+
+    // Disable submit initially until match occurs
+    setSubmitEnabled(false);
   }
-});
+})();

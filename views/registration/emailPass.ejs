@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>New User Setup</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Georama:wght@100..900&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:wght@100..900&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+
+  <body
+    class="min-vh-100 d-flex justify-content-center align-items-center bg-body-tertiary entry-body"
+  >
+    <main class="container body-container">
+      <div class="row justify-content-center">
+        <div class="col-12 col-md-10 col-lg-8 form-entry">
+
+          <section id="emailPassCard" class="card shadow-lg entry-card">
+            <header class="card-header text-center">
+              <h1 class="text-center mb-1">Start Creating Your Profile</h1>
+              <p class="footnote mt-1">
+                <span class="asterix">*</span> Indicates required fields
+              </p>
+            </header>
+
+            <div class="card-body">
+              <form action="/submit-emailPass" method="POST" id="account-form">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+                <!-- EMAIL SECTION -->
+                <div class="mb-3 scroll-section" id="emailsSection">
+                  <label for="email" class="form-label">
+                    Email:<span class="asterix">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    class="form-control"
+                    placeholder="Enter your email"
+                    required
+                    aria-describedby="email-status"
+                  />
+
+                  <label for="confirm-email" class="form-label mt-3">
+                    Confirm Email:<span class="asterix">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    id="confirmEmail"
+                    name="confirmEmail"
+                    class="form-control"
+                    placeholder="Confirm your email"
+                    required
+                    aria-describedby="confirm-email-status"
+                  />
+                </div>
+
+                <!-- PASSWORD SECTION (hidden until email validated) -->
+          <div
+            class="mb-3 scroll-section d-none"
+            id="passwords"
+            hidden
+            aria-hidden="true"
+          >
+            <!-- Create password -->
+            <label for="password" class="form-label">
+              Create a password:<span class="asterix">*</span>
+            </label>
+
+            <div class="input-group password-group mb-2">
+              <!-- Lock icon -->
+              <span class="input-group-text">
+                <i class="fas fa-lock"></i>
+              </span>
+
+              <!-- Password input -->
+              <input
+                type="password"
+                id="password"
+                name="password"
+                class="form-control"
+                placeholder="Your new password"
+                required
+                aria-describedby="password-status"
+              />
+
+              <!-- Eye toggle -->
+              <button
+                type="button"
+                class="input-group-text togglePasswordBtn"
+                id="togglePassword"
+                title="Show/Hide password"
+              >
+                <i class="far fa-eye"></i>
+              </button>
+            </div>
+
+            <!-- Confirm password -->
+            <label for="confirmPasswordInput" class="form-label mt-3">
+              Confirm password:<span class="asterix">*</span>
+            </label>
+
+            <div class="input-group password-group">
+              <!-- Lock icon -->
+              <span class="input-group-text">
+                <i class="fas fa-lock"></i>
+              </span>
+
+              <!-- Confirm password input -->
+              <input
+                type="password"
+                id="confirmPasswordInput"
+                name="confirmPasswordInput"
+                class="form-control"
+                placeholder="Confirm your password"
+                required
+                aria-describedby="passwords-matched-status"
+              />
+
+            </div>
+          </div>
+              </form>
+            </div>
+
+          <!-- STICKY FOOTER (outside the form by design) -->
+          <div class="scroll-section sticky-action">
+
+              <div id="section-status" class="w-100">
+                  <div id="emailStatus" class="inputStatus"></div>
+                  <div id="confirmEmailStatus" class="inputStatus"></div>
+                  <div id="passwordStatus" class="inputStatus"></div>
+                  <div id="passwordsMatchedStatus" class="inputStatus"></div>
+              </div>
+
+              <% if (typeof error !== 'undefined' && error) { %>
+                  <div class="alert alert-danger d-flex align-items-center mt-2 mb-1 py-2" role="alert">
+                      <i class="bi bi-exclamation-triangle-fill me-2 flex-shrink-0"></i>
+                      <span><%= error %></span>
+                  </div>
+              <% } %>
+
+              <div id="submitStatus" class="status mt-2 submitStatus"></div>
+
+              <button type="submit" class="btn btn-primary w-100 mt-1">
+                  Submit
+              </button>
+
+          </div>
+          </section>
+        </div>
+      </div>
+    </main>
+
+ <!-- Identity Confirmation Modal -->
+    <div class="modal fade" id="confirmIdentityModal" tabindex="-1" aria-labelledby="confirmIdentityLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="confirmIdentityLabel">
+              <i class="fa-solid fa-circle-question text-warning me-2"></i>Is this you?
+            </h5>
+          </div>
+          <div class="modal-body">
+            <p>We found an unfinished profile for this email address registered to:</p>
+            <p class="fw-bold fs-5 text-center my-3" id="confirmIdentityName"></p>
+            <p>If this is you, enter your password below to upgrade your profile to an enhanced account.</p>
+            <input type="password" id="confirmIdentityPassword" class="form-control mt-2" placeholder="Enter your password" />
+            <div id="confirmIdentityError" class="text-danger mt-2 d-none"></div>
+          </div>
+          <div class="modal-footer d-flex justify-content-between align-items-center">
+            <button type="button" class="btn btn-outline-secondary" id="confirmIdentityNo">Use different email</button>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-outline-primary" id="confirmIdentityStandard">Continue as Standard</button>
+              <button type="button" class="btn btn-primary" id="confirmIdentityYes">Yes, upgrade account</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/email-validation.js"></script>
+    <script src="/js/passwords.js"></script>
+    <script src="/js/formListeners.js"></script>
+    <script src="/js/emailPass.js"></script>
+  </body>
+</html>

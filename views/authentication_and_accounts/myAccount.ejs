@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>My Account</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- Bootstrap CSS -->
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+
+    <!-- Site styles -->
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+
+  <body class="min-vh-100 d-flex justify-content-center align-items-center bg-body-tertiary">
+    <main class="container" id="formSummaryRoot">
+      <div class="row justify-content-center">
+        <div class="col-12 col-lg-10 col-xl-9">
+
+          <section id="summary-card" class="card shadow-lg mx-auto">
+            <header class="card-header text-center">
+              <h1 class="h2 my-2">My Account</h1>
+              <p class="mb-0">Edit your information below.</p>
+            </header>
+
+            <div class="card-body">
+
+              <% if (!user) { %>
+                <div class="alert alert-warning" role="alert">
+                  We couldn't load your account. Please sign in again.
+                </div>
+                <a href="/login" class="btn btn-primary">
+                  Go to Login
+                </a>
+              <% } else { %>
+
+                <!-- Root container (not a form) so formSummary.js can still treat it as "summary-form" -->
+                <div id="summary-form">
+                  <!-- CSRF convenience (per-section forms include their own _csrf) -->
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                  <input type="hidden" id="summary-gender" value="<%= gender || (user.gender || '') %>" />
+
+                  <!-- Privilege rule JSON (for privilegeEnforcer.js) -->
+                  <% if (privilegeRulesJSON) { %>
+                    <script id="privilege-rules-json" type="application/json">
+                      <%- privilegeRulesJSON %>
+                    </script>
+                  <% } %>
+
+                  <!-- Accordion -->
+                  <div class="accordion" id="accountAccordion">
+
+                    <!-- CONTACT -->
+                    <div class="accordion-item">
+                      <h2 class="accordion-header" id="headingContact">
+                        <button class="accordion-button"
+                          type="button"
+                          data-bs-toggle="collapse"
+                          data-bs-target="#collapseContact"
+                          aria-expanded="true"
+                          aria-controls="collapseContact">
+                          Contact
+                        </button>
+                      </h2>
+
+                      <div id="collapseContact" class="accordion-collapse collapse show">
+                        <div class="accordion-body">
+
+                          <div class="d-flex justify-content-end mb-2">
+                            <button
+                              type="button"
+                              class="btn btn-outline-secondary btn-sm summary-edit-btn"
+                              data-section="contact">
+                              EDIT
+                            </button>
+                          </div>
+
+                          <!-- Section form: CONTACT (names locked, contact editable) -->
+                          <form
+                            action="/my-account/update/contact"
+                            method="POST"
+                            class="mb-3">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+                            <div class="row row-cols-1 row-cols-md-2 g-3">
+                              <!-- firstName (LOCKED) -->
+                              <div class="col">
+                                <label class="form-label small">First Name</label>
+                                <input type="text"
+                                  name="firstName"
+                                  id="firstName"
+                                  class="form-control"
+                                  value="<%= user.firstName || '' %>"
+                                  readonly />
+                              </div>
+
+                              <!-- lastName (LOCKED) -->
+                              <div class="col">
+                                <label class="form-label small">Last Name</label>
+                                <input type="text"
+                                  name="lastName"
+                                  id="lastName"
+                                  class="form-control"
+                                  value="<%= user.lastName || '' %>"
+                                  readonly />
+                              </div>
+
+                              <!-- suffix (LOCKED) -->
+                              <div class="col">
+                                <label class="form-label small">Suffix</label>
+                                <input type="text"
+                                  name="suffix"
+                                  id="suffix"
+                                  class="form-control"
+                                  value="<%= user.suffix || '' %>"
+                                  readonly />
+                              </div>
+
+                              <!-- email (editable in EDIT mode) -->
+                             <div class="col">
+                                <label class="form-label small">Email</label>
+                                    <input
+                                    type="email"
+                                    class="form-control"
+                                    id="email"
+                                    name="email"
+                                    value="<%= user.email || '' %>"
+                                    data-current-email="<%= user.email %>"
+                                />
+                            <!-- status area (same markup as emailPass.ejs) -->
+                                <div id="emailStatus" class="status mt-1"></div>
+                            </div>
+
+                              <!-- phone (editable in EDIT mode) -->
+                            <div class="col">
+                                <label class="form-label small">Phone</label>
+                                <input
+                                    type="text"
+                                    class="form-control"
+                                    id="phone"
+                                    name="phone"
+                                    value="<%= user.phone || '' %>"
+                                    data-current-phone="<%= user.phone %>"
+                                />
+                                <div id="phoneStatus" class="status mt-1"></div>
+                            </div>
+
+                              <!-- SMS capable -->
+                              <div class="col">
+                                <fieldset class="border-0 p-0 mt-1">
+                                  <legend class="form-label small mb-1">
+                                    Can you receive text messages?
+                                  </legend>
+
+                                  <div class="d-flex gap-3">
+                                    <div class="form-check">
+                                      <input class="form-check-input"
+                                        type="radio"
+                                        name="SMSCapable"
+                                        id="sms-yes"
+                                        value="yes"
+                                        <%= user.smsCapable ? 'checked' : '' %> />
+                                      <label class="form-check-label" for="sms-yes">Yes</label>
+                                    </div>
+
+                                    <div class="form-check">
+                                      <input class="form-check-input"
+                                        type="radio"
+                                        name="SMSCapable"
+                                        id="sms-no"
+                                        value="no"
+                                        <%= !user.smsCapable ? 'checked' : '' %> />
+                                      <label class="form-check-label" for="sms-no">No</label>
+                                    </div>
+                                  </div>
+                                  <!-- WhatsApp ID -->
+                                  <div class="col">
+                                    <label class="form-label small">WhatsApp ID (if known)</label>
+                                    <input
+                                      type="text"
+                                      id="whatsappid"
+                                      name="whatsappid"
+                                      class="form-control"
+                                      value="<%= user.whatsappid || '' %>"
+                                      placeholder="WhatsApp ID"
+                                    >
+                                    <div class="form-text mt-1">
+                                      WhatsApp is not required but
+                                      <strong><em>STRONGLY</em></strong>
+                                      recommended.
+                                    </div>
+                                  </div>
+
+                                </fieldset>
+                              </div>
+                            </div>
+                          </form>
+
+                          <!-- PASSWORD GATE (inside contact accordion) -->
+                          <hr class="my-4" />
+
+                          <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                              <label class="form-label small mb-0">Password</label>
+                              <div>********</div>
+                            </div>
+                            <button
+                              type="button"
+                              class="btn btn-outline-secondary btn-sm"
+                              id="show-password-panel">
+                              Change Password
+                            </button>
+                          </div>
+
+                          <!-- Hidden password change form -->
+                          <div id="password-edit-block" class="mt-3 d-none">
+                            <form
+                              action="/my-account/change-password"
+                              method="POST">
+                              <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+                              <% if (pwError) { %>
+                                <div class="alert alert-danger py-2 mb-3">
+                                  Passwords did not match. Please try again.
+                                </div>
+                              <% } %>
+
+                              <% if (pwSuccess) { %>
+                                <div class="alert alert-success py-2 mb-3">
+                                  Password updated successfully.
+                                </div>
+                              <% } %>
+
+                              <div class="row g-3 align-items-end">
+                                <div class="col-md-6">
+                                  <label class="form-label small">New Password</label>
+                                  <div class="input-group password-group">
+                                    <!-- Lock icon (left side) -->
+                                    <span class="input-group-text">
+                                      <i class="fa-solid fa-lock"></i>
+                                    </span>
+                                    <!-- New password input -->
+                                    <input
+                                      type="password"
+                                      class="form-control"
+                                      name="newPassword"
+                                      id="newPassword"
+                                    />
+                                    <!-- Eye toggle (right side) -->
+                                    <button
+                                      class="btn btn-outline-secondary btn-sm"
+                                      type="button"
+                                      data-pw-toggle="newPassword"
+                                      aria-label="Show or hide new password"
+                                    >
+                                      <i class="fa-regular fa-eye"></i>
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                  <label class="form-label small">Confirm Password</label>
+                                  <div class="input-group password-group">
+                                    <!-- Lock icon (left side) -->
+                                    <span class="input-group-text">
+                                      <i class="fa-solid fa-lock"></i>
+                                    </span>
+                                    <!-- Confirm password input -->
+                                    <input
+                                      type="password"
+                                      class="form-control"
+                                      name="confirmPassword"
+                                      id="confirmPassword"
+                                    />
+                                    <!-- Eye toggle (right side) -->
+                                    <button
+                                      class="btn btn-outline-secondary btn-sm"
+                                      type="button"
+                                      data-pw-toggle="confirmPassword"
+                                      aria-label="Show or hide confirm password"
+                                    >
+                                      <i class="fa-regular fa-eye"></i>
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                                                            
+                              <!-- Live match status under the two fields -->
+                              <div id="pw-change-status" class="status mt-2"></div>
+
+
+                              <div class="mt-3 text-end">
+                                <button class="btn btn-secondary" type="submit">
+                                  Save New Password
+                                </button>
+                              </div>
+                            </form>
+                          </div>
+
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- PERSONAL INFO (DOB, Gender, Stamina) -->
+                    <div class="accordion-item">
+                      <h2 class="accordion-header" id="headingPersonal">
+                        <button class="accordion-button collapsed"
+                          type="button"
+                          data-bs-toggle="collapse"
+                          data-bs-target="#collapsePersonal">
+                          Personal Info
+                        </button>
+                      </h2>
+
+                      <div id="collapsePersonal" class="accordion-collapse collapse">
+                        <div class="accordion-body">
+                          <div class="d-flex justify-content-end mb-2">
+                            <button
+                              type="button"
+                              class="btn btn-outline-secondary btn-sm summary-edit-btn"
+                              data-section="personal">
+                              EDIT
+                            </button>
+                          </div>
+
+                          <form action="/my-account/update/personal" method="POST">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+                            <% 
+                              let dobValue = '';
+                              if (user.dobirth) {
+                                const d = new Date(user.dobirth);
+                                if (!isNaN(d.valueOf())) {
+                                  const y = d.getFullYear();
+                                  const m = String(d.getMonth() + 1).padStart(2, '0');
+                                  const day = String(d.getDate()).padStart(2, '0');
+                                  dobValue = `${y}-${m}-${day}`;
+                                }
+                              }
+                            %>
+
+                            <div class="row row-cols-1 row-cols-md-2 g-3">
+                              <!-- DOB -->
+                              <div class="col">
+                                <label class="form-label small">Date of Birth</label>
+                                <input type="date"
+                                  id="dobirthRaw"
+                                  name="dobirthRaw"
+                                  class="form-control"
+                                  value="<%= dobValue %>" />
+                              </div>
+
+                              <!-- Gender -->
+                              <div class="col">
+                                <label class="form-label small">Gender</label>
+                                <select id="genderRaw" name="genderRaw" class="form-select">
+                                  <option value="" <%= !user.gender ? 'selected' : '' %>>Select…</option>
+                                  <option value="male" <%= (user.gender || '').toLowerCase() === 'male' ? 'selected' : '' %>>Male</option>
+                                  <option value="female" <%= (user.gender || '').toLowerCase() === 'female' ? 'selected' : '' %>>Female</option>
+                                </select>
+                              </div>
+
+                              <!-- Stamina -->
+                              <div class="col">
+                                <label class="form-label small">Stamina (1–5)</label>
+                                <select id="staminaRaw" name="staminaRaw" class="form-select">
+                                  <option value="">Rate your stamina</option>
+                                  <% const values = ["Poor","Fair","Average","Good","Excellent"]; %>
+                                  <% for (let i=0; i < values.length; i++) { %>
+                                    <option
+                                      value="<%= i+1 %>"
+                                      <%= user.stamina === (i+1) ? "selected" : "" %>>
+                                      <%= `${i+1} - ${values[i]}` %>
+                                    </option>
+                                  <% } %>
+                                </select>
+                              </div>
+                            </div>
+                          </form>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- CONGREGATION INFO -->
+                    <div class="accordion-item">
+                      <h2 class="accordion-header" id="headingCong">
+                        <button class="accordion-button collapsed"
+                          type="button"
+                          data-bs-toggle="collapse"
+                          data-bs-target="#collapseCong">
+                          Congregation Info
+                        </button>
+                      </h2>
+
+                      <div id="collapseCong" class="accordion-collapse collapse">
+                        <div class="accordion-body">
+
+                          <div class="d-flex justify-content-end mb-2">
+                            <button
+                              type="button"
+                              class="btn btn-outline-secondary btn-sm summary-edit-btn"
+                              data-section="congregation">
+                              EDIT
+                            </button>
+                          </div>
+
+                          <form
+                            action="/my-account/update/congregation"
+                            method="POST">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+                            <!-- Assigned? -->
+                            <fieldset class="mb-3">
+                              <legend class="form-label small mb-1">
+                                Congregation assigned to this convention?
+                              </legend>
+
+                              <div class="d-flex gap-3">
+                                <div class="form-check">
+                                  <input
+                                    class="form-check-input"
+                                    type="radio"
+                                    name="congAssigned"
+                                    id="congAssigned-yes"
+                                    value="yes"
+                                    <%= user.assignedToConv ? 'checked' : '' %> />
+                                  <label class="form-check-label" for="congAssigned-yes">Yes</label>
+                                </div>
+
+                                <div class="form-check">
+                                  <input
+                                    class="form-check-input"
+                                    type="radio"
+                                    name="congAssigned"
+                                    id="congAssigned-no"
+                                    value="no"
+                                    <%= !user.assignedToConv ? 'checked' : '' %> />
+                                  <label class="form-check-label" for="congAssigned-no">No</label>
+                                </div>
+                              </div>
+                            </fieldset>
+
+                            <% 
+                              let visitingCity = '';
+                              let visitingState = '';
+                              let visitingLang = '';
+                              if (user.assignedToConv === false && user.congregation) {
+                                const raw = user.congregation;
+                                const dashIndex = raw.lastIndexOf('-');
+                                if (dashIndex !== -1) {
+                                  const left = raw.slice(0, dashIndex).trim();
+                                  visitingLang = raw.slice(dashIndex + 1).trim();
+                                  const commaIndex = left.lastIndexOf(',');
+                                  if (commaIndex !== -1) {
+                                    visitingCity = left.slice(0, commaIndex).trim();
+                                    visitingState = left.slice(commaIndex + 1).trim();
+                                  } else {
+                                    visitingCity = left;
+                                  }
+                                }
+                              }
+                            %>
+
+                            <!-- Assigned congregation list -->
+                            <div id="cong-assigned-block" class="mb-3">
+                              <label class="form-label small">Congregation belonging to</label>
+                              <select id="congregation" name="congregation" class="form-select">
+                                <option value="">Select congregation...</option>
+
+                                <% if (Array.isArray(congregations)) { %>
+                                  <% congregations.forEach(c => { %>
+                                    <option value="<%= c %>"
+                                      <%= user.assignedToConv && user.congregation === c ? 'selected' : '' %>>
+                                      <%= c %>
+                                    </option>
+                                  <% }); %>
+                                <% } %>
+                              </select>
+                            </div>
+
+                            <!-- Visiting -->
+                            <div id="cong-visiting-block" class="mb-3">
+                              <div class="row row-cols-1 row-cols-md-3 g-3">
+
+                                <div class="col">
+                                  <label class="form-label small">Visiting City</label>
+                                  <input type="text"
+                                    name="congregationOtherCity"
+                                    id="congregationOtherCity"
+                                    class="form-control"
+                                    value="<%= visitingCity %>" />
+                                </div>
+
+                                <div class="col">
+                                  <label class="form-label small">State</label>
+                                  <input type="text"
+                                    name="congregationOtherState"
+                                    id="congregationOtherState"
+                                    maxlength="2"
+                                    class="form-control"
+                                    value="<%= visitingState %>" />
+                                </div>
+
+                                <div class="col">
+                                  <label class="form-label small">Language</label>
+                                  <input type="text"
+                                    name="congregationOtherLang"
+                                    id="congregationOtherLang"
+                                    class="form-control"
+                                    value="<%= visitingLang %>" />
+                                </div>
+
+                              </div>
+
+                              <div class="form-text mt-1">
+                                Used when you are attending from another congregation.
+                              </div>
+                            </div>
+
+                            <!-- Extra session -->
+                            <fieldset class="mb-2">
+                              <legend class="form-label small mb-1">
+                                Attending another session?
+                              </legend>
+
+                              <div class="d-flex gap-3">
+                                <div class="form-check">
+                                  <input
+                                    class="form-check-input"
+                                    type="radio"
+                                    name="extraAttend"
+                                    id="extraAttend-yes"
+                                    value="yes"
+                                    <%= user.attendExtra ? 'checked' : '' %> />
+                                  <label class="form-check-label" for="extraAttend-yes">Yes</label>
+                                </div>
+
+                                <div class="form-check">
+                                  <input
+                                    class="form-check-input"
+                                    type="radio"
+                                    name="extraAttend"
+                                    id="extraAttend-no"
+                                    value="no"
+                                    <%= !user.attendExtra ? 'checked' : '' %> />
+                                  <label class="form-check-label" for="extraAttend-no">No</label>
+                                </div>
+                              </div>
+                            </fieldset>
+                          </form>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- SPIRITUAL INFO (privileges) -->
+                    <div class="accordion-item">
+                      <h2 class="accordion-header" id="headingSpiritual">
+                        <button class="accordion-button collapsed"
+                          type="button"
+                          data-bs-toggle="collapse"
+                          data-bs-target="#collapseSpiritual">
+                          Spiritual Info
+                        </button>
+                      </h2>
+
+                      <div id="collapseSpiritual" class="accordion-collapse collapse">
+                        <div class="accordion-body">
+                          <div class="d-flex justify-content-end mb-2">
+                            <button
+                              type="button"
+                              class="btn btn-outline-secondary btn-sm summary-edit-btn"
+                              data-section="spiritual">
+                              EDIT
+                            </button>
+                          </div>
+
+                          <form action="/my-account/update/spiritual" method="POST">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+                            <!-- 3-column layout -->
+                            <div class="row row-cols-1 row-cols-md-3 g-4">
+
+                              <!-- Ministry -->
+                              <div class="col">
+                                <h3 class="h6 text-uppercase text-muted mb-2">Ministry</h3>
+
+                                <div class="form-check">
+                                  <input class="form-check-input privilege-checkbox"
+                                    type="checkbox"
+                                    name="privileges"
+                                    value="auxPioneer"
+                                    id="priv-auxPioneer"
+                                    <%= user.auxPioneer ? 'checked' : '' %> />
+                                  <label class="form-check-label" for="priv-auxPioneer">
+                                    Auxiliary Pioneer
+                                  </label>
+                                </div>
+
+                                <div class="form-check">
+                                  <input class="form-check-input privilege-checkbox"
+                                    type="checkbox"
+                                    name="privileges"
+                                    value="regPioneer"
+                                    id="priv-regPioneer"
+                                    <%= user.regPioneer ? 'checked' : '' %> />
+                                  <label class="form-check-label" for="priv-regPioneer">
+                                    Regular Pioneer
+                                  </label>
+                                </div>
+
+                                <div class="form-check">
+                                  <input class="form-check-input privilege-checkbox"
+                                    type="checkbox"
+                                    name="privileges"
+                                    value="specPioneer"
+                                    id="priv-specPioneer"
+                                    <%= user.specPioneer ? 'checked' : '' %> />
+                                  <label class="form-check-label" for="priv-specPioneer">
+                                    Special Pioneer / Missionary
+                                  </label>
+                                </div>
+                              </div>
+
+                              <!-- Congregation -->
+                              <div class="col">
+                                <h3 class="h6 text-uppercase text-muted mb-2">Congregation</h3>
+
+                                <div class="form-check">
+                                  <input class="form-check-input privilege-checkbox"
+                                    type="checkbox"
+                                    name="privileges"
+                                    value="minServ"
+                                    id="priv-minServ"
+                                    <%= user.minServ ? 'checked' : '' %> />
+                                  <label class="form-check-label" for="priv-minServ">
+                                    Ministerial Servant
+                                  </label>
+                                </div>
+
+                                <div class="form-check">
+                                  <input class="form-check-input privilege-checkbox"
+                                    type="checkbox"
+                                    name="privileges"
+                                    value="elder"
+                                    id="priv-elder"
+                                    <%= user.elder ? 'checked' : '' %> />
+                                  <label class="form-check-label" for="priv-elder">
+                                    Elder
+                                  </label>
+                                </div>
+                              </div>
+
+                              <!-- SFTS -->
+                              <div class="col">
+                                <h3 class="h6 text-uppercase text-muted mb-2">Special Full-Time</h3>
+
+                                <div class="form-check">
+                                  <input class="form-check-input privilege-checkbox"
+                                    type="checkbox"
+                                    name="privileges"
+                                    value="sfs"
+                                    id="priv-sfs"
+                                    <%= user.sfs ? 'checked' : '' %> />
+                                  <label class="form-check-label" for="priv-sfs">
+                                    Special Full-Time Service
+                                  </label>
+                                </div>
+                              </div>
+                            </div>
+                          </form>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- NOTES -->
+                    <div class="accordion-item">
+                      <h2 class="accordion-header" id="headingNotes">
+                        <button class="accordion-button collapsed"
+                          type="button"
+                          data-bs-toggle="collapse"
+                          data-bs-target="#collapseNotes">
+                          Additional Notes
+                        </button>
+                      </h2>
+
+                      <div id="collapseNotes" class="accordion-collapse collapse">
+                        <div class="accordion-body">
+                          <div class="d-flex justify-content-end mb-2">
+                            <button
+                              type="button"
+                              class="btn btn-outline-secondary btn-sm summary-edit-btn"
+                              data-section="notes">
+                              EDIT
+                            </button>
+                          </div>
+
+                          <form action="/my-account/update/notes" method="POST">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+                            <div class="mb-3">
+                              <label class="form-label small">Additional Notes</label>
+                              <textarea
+                                id="notes"
+                                name="notes"
+                                class="form-control"
+                                rows="4"><%= user.notes || '' %></textarea>
+                            </div>
+                          </form>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- CONVENTION INVITATIONS (read-only) -->
+                    <% if (rsvpHistory && rsvpHistory.length > 0) { %>
+                    <div class="accordion-item">
+                      <h2 class="accordion-header" id="headingInvitations">
+                        <button class="accordion-button collapsed"
+                          type="button"
+                          data-bs-toggle="collapse"
+                          data-bs-target="#collapseInvitations">
+                          Convention Invitations
+                        </button>
+                      </h2>
+
+                      <div id="collapseInvitations" class="accordion-collapse collapse">
+                        <div class="accordion-body p-0">
+                          <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0 small">
+                              <thead class="table-light">
+                                <tr>
+                                  <th>Convention Day</th>
+                                  <th>Shift</th>
+                                  <th>Last Date Sent</th>
+                                  <th>RSVP</th>
+                                  <th>Responded On</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <% rsvpHistory.forEach(function(inv) { %>
+                                  <tr class="<%= inv.revoked ? 'text-muted' : '' %>">
+                                    <td>
+                                      <%= inv.day_label ? inv.day_label + ' — ' : '' %><%= inv.conventionDateFmt %>
+                                    </td>
+                                    <td>
+                                      <%= inv.shiftDisplay %>
+                                      <% if (inv.shiftTimeFmt) { %>
+                                        <span class="text-muted ms-1"><%= inv.shiftTimeFmt %></span>
+                                      <% } %>
+                                    </td>
+                                    <td><%= inv.lastSentFmt %></td>
+                                    <td>
+                                      <% if (inv.revoked) { %>
+                                        <span class="badge bg-secondary">Revoked</span>
+                                      <% } else if (inv.response === 'yes') { %>
+                                        <span class="badge bg-success">Yes</span>
+                                      <% } else if (inv.response === 'no') { %>
+                                        <span class="badge bg-danger">No</span>
+                                      <% } else if (inv.response === 'maybe') { %>
+                                        <span class="badge bg-warning text-dark">Maybe</span>
+                                      <% } else { %>
+                                        <span class="badge bg-light text-muted border">Pending</span>
+                                      <% } %>
+                                    </td>
+                                    <td><%= inv.respondedAtFmt %></td>
+                                  </tr>
+                                <% }); %>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <% } %>
+
+                  </div> <!-- END accordion -->
+                  <div class="text-end mt-4 sticky-action">
+                    <button id="return-home" class="btn btn-outline-secondary me-2">
+                        Return Home
+                    </button>
+                    <button id="finalize-changes" class="btn btn-primary" disabled>
+                      Finalize Changes
+                    </button>
+                    <div id="finalize-status" class="mt-3"></div>
+                  </div>
+                </div>   <!-- END #summary-form -->
+              <% } %>
+            </div> <!-- /card-body -->
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <!-- Confirmation Modal for section saves -->
+    <div class="modal fade" id="confirmModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+
+          <div class="modal-header">
+            <h5 class="modal-title">Confirm Changes</h5>
+            <button type="button" class="btn-close"
+              data-bs-dismiss="modal"></button>
+          </div>
+
+          <div class="modal-body">
+            Are you sure you want to save these changes?
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn btn-outline-secondary"
+              data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary" id="modal-save-btn">
+              Yes, Save
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/mobileDropdownSafety.js"></script>
+    <script src="/js/formSummary.js"></script>
+    <script src="/js/phoneVer.js"></script>
+    <script src="/js/email-validation.js"></script>
+    <script src="/js/formListeners.js"></script>
+    <script src="/js/privilegeEnforcer.js"></script>
+    <script src="/js/myAccount.js"></script>
+    <%- include('../partials/footer') %>
+  </body>
+</html>

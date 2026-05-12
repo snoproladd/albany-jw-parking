@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Personal Information</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+
+  <body
+    class="min-vh-100 d-flex justify-content-center align-items-center bg-body-tertiary entry-body"
+  >
+    <main class="container body-container">
+      <div class="row justify-content-center">
+        <div class="col-12 col-md-10 col-lg-8 form-entry">
+
+          <section id="personal-info-card" class="card shadow-lg entry-card">
+            <header class="card-header text-center">
+              <h1 class="text-center mb-4">Tell us a little bit about yourself.</h1>
+              <p class="footnote mt-3">
+                <span class="asterix">*</span> Indicates required fields
+              </p>
+            </header>
+
+            <div class="card-body">
+              <form action="submit-personalInfo" method="POST" id="account-form">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+                <!-- ============================================================
+                     SECTION 1 — Gender
+                     ============================================================ -->
+                <div id="genderSection" class="scroll-section mb-3">
+                  <legend class="form-label ms-2 mb-1">
+                    Gender <span class="asterix">*</span>
+                  </legend>
+
+                  <div class="form-label ms-2 mb-1">Are you Male or Female?</div>
+
+                  <div class="form-check ms-5">
+                    <input
+                      class="form-check-input"
+                      type="radio"
+                      name="genderRaw"
+                      id="male"
+                      value="male"
+                      required
+                    />
+                    <label class="form-check-label" for="male">Male</label>
+                  </div>
+
+                  <div class="form-check ms-5">
+                    <input
+                      class="form-check-input"
+                      type="radio"
+                      name="genderRaw"
+                      id="female"
+                      value="female"
+                    />
+                    <label class="form-check-label" for="female">Female</label>
+                  </div>
+                </div>
+
+                <!-- ============================================================
+                     SECTION 2 — Date of Birth
+                     ============================================================ -->
+                <div id="dobSection" class="scroll-section mb-3">
+                  <legend class="form-label ms-2 mb-1">
+                    When were you born? <span class="asterix">*</span>
+                  </legend>
+
+                  <!-- Hidden input holds the assembled YYYY-MM-DD value the server reads -->
+                  <input type="hidden" id="dobirthRaw" name="dobirthRaw" />
+
+                  <div class="row g-2" id="dobPicker">
+                    <div class="col-5">
+                      <label for="dobMonth" class="form-label ms-1 small">Month</label>
+                      <select id="dobMonth" class="form-select dob-part" aria-label="Birth month">
+                        <option value="">Month</option>
+                        <option value="01">January</option>
+                        <option value="02">February</option>
+                        <option value="03">March</option>
+                        <option value="04">April</option>
+                        <option value="05">May</option>
+                        <option value="06">June</option>
+                        <option value="07">July</option>
+                        <option value="08">August</option>
+                        <option value="09">September</option>
+                        <option value="10">October</option>
+                        <option value="11">November</option>
+                        <option value="12">December</option>
+                      </select>
+                    </div>
+                    <div class="col-3">
+                      <label for="dobDay" class="form-label ms-1 small">Day</label>
+                      <select id="dobDay" class="form-select dob-part" aria-label="Birth day">
+                        <option value="">Day</option>
+                      </select>
+                    </div>
+                    <div class="col-4">
+                      <label for="dobYear" class="form-label ms-1 small">Year</label>
+                      <select id="dobYear" class="form-select dob-part" aria-label="Birth year">
+                        <option value="">Year</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- ============================================================
+                     SECTION 3 — Stamina
+                     ============================================================ -->
+                <div id="staminaSection" class="scroll-section mb-3">
+                  <legend class="form-label ms-2 mb-1">
+                    How would you rate your physical stamina?
+                    <span class="asterix">*</span>
+                  </legend>
+
+                  <select
+                    id="staminaRaw"
+                    name="staminaRaw"
+                    class="form-control"
+                    required
+                  >
+                    <option value="">Rate your Stamina</option>
+                    <% let values = ["Poor", "Fair", "Average", "Good", "Excellent"]; %>
+                    <% for (let i = 0; i < values.length; i++) { %>
+                      <option value="<%= i+1 %>">
+                        <%= `${i+1} - ${values[i]}` %>
+                      </option>
+                    <% } %>
+                  </select>
+                </div>
+              </form>
+            </div>
+
+            <!-- ============================================================
+                 UNIFIED STICKY FOOTER (statuses + submit)
+                 ============================================================ -->
+            <div class="scroll-section sticky-action">
+
+              <!-- Section-specific statuses -->
+              <div id="section-status" class="w-100">
+                <div id="genderStatus" class="inputStatus"></div>
+                <div id="dobStatus" class="inputStatus"></div>
+                <div id="staminaStatus" class="inputStatus"></div>
+              </div>
+
+              <!-- Submit status -->
+              <div id="submitStatus" class="status mt-2 submitStatus"></div>
+
+              <button type="submit" class="btn btn-primary w-100 mt-1">
+                Submit
+              </button>
+            </div>
+
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <!-- Custom JS -->
+    <script src="/js/phoneVer.js" nonce="<%= nonce %>"></script>
+    <script src="/js/dobPicker.js"></script>
+    <script src="/js/formListeners.js"></script>
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>
