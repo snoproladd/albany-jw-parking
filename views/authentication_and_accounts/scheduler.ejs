@@ -75,10 +75,18 @@
             <option value="dropoff_pickup">Dropoff / Pickup</option>
             <option value="mobile_support">Mobile Support</option>
           </select>
+          <select id="vol-usage-filter" data-action="filter" class="form-select form-select-sm">
+            <option value="">All Usage</option>
+            <option value="0">Unused</option>
+            <option value="1">Used 1×</option>
+            <option value="2">Used 2×</option>
+            <option value="3">Used 3×+</option>
+          </select>
           <select id="vol-sort-order" data-action="filter" class="form-select form-select-sm">
             <option value="lastName">Sort: Last Name</option>
             <option value="rank">Sort: Rank</option>
             <option value="department">Sort: Department</option>
+            <option value="usage">Sort: Usage (least first)</option>
           </select>
         </div>
       </div>

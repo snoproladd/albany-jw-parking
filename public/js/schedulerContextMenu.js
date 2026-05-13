@@ -99,6 +99,36 @@ function _buildMenu(volId, volName, pill, inDz) {
     header.textContent = volName;
     menu.appendChild(header);
 
+    // ── Contact info ─────────────────────────────────────────────────
+    const phone = pill.dataset.phone || '';
+    const email = pill.dataset.email || '';
+    if (phone || email) {
+        const contact = document.createElement('div');
+        contact.classList.add('sched-ctx-contact');
+
+        if (phone) {
+            const a = document.createElement('a');
+            a.classList.add('sched-ctx-contact-row');
+            a.href = `tel:${phone.replace(/\D/g, '')}`;
+            const ico = document.createElement('i'); ico.className = 'fa-solid fa-phone';
+            const txt = document.createElement('span'); txt.textContent = phone;
+            a.appendChild(ico); a.appendChild(txt);
+            contact.appendChild(a);
+        }
+
+        if (email) {
+            const a = document.createElement('a');
+            a.classList.add('sched-ctx-contact-row');
+            a.href = `mailto:${email}`;
+            const ico = document.createElement('i'); ico.className = 'fa-solid fa-at';
+            const txt = document.createElement('span'); txt.textContent = email;
+            a.appendChild(ico); a.appendChild(txt);
+            contact.appendChild(a);
+        }
+
+        menu.appendChild(contact);
+    }
+
     // ── Remove from Slot (DZ only) ───────────────────────────────────
     if (inDz) {
         menu.appendChild(_item('fa-solid fa-xmark', 'Remove from Slot', ['danger'], () => {
