@@ -460,9 +460,17 @@
                           </optgroup>
                         </select>
                       </div>
-                         <div class="col-12 col-md-3">
-                        <label for="assignVolNeed" class="form-label small">Volunteers Needed</label>
+                      <div class="col-6 col-md-2">
+                        <label for="assignVolMin" class="form-label small">Min</label>
+                        <input type="number" id="assignVolMin" class="form-control" min="0" max="999" placeholder="—" />
+                      </div>
+                      <div class="col-6 col-md-2">
+                        <label for="assignVolNeed" class="form-label small">Target</label>
                         <input type="number" id="assignVolNeed" class="form-control" min="1" max="999" placeholder="—" />
+                      </div>
+                      <div class="col-6 col-md-2">
+                        <label for="assignVolMax" class="form-label small">Max</label>
+                        <input type="number" id="assignVolMax" class="form-control" min="1" max="999" placeholder="—" />
                       </div>
                       <div class="col-12 col-md-3">
                         <label for="assignNotes" class="form-label small">Notes</label>
@@ -588,16 +596,19 @@
                                               <span class="badge bg-light text-dark border d-flex align-items-center gap-1 assignment-badge">
                                                 <i class="fa-solid fa-location-dot me-1 text-secondary"></i>
                                                 <%= a.location_task_name %>
-                                                <% if (a.volunteer_need) { %>
+                                                <% if (a.vol_min != null || a.volunteer_need != null || a.vol_max != null) { %>
                                                   <span class="text-secondary assignment-vol-need">
-                                                    (<%= a.volunteer_need %>)
+                                                    (<%= a.vol_min != null ? a.vol_min : '?' %> / <%= a.volunteer_need != null ? a.volunteer_need : '?' %> / <%= a.vol_max != null ? a.vol_max : '?' %>)
                                                   </span>
                                                 <% } %>
                                                 <button type="button"
                                                   class="edit-assignment-btn border-0 bg-transparent p-0 assignment-edit-btn"
                                                   data-assignment-id="<%= a.id %>"
                                                   data-location-name="<%= a.location_task_name %>"
+                                                  data-shift-label="<%= shift.label %>"
+                                                  data-vol-min="<%= a.vol_min != null ? a.vol_min : '' %>"
                                                   data-volunteer-need="<%= a.volunteer_need != null ? a.volunteer_need : '' %>"
+                                                  data-vol-max="<%= a.vol_max != null ? a.vol_max : '' %>"
                                                   data-notes="<%= a.notes || '' %>"
                                                   aria-label="Edit">
                                                   <i class="fa-solid fa-pen text-secondary"></i>

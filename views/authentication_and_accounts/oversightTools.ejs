@@ -225,6 +225,36 @@
                   </div>
                 <% } %>
 
+                <% if (can('createAssignments')) { %>
+                  <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="admin-tool-card h-100">
+                      <div class="admin-tool-icon text-warning">
+                        <i class="fa-solid fa-people-group"></i>
+                      </div>
+                      <h3 class="admin-tool-title">Crew Assignments</h3>
+                      <p class="admin-tool-desc">Assign volunteers to parking crews. Controls which shifts each volunteer can be scheduled for in the Scheduler.</p>
+                      <a href="/oversight/tools/crew-assignments" class="btn btn-warning admin-tool-btn">
+                        Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                      </a>
+                    </div>
+                  </div>
+                <% } %>
+
+                <% if (can('createAssignments')) { %>
+                  <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="admin-tool-card h-100">
+                      <div class="admin-tool-icon text-success">
+                        <i class="fa-solid fa-calendar-days"></i>
+                      </div>
+                      <h3 class="admin-tool-title">Scheduler</h3>
+                      <p class="admin-tool-desc">Drag and drop volunteers onto shift slots. Filter the pool by rank or department and enforce role eligibility automatically.</p>
+                      <a href="/oversight/tools/scheduler" class="btn btn-success admin-tool-btn">
+                        Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                      </a>
+                    </div>
+                  </div>
+                <% } %>
+
               </div>
             <% } %>
 

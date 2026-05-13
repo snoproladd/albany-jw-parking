@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Crew Assignments — Albany JW Parking</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+  <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+  <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+  <link rel="stylesheet" type="text/css" href="/styles/crewMatrix.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+  <meta name="csrf-token" content="<%= csrfToken %>" />
+</head>
+
+<body class="min-vh-100 bg-body-tertiary" data-authed="true">
+  <%- include('../partials/header') %>
+
+  <main class="container-fluid py-4 px-4">
+    <div class="row justify-content-center">
+      <div class="col-12 col-xl-10 col-xxl-9">
+
+        <section class="card shadow-lg admin-console-card">
+          <header class="card-header text-center">
+            <h1 class="h2 my-2">
+              <i class="fa-solid fa-people-group me-2"></i>Crew Assignments
+            </h1>
+            <p class="mb-0">
+              Assign volunteers to crews. Changes save automatically.
+              Showing all volunteers active for the current convention year.
+            </p>
+          </header>
+
+          <div class="card-body py-4 px-4">
+
+            <%#-- Toolbar --%>
+<div class="d-flex flex-wrap gap-3 align-items-start mb-4">
+              <input
+                type="text"
+                id="crewSearch"
+                class="form-control form-control-sm crew-search-input"
+                placeholder="Search by name…"
+                autocomplete="off"
+              />
+              <div class="d-flex flex-column gap-1">
+                <span class="small text-muted crew-filter-label">Filter by role</span>
+                <div class="crew-filter-btngroup" id="crewRoleFilter">
+                  <button type="button" class="crew-filter-btn" data-value="NON_REGISTERED">Non-Reg</button>
+                  <button type="button" class="crew-filter-btn" data-value="REGISTERED">Registered</button>
+                  <button type="button" class="crew-filter-btn" data-value="KEYMAN">Keyman</button>
+                  <button type="button" class="crew-filter-btn" data-value="OVERSEER">Overseer</button>
+                </div>
+              </div>
+              <div class="d-flex flex-column gap-1">
+                <span class="small text-muted crew-filter-label">Filter by crew</span>
+                <div class="crew-filter-btngroup" id="crewCrewFilter">
+                  <button type="button" class="crew-filter-btn" data-value="no_crews">None assigned</button>
+                  <button type="button" class="crew-filter-btn crew-filter-btn--lag" data-value="lots_and_garages">L&amp;G</button>
+                  <button type="button" class="crew-filter-btn crew-filter-btn--sgn" data-value="signs">Signs</button>
+                  <button type="button" class="crew-filter-btn crew-filter-btn--sec" data-value="security">Security</button>
+                  <button type="button" class="crew-filter-btn crew-filter-btn--dp" data-value="dropoff_pickup">D/P</button>
+                  <button type="button" class="crew-filter-btn crew-filter-btn--ms" data-value="mobile_support">MS</button>
+                </div>
+              </div>
+              <span id="crewRowCount" class="text-muted small ms-auto">
+                <%= volunteers.length %> volunteer<%= volunteers.length !== 1 ? 's' : '' %>
+              </span>
+            </div>
+
+            <%#-- Save status toast --%>
+            <div id="crewToast" class="crew-toast d-none" role="status" aria-live="polite"></div>
+
+            <%#-- Matrix table --%>
+            <% if (volunteers.length === 0) { %>
+              <p class="text-muted text-center py-4">
+                No active volunteers found for the current year.
+              </p>
+            <% } else { %>
+              <div class="table-responsive">
+                <table class="table table-hover align-middle crew-matrix-table" id="crewTable">
+                  <thead class="table-light">
+                    <tr>
+                      <th class="crew-col-name">Name</th>
+                      <th class="crew-col-role">Role</th>
+                      <th class="crew-col-crew text-center" data-crew="lots_and_garages">
+                        <span class="crew-badge crew-lots-and-garages">L&amp;G</span>
+                        <div class="crew-col-label">Lots &amp; Garages</div>
+                        <button class="crew-toggle-all-btn" type="button" data-crew="lots_and_garages" title="Toggle all visible">
+                          <i class="fa-regular fa-square"></i>
+                        </button>
+                      </th>
+                      <th class="crew-col-crew text-center" data-crew="signs">
+                        <span class="crew-badge crew-signs">SGN</span>
+                        <div class="crew-col-label">Signs</div>
+                        <button class="crew-toggle-all-btn" type="button" data-crew="signs" title="Toggle all visible">
+                          <i class="fa-regular fa-square"></i>
+                        </button>
+                      </th>
+                      <th class="crew-col-crew text-center" data-crew="security">
+                        <span class="crew-badge crew-security">SEC</span>
+                        <div class="crew-col-label">Security</div>
+                        <button class="crew-toggle-all-btn" type="button" data-crew="security" title="Toggle all visible">
+                          <i class="fa-regular fa-square"></i>
+                        </button>
+                      </th>
+                      <th class="crew-col-crew text-center" data-crew="dropoff_pickup">
+                        <span class="crew-badge crew-dropoff-pickup">D/P</span>
+                        <div class="crew-col-label">Dropoff/Pickup</div>
+                        <button class="crew-toggle-all-btn" type="button" data-crew="dropoff_pickup" title="Toggle all visible">
+                          <i class="fa-regular fa-square"></i>
+                        </button>
+                      </th>
+                      <th class="crew-col-crew text-center" data-crew="mobile_support">
+                        <span class="crew-badge crew-mobile-support">MS</span>
+                        <div class="crew-col-label">Mobile Support</div>
+                        <button class="crew-toggle-all-btn" type="button" data-crew="mobile_support" title="Toggle all visible">
+                          <i class="fa-regular fa-square"></i>
+                        </button>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% volunteers.forEach(v => { %>
+                      <tr class="crew-row"
+                          data-id="<%= v.id %>"
+                          data-role="<%= v.role %>"
+                          data-name="<%= (v.lastName + ' ' + v.firstName).toLowerCase() %>">
+                        <td class="fw-semibold">
+                          <%= v.lastName %>, <%= v.firstName %>
+                        </td>
+                        <td>
+                          <span class="badge <%=
+                            v.role === 'ADMIN'           ? 'bg-danger'            :
+                            v.role === 'ASSISTANT_ADMIN' ? 'bg-warning text-dark' :
+                            v.role === 'OVERSEER'        ? 'bg-primary'           :
+                            v.role === 'KEYMAN'          ? 'bg-info text-dark'    :
+                            v.role === 'REGISTERED'      ? 'bg-success'           :
+                                                           'bg-secondary'
+                          %>">
+                            <%= v.role %>
+                          </span>
+                        </td>
+                        <td class="text-center">
+                          <div class="form-check form-switch d-flex justify-content-center mb-0">
+                            <input class="form-check-input crew-toggle"
+                              type="checkbox"
+                              data-crew="lots_and_garages"
+                              <%= v.crew_lots_garages   ? 'checked' : '' %>
+                              aria-label="Lots and Garages" />
+                          </div>
+                        </td>
+                        <td class="text-center">
+                          <div class="form-check form-switch d-flex justify-content-center mb-0">
+                            <input class="form-check-input crew-toggle"
+                              type="checkbox"
+                              data-crew="signs"
+                              <%= v.crew_signs          ? 'checked' : '' %>
+                              aria-label="Signs" />
+                          </div>
+                        </td>
+                        <td class="text-center">
+                          <div class="form-check form-switch d-flex justify-content-center mb-0">
+                            <input class="form-check-input crew-toggle"
+                              type="checkbox"
+                              data-crew="security"
+                              <%= v.crew_security       ? 'checked' : '' %>
+                              aria-label="Security" />
+                          </div>
+                        </td>
+                        <td class="text-center">
+                          <div class="form-check form-switch d-flex justify-content-center mb-0">
+                            <input class="form-check-input crew-toggle"
+                              type="checkbox"
+                              data-crew="dropoff_pickup"
+                              <%= v.crew_dropoff_pickup ? 'checked' : '' %>
+                              aria-label="Dropoff / Pickup" />
+                          </div>
+                        </td>
+                        <td class="text-center">
+                          <div class="form-check form-switch d-flex justify-content-center mb-0">
+                            <input class="form-check-input crew-toggle"
+                              type="checkbox"
+                              data-crew="mobile_support"
+                              <%= v.crew_mobile_support ? 'checked' : '' %>
+                              aria-label="Mobile Support" />
+                          </div>
+                        </td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+            <% } %>
+
+            <div class="mt-4">
+              <a href="/oversight/tools" class="btn btn-outline-secondary btn-sm">
+                <i class="fa-solid fa-arrow-left me-1"></i>Back to Oversight Tools
+              </a>
+            </div>
+
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <%- include('../partials/footer') %>
+
+  <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+  <script src="/js/crewMatrix.js" type="module"></script>
+</body>
+</html>

@@ -218,9 +218,140 @@ Expand a session to manage its shifts. Each shift has:
 - **Label** — display name for the shift
 - **Start / End time**
 - **Volunteer need** — how many volunteers are required
-- **Schedule Assignments** — locations attached to this shift
+- **Schedule Assignments** — locations attached to this shift, each with
+  **Min**, **Target**, and **Max** volunteer counts. These drive slot
+  colour-coding in the Scheduler (red = below min, grey = up to target,
+  faded = up to max).
 - **Invitable toggle** — the envelope button marks a shift as available for
   invitations in the Messaging Center. Yellow = invitable.
+
+---
+
+### Scheduler *(OVERSEER+)*
+
+**Path:** Oversight Tools → Scheduler
+
+A drag-and-drop interface for assigning volunteers to shift slots across a
+convention day.
+
+#### Setup prerequisites
+
+Before the Scheduler can display a grid, each shift in Timelines must have
+its **Department** column set (via direct DB edit or a future UI field) to
+one of the five department keys: `lots_and_garages`, `signs`, `security`,
+`dropoff_pickup`, `mobile_support`. Shifts without a department are excluded
+from the grid.
+
+Schedule assignments on those shifts should also have **Min** and **Max**
+set alongside the Target (volunteer need) in Timelines so the slot
+colour-coding renders correctly.
+
+#### Using the Scheduler
+
+1. Select a **Convention Day** from the sidebar picker.
+   The schedule grid loads automatically — rows at 15-minute resolution,
+   columns organised by department. Departments with multiple locations
+   (e.g. Security at MVP Garage and OGS Parking Garage) display one
+   sub-column per location under a shared department header.
+2. The **Volunteer Pool** in the sidebar lists all active registered volunteers.
+   - Filter by **Rank** to narrow to Registered, Keyman, or Overseer+.
+   - Filter by **Department** to show only volunteers with the matching crew flag.
+   - Filter by **Sort** to order the pool by last name, rank, or department.
+3. **Drag** a name pill from the pool onto any highlighted drop zone in the grid.
+   - Drop zones are colour-coded: red = required slots (below vol_min), grey =
+     ideal slots (up to vol_target), faded = extra slots (up to vol_max).
+   - **KM** slots (blue) require KEYMAN or above. **KA** slots (teal) accept
+     any rank.
+   - Department drop guards automatically reject volunteers who lack the crew
+     flag for that department — the zone will not highlight for ineligible drags.
+   - A slot that already has a volunteer assigned will reject further drops.
+4. **Return** a pill to the pool by dragging it back onto the sidebar pool area.
+   The slot assignment is deleted from the database immediately.
+5. Assignments **persist across sessions** — selecting a day reloads any
+   previously saved work automatically.
+
+#### Undo / Redo
+
+Every assignment and unassignment can be reversed:
+
+- **Undo** button (or Ctrl+Z) — reverses the last action, mirroring the change
+  in the database.
+- **Redo** button (or Ctrl+Y / Ctrl+Shift+Z) — re-applies the last undone action.
+- History clears automatically when a different convention day is selected.
+
+### Schedule Report *(OVERSEER+)*
+
+**Path:** Oversight Tools → Scheduler → Report button in day banner
+
+A printable per-department schedule report for one convention day. After
+assigning volunteers in the Scheduler, click **Report** in the day banner
+to open the report in a new tab.
+
+**Layout:**
+- Each department (Lots & Garages, Signs, Security, Drop-off/Pickup,
+  Mobile Support) renders as its own section, with a page break between
+  departments when printed.
+- Within each department, shifts appear as sub-sections showing the time
+  range. Each location is a column card listing the **KM** (blue),
+  **KA** (teal), and regular volunteers in order.
+- The **Day** picker in the toolbar switches days without leaving the page.
+
+**Printing / Downloading:**
+Click **Print / Save PDF** to open the browser print dialog. Choose
+*Save as PDF* in the destination to download a PDF version. The report
+hides all browser chrome and navigation when printed.
+
+---
+
+### Right-click context menu
+
+Right-clicking any volunteer name pill opens a context-sensitive menu.
+
+**When right-clicking a pill inside a shift slot:**
+- **Remove from Slot** (red) — immediately unassigns the volunteer and
+  records the deletion in the undo stack.
+- All pool actions below also appear.
+
+**When right-clicking a pill in the pool (or in a slot):**
+- **View / Edit Volunteer** — opens the volunteer’s oversight profile in a
+  new tab.
+- **Today’s Assignments (N)** — opens a floating panel showing every shift
+  the volunteer is currently placed in, grouped by department with times.
+  The panel stays open until you click × or press Escape.
+- **Highlight on Grid** — pulses a gold outline on every shift block the
+  volunteer currently occupies so you can spot them at a glance.
+- **Copy Name** — copies the volunteer’s display name to the clipboard.
+- **Manage Blackouts** / **Message Volunteer** — not yet active (shown
+  with a “soon” badge).
+
+### Pool pill behaviour
+
+Pool pills **never leave the pool**. Dropping a pill into a shift slot
+places a lightweight copy in that slot; the original remains in the pool
+and can be dragged to additional non-overlapping shifts. An amber **N×**
+badge on a pool pill indicates N active assignments for that volunteer
+today.
+
+### Time-conflict guard
+
+If a volunteer is already assigned to a shift whose time window overlaps
+the target slot, the slot will not accept the drop (it won’t highlight
+yellow). Security shifts are exempt because their coverage windows
+overlap by design.
+
+---
+
+#### Department column controls
+
+The yellow day banner contains a **Columns:** row with one colored pill per
+department:
+
+- **Click** a pill to hide that department’s columns. The grid collapses those
+  columns immediately. Click the pill again (it shows a ⦸ symbol when hidden)
+  to restore them.
+- **Drag** a pill onto another to swap their column order. Hold and move more
+  than a few pixels to enter drag mode; release over the target pill to confirm
+  the swap.
 
 ---
 
