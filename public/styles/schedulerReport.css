@@ -212,6 +212,21 @@
     flex-shrink: 0;
 }
 
+.report-vol-name {
+    flex: 1;
+    min-width: 0;
+}
+
+.report-vol-phone {
+    margin-left: auto;
+    font-size: 0.72rem;
+    color: var(--bs-secondary-color);
+    font-weight: 400;
+    white-space: nowrap;
+    flex-shrink: 0;
+    padding-left: 0.5rem;
+}
+
 .role-km {
     background: var(--bs-primary);
     color: #fff;
@@ -318,10 +333,13 @@
 
 @media print {
 
-    .report-toolbar,
-    nav,
-    footer,
-    .navbar {
+    /*
+     * Hide everything in the body except the report content.
+     * This catches the navbar, toolbar, footer, and Bootstrap-injected
+     * fixed elements (dropdowns, tooltips, etc.) that cause blank
+     * first pages without needing to enumerate each one individually.
+     */
+    body > *:not(.report-container) {
         display: none !important;
     }
 
@@ -335,7 +353,7 @@
         padding: 0.5cm 1cm;
     }
 
-    .report-dept:not(:first-child) {
+    .report-dept + .report-dept {
         page-break-before: always;
         break-before: page;
     }

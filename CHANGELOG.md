@@ -5,6 +5,35 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [2.10.1] — 2026-05-13
+### Fixed
+- **Schedule report — blank first print page** (`schedulerReport.css`): the
+  `page-break-before` rule used `.report-dept:not(:first-child)`, which
+  matched every department because `.report-page-header` is the actual
+  first child of `.report-container`. Changed to the adjacent-sibling
+  selector `.report-dept + .report-dept` so only the second and later
+  departments get a forced page break.
+- **Schedule report — print / save PDF button** (`schedulerReport.js`): the
+  `onclick` and `onchange` inline handlers on the print button and day
+  picker were blocked by CSP. Moved both to `schedulerReport.js` with
+  `id="report-print-btn"` and `id="report-day-picker"`.
+- **Schedule report — phone numbers**: KM and KA rows now display the
+  volunteer’s phone number right-aligned on the same line
+  (`schedulerReport.ejs`, `schedulerReport.css`, `dbSync.js`).
+- **Scheduler time bands**: all bands showing as one colour because
+  gap-detection found no gaps between back-to-back sessions. Now uses
+  session label keywords (Pre / Morning / Lunch / Afternoon / Post) for
+  colour classification; gap-detection kept as fallback
+  (`schedulerDomActions.js`).
+- **Scheduler time-band dividers**: midpoint dividers now placed at the
+  boundary between contiguous same-class sessions (Morning A→B,
+  Afternoon A→B) instead of splitting each session at its midpoint.
+- **Context menu contact rows** (`schedulerContextMenu.js`): phone taps
+  open the dialer; email taps open the mail client. Contact section only
+  renders when the volunteer has at least one of the two.
+
+---
+
 ## [2.10.0] — 2026-05-13
 ### Added
 - **Right-click context menu** on all volunteer name pills in the scheduler.

@@ -134,6 +134,7 @@ export async function initDomActions() {
       _updatePillBadge(volId);
     }
     _updatePoolCount();
+    _applyVolunteerFilters();
     if (record) recordAssign(pill, dz);
   });
 
@@ -250,8 +251,10 @@ function _renderVolunteerPool(volunteers) {
   for (const v of volunteers) {
     const pill = document.createElement("div");
     pill.classList.add("name-pill", "in-pool");
-    pill.dataset.id = String(v.id);
-    pill.dataset.role = v.role || "REGISTERED";
+    pill.dataset.id    = String(v.id);
+    pill.dataset.role  = v.role  || 'REGISTERED';
+    pill.dataset.phone = v.phone || '';
+    pill.dataset.email = v.email || '';
 
     // Name row
     const nameSpan = document.createElement("span");
@@ -323,6 +326,7 @@ function _onFilterSelect({ id, value }) {
     if (
         id === 'vol-rank-filter'       ||
         id === 'vol-department-filter' ||
+        id === 'vol-usage-filter'      ||
         id === 'vol-sort-order'        ||
         id === 'vol-search'
     ) {
@@ -351,6 +355,7 @@ const DEPT_SORT_ORDER = [
 function _applyVolunteerFilters() {
     const rankValue  = document.getElementById('vol-rank-filter')?.value    ?? '';
     const deptValue  = document.getElementById('vol-department-filter')?.value ?? '';
+    const usageValue = document.getElementById('vol-usage-filter')?.value ?? '';
     const searchTerm = (document.getElementById('vol-search')?.value ?? '').trim().toLowerCase();
     const sortOrder  = document.getElementById('vol-sort-order')?.value ?? 'lastName';
 
@@ -366,6 +371,7 @@ function _applyVolunteerFilters() {
         const show =
             _matchesRank(v, rankValue)    &&
             _matchesDept(v, deptValue)    &&
+            _matchesUsage(v, usageValue)  &&
             _matchesSearch(v, searchTerm);
 
         pill.style.display = show ? '' : 'none';
@@ -395,6 +401,11 @@ function _applyVolunteerFilters() {
             const orderA = idxA === -1 ? 99 : idxA;
             const orderB = idxB === -1 ? 99 : idxB;
             if (orderA !== orderB) return orderA - orderB;
+        }
+
+        if (sortOrder === 'usage') {
+            const diff = assignmentCount(va.id) - assignmentCount(vb.id);
+            if (diff !== 0) return diff;
         }
 
         // Default / tiebreaker: lastName then firstName
@@ -433,13 +444,28 @@ function _matchesRank(v, rankValue) {
 }
 
 /**
- * @param {object} v         - Volunteer row.
- * @param {string} deptValue - Department key or '' for any.
+ * @param {object} v          - Volunteer row.
+ * @param {string} deptValue  - Department key or '' for any.
  * @returns {boolean}
  */
 function _matchesDept(v, deptValue) {
     if (!deptValue) return true;
     return Boolean(v.crews?.[deptValue]);
+}
+
+/**
+ * @param {object} v          - Volunteer row.
+ * @param {string} usageValue - '' | '0' | '1' | '2' | '3'.
+ * @returns {boolean}
+ */
+function _matchesUsage(v, usageValue) {
+    if (!usageValue) return true;
+    const count = assignmentCount(v.id);
+    if (usageValue === '0') return count === 0;
+    if (usageValue === '1') return count === 1;
+    if (usageValue === '2') return count === 2;
+    if (usageValue === '3') return count >= 3;
+    return true;
 }
 
 /**

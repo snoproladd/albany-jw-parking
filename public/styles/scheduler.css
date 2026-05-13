@@ -813,6 +813,40 @@
     margin: 0.3rem 0;
 }
 
+/* Contact info block (phone + email) */
+.sched-ctx-contact {
+    padding: 0.2rem 0;
+    border-bottom: 1px solid var(--bs-border-color-translucent);
+    margin-bottom: 0.15rem;
+}
+
+.sched-ctx-contact-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.22rem 0.85rem;
+    font-size: 0.78rem;
+    color: var(--bs-secondary-color);
+    text-decoration: none;
+    transition: background 0.07s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sched-ctx-contact-row:hover {
+    background: var(--bs-tertiary-bg);
+    color: var(--bs-body-color);
+}
+
+.sched-ctx-contact-row i {
+    width: 0.85rem;
+    text-align: center;
+    font-size: 0.7rem;
+    flex-shrink: 0;
+    color: var(--bs-secondary-color);
+}
+
 /* ────────────────────────────────────────────
    Today's Assignments panel
 ──────────────────────────────────────────── */
