@@ -5,6 +5,155 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [2.10.0] — 2026-05-13
+### Added
+- **Right-click context menu** on all volunteer name pills in the scheduler.
+  Context-sensitive: pills in a DZ show **Remove from Slot** at the top;
+  both pool and DZ pills show:
+  - **View / Edit Volunteer** — opens the oversight profile in a new tab.
+  - **Today's Assignments (N)** — floating panel listing every shift the
+    volunteer is currently placed in, grouped by department with times.
+  - **Highlight on Grid** — pulses a gold outline on all shift blocks the
+    volunteer occupies (4 flashes).
+  - **Copy Name** — copies the display name to the clipboard.
+  - **Manage Blackouts** / **Message Volunteer** — greyed stubs with a
+    "soon" badge; architecture ready for both.
+- **Pool pills stay in pool permanently.** Dropping a pill into a slot now
+  places a lightweight DOM clone in the DZ; the original pool pill remains
+  visible and draggable. The same volunteer can be assigned to any number
+  of non-overlapping shifts without disappearing from the pool.
+- **Time-conflict guard** (`schedulerConflicts.js`) — prevents assigning
+  a volunteer to two overlapping shifts. Security department is exempt
+  (overlapping coverage shifts by design). The conflict map is also the
+  planned extension point for individual blackout windows.
+- **Pool pill assignment badge** — an amber **N×** badge appears on a
+  pool pill when that volunteer holds N active assignments; disappears
+  when all slots are vacated.
+- **Drag animation fix** — removing the physical pill-move on drop
+  eliminates the visual snap/jump that was visible especially in the
+  wide Lots & Garages grid.
+
+### New files
+- `public/js/schedulerConflicts.js`
+- `public/js/schedulerContextMenu.js`
+
+---
+
+## [2.9.0] — 2026-05-13
+### Added
+- **Schedule Report** — new printable/downloadable report page at
+  `/oversight/tools/scheduler/report?dayId=N`. Accessible via a **Report**
+  button in the scheduler day banner (opens in a new tab).
+  - One section per department (Lots & Garages, Signs, Security,
+    Drop-off/Pickup, Mobile Support), each starting a new print page.
+  - Shifts displayed as sub-sections with time range; each location rendered
+    as a column card showing KM (blue), KA (teal), and regular volunteers.
+  - Day picker in the toolbar lets the user switch days without leaving the
+    report. **Print / Save PDF** button opens the browser print dialog.
+  - Faithful to the crew-schedule format used in prior-year workbooks.
+- **Scheduler: time-band label classification** — session bands are now
+  coloured by label keyword ("Pre", "Morning", "Lunch", "Afternoon",
+  "Post") rather than gap-detection. Falls back to gap-detection for
+  sessions whose labels don’t match any keyword.
+- **Scheduler: midpoint dividers** — a dashed line appears between
+  contiguous same-class sessions (Morning A → Morning B,
+  Afternoon A → Afternoon B) marking the song-and-announcements break.
+- **Scheduler: KM/KA role badges** — pills dropped into KM or KA slots
+  display a small inline badge (pure CSS `::after`).
+
+### New files
+- `public/styles/schedulerReport.css`
+- `views/authentication_and_accounts/schedulerReport.ejs`
+
+---
+
+## [2.8.0] — 2026-05-13
+### Added
+- **Scheduler: live slot persistence** — every drag-drop saves immediately to
+  the new `shift_slot_assignments` table. Dropping a pill back to the pool
+  deletes the record. Assignments reload automatically when a day is selected,
+  pre-populating the grid with any previously saved work.
+- **Scheduler: undo / redo** — Undo and Redo buttons appear in the day banner
+  (with FontAwesome rotate icons). Ctrl+Z undoes the last assignment or
+  unassignment; Ctrl+Y / Ctrl+Shift+Z redoes it. Each undo/redo mirrors the
+  DB operation (DELETE or re-INSERT) so the database always reflects the
+  current visual state. History clears automatically on day change.
+- **Scheduler: occupied-slot guard** — a dropzone that already contains a pill
+  now rejects further drops, preventing double-assignments to the same slot.
+- **New DB table:** `dbo.shift_slot_assignments` — stores one row per
+  volunteer-slot pairing with `schedule_assignment_id`, `convention_day_id`,
+  `volunteer_id`, `slot_type` (keyman / keyman_asst / volunteer), and
+  `slot_index`. Unique constraint on `(schedule_assignment_id, slot_type,
+  slot_index)`. Cascades on `schedule_assignments` delete.
+- **New API endpoints:**
+  - `GET  /api/scheduler/slots/:dayId` — all saved assignments for a day
+  - `POST /api/scheduler/slots` — persist a new slot assignment
+  - `DELETE /api/scheduler/slots/:id` — remove a slot assignment
+- **New frontend module:** `schedulerHistory.js` — undo/redo command stack,
+  API save/delete helpers, and `silentlyPlacePill` for initial grid population.
+
+---
+
+## [2.7.0] — 2026-05-13
+### Added
+- **Scheduler: multi-location sub-columns** — departments with multiple
+  locations (Lots & Garages, Security, Dropoff/Pickup) now render one
+  sub-column per location within the department. A spanning dept-name
+  header sits above individual location sub-headers. Single-location
+  departments (Signs, Mobile Support) are unaffected.
+- **Scheduler: department visibility toggles** — the day banner now
+  contains a labeled row of colored pill buttons (one per department).
+  Click a pill to collapse that department's columns to zero width;
+  click again to restore. Hidden departments show a ⦸ indicator so they
+  remain discoverable and clickable.
+- **Scheduler: column reorder by drag** — drag any department toggle pill
+  onto another to swap their column order. Uses pointer events (not the
+  HTML5 drag API) to avoid conflicts with agnostic-draggable.
+- **Timelines: Min / Target / Max assignment fields** — the schedule
+  assignment form now has three numeric inputs (Min, Target, Max) instead
+  of a single "Volunteers Needed" field. All three are stored on
+  `schedule_assignments.vol_min`, `volunteer_need` (vol_ideal), and
+  `vol_max`. Assignment badges in the shift card display as
+  `(min / target / max)`.
+
+### Fixed
+- Scheduler dropzones no longer resize when a name pill is dropped or
+  removed — dropzones now have a fixed 34px height.
+- Dropped name pills wrap text over two lines and hide crew badges
+  (badges are useful in the pool but noise once assigned).
+- Department toggle `is-hidden` class renamed to `dept-hidden` to avoid
+  conflict with the global `styles.css` rule `.is-hidden { display: none
+  !important }` that was silently nuking the toggle buttons.
+
+---
+
+## [2.6.0] — 2026-05-12
+### Added
+- **Drag-and-drop Scheduler** — new page at `/oversight/tools/scheduler`
+  (OVERSEER+ via `createAssignments` permission). Sidebar shows a live
+  volunteer pool filtered by rank and/or department. Selecting a convention
+  day loads a time-based calendar grid (15-minute row resolution) organised
+  by department columns. Name pills drag from the pool into shift slot
+  dropzones; dropping back onto the pool returns them.
+- **Drop guards** — role check (keyman/keyman-asst slots enforce minimum
+  role level) and department check (volunteers only accepted into departments
+  their crew flags permit).
+- `agnostic-draggable` UMD bundle added to `public/vendor/` as the drag
+  library underpinning the scheduler.
+- **New DB columns:** `shifts.department NVARCHAR(50)` (department key for
+  grid grouping) and `schedule_assignments.vol_min / vol_max INT` (flanking
+  the existing `volunteer_need` as vol_ideal).
+- **New API endpoints:**
+  - `GET /api/scheduler/volunteers` — active registered volunteer pool
+  - `GET /api/scheduler/:dayId` — full shift/dept/location payload shaped
+    for the frontend grid builder
+- **New frontend modules:** `scheduler.js`, `schedulerDomActions.js`,
+  `schedulerDomEvents.js`, `schedulerDraggable.js`, `schedulerTimeUtils.js`,
+  `departments.js`, `scheduler.css`
+- Scheduler card added to the Oversight Tools hub under Scheduling.
+
+---
+
 ## [2.5.3] — 2026-05-11
 ### Added
 - External service watchdog — periodic background checks verify Twilio (every 5 min)

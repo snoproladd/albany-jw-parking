@@ -18,7 +18,7 @@ and attendance for the Albany JW Regional Convention parking team.
 | Email | IONOS SMTP via Nodemailer |
 | SMS | Twilio Messaging Services |
 | Email Validation | Kickbox REST API (native fetch, no SDK) |
-| Frontend | Bootstrap 5, vanilla JS (no bundler) |
+| Frontend | Bootstrap 5, vanilla JS (no bundler), agnostic-draggable (UMD) |
 | Hosting | Azure App Service (Linux container) |
 | CI/CD | GitHub Actions → Azure Container Registry |
 | Secrets (prod) | Azure Key Vault via Managed Identity |
@@ -159,7 +159,8 @@ parking/
 │   └── upgrade/              # Account upgrade flow views
 ├── public/
 │   ├── js/                   # Frontend JS modules (one file per page)
-│   └── styles/               # CSS files
+│   ├── styles/               # CSS files
+│   └── vendor/               # Third-party UMD bundles (agnostic-draggable, Bootstrap)
 ├── docs/
 │   └── OVERSIGHT_GUIDE.md    # End-user guide for oversight staff
 ├── CHANGELOG.md
@@ -208,6 +209,12 @@ Schema highlights:
 - `invitations` — per-volunteer invite records with token, RSVP, batch link
 - `invitation_batches` — campaign metadata
 - `convention_days → sessions → shifts` — scheduling hierarchy
+  - `shifts.department` — department key for scheduler grid grouping
+  - `schedule_assignments.vol_min / vol_max` — flanking `volunteer_need` (vol_ideal) for slot sizing and colour-coding
+  - `shift_slot_assignments` — live scheduler assignments (volunteer → slot); one row per slot, cascades on schedule_assignment delete
+- `public/js/schedulerConflicts.js` — per-volunteer time-conflict tracker; extension point for blackout windows
+- `public/js/schedulerContextMenu.js` — right-click context menu for scheduler pills
+- `public/styles/schedulerReport.css`, `views/authentication_and_accounts/schedulerReport.ejs` — printable schedule report
 - `attendance` — check-in records (walk-ins + invited volunteers)
 - `role_permissions` — runtime permission overrides (delta from defaults)
 - `sms_opt_out_log` — Twilio webhook opt-out events

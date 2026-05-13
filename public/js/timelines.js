@@ -719,7 +719,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const assignSaveBtnLabel = document.getElementById("assignSaveBtnLabel");
     const assignCancelBtn = document.getElementById("assignCancelBtn");
     const assignFormClose = document.getElementById("assignFormClose");
-    const assignVolNeed = document.getElementById("assignVolNeed"); // null if field is not rendered
+    const assignVolNeed = document.getElementById('assignVolNeed');
+    const assignVolMin  = document.getElementById('assignVolMin');
+    const assignVolMax  = document.getElementById('assignVolMax');
 
     document.querySelectorAll(".add-assignment-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -731,7 +733,9 @@ document.addEventListener("DOMContentLoaded", () => {
         assignLocTask.disabled = false;
         assignLocTask.value = "";
         assignLocationNote.classList.add("d-none");
-        if (assignVolNeed) assignVolNeed.value = "";
+        if (assignVolMin)  assignVolMin.value  = '';
+        if (assignVolNeed) assignVolNeed.value = '';
+        if (assignVolMax)  assignVolMax.value  = '';
         assignNotes.value = "";
         assignFormStatus.innerHTML = "";
         assignFormTitle.textContent = `Assign to: ${btn.dataset.shiftLabel}`;
@@ -750,11 +754,12 @@ document.addEventListener("DOMContentLoaded", () => {
         assignShiftId.value = "";
         assignLocTask.disabled = true;
         assignLocationNote.classList.remove("d-none");
-        if (assignVolNeed)
-          assignVolNeed.value = btn.dataset.volunteerNeed || "";
+        if (assignVolMin)  assignVolMin.value  = btn.dataset.volMin  || '';
+        if (assignVolNeed) assignVolNeed.value = btn.dataset.volunteerNeed || '';
+        if (assignVolMax)  assignVolMax.value  = btn.dataset.volMax  || '';
         assignNotes.value = btn.dataset.notes || "";
         assignFormStatus.innerHTML = "";
-        assignFormTitle.textContent = `Edit — ${btn.dataset.locationName}`;
+        assignFormTitle.textContent = `Edit — ${btn.dataset.locationName}${btn.dataset.shiftLabel ? ` (${btn.dataset.shiftLabel})` : ''}`;
         assignSaveBtnLabel.textContent = "Save";
         openPanel(assignFormPanel);
         if (assignVolNeed) assignVolNeed.focus();
@@ -771,17 +776,16 @@ document.addEventListener("DOMContentLoaded", () => {
         const editId = assignEditId.value ? Number(assignEditId.value) : null;
 
         if (editId) {
-          // Edit mode — update volunteer_need and notes only
+          // Edit mode — update volunteer_need, vol_min, vol_max and notes
           try {
             await apiFetch(
               `/oversight/tools/timelines/assignments/${editId}`,
-              "PUT",
+              'PUT',
               {
-                volunteer_need:
-                  assignVolNeed?.value !== ""
-                    ? Number(assignVolNeed?.value)
-                    : null,
-                notes: assignNotes.value.trim() || null,
+                volunteer_need: assignVolNeed?.value !== '' ? Number(assignVolNeed?.value) : null,
+                vol_min:        assignVolMin?.value  !== '' ? Number(assignVolMin?.value)  : null,
+                vol_max:        assignVolMax?.value  !== '' ? Number(assignVolMax?.value)  : null,
+                notes:          assignNotes.value.trim() || null,
               },
             );
             storeLastAccordion(assignContextSessionId);
@@ -803,14 +807,13 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
           await Promise.all(
             selected.map((locationTaskId) =>
-              apiFetch("/oversight/tools/timelines/assignments", "POST", {
-                shift_id: Number(assignShiftId.value),
+              apiFetch('/oversight/tools/timelines/assignments', 'POST', {
+                shift_id:         Number(assignShiftId.value),
                 location_task_id: locationTaskId,
-                volunteer_need:
-                  assignVolNeed?.value !== ""
-                    ? Number(assignVolNeed?.value)
-                    : null,
-                notes: assignNotes.value.trim() || null,
+                volunteer_need:   assignVolNeed?.value !== '' ? Number(assignVolNeed?.value) : null,
+                vol_min:          assignVolMin?.value  !== '' ? Number(assignVolMin?.value)  : null,
+                vol_max:          assignVolMax?.value  !== '' ? Number(assignVolMax?.value)  : null,
+                notes:            assignNotes.value.trim() || null,
               }),
             ),
           );

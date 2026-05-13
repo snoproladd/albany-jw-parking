@@ -1,0 +1,393 @@
+/**
+ * @file schedulerDraggable.js
+ * @description Drag-and-drop wrapper for the volunteer scheduler.
+ * Wraps the agnostic-draggable UMD library (window.agnosticDraggable),
+ * manages draggable name pills and droppable shift slots, and enforces
+ * role and department drop guards.
+ *
+ * Depends on agnostic-draggable.js being loaded as a UMD script before
+ * this module executes (i.e. before scheduler.js is imported).
+ */
+
+const { Draggable, Droppable } = window.agnosticDraggable;
+
+import { hasConflict } from './schedulerConflicts.js';
+
+// ─────────────────────────────────────────────
+//  Module state
+// ─────────────────────────────────────────────
+
+/** Prevents double-binding the same element as a draggable. @type {WeakSet<Element>} */
+const boundDraggables = new WeakSet();
+
+/** Prevents double-binding the same element as a droppable. @type {WeakSet<Element>} */
+const boundDroppables = new WeakSet();
+
+/**
+ * Volunteer roster used by drop guards. Populated via setVolunteers()
+ * once /api/scheduler/volunteers resolves.
+ * @type {Array<object>}
+ */
+let volunteers = [];
+
+// ─────────────────────────────────────────────
+//  Role hierarchy (mirrors src/config/roles.js)
+// ─────────────────────────────────────────────
+
+/** @type {Record<string, number>} */
+const ROLE_LEVEL = {
+  NON_REGISTERED: 0,
+  REGISTERED: 1,
+  KEYMAN: 2,
+  OVERSEER: 3,
+  ASSISTANT_ADMIN: 4,
+  ADMIN: 5,
+};
+
+/**
+ * Minimum role level required to occupy each named slot type.
+ * keyman slots require KEYMAN+; keyman_asst slots accept any role.
+ * @type {Record<string, number>}
+ */
+const MIN_ROLE_FOR_SLOT = {
+  keyman: ROLE_LEVEL.KEYMAN,
+  keyman_asst: ROLE_LEVEL.NON_REGISTERED,
+};
+
+/**
+ * Maps department keys to the crew flag property on a volunteer's
+ * crews object. The API already uses the department key as the property
+ * name, so this is an explicit pass-through for clarity.
+ * @type {Record<string, string>}
+ */
+const DEPT_CREW_KEY = {
+  lots_and_garages: "lots_and_garages",
+  signs: "signs",
+  security: "security",
+  dropoff_pickup: "dropoff_pickup",
+  mobile_support: "mobile_support",
+};
+
+// ─────────────────────────────────────────────
+//  Public API
+// ─────────────────────────────────────────────
+
+/**
+ * Store the volunteer roster for use by drop guards.
+ * Must be called after /api/scheduler/volunteers resolves.
+ *
+ * @param {Array<object>} data
+ * @returns {void}
+ */
+export function setVolunteers(data) {
+  volunteers = Array.isArray(data) ? data : [];
+}
+
+/**
+ * Bind Draggable behaviour to an element. No-ops if already bound or null.
+ *
+ * @param {Element} el
+ * @param {object} [options]
+ * @param {object} [handlers]
+ * @returns {object|undefined}
+ */
+export function makeDraggable(
+  el,
+  options = { revert: "invalid", distance: 5 },
+  handlers = {},
+) {
+  if (!el || boundDraggables.has(el)) return;
+  boundDraggables.add(el);
+  return new Draggable(el, options, handlers);
+}
+
+/**
+ * Bind Droppable behaviour to an element. Merges in the canDrop guard so
+ * all drop zones automatically enforce role and department eligibility.
+ * No-ops if already bound or null.
+ *
+ * @param {Element} el
+ * @param {object} [options]
+ * @param {object} [handlers]
+ * @returns {object|undefined}
+ */
+export function makeDroppable(el, options = {}, handlers = {}) {
+  if (!el || boundDroppables.has(el)) return;
+  boundDroppables.add(el);
+
+  const mergedOptions = {
+    ...options,
+    accept: (draggable) => canDrop(draggable, el),
+  };
+
+  return new Droppable(el, mergedOptions, handlers);
+}
+
+/**
+ * Remove the draggable binding record for an element so it can be
+ * rebound after a drop moves it to a new DOM parent.
+ *
+ * @param {Element} el
+ * @returns {void}
+ */
+export function unbindDraggable(el) {
+  boundDraggables.delete(el);
+}
+
+/**
+ * Initialise all name pills currently inside #name-pool as draggables
+ * and bind #name-pool itself as a return-to-pool droppable.
+ * Called after the volunteer pool has been rendered into the DOM.
+ *
+ * @returns {void}
+ */
+export function initPoolPills() {
+  document.querySelectorAll("#name-pool .name-pill").forEach((pill) => {
+    makeDraggable(
+      pill,
+      {
+        revert: "invalid",
+        distance: 5,
+        helper: "clone",
+        appendTo: "body",
+        cursorAt: { left: 20, top: 15 },
+      },
+      {
+        "drag:start": onDragStart,
+        "drag:stop": onDragStop,
+      },
+    );
+  });
+
+  makeDroppable(
+    document.getElementById("name-pool"),
+    {},
+    { "droppable:drop": onReturnToPool },
+  );
+}
+
+// ─────────────────────────────────────────────
+//  Drag event handlers
+// ─────────────────────────────────────────────
+
+/**
+ * Fired when a drag begins. Sizes the clone helper to match the pill
+ * and applies the dragging visual state.
+ *
+ * @param {object} event - agnostic-draggable drag:start event.
+ * @returns {void}
+ */
+export function onDragStart(event) {
+  const pill = event.source;
+  const helper = event.helper;
+
+  if (helper !== pill) {
+    helper.style.width = `${pill.offsetWidth}px`;
+    helper.classList.add("pill-drag-helper");
+
+  }
+
+  pill.classList.add("pill-dragging");
+}
+
+/**
+ * Fired when a drag ends regardless of outcome.
+ *
+ * @param {object} event - agnostic-draggable drag:stop event.
+ * @returns {void}
+ */
+export function onDragStop(event) {
+  event.source.classList.remove("pill-dragging");
+}
+
+/**
+ * Fired when a pill is accepted by a shift slot dropzone.
+ * Moves the pill into the slot, clears library-applied inline styles,
+ * then destroys and rebinds the draggable so it can be moved again.
+ *
+ * @param {object} event - agnostic-draggable droppable:drop event.
+ * @returns {void}
+ */
+export function onDrop(event) {
+  const pill = event.draggable.element;
+  const dz   = event.droppable.element;
+
+  if (pill.classList.contains('in-pool')) {
+    // ── Pool pill → DZ: leave original in pool, place a clone in the slot ──
+    const clone = _clonePill(pill);
+    dz.appendChild(clone);
+    _resetPillTransform(clone);
+
+    makeDraggable(
+      clone,
+      { revert: 'invalid', distance: 5, helper: 'clone', appendTo: 'body', cursorAt: { left: 20, top: 15 } },
+      { 'drag:start': onDragStart, 'drag:stop': onDragStop },
+    );
+
+    document.dispatchEvent(new CustomEvent('scheduler:slotAssigned', {
+      detail: { pill: clone, dz, record: true },
+    }));
+  } else {
+    // ── Slot pill (clone) → different DZ: move the clone ─────────────
+    const fromDz = pill.parentElement?.classList.contains('scheduler-dropzone')
+      ? pill.parentElement : null;
+
+    pill.classList.remove('pill-dragging');
+    dz.appendChild(pill);
+    _resetPillTransform(pill);
+
+    event.draggable.destroy();
+    unbindDraggable(pill);
+
+    makeDraggable(
+      pill,
+      { revert: 'invalid', distance: 5, helper: 'clone', appendTo: 'body', cursorAt: { left: 20, top: 15 } },
+      { 'drag:start': onDragStart, 'drag:stop': onDragStop },
+    );
+
+    if (fromDz) {
+      document.dispatchEvent(new CustomEvent('scheduler:slotUnassigned', {
+        detail: { pill, fromDz, record: true },
+      }));
+    }
+    document.dispatchEvent(new CustomEvent('scheduler:slotAssigned', {
+      detail: { pill, dz, record: true },
+    }));
+  }
+}
+
+/**
+ * Fired when a pill is dropped back onto #name-pool.
+ * Returns the pill to the pool and restores the in-pool visual state.
+ *
+ * @param {object} event - agnostic-draggable droppable:drop event.
+ * @returns {void}
+ */
+export function onReturnToPool(event) {
+  const pill = event.draggable.element;
+
+  if (pill.classList.contains('in-pool')) {
+    // ── Pool pill dropped back on pool — just re-settle it ────────────
+    pill.classList.remove('pill-dragging');
+    _resetPillTransform(pill);
+    event.draggable.destroy();
+    unbindDraggable(pill);
+    makeDraggable(
+      pill,
+      { revert: 'invalid', distance: 5, helper: 'clone', appendTo: 'body', cursorAt: { left: 20, top: 15 } },
+      { 'drag:start': onDragStart, 'drag:stop': onDragStop },
+    );
+    return;
+  }
+
+  // ── Slot pill (clone) dropped on pool — remove the clone ─────────
+  const fromDz = pill.parentElement?.classList.contains('scheduler-dropzone')
+    ? pill.parentElement : null;
+
+  event.draggable.destroy();
+  unbindDraggable(pill);
+  pill.remove();
+
+  document.dispatchEvent(new CustomEvent('scheduler:slotUnassigned', {
+    detail: { pill, fromDz, record: fromDz !== null },
+  }));
+}
+
+// ─────────────────────────────────────────────
+//  Drop guards
+// ─────────────────────────────────────────────
+
+/**
+ * Determine whether a dragged pill may be dropped on a given drop zone.
+ * Two independent checks run in order — either can veto the drop:
+ *
+ * 1. **Role check** — if the drop zone has `data-role`, the volunteer's
+ *    role must meet the minimum level defined in MIN_ROLE_FOR_SLOT.
+ * 2. **Department check** — if the drop zone is inside a
+ *    `[data-department]` container, the volunteer must have the
+ *    matching crew flag set to true.
+ *
+ * @param {Element} pill - The draggable source element.
+ * @param {Element} dz   - The candidate droppable element.
+ * @returns {boolean}
+ */
+function canDrop(pill, dz) {
+  // ── Occupied check — reject if another pill is already in the slot ───────
+  // Skip for the pool itself, which legitimately contains many pills.
+  if (
+    dz.classList.contains("scheduler-dropzone") &&
+    dz.querySelector(".name-pill")
+  )
+    return false;
+
+  // ── Time-conflict check — volunteer already assigned to an overlapping shift ─
+  // Some departments intentionally use overlapping coverage windows (e.g. Security).
+  const shiftStart = Number(dz.dataset.shiftStartMins);
+  const shiftEnd = Number(dz.dataset.shiftEndMins);
+  if (shiftStart > 0 && shiftEnd > 0) {
+    const dept = dz.closest("[data-department]")?.dataset.department;
+    const OVERLAP_OK = new Set(["security"]);
+    if (!OVERLAP_OK.has(dept)) {
+      const volId = Number(pill.dataset.id);
+      const fromDz = pill.classList.contains("in-pool")
+        ? null
+        : pill.parentElement;
+      if (hasConflict(volId, shiftStart, shiftEnd, fromDz)) return false;
+    }
+  }
+
+  // ── Role check ──────────────────────────────────────────────────────
+  const slotRole = dz.dataset.role;
+  if (slotRole) {
+    const minLevel = MIN_ROLE_FOR_SLOT[slotRole] ?? 0;
+    const volLevel =
+      ROLE_LEVEL[String(pill.dataset.role || "").toUpperCase()] ?? 0;
+    if (volLevel < minLevel) return false;
+  }
+
+  // ── Department check ─────────────────────────────────────────────────
+  const dept = dz.closest("[data-department]")?.dataset.department;
+  if (!dept) return true;
+
+  const crewKey = DEPT_CREW_KEY[dept];
+  if (!crewKey) return true;
+
+  const volId = Number(pill.dataset.id);
+  const volRow = volunteers.find((v) => v.id === volId);
+
+  return Boolean(volRow?.crews?.[crewKey]);
+}
+
+// ─────────────────────────────────────────────
+//  Internal helpers
+// ─────────────────────────────────────────────
+
+/**
+ * Clear the inline position and transform styles that agnostic-draggable
+ * applies during a drag so the pill renders naturally in its new parent.
+ *
+ * @param {Element} pill
+ * @returns {void}
+ */
+function _resetPillTransform(pill) {
+  pill.style.position = "";
+  pill.style.left = "";
+  pill.style.top = "";
+  pill.style.transform = "";
+  pill.style.width = "";
+}
+
+/**
+ * Create a lightweight clone of a pool pill suitable for placing in a DZ.
+ * Strips the in-pool class and any existing assignment badge so DZ pills
+ * start clean.
+ *
+ * @param {HTMLElement} poolPill
+ * @returns {HTMLElement}
+ */
+function _clonePill(poolPill) {
+  const clone = poolPill.cloneNode(true);
+  clone.classList.remove('in-pool');
+  clone.querySelector('.pill-assign-badge')?.remove();
+  return clone;
+}
