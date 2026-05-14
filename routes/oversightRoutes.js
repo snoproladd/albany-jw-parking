@@ -111,6 +111,8 @@ import {
 
 import { sendResetEmail, sendResetSms, getBaseUrl } from "../lib/messaging.js";
 
+import { PDF_SECRET, publishDaySchedule } from "../lib/publishSchedule.js";
+
 import { isProfileComplete } from "../lib/volunteerStatus.js";
 
 /**
@@ -132,6 +134,8 @@ export function oversightRouter({
   twilioAuthToken,
   twilioMsgSid,
   smtpConfig,
+  serverPort,
+  graphConfig,
 }) {
   const router = express.Router();
 
@@ -4298,6 +4302,114 @@ export function oversightRouter({
         return res.status(500).json({ success: false, error: "Server error." });
       }
     },
+  );
+
+  // ============================================================
+  // INTERNAL — Puppeteer PDF render (secret-protected, no auth)
+  // ============================================================
+
+  /**
+   * GET /internal/pdf/report
+   * Renders the scheduler report for Puppeteer with no session requirement.
+   * The ?secret= query param must match PDF_SECRET (random, server-startup value).
+   * This route is intentionally unauthenticated — the secret is the credential.
+   */
+  router.get('/internal/pdf/report', async (req, res) => {
+      if (!req.query.secret || req.query.secret !== PDF_SECRET) {
+          return res.status(403).end();
+      }
+      const dayId = Number(req.query.dayId);
+      if (!dayId) return res.status(400).end();
+      try {
+          const [reportData, conventionDays] = await Promise.all([
+              getSchedulerReportData(dayId),
+              getConventionDays(new Date().getFullYear()),
+          ]);
+          return res.render('authentication_and_accounts/schedulerReport', {
+              csrfToken:       '',           // Puppeteer render — no CSRF needed
+              reportData,
+              conventionDays,
+              selectedDayId:   dayId,
+          });
+      } catch (err) {
+          (logError || console.error)('internal/pdf/report error:', err);
+          return res.status(500).end();
+      }
+  });
+
+  // ============================================================
+  // SCHEDULER — Publish
+  // ============================================================
+
+  /**
+   * POST /oversight/tools/scheduler/publish
+   * Full publish pipeline: PDF → SharePoint → notifications → DB record.
+   *
+   * Body (JSON): { dayId: number }
+   * Response:    { success, sharePointUrl, filename, emailSent, smsSent, totalRecipients }
+   *
+   * @requires ASSISTANT_ADMIN+ (accessAdminConsole permission)
+   */
+  router.post(
+      '/oversight/tools/scheduler/publish',
+      requireAuth,
+      requirePermission('accessAdminConsole'),
+      csrfProtection,
+      async (req, res) => {
+          const dayId = Number(req.body?.dayId);
+          if (!dayId) {
+              return res.status(400).json({ success: false, error: 'dayId is required.' });
+          }
+
+          // Resolve the day label + date for the filename and notification copy
+          let dayLabel = `Day_${dayId}`;
+          let conventionDate = null;
+          try {
+              const days = await getConventionDays(new Date().getFullYear());
+              const day  = days.find((d) => d.id === dayId);
+              if (day) {
+                  dayLabel       = day.label;
+                  conventionDate = day.convention_date
+                      ? new Date(day.convention_date).toISOString().slice(0, 10)
+                      : null;
+              }
+          } catch { /* non-fatal */ }
+
+          // Graph config: prefer injected graphConfig, fall back to process.env
+          const resolvedGraphConfig = graphConfig ?? {
+              tenantId:     process.env.GRAPH_TENANT_ID,
+              clientId:     process.env.GRAPH_CLIENT_ID,
+              clientSecret: process.env.GRAPH_CLIENT_SECRET,
+              driveUser:    process.env.GRAPH_DRIVE_USER ||
+                            'jladd@jakeofalltradespropertyserv.onmicrosoft.com',
+              folderPath:   process.env.GRAPH_FOLDER_PATH ||
+                            '2026 Convention Parking/Documents for Distribution',
+          };
+
+          try {
+              const result = await publishDaySchedule({
+                  dayId,
+                  dayLabel,
+                  conventionDate,
+                  publishedBy:      req.session.userEmail || 'admin',
+                  serverPort:       serverPort || Number(process.env.PORT) || 3000,
+                  smtpConfig,
+                  twilioAccountSid,
+                  twilioAuthToken,
+                  twilioMsgSid,
+                  graphConfig:      resolvedGraphConfig,
+                  dryRun:           req.body?.dryRun === true,
+              });
+
+              return res.json({ success: true, ...result });
+          } catch (err) {
+              (logError || console.error)('scheduler/publish POST error:', err);
+              return res.status(500).json({
+                  success: false,
+                  error: err.message || 'Publish failed.',
+              });
+          }
+      },
   );
 
   return router;

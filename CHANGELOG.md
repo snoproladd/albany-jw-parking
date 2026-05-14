@@ -5,6 +5,55 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [2.11.0] — 2026-05-13
+### Added
+- **Schedule Publish** — new Publish button on the schedule report page
+  (`schedulerReport.ejs`, `schedulerReport.js`).
+  - Generates a PDF of the current report via **Puppeteer** (headless Chrome)
+    using an internal secret-protected render route
+    (`GET /internal/pdf/report?dayId=N&secret=TOKEN`) that bypasses session
+    auth so Puppeteer can load the page without a cookie.
+  - Uploads the PDF to **SharePoint / OneDrive** via Microsoft Graph API
+    (client-credentials flow, `Files.ReadWrite.All` application permission).
+    Always overwrites the same filename so re-publishing keeps one canonical
+    copy in the distribution folder.
+  - Sends **email + SMS** notifications (via existing Twilio / IONOS
+    infrastructure) to all OVERSEER+ volunteers and every volunteer
+    scheduled for that day. Scheduled volunteers receive a personalised
+    message listing their shift assignments; oversight-only recipients
+    receive the link. Lists are merged and deduplicated so no one gets two
+    messages.
+  - Publish result (SharePoint URL, email count, SMS count) is recorded in
+    the new `dbo.schedule_publishes` table.
+  - Confirmation modal with spinner, success state (clickable SharePoint
+    link + send counts), and error state.
+  - Permission: `accessAdminConsole` (ASSISTANT_ADMIN+).
+- **New files**:
+  - `lib/graphClient.js` — Graph API token cache + OneDrive file upload
+  - `lib/publishSchedule.js` — PDF generation, upload, notification, DB
+    record orchestration; exports `PDF_SECRET` (startup random)
+  - `scripts/azure-app-setup.ps1` — PowerShell script to create the Azure
+    App Registration, add `Files.ReadWrite.All` permission, grant admin
+    consent, and create a client secret
+  - `scripts/append-env-secrets.ps1` — idempotent upsert of Graph secrets
+    into the `.env` file
+- **New DB table**: `dbo.schedule_publishes` (run migration manually).
+- **New DB functions** (`dbSync.js`):
+  - `getPublishNotificationData(dayId)` — merged OVERSEER+ + scheduled
+    volunteer list with shift assignments for notification personalisation
+  - `recordSchedulePublish(data)` — inserts publish audit record
+- **New routes** (`oversightRoutes.js`):
+  - `GET  /internal/pdf/report` — secret-protected Puppeteer render
+  - `POST /oversight/tools/scheduler/publish` — full publish pipeline
+- **Config**: `serverPort` and `graphConfig` added to `oversightRouter`
+  factory; `index.js` passes `PORT` and Graph secrets from Key Vault.
+### Changed
+- `package.json` engines lowered from `>=24.0.0` to `>=22.0.0` to match
+  the current LTS version in use.
+- `.dockerignore` now excludes `scripts/` folder.
+
+---
+
 ## [2.10.1] — 2026-05-13
 ### Fixed
 - **Schedule report — blank first print page** (`schedulerReport.css`): the

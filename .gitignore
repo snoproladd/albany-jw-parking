@@ -79,3 +79,4 @@ parking/
 
 # Claude worktrees
 .claude/
+.env.bak
