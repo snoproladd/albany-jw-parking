@@ -15,6 +15,7 @@ import { createClient } from "redis";
 
 import { createRequire } from "module";
 import { getConfig, getSqlPool } from "./src/config/azureConfig.js";
+import { touchSqlActivity } from "./lib/sql.js";
 import { INCOMPATIBILITIES } from "./src/config/privilegeRules.js";
 
 const require = createRequire(import.meta.url);
@@ -281,10 +282,17 @@ app.set("views", [
 ]);
 
 // CSP nonce middleware
-app.use((req, res, next) => {
-  res.locals.nonce = crypto.randomBytes(16).toString("base64");
-  next();
-});
+    app.use((req, res, next) => {
+      res.locals.nonce = crypto.randomBytes(16).toString("base64");
+      next();
+    });
+
+    // SQL activity tracker — updates the keep-alive window on every request
+    // so the DB only stays warm while real users are active.
+    app.use((req, res, next) => {
+      touchSqlActivity();
+      next();
+    });
 
 // Helmet CSP setup
 app.use(
@@ -565,6 +573,16 @@ const server = http.createServer(app);
           port: config.IONOS_SMTP_PORT,
           user: config.IONOS_SMTP_USER_INFO,
           pass: config.IONOS_SMTP_PASS,
+        },
+        serverPort: PORT,
+        graphConfig: {
+          tenantId:     config.GRAPH_TENANT_ID,
+          clientId:     config.GRAPH_CLIENT_ID,
+          clientSecret: config.GRAPH_CLIENT_SECRET,
+          driveUser:    config.GRAPH_DRIVE_USER ||
+                        'jladd@jakeofalltradespropertyserv.onmicrosoft.com',
+          folderPath:   config.GRAPH_FOLDER_PATH ||
+                        '2026 Convention Parking/Documents for Distribution',
         },
       }),
     );

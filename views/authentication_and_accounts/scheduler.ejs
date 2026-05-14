@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Scheduler — Albany JW Parking</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+  <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+  <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+  <link rel="stylesheet" type="text/css" href="/styles/scheduler.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+  <meta name="csrf-token" content="<%= csrfToken %>" />
+</head>
+
+<body data-authed="true" class="bg-body-tertiary scheduler-body">
+  <%- include('../partials/header') %>
+
+  <div class="scheduler-layout">
+
+    <%#-- ═══════════════════════════
+         SIDEBAR
+    ═══════════════════════════ --%>
+    <aside class="scheduler-sidebar">
+
+      <div class="scheduler-sidebar-header">
+        <h1 class="h5 mb-0">
+          <i class="fa-regular fa-calendar-days me-2 text-warning"></i>Scheduler
+        </h1>
+        <span class="text-muted small"><%= year %></span>
+      </div>
+
+      <%#-- Day picker --%>
+      <div class="scheduler-sidebar-section">
+        <label for="dayPicker" class="form-label small fw-semibold mb-1">
+          Convention Day
+        </label>
+        <select id="dayPicker" class="form-select form-select-sm">
+          <option value="">Select a day…</option>
+          <% conventionDays.forEach(day => { %>
+            <option value="<%= day.id %>"><%= day.label %></option>
+          <% }) %>
+        </select>
+      </div>
+
+      <%#-- Volunteer pool header + filters --%>
+      <div class="scheduler-sidebar-section border-top">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="small fw-semibold">Volunteer Pool</span>
+          <span id="poolCount" class="badge bg-secondary rounded-pill">—</span>
+        </div>
+        <div class="d-flex flex-column gap-2">
+          <input
+            type="text"
+            id="vol-search"
+            data-action="search"
+            class="form-control form-control-sm"
+            placeholder="Search by name…"
+            autocomplete="off"
+          />
+          <select id="vol-rank-filter" data-action="filter" class="form-select form-select-sm">
+            <option value="">All Ranks</option>
+            <option value="1">Registered</option>
+            <option value="2">Keyman</option>
+            <option value="3">Overseer+</option>
+          </select>
+          <select id="vol-department-filter" data-action="filter" class="form-select form-select-sm">
+            <option value="">All Departments</option>
+            <option value="lots_and_garages">Lots and Garages</option>
+            <option value="signs">Signs</option>
+            <option value="security">Security</option>
+            <option value="dropoff_pickup">Dropoff / Pickup</option>
+            <option value="mobile_support">Mobile Support</option>
+          </select>
+          <select id="vol-usage-filter" data-action="filter" class="form-select form-select-sm">
+            <option value="">All Usage</option>
+            <option value="0">Unused</option>
+            <option value="1">Used 1×</option>
+            <option value="2">Used 2×</option>
+            <option value="3">Used 3×+</option>
+          </select>
+          <select id="vol-sort-order" data-action="filter" class="form-select form-select-sm">
+            <option value="lastName">Sort: Last Name</option>
+            <option value="rank">Sort: Rank</option>
+            <option value="department">Sort: Department</option>
+            <option value="usage">Sort: Usage (least first)</option>
+          </select>
+        </div>
+      </div>
+
+      <%#-- Crew badge legend --%>
+      <div class="scheduler-sidebar-section border-top py-2">
+        <span class="small fw-semibold text-muted d-block mb-1">Crew Legend</span>
+        <div class="d-flex flex-wrap gap-1 mb-1">
+          <span class="crew-badge crew-lots-and-garages">L&G</span>
+          <span class="crew-badge crew-signs">SGN</span>
+          <span class="crew-badge crew-security">SEC</span>
+          <span class="crew-badge crew-dropoff-pickup">D/P</span>
+          <span class="crew-badge crew-mobile-support">MS</span>
+        </div>
+        <div class="crew-legend-labels">
+          L&amp;G = Lots &amp; Garages &middot; SGN = Signs &middot; SEC = Security<br>
+          D/P = Dropoff/Pickup &middot; MS = Mobile Support
+        </div>
+      </div>
+
+      <%#-- Volunteer pool pills (populated by schedulerDomActions.js) --%>
+      <div id="name-pool" class="scheduler-pool">
+        <div id="poolLoadingMsg" class="text-center text-muted small py-3">
+          <span class="spinner-border spinner-border-sm me-1"></span>Loading volunteers…
+        </div>
+      </div>
+
+    </aside>
+
+    <%#-- ═══════════════════════════
+         MAIN SCHEDULE AREA
+    ═══════════════════════════ --%>
+    <main class="scheduler-main">
+
+      <%#-- Empty state: no day selected --%>
+      <div id="schedulerEmpty" class="scheduler-empty-state">
+        <i class="fa-regular fa-calendar-days fa-3x text-muted mb-3 d-block"></i>
+        <p class="text-muted mb-1">Select a convention day to load the schedule.</p>
+        <% if (conventionDays.length === 0) { %>
+          <p class="text-muted small">
+            No convention days defined yet.
+            <a href="/oversight/tools/timelines">Add one in Timelines</a>.
+          </p>
+        <% } %>
+      </div>
+
+      <%#-- Loading state: day selected, data fetching --%>
+      <div id="schedulerLoading" class="scheduler-empty-state d-none">
+        <span class="spinner-border text-secondary mb-2 d-block mx-auto"></span>
+        <p class="text-muted small mb-0">Loading schedule…</p>
+      </div>
+
+      <%#-- No data state: day has no department-assigned shifts --%>
+      <div id="schedulerNoData" class="scheduler-empty-state d-none">
+        <i class="fa-solid fa-circle-exclamation fa-3x text-muted mb-3 d-block"></i>
+        <p class="text-muted mb-1">No scheduler data for this day.</p>
+        <p class="text-muted small">
+          Assign departments to shifts in
+          <a href="/oversight/tools/timelines">Timelines</a> first.
+        </p>
+      </div>
+
+      <%#-- Grid: populated by schedulerDomActions.js --%>
+      <div id="daySchedule" class="scheduler-grid-wrap d-none"></div>
+
+    </main>
+
+  </div><%#-- /.scheduler-layout --%>
+
+  <%- include('../partials/footer') %>
+
+  <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+  <script src="/vendor/agnostic-draggable.js"></script>
+  <script type="module" src="/js/scheduler.js"></script>
+</body>
+</html>

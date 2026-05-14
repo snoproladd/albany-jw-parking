@@ -1,0 +1,936 @@
+/* ============================================================
+   scheduler.css
+   Styles for the volunteer drag-and-drop scheduler page.
+   Uses Bootstrap 5 CSS custom properties throughout.
+   ============================================================ */
+
+
+/* ─────────────────────────────────────────────
+   Page layout
+───────────────────────────────────────────── */
+
+.scheduler-body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* Collapse the header's bottom margin so the split layout
+   sits flush beneath the navbar. */
+.scheduler-body > header {
+    margin-bottom: 0 !important;
+}
+
+/* Hide footer — scheduler is an app-like interface, footer
+   only wastes vertical real estate. */
+.scheduler-body footer {
+    display: none;
+}
+
+.scheduler-layout {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    overflow: hidden;
+    border-top: 1px solid var(--bs-border-color);
+}
+
+
+/* ─────────────────────────────────────────────
+   Sidebar
+───────────────────────────────────────────── */
+
+.scheduler-sidebar {
+    width: 340px;
+    min-width: 280px;
+    max-width: 380px;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    background: var(--bs-body-bg);
+    border-right: 1px solid var(--bs-border-color);
+    flex-shrink: 0;
+}
+
+.scheduler-sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1rem 0.75rem;
+    border-bottom: 2px solid var(--bs-border-color);
+}
+
+.scheduler-sidebar-section {
+    padding: 0.75rem 1rem;
+}
+
+
+/* ─────────────────────────────────────────────
+   Volunteer pool
+───────────────────────────────────────────── */
+
+.scheduler-pool {
+    flex: 1 1 0;
+    overflow-y: auto;
+    padding: 0.4rem 0.75rem 0.75rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.2rem;
+    align-content: flex-start;
+}
+
+.name-pill {
+    padding: 0.2rem 0.4rem 0.15rem;
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.3rem;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+    transition: background-color 0.1s, border-color 0.1s, box-shadow 0.1s;
+    display: flex;
+    flex-direction: column;
+    gap: 0.12rem;
+    min-width: 0;
+}
+
+.name-pill:hover {
+    background: var(--bs-tertiary-bg);
+    border-color: var(--bs-secondary-border-subtle);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.name-pill:active,
+.name-pill.pill-dragging {
+    cursor: grabbing;
+    opacity: 0.6;
+}
+
+.name-pill.assigned {
+    background: var(--bs-success-bg-subtle);
+    border-color: var(--bs-success-border-subtle);
+    color: var(--bs-success-text-emphasis);
+}
+/* Drag clone helper — must float above all grid elements */
+.pill-drag-helper {
+    z-index: 9999;
+    pointer-events: none;
+}
+
+.pill-name {
+    font-size: 0.72rem;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+}
+
+.pill-crews {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.15rem;
+}
+
+/* ─────────────────────────────────────────────
+   Crew badges — pill badges and sidebar legend
+───────────────────────────────────────────── */
+
+.crew-badge {
+    display: inline-block;
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    padding: 0.05rem 0.22rem;
+    border-radius: 0.18rem;
+    line-height: 1.4;
+    white-space: nowrap;
+}
+
+.crew-lots-and-garages {
+    background: var(--bs-success-bg-subtle);
+    color: var(--bs-success-text-emphasis);
+    border: 1px solid var(--bs-success-border-subtle);
+}
+
+.crew-signs {
+    background: var(--bs-primary-bg-subtle);
+    color: var(--bs-primary-text-emphasis);
+    border: 1px solid var(--bs-primary-border-subtle);
+}
+
+.crew-security {
+    background: var(--bs-danger-bg-subtle);
+    color: var(--bs-danger-text-emphasis);
+    border: 1px solid var(--bs-danger-border-subtle);
+}
+
+.crew-dropoff-pickup {
+    background: var(--bs-warning-bg-subtle);
+    color: var(--bs-warning-text-emphasis);
+    border: 1px solid var(--bs-warning-border-subtle);
+}
+
+.crew-mobile-support {
+    background: var(--bs-info-bg-subtle);
+    color: var(--bs-info-text-emphasis);
+    border: 1px solid var(--bs-info-border-subtle);
+}
+
+/* Legend label row */
+.crew-legend-labels {
+    font-size: 0.65rem;
+    color: var(--bs-secondary-color);
+    line-height: 1.6;
+}
+
+
+/* ─────────────────────────────────────────────
+   Main content area
+───────────────────────────────────────────── */
+
+.scheduler-main {
+    flex: 1 1 0;
+    min-width: 0;
+    overflow: auto;
+    padding: 1.25rem 1.5rem;
+    background: var(--bs-tertiary-bg);
+}
+
+
+/* ─────────────────────────────────────────────
+   Empty / loading / no-data states
+───────────────────────────────────────────── */
+
+.scheduler-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 320px;
+    text-align: center;
+    padding: 2rem;
+}
+
+
+/* ─────────────────────────────────────────────
+   Calendar outer wrapper
+───────────────────────────────────────────── */
+
+.scheduler-calendar-outer {
+    min-width: 720px;
+}
+
+.scheduler-day-banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.4rem 0.75rem;
+    margin-bottom: 0.5rem;
+    background: var(--bs-warning-bg-subtle);
+    border: 1px solid var(--bs-warning-border-subtle);
+    border-radius: 0.375rem;
+}
+
+
+/* ─────────────────────────────────────────────
+   Calendar grid
+   Row 1  = dept headers       (JS sets: 30px)
+   Row 2  = location headers   (JS sets: 20px)
+   Rows 3+ = 15-min slots      (JS sets: 22px each)
+   Col 1  = time labels        (JS sets: 60px)
+   Cols 2+ = one per location  (JS sets: 1fr each)
+───────────────────────────────────────────── */
+
+.scheduler-calendar {
+    display: grid;
+    position: relative;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.375rem;
+    overflow: hidden;
+    background: var(--bs-body-bg);
+}
+
+/* Subtle horizontal grid lines at each 15-min row */
+.scheduler-calendar::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: repeating-linear-gradient(to bottom,
+            transparent,
+            transparent calc(22px - 1px),
+            var(--bs-border-color) calc(22px - 1px),
+            var(--bs-border-color) 22px);
+    /* Offset past the 50px header row */
+    background-position: 0 50px;
+    opacity: 0.35;
+    z-index: 0;
+}
+
+.sched-time-label {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    padding: 0.15rem 0.4rem 0 0;
+    font-size: 0.7rem;
+    color: var(--bs-secondary-color);
+    border-right: 1px solid var(--bs-border-color);
+    background: var(--bs-body-bg);
+    white-space: nowrap;
+    position: relative;
+    z-index: 1;
+}
+
+.sched-dept-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-align: center;
+    background: var(--bs-secondary-bg);
+    border-bottom: 1px solid var(--bs-border-color);
+    border-left: 1px solid var(--bs-border-color);
+    position: relative;
+    z-index: 1;
+}
+
+.sched-loc-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 0.25rem;
+    font-size: 0.65rem;
+    font-weight: 500;
+    text-align: center;
+    background: var(--bs-body-bg);
+    border-bottom: 2px solid var(--bs-border-color);
+    border-left: 1px solid var(--bs-border-color);
+    color: var(--bs-secondary-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    position: relative;
+    z-index: 1;
+}
+
+
+/* ─────────────────────────────────────────────
+   Shift blocks
+───────────────────────────────────────────── */
+
+.sched-shift-block {
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.25rem;
+    margin: 2px;
+    background: var(--bs-body-bg);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    z-index: 1;
+}
+
+.sched-shift-header {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.2rem 0.4rem;
+    background: var(--bs-secondary-bg);
+    border-bottom: 1px solid var(--bs-border-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
+}
+
+.sched-dropzone-area {
+    height: auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    padding: 3px;
+    align-content: flex-start;
+    overflow-y: auto;
+}
+
+.sched-no-slots-hint {
+    font-size: 0.65rem;
+    color: var(--bs-secondary-color);
+    text-align: center;
+    margin: auto;
+    padding: 0.25rem;
+}
+
+
+/* ─────────────────────────────────────────────
+   Dropzones
+───────────────────────────────────────────── */
+
+.scheduler-dropzone {
+    min-width: 56px;
+    height: 34px;
+    border-radius: 0.25rem;
+    border: 1px dashed var(--bs-border-color);
+    background: var(--bs-tertiary-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1 1 56px;
+    font-size: 0.7rem;
+    transition: background-color 0.1s, border-color 0.1s;
+    overflow: hidden;
+}
+
+/* Highlight applied by agnostic-draggable when the drag is over
+   an accepting drop zone */
+.scheduler-dropzone.drop-target {
+    background: var(--bs-primary-bg-subtle);
+    border-color: var(--bs-primary);
+    border-style: solid;
+}
+
+/* Required slot — must be filled */
+.dz-required {
+    border-color: var(--bs-danger-border-subtle);
+    background: var(--bs-danger-bg-subtle);
+}
+
+/* Ideal slot */
+.dz-ideal {
+    border-color: var(--bs-border-color);
+    background: var(--bs-tertiary-bg);
+}
+
+/* Extra (nice-to-have) slot */
+.dz-extra {
+    border-color: var(--bs-secondary-border-subtle);
+    background: var(--bs-body-bg);
+    opacity: 0.7;
+}
+
+/* Keyman leadership slot */
+.dz-keyman {
+    border-color: var(--bs-primary-border-subtle);
+    background: var(--bs-primary-bg-subtle);
+    color: var(--bs-primary-text-emphasis);
+    font-weight: 700;
+    min-width: 44px;
+    flex: 0 0 auto;
+}
+
+.dz-keyman::after {
+    content: 'KM';
+    font-size: 0.65rem;
+    opacity: 0.75;
+}
+
+/* Keyman assistant slot */
+.dz-keyman-asst {
+    border-color: var(--bs-info-border-subtle);
+    background: var(--bs-info-bg-subtle);
+    color: var(--bs-info-text-emphasis);
+    min-width: 44px;
+    flex: 0 0 auto;
+}
+
+.dz-keyman-asst::after {
+    content: 'KA';
+    font-size: 0.65rem;
+    opacity: 0.75;
+}
+
+/* Hide the KM/KA label once a pill occupies the slot */
+.scheduler-dropzone:has(.name-pill)::after {
+    display: none;
+}
+
+/* Pill sizing when nested inside a dropzone — fixed to match DZ height */
+.scheduler-dropzone .name-pill {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0.1rem 0.3rem;
+    border-radius: 0.2rem;
+    gap: 0;
+    justify-content: center;
+}
+
+.scheduler-dropzone .pill-name {
+    font-size: 0.68rem;
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.25;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+/* Crew badges add no value once a pill is assigned — hide them */
+.scheduler-dropzone .pill-crews {
+    display: none;
+}
+
+/* Assignment count badge on pool pills */
+.pill-assign-badge {
+    display: inline-block;
+    font-size: 0.58rem;
+    font-weight: 700;
+    padding: 0.05rem 0.28rem;
+    border-radius: 0.75rem;
+    background: var(--bs-warning-bg-subtle);
+    color: var(--bs-warning-text-emphasis);
+    border: 1px solid var(--bs-warning-border-subtle);
+    margin-left: auto;
+    flex-shrink: 0;
+    cursor: default;
+}
+
+/* Hide the badge once the pill is inside a DZ */
+.scheduler-dropzone .pill-assign-badge {
+    display: none;
+}
+
+/* KM / KA role badge on pills dropped into leadership slots */
+.dz-keyman .name-pill::after,
+.dz-keyman-asst .name-pill::after {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.58rem;
+    font-weight: 700;
+    padding: 0.05rem 0.22rem;
+    border-radius: 0.2rem;
+    margin-left: 0.2rem;
+    vertical-align: middle;
+    flex-shrink: 0;
+    line-height: 1.2;
+}
+
+.dz-keyman .name-pill::after {
+    content: 'KM';
+    background: var(--bs-primary-bg-subtle);
+    color: var(--bs-primary-text-emphasis);
+    border: 1px solid var(--bs-primary-border-subtle);
+}
+
+.dz-keyman-asst .name-pill::after {
+    content: 'KA';
+    background: var(--bs-info-bg-subtle);
+    color: var(--bs-info-text-emphasis);
+    border: 1px solid var(--bs-info-border-subtle);
+}
+
+.sched-banner-label {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--bs-warning-text-emphasis);
+}
+
+/* ────────────────────────────────────────────
+   Time-period background bands
+   Inserted first in DOM so they render behind all grid content.
+   pointer-events:none keeps them invisible to drag operations.
+──────────────────────────────────────────── */
+
+.sched-time-band {
+    pointer-events: none;
+    border: none;
+}
+
+/* Make time labels transparent so band color shows through */
+.sched-time-label {
+    background: transparent;
+}
+
+.sched-band--pre,
+.sched-band--post {
+    background: var(--bs-secondary-bg);
+    opacity: 0.6;
+}
+
+.sched-band--morning {
+    background: var(--bs-warning-bg-subtle);
+    opacity: 0.75;
+}
+
+.sched-band--lunch {
+    background: var(--bs-success-bg-subtle);
+    opacity: 0.65;
+}
+
+.sched-band--afternoon {
+    background: var(--bs-info-bg-subtle);
+    opacity: 0.65;
+}
+.sched-band-divider {
+    border-top: 1px dashed rgba(0, 0, 0, 0.18);
+    background: transparent;
+    opacity: 1;
+}
+
+.sched-history-btns {
+    display: flex;
+    gap: 0.2rem;
+    align-items: center;
+}
+
+.sched-history-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.2rem 0.55rem;
+    border-radius: 0.3rem;
+    border: 1.5px solid var(--bs-border-color);
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.1s, opacity 0.1s;
+}
+
+.sched-history-btn:hover:not(:disabled) {
+    background: var(--bs-tertiary-bg);
+}
+
+.sched-history-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.sched-dept-toggles-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.sched-dept-toggles-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--bs-warning-text-emphasis);
+    white-space: nowrap;
+    opacity: 0.75;
+}
+
+.sched-dept-toggles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    align-items: center;
+}
+
+.sched-dept-toggle {
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.2rem 0.55rem;
+    border-radius: 1rem;
+    border: 1.5px solid transparent;
+    cursor: pointer;
+    user-select: none;
+    transition: opacity 0.15s, transform 0.1s, box-shadow 0.1s;
+    white-space: nowrap;
+}
+
+.sched-dept-toggle:hover {
+    opacity: 0.85;
+    transform: translateY(-1px);
+}
+
+.sched-dept-toggle.dept-hidden {
+    background: var(--bs-body-bg);
+    color: var(--bs-secondary-color);
+    border-color: var(--bs-border-color);
+    border-style: dashed;
+    opacity: 0.6;
+}
+
+.sched-dept-toggle.dept-hidden::after {
+    content: '\0020\29B8';
+    font-size: 1em;
+    margin-left: 0.25em;
+    opacity: 1;
+    color: var(--bs-danger-text-emphasis);
+}
+
+.sched-dept-toggle.dragging {
+    opacity: 0.45;
+    cursor: grabbing;
+}
+
+.sched-dept-toggle.drag-over {
+    transform: scale(1.1);
+    box-shadow: 0 0 0 2px var(--bs-body-bg), 0 0 0 3px currentColor;
+}
+
+.sched-dept-toggle--lots-and-garages {
+    background: var(--bs-success-bg-subtle);
+    color: var(--bs-success-text-emphasis);
+    border-color: var(--bs-success-border-subtle);
+}
+
+.sched-dept-toggle--signs {
+    background: var(--bs-primary-bg-subtle);
+    color: var(--bs-primary-text-emphasis);
+    border-color: var(--bs-primary-border-subtle);
+}
+
+.sched-dept-toggle--security {
+    background: var(--bs-danger-bg-subtle);
+    color: var(--bs-danger-text-emphasis);
+    border-color: var(--bs-danger-border-subtle);
+}
+
+.sched-dept-toggle--dropoff-pickup {
+    background: var(--bs-warning-bg-subtle);
+    color: var(--bs-warning-text-emphasis);
+    border-color: var(--bs-warning-border-subtle);
+}
+
+.sched-dept-toggle--mobile-support {
+    background: var(--bs-info-bg-subtle);
+    color: var(--bs-info-text-emphasis);
+    border-color: var(--bs-info-border-subtle);
+}
+
+/* ────────────────────────────────────────────
+   Highlight flash animation
+──────────────────────────────────────────── */
+
+@keyframes schedHighlightFlash {
+    0%   { outline: 3px solid rgba(255, 193, 7, 0.9); outline-offset: 2px; }
+    50%  { outline: 3px solid rgba(255, 193, 7, 0.2); outline-offset: 5px; }
+    100% { outline: 3px solid rgba(255, 193, 7, 0.9); outline-offset: 2px; }
+}
+
+.sched-highlight-flash {
+    animation: schedHighlightFlash 0.55s ease-in-out 4;
+    border-radius: 0.25rem;
+    position: relative;
+    z-index: 2;
+}
+
+/* ────────────────────────────────────────────
+   Right-click context menu
+──────────────────────────────────────────── */
+
+.sched-ctx-menu {
+    position: fixed;
+    z-index: 9999;
+    min-width: 215px;
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.45rem;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.08);
+    padding: 0.3rem 0;
+    font-size: 0.83rem;
+    user-select: none;
+}
+
+.sched-ctx-header {
+    padding: 0.3rem 0.85rem 0.28rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--bs-secondary-color);
+    border-bottom: 1px solid var(--bs-border-color-translucent);
+    margin-bottom: 0.2rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sched-ctx-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    padding: 0.33rem 0.85rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--bs-body-color);
+    text-align: left;
+    font-size: 0.83rem;
+    line-height: 1.4;
+    transition: background 0.07s;
+    white-space: nowrap;
+}
+
+.sched-ctx-item:hover:not(:disabled) {
+    background: var(--bs-tertiary-bg);
+}
+
+.sched-ctx-item:disabled {
+    color: var(--bs-secondary-color);
+    cursor: default;
+    opacity: 0.7;
+}
+
+.sched-ctx-item i {
+    width: 0.95rem;
+    text-align: center;
+    flex-shrink: 0;
+    font-size: 0.76rem;
+    color: var(--bs-secondary-color);
+    transition: color 0.07s;
+}
+
+.sched-ctx-item:hover:not(:disabled) i {
+    color: inherit;
+}
+
+.sched-ctx--danger,
+.sched-ctx--danger i {
+    color: var(--bs-danger-text-emphasis) !important;
+}
+
+.sched-ctx--danger:hover:not(:disabled) {
+    background: var(--bs-danger-bg-subtle);
+}
+
+.sched-ctx-soon {
+    margin-left: auto;
+    font-size: 0.58rem;
+    font-weight: 700;
+    padding: 0.05rem 0.28rem;
+    border-radius: 0.75rem;
+    background: var(--bs-secondary-bg);
+    color: var(--bs-secondary-color);
+    border: 1px solid var(--bs-border-color);
+    flex-shrink: 0;
+}
+
+.sched-ctx-divider {
+    height: 1px;
+    background: var(--bs-border-color-translucent);
+    margin: 0.3rem 0;
+}
+
+/* Contact info block (phone + email) */
+.sched-ctx-contact {
+    padding: 0.2rem 0;
+    border-bottom: 1px solid var(--bs-border-color-translucent);
+    margin-bottom: 0.15rem;
+}
+
+.sched-ctx-contact-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.22rem 0.85rem;
+    font-size: 0.78rem;
+    color: var(--bs-secondary-color);
+    text-decoration: none;
+    transition: background 0.07s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sched-ctx-contact-row:hover {
+    background: var(--bs-tertiary-bg);
+    color: var(--bs-body-color);
+}
+
+.sched-ctx-contact-row i {
+    width: 0.85rem;
+    text-align: center;
+    font-size: 0.7rem;
+    flex-shrink: 0;
+    color: var(--bs-secondary-color);
+}
+
+/* ────────────────────────────────────────────
+   Today's Assignments panel
+──────────────────────────────────────────── */
+
+.sched-assign-panel {
+    position: fixed;
+    z-index: 9998;
+    min-width: 260px;
+    max-width: 340px;
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.45rem;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.08);
+    font-size: 0.83rem;
+    overflow: hidden;
+}
+
+.sched-assign-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.45rem 0.6rem 0.45rem 0.85rem;
+    background: var(--bs-secondary-bg);
+    border-bottom: 1px solid var(--bs-border-color);
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.sched-assign-panel-close {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    padding: 0.1rem 0.2rem;
+    cursor: pointer;
+    color: var(--bs-secondary-color);
+    line-height: 1;
+    border-radius: 0.2rem;
+}
+
+.sched-assign-panel-close:hover {
+    background: var(--bs-tertiary-bg);
+    color: var(--bs-body-color);
+}
+
+.sched-assign-panel-empty {
+    padding: 0.75rem 0.85rem;
+    color: var(--bs-secondary-color);
+    font-style: italic;
+    margin: 0;
+    font-size: 0.8rem;
+}
+
+.sched-assign-dept {
+    padding: 0.4rem 0;
+}
+
+.sched-assign-dept + .sched-assign-dept {
+    border-top: 1px solid var(--bs-border-color-translucent);
+}
+
+.sched-assign-dept-label {
+    padding: 0.1rem 0.85rem 0.15rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--bs-secondary-color);
+}
+
+.sched-assign-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.2rem 0.85rem 0.2rem 1.3rem;
+    gap: 0.75rem;
+}
+
+.sched-assign-shift {
+    font-weight: 500;
+}
+
+.sched-assign-time {
+    font-size: 0.74rem;
+    color: var(--bs-secondary-color);
+    white-space: nowrap;
+}

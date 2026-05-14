@@ -65,6 +65,9 @@ const SECRET_MAP = Object.freeze({
   IONOS_SMTP_PORT: "IonosSMTPPort",
   IONOS_SMTP_USER_INFO: "IonosSMTPUserInfo",
   IONOS_SMTP_PASS: "IonosSMTPPass",
+  GRAPH_TENANT_ID:     "GraphTenantId",
+  GRAPH_CLIENT_ID:     "GraphClientId",
+  GRAPH_CLIENT_SECRET: "GraphClientSecret",
 });
 
 // ============================================================================
@@ -143,6 +146,13 @@ export async function getConfig() {
     ),
     IONOS_SMTP_USER_INFO: secrets.IONOS_SMTP_USER_INFO || process.env.IONOS_SMTP_USER_INFO,
     IONOS_SMTP_PASS: secrets.IONOS_SMTP_PASS || process.env.IONOS_SMTP_PASS,
+
+    // Microsoft Graph (schedule publish)
+    GRAPH_TENANT_ID:     secrets.GRAPH_TENANT_ID     || process.env.GRAPH_TENANT_ID,
+    GRAPH_CLIENT_ID:     secrets.GRAPH_CLIENT_ID     || process.env.GRAPH_CLIENT_ID,
+    GRAPH_CLIENT_SECRET: secrets.GRAPH_CLIENT_SECRET || process.env.GRAPH_CLIENT_SECRET,
+    GRAPH_DRIVE_USER:    process.env.GRAPH_DRIVE_USER    || 'jladd@jakeofalltradespropertyserv.onmicrosoft.com',
+    GRAPH_FOLDER_PATH:   process.env.GRAPH_FOLDER_PATH   || '2026 Convention Parking/Documents for Distribution',
 
     // Sessions
     sessionSecret:
