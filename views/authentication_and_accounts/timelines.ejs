@@ -415,13 +415,25 @@
                         <label for="shiftEnd" class="form-label small">End <span class="text-danger">*</span></label>
                         <input type="time" id="shiftEnd" class="form-control" />
                       </div>
-                      <!-- <div class="col-12 col-md-1">
-                        <label for="shiftNeed" class="form-label small">Volunteers</label>
-                        <input type="number" id="shiftNeed" class="form-control" min="1" max="999" placeholder="—" />
-                      </div> -->
-                      <div class="col-12 col-md-2">
+                      <div class="col-12 col-md-3">
+                        <label for="shiftSmsCode" class="form-label small">SMS Code</label>
+                        <input type="text" id="shiftSmsCode" class="form-control font-monospace text-uppercase"
+                          maxlength="8" placeholder="FRIN" title="Volunteer reply code (max 8 chars)" />
+                      </div>
+                    </div>
+                    <div class="row g-3 mt-1">
+                      <div class="col-12 col-md-6">
                         <label for="shiftNotes" class="form-label small">Notes</label>
                         <input type="text" id="shiftNotes" class="form-control" maxlength="500" />
+                      </div>
+                      <div class="col-12 col-md-auto d-flex align-items-end pb-1">
+                        <div class="form-check form-switch mb-1">
+                          <input class="form-check-input" type="checkbox" id="shiftInvitable" />
+                          <label class="form-check-label small" for="shiftInvitable">
+                            Invitable
+                            <small class="text-muted"> — include in Campaign Center</small>
+                          </label>
+                        </div>
                       </div>
                     </div>
                     <div id="shiftFormStatus" class="mt-3"></div>
@@ -552,9 +564,15 @@
                                                 &nbsp;·&nbsp;
                                                 <i class="fa-solid fa-users me-1"></i><%= shift.volunteer_need %> needed
                                               <% } %>
+                                              <% if (shift.sms_code) { %>
+                                                &nbsp;·&nbsp;
+                                                <span class="badge badge-xs bg-dark text-white font-monospace">
+                                                  <i class="fa-solid fa-comment-sms me-1"></i><%= shift.sms_code %>
+                                                </span>
+                                              <% } %>
                                               <% if (shift.invitable) { %>
                                                 &nbsp;·&nbsp;
-                                                <span class="badge bg-warning text-dark" style="font-size:0.65rem">
+                                                <span class="badge badge-xs bg-warning text-dark">
                                                   <i class="fa-solid fa-envelope-circle-check me-1"></i>invitable
                                                 </span>
                                               <% } %>
@@ -577,7 +595,9 @@
                                               data-start="<%= shift.start_time instanceof Date ? shift.start_time.toISOString() : shift.start_time %>"
                                               data-end="<%= shift.end_time instanceof Date ? shift.end_time.toISOString() : shift.end_time %>"
                                               data-need="<%= shift.volunteer_need || '' %>"
-                                              data-notes="<%= shift.notes || '' %>">
+                                              data-notes="<%= shift.notes || '' %>"
+                                              data-sms-code="<%= shift.sms_code || '' %>"
+                                              data-invitable="<%= shift.invitable ? 'true' : 'false' %>">
                                               <i class="fa-solid fa-pen"></i>
                                             </button>
                                             <button type="button"

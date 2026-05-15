@@ -27,14 +27,12 @@ import apiRoutes from "./routes/apiRoutes.js";
 import { loginRouter } from "./routes/accountRoutes.js";
 import upgradeRoutes from "./routes/upgradeRoutes.js";
 
-
 // Database helpers
 import * as db from "./lib/dbSync.js";
 
-import {oversightRouter} from "./routes/oversightRoutes.js";
+import { oversightRouter } from "./routes/oversightRoutes.js";
 import { getBaseUrl, resetSmsClient } from "./lib/messaging.js";
-
-
+import { startAlertScheduler } from "./lib/alertScheduler.js";
 
 // Resolve paths
 const config = await getConfig();
@@ -120,7 +118,9 @@ let twClient = null;
 async function initTwilio() {
   if (!twClient) {
     if (!config.TWILIO_ACCOUNT_SID || !config.TWILIO_AUTH_TOKEN) {
-      throw new Error('Twilio credentials not configured — check Key Vault secrets TwilioSID and TwilioAuthToken.');
+      throw new Error(
+        "Twilio credentials not configured — check Key Vault secrets TwilioSID and TwilioAuthToken.",
+      );
     }
     const mod = await import("twilio");
     const twRoot = mod.default ?? mod;
@@ -147,47 +147,59 @@ async function initTwilio() {
  */
 function startExternalServiceWatchdog() {
   // ── Twilio — every 5 minutes ──────────────────────────────
-  const twilioInterval = setInterval(async () => {
-    try {
-      if (!twClient) return; // not yet initialized, skip
-      await twClient.api.accounts(config.TWILIO_ACCOUNT_SID).fetch();
-      log('Watchdog: Twilio OK.');
-    } catch (err) {
-      logError('Watchdog: Twilio check failed — resetting client:', err.message);
-      twClient = undefined;
-      resetSmsClient();
-    }
-  }, 5 * 60 * 1000);
+  const twilioInterval = setInterval(
+    async () => {
+      try {
+        if (!twClient) return; // not yet initialized, skip
+        await twClient.api.accounts(config.TWILIO_ACCOUNT_SID).fetch();
+        log("Watchdog: Twilio OK.");
+      } catch (err) {
+        logError(
+          "Watchdog: Twilio check failed — resetting client:",
+          err.message,
+        );
+        twClient = undefined;
+        resetSmsClient();
+      }
+    },
+    5 * 60 * 1000,
+  );
   twilioInterval.unref();
 
   // ── SMTP — every 10 minutes ───────────────────────────────
-  const smtpInterval = setInterval(async () => {
-    const user = config.IONOS_SMTP_USER_INFO;
-    const pass = config.IONOS_SMTP_PASS;
-    const host = config.IONOS_SMTP_HOST;
-    const port = config.IONOS_SMTP_PORT;
+  const smtpInterval = setInterval(
+    async () => {
+      const user = config.IONOS_SMTP_USER_INFO;
+      const pass = config.IONOS_SMTP_PASS;
+      const host = config.IONOS_SMTP_HOST;
+      const port = config.IONOS_SMTP_PORT;
 
-    if (!user || !pass || !host) {
-      logError('Watchdog: SMTP credentials not configured — skipping check.');
-      return;
-    }
+      if (!user || !pass || !host) {
+        logError("Watchdog: SMTP credentials not configured — skipping check.");
+        return;
+      }
 
-    let transporter;
-    try {
-      const nodemailer = (await import('nodemailer')).default ?? (await import('nodemailer'));
-      transporter = nodemailer.createTransport({
-        host, port: port || 587, secure: false,
-        auth: { user, pass },
-        tls: { rejectUnauthorized: false },
-      });
-      await transporter.verify();
-      log('Watchdog: SMTP OK.');
-    } catch (err) {
-      logError('Watchdog: SMTP check failed:', err.message);
-    } finally {
-      transporter?.close?.();
-    }
-  }, 10 * 60 * 1000);
+      let transporter;
+      try {
+        const nodemailer =
+          (await import("nodemailer")).default ?? (await import("nodemailer"));
+        transporter = nodemailer.createTransport({
+          host,
+          port: port || 587,
+          secure: false,
+          auth: { user, pass },
+          tls: { rejectUnauthorized: false },
+        });
+        await transporter.verify();
+        log("Watchdog: SMTP OK.");
+      } catch (err) {
+        logError("Watchdog: SMTP check failed:", err.message);
+      } finally {
+        transporter?.close?.();
+      }
+    },
+    10 * 60 * 1000,
+  );
   smtpInterval.unref();
 }
 
@@ -269,8 +281,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public")));
 
-
-
 app.set("view engine", "ejs");
 app.set("views", [
   path.join(__dirname, "views"),
@@ -278,21 +288,21 @@ app.set("views", [
   path.join(__dirname, "views/partials"),
   path.join(__dirname, "views/errors"),
   path.join(__dirname, "views/authentication_and_accounts"),
-  path.join(__dirname, "views/upgrade"), 
+  path.join(__dirname, "views/upgrade"),
 ]);
 
 // CSP nonce middleware
-    app.use((req, res, next) => {
-      res.locals.nonce = crypto.randomBytes(16).toString("base64");
-      next();
-    });
+app.use((req, res, next) => {
+  res.locals.nonce = crypto.randomBytes(16).toString("base64");
+  next();
+});
 
-    // SQL activity tracker — updates the keep-alive window on every request
-    // so the DB only stays warm while real users are active.
-    app.use((req, res, next) => {
-      touchSqlActivity();
-      next();
-    });
+// SQL activity tracker — updates the keep-alive window on every request
+// so the DB only stays warm while real users are active.
+app.use((req, res, next) => {
+  touchSqlActivity();
+  next();
+});
 
 // Helmet CSP setup
 app.use(
@@ -576,13 +586,15 @@ const server = http.createServer(app);
         },
         serverPort: PORT,
         graphConfig: {
-          tenantId:     config.GRAPH_TENANT_ID,
-          clientId:     config.GRAPH_CLIENT_ID,
+          tenantId: config.GRAPH_TENANT_ID,
+          clientId: config.GRAPH_CLIENT_ID,
           clientSecret: config.GRAPH_CLIENT_SECRET,
-          driveUser:    config.GRAPH_DRIVE_USER ||
-                        'jladd@jakeofalltradespropertyserv.onmicrosoft.com',
-          folderPath:   config.GRAPH_FOLDER_PATH ||
-                        '2026 Convention Parking/Documents for Distribution',
+          driveUser:
+            config.GRAPH_DRIVE_USER ||
+            "jladd@jakeofalltradespropertyserv.onmicrosoft.com",
+          folderPath:
+            config.GRAPH_FOLDER_PATH ||
+            "2026 Convention Parking/Documents for Distribution",
         },
       }),
     );
@@ -799,11 +811,93 @@ const server = http.createServer(app);
           else if (helpWords.includes(bodyText)) eventType = "HELP";
 
           if (!eventType) {
-            // Not an opt-out keyword — acknowledge and ignore
+            // ── Shift code / CHECK handler ─────────────────────────
+            // Find the volunteer by phone before doing anything.
+            const smsVol = await db.findVolunteerIdByPhone(fromPhone);
+
+            // Volunteer not in system — ignore silently
+            if (!smsVol) {
+              res.set("Content-Type", "text/xml");
+              return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response></Response>`);
+            }
+
+            // Eastern date helper (UTC-4, valid for August convention)
+            const easternToday = new Date(Date.now() - 4 * 60 * 60 * 1000)
+              .toISOString()
+              .slice(0, 10);
+
+            // ── CHECK = arrive / check-in ────────────────────────
+            if (bodyText === "CHECK") {
+              const shift = await db.getVolunteerActiveShiftToday(smsVol.id, easternToday);
+
+              if (!shift) {
+                res.set("Content-Type", "text/xml");
+                return res.send(
+                  `<?xml version="1.0" encoding="UTF-8"?><Response>` +
+                  `<Message>Albany JW Parking: We don't have you scheduled for a shift today. ` +
+                  `Questions? Contact your overseer.</Message></Response>`
+                );
+              }
+
+              await db.upsertAttendance({
+                volunteerId:     smsVol.id,
+                conventionDayId: shift.convention_day_id,
+                sessionId:       shift.session_id,
+                shiftId:         shift.shift_id,
+                attended:        true,
+                recordedBy:      `sms:${fromPhone}`,
+              });
+
+              log(`SMS CHECK-IN: vol ${smsVol.id} shift ${shift.shift_id}`);
+              res.set("Content-Type", "text/xml");
+              return res.send(
+                `<?xml version="1.0" encoding="UTF-8"?><Response>` +
+                `<Message>Albany JW Parking: Checked in! Thanks for being here, ` +
+                `we've recorded your attendance for ${shift.shift_label}.</Message></Response>`
+              );
+            }
+
+            // ── Shift code = confirm attendance ───────────────────
+            if (/^[A-Z0-9]{2,8}$/.test(bodyText)) {
+              const shift = await db.getVolunteerShiftByCode(smsVol.id, bodyText);
+
+              if (!shift) {
+                // Code doesn't match any of their shifts — ignore silently
+                res.set("Content-Type", "text/xml");
+                return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response></Response>`);
+              }
+
+              // Confirm RSVP (no-op if already answered)
+              await db.confirmShiftRsvpBySms(smsVol.id, shift.shift_id);
+
+              // If shift is today, also mark attended
+              const shiftDate = new Date(shift.convention_date)
+                .toISOString()
+                .slice(0, 10);
+
+              if (shiftDate === easternToday) {
+                await db.upsertAttendance({
+                  volunteerId:     smsVol.id,
+                  conventionDayId: shift.convention_day_id,
+                  sessionId:       shift.session_id,
+                  shiftId:         shift.shift_id,
+                  attended:        true,
+                  recordedBy:      `sms:${fromPhone}`,
+                });
+              }
+
+              log(`SMS code confirm: vol ${smsVol.id} code ${bodyText} shift ${shift.shift_id}`);
+              res.set("Content-Type", "text/xml");
+              return res.send(
+                `<?xml version="1.0" encoding="UTF-8"?><Response>` +
+                `<Message>Albany JW Parking: Got it! You're confirmed for ` +
+                `${shift.shift_label}. See you there. Reply STOP to opt out.</Message></Response>`
+              );
+            }
+
+            // Not a keyword, not a shift code — ignore
             res.set("Content-Type", "text/xml");
-            return res.send(
-              `<?xml version="1.0" encoding="UTF-8"?><Response></Response>`,
-            );
+            return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response></Response>`);
           }
 
           // ── Process the event ──────────────────────────────────────
@@ -942,9 +1036,16 @@ const server = http.createServer(app);
       log(`Server running at http://${HOST}:${PORT}`),
     );
 
-    await initTwilio
-        startExternalServiceWatchdog();
-
+    await initTwilio();
+    startExternalServiceWatchdog();
+    const alertScheduler = startAlertScheduler({
+      year: new Date().getFullYear(),
+      accountSid: config.TWILIO_ACCOUNT_SID,
+      authToken: config.TWILIO_AUTH_TOKEN,
+      messagingSid: config.TWILIO_MSG_SID,
+      logError,
+    });
+    log("Shift alert scheduler started.");
   } catch (err) {
     logError("Failed to start server:", err);
     // eslint-disable-next-line no-process-exit
@@ -955,9 +1056,12 @@ const server = http.createServer(app);
 // Graceful shutdown
 process.on("SIGINT", () => {
   stopDbUpdate();
+  alertScheduler.stop();
+
   server.close(() => process.exit(0));
 });
 process.on("SIGTERM", () => {
   stopDbUpdate();
+  alertScheduler.stop();
   server.close(() => process.exit(0));
 });

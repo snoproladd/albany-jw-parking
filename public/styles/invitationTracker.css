@@ -52,6 +52,7 @@
 
 .it-stat-card--pending {
     border-left: 4px solid var(--bs-secondary, #6c757d);
+    cursor: default;
 }
 
 
