@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Messaging Center — Albany JW Parking</title>
+    <title>Campaign Center — Albany JW Parking</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
     <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
     <link rel="stylesheet" href="/styles/styles.css" />
-    <link rel="stylesheet" href="/styles/messagingCenter.css" />
+    <link rel="stylesheet" href="/styles/campaignCenter.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
@@ -145,10 +145,10 @@
             <%# ── Page header ──────────────────────────────────────────────── %>
             <div class="mc-main-header">
                 <h1 class="mc-main-title">
-                    <i class="fa-solid fa-paper-plane me-2"></i>Messaging Center
+                    <i class="fa-solid fa-paper-plane me-2"></i>Campaign Center
                 </h1>
                 <div class="d-flex gap-2 align-items-center">
-                    <a href="/oversight/tools/messaging/tracker" class="btn btn-success btn-sm">
+                    <a href="/oversight/tools/campaigns/tracker" class="btn btn-success btn-sm">
                         <i class="fa-solid fa-chart-gantt me-1"></i>Invitation Tracker
                     </a>
                     <a href="/oversight/tools" class="btn btn-secondary btn-sm">
@@ -317,18 +317,27 @@
                                 data-day-id="<%= b.convention_day_id || '' %>"
                                 data-shift-id="<%= b.shift_id || '' %>"
                             >
-                                <%= b.name %>
+                                <%= b.parent_batch_id ? '↳ ' : '' %><%= b.name %>
                                 <% if (b.day_label) { %> — <%= b.day_label %><% } %>
                                 (<%= b.volunteer_count %> sent)
                             </option>
                         <% }); %>
                     </select>
                     <div class="mc-batch-preview mt-2 d-none" id="mcBatchPreview">
-                        <i class="fa-solid fa-circle-info me-1 text-info"></i>
-                        <span id="mcBatchPreviewText"></span>
-                        <a href="#" class="ms-2 small" id="mcBatchTrackerLink" target="_blank">
-                            View in tracker <i class="fa-solid fa-arrow-up-right-from-square ms-1"></i>
-                        </a>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <i class="fa-solid fa-circle-info text-info"></i>
+                            <span id="mcBatchPreviewText"></span>
+                            <a href="#" class="small" id="mcBatchTrackerLink" target="_blank">
+                                View in tracker <i class="fa-solid fa-arrow-up-right-from-square ms-1"></i>
+                            </a>
+                            <button type="button" class="btn btn-link btn-sm p-0 small" id="mcToggleOrigMsg">
+                                View original message
+                            </button>
+                        </div>
+                        <div class="d-none mt-2" id="mcOrigMsgPreview">
+                            <div class="small fw-semibold mb-1 d-none" id="mcOrigMsgSubject"></div>
+                            <pre class="mc-orig-msg-body mb-0" id="mcOrigMsgBody"></pre>
+                        </div>
                     </div>
                 </div>
 
@@ -347,7 +356,7 @@
                                 data-body="<%= b.message_body || '' %>"
                                 data-name="<%= b.name %>"
                             >
-                                <%= b.name %>
+                                <%= b.parent_batch_id ? '↳ ' : '' %><%= b.name %>
                                 <% if (b.day_label) { %> — <%= b.day_label %><% } %>
                                 (<%= b.volunteer_count %> sent)
                             </option>
@@ -356,7 +365,7 @@
                 </div>
 
                 <%# ── Response needed (new + follow-up modes only) ──────────── %>
-                <div class="mb-3 d-none" id="mcResponseNeededWrap">
+                <div class="mb-3" id="mcResponseNeededWrap">
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="mcResponseNeeded" checked />
                         <label class="form-check-label" for="mcResponseNeeded">
@@ -507,7 +516,7 @@
     <%- include('../partials/footer') %>
 
     <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
-    <script src="/js/messagingCenter.js"></script>
+    <script src="/js/campaignCenter.js"></script>
 
 </body>
 </html>
