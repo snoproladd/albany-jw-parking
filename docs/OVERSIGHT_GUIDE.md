@@ -123,20 +123,24 @@ The primary tool for sending convention invitations to volunteers.
    - `{{rsvpLink}}` — the volunteer's unique RSVP link (required for invitations)
 6. Select volunteers from the list. Use the search and filter to narrow by
    name, active status, or SMS capability.
-7. Click **Send**. A warning appears if any selected volunteers have already
-   been invited to this campaign — confirm to re-send or deselect them.
+7. Click **Send**. If any selected volunteers already have an unanswered
+   invitation for this event, a warning appears — confirm to re-send or
+   deselect them. No confirmation dialog appears for a normal send.
 
 #### Adding to an Existing Campaign
 
 Switch to **Add to Existing** mode. Select a previous campaign batch — the
-subject and message pre-fill from that batch. Add new volunteers and send.
+subject and message pre-fill from that batch. Click **View original message**
+next to the batch name to expand the saved subject and body inline — useful
+for verifying the wording before adding new recipients. Add volunteers and send.
 All new invitations are linked to the same campaign for tracking purposes.
 
 #### Follow-up Mode
 
 Switch to **Follow-up** mode to send a message to volunteers who haven't
 responded to a previous campaign. Select the parent campaign and the system
-pre-filters to pending/unanswered recipients.
+pre-filters to pending/unanswered recipients. When opened from the Invitation
+Tracker's **Remind** button, the pending volunteers are also auto-selected.
 
 #### Templates
 

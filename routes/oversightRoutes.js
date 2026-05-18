@@ -16,6 +16,8 @@ import {
   getActiveVolunteers,
   getAllVolunteersWithRoles,
   updateVolunteerRole,
+  getUnapprovedVolunteers,
+  assignDeskRole,
   updateVolunteerAssignment,
   getIncompleteDraftVolunteers,
   getRegisteredVolunteers,
@@ -843,12 +845,16 @@ export function oversightRouter({
     csrfProtection,
     async (req, res) => {
       try {
-        const volunteers = await getAllVolunteersWithRoles();
+        const [volunteers, unapprovedVolunteers] = await Promise.all([
+          getAllVolunteersWithRoles(),
+          getUnapprovedVolunteers(),
+        ]);
         const actorRole = req.session.userRole || "NON_REGISTERED";
 
         return res.render("authentication_and_accounts/adminRoles", {
           csrfToken: req.csrfToken(),
           volunteers,
+          unapprovedVolunteers,
           actorRole,
           roleHierarchy: ROLE_HIERARCHY,
           success: req.query.success === "1",
@@ -859,6 +865,50 @@ export function oversightRouter({
         return res.status(500).send("Server error");
       }
     },
+  );
+
+  /**
+   * POST /oversight/roles/desk
+   * Assign DESK role to a single unapproved (draft) volunteer,
+   * simultaneously promoting their registration_status to 'completed'
+   * so they can log in and use the app.
+   * This is the only role assignable to draft volunteers from the
+   * roles console.
+   *
+   * Body (form): { targetId: number }
+   */
+  router.post(
+    "/oversight/roles/desk",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    csrfProtection,
+    async (req, res) => {
+      const editedBy = req.session.userEmail || "admin";
+      const targetId = Number(req.body.targetId);
+
+      if (!targetId) {
+        return res.redirect("/oversight/roles?error=Invalid+request");
+      }
+
+      if (targetId === req.session.userId) {
+        return res.redirect(
+          "/oversight/roles?error=You+cannot+change+your+own+role"
+        );
+      }
+
+      try {
+        const ok = await assignDeskRole(targetId, editedBy);
+        if (!ok) {
+          return res.redirect(
+            "/oversight/roles?error=Volunteer+not+found+or+already+approved"
+          );
+        }
+        return res.redirect("/oversight/roles?success=1");
+      } catch (err) {
+        (logError || console.error)("oversight/roles/desk POST error:", err);
+        return res.redirect("/oversight/roles?error=Server+error");
+      }
+    }
   );
 
   /**

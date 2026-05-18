@@ -5,6 +5,27 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [2.12.0] — 2026-05-15
+### Changed
+- **Messaging Center — send flow**: Removed the initial "Send to N recipients?"
+  `confirm()` dialog. The send button already displays the recipient count, making
+  the extra prompt redundant. The double-send warning is retained.
+- **Messaging Center — reminder update prompt**: Replaced the post-send
+  "Update campaign message?" `confirm()` dialog with an inline button rendered
+  inside the results card. The send flow no longer blocks on a third sequential
+  modal dialog after a successful reminder send.
+- **Messaging Center — original message preview**: Added a "View original message"
+  toggle link to the batch preview line in Add to Existing mode. Expands inline
+  to show the saved subject and body; collapses and resets when a different
+  campaign is selected.
+- **Messaging Center — Add to Existing auto-select**: Pending volunteers are now
+  only auto-selected when the page is opened from the Invitation Tracker reminder
+  flow (`?batchId=`).
+- **Invitation Tracker — pending stat card**: Added `cursor: default` to remove
+  the false pointer affordance on the non-clickable pending card.
+ 
+---
+ 
 ## [2.11.0] — 2026-05-13
 ### Added
 - **Schedule Publish** — new Publish button on the schedule report page
