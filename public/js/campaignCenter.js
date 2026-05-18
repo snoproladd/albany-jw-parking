@@ -1,6 +1,6 @@
 /**
- * @file messagingCenter.js
- * @description Client-side logic for the Messaging Center oversight tool.
+ * @file campaignCenter.js
+ * @description Client-side logic for the Campaign Center oversight tool.
  *
  * Responsibilities:
  *  - Volunteer list rendering, filtering, and multi-select
@@ -433,12 +433,7 @@ function updateChipAreaVisibility() {
   // Campaign mode toggle
   // =========================================================
 
-  /**
-   * Switch between New Campaign and Add to Existing modes.
-   * @param {'new'|'add_to'} mode
-   * @returns {void}
-   */
-  /**
+   /**
    * Switch between New Campaign, Add to Existing, and Follow-up modes.
    * Controls visibility of campaign name, parent picker, response needed,
    * existing batch picker, and event picker panels.
@@ -544,7 +539,7 @@ function updateChipAreaVisibility() {
 
     try {
       const res  = await fetch(
-        `/oversight/tools/messaging/batches/${batchId}/invited`,
+        `/oversight/tools/campaigns/batches/${batchId}/invited`,
         { headers: { "X-CSRF-Token": getCsrf() } }
       );
       const data = await res.json().catch(() => ({}));
@@ -586,11 +581,13 @@ function updateChipAreaVisibility() {
         badge.textContent = statusLabel;
         li.appendChild(badge);
 
-        // Auto-select pending volunteers only in the "add volunteers" flow.
-        // When reminding (?selectPending=1), pendingVolIds is the authoritative
-        // pre-selection — auto-selecting here would override it with stale
-        // parent-batch-only data that ignores follow-up responses.
-        if (!inv.revoked && !inv.response && !(pendingVolIds?.length > 0)) {
+        // Auto-select pending volunteers only when the page was opened from the
+        // tracker reminder flow (preselectedBatch is set). When a user manually
+        // picks an existing campaign the status badges are shown for reference
+        // but auto-selecting the entire pending cohort is surprising behaviour.
+        // Also skip when pendingVolIds is present — that array is the authoritative
+        // pre-selection from ?selectPending=1 and must not be overridden here.
+        if (!inv.revoked && !inv.response && preselectedBatch && !(pendingVolIds?.length > 0)) {
           setItemSelected(li, true);
         }
       });
@@ -599,7 +596,7 @@ function updateChipAreaVisibility() {
       updateSendButton();
 
     } catch (err) {
-      console.error("[messagingCenter] applyInviteStatusBadges error:", err);
+      console.error("[campaignCenter] applyInviteStatusBadges error:", err);
     }
   }
 
@@ -636,8 +633,25 @@ function updateChipAreaVisibility() {
       batchPreviewText.textContent = opt.textContent.trim();
     }
     if (batchTrackerLink) {
-      batchTrackerLink.href = `/oversight/tools/messaging/tracker?batchId=${opt.value}`;
+      batchTrackerLink.href = `/oversight/tools/campaigns/tracker?batchId=${opt.value}`;
     }
+
+    // Populate original message preview and collapse it (user opens on demand)
+    const origMsgPreview = document.getElementById("mcOrigMsgPreview");
+    const origMsgSubject = document.getElementById("mcOrigMsgSubject");
+    const origMsgBody    = document.getElementById("mcOrigMsgBody");
+    const toggleOrigBtn  = document.getElementById("mcToggleOrigMsg");
+    if (origMsgSubject) {
+      const subjectVal = opt.dataset.subject || "";
+      origMsgSubject.textContent = subjectVal ? `Subject: ${subjectVal}` : "";
+      origMsgSubject.classList.toggle("d-none", !subjectVal);
+    }
+    if (origMsgBody) {
+      origMsgBody.textContent = opt.dataset.body || "(no message body saved)";
+    }
+    if (origMsgPreview) origMsgPreview.classList.add("d-none");
+    if (toggleOrigBtn)  toggleOrigBtn.textContent = "View original message";
+
     batchPreview?.classList.remove("d-none");
     updateSendButton();
 
@@ -646,6 +660,16 @@ function updateChipAreaVisibility() {
   }
 
   existingBatchSelect?.addEventListener("change", onExistingBatchChange);
+
+  // Toggle the original message preview panel in Add to Existing mode.
+  // Wired once here; onExistingBatchChange() resets it on each batch change.
+  document.getElementById("mcToggleOrigMsg")?.addEventListener("click", () => {
+    const panel = document.getElementById("mcOrigMsgPreview");
+    const btn   = document.getElementById("mcToggleOrigMsg");
+    if (!panel || !btn) return;
+    const nowHidden = panel.classList.toggle("d-none");
+    btn.textContent = nowHidden ? "View original message" : "Hide original message";
+  });
 
   // =========================================================
   // Event picker
@@ -768,7 +792,7 @@ function updateChipAreaVisibility() {
 
     try {
       const res = await fetch(
-        "/oversight/tools/messaging/batches/suggest-name",
+        "/oversight/tools/campaigns/batches/suggest-name",
         {
           method: "POST",
           headers: {
@@ -784,7 +808,7 @@ function updateChipAreaVisibility() {
         campaignNameInput.dispatchEvent(new Event("input", { bubbles: true }));
       }
     } catch (err) {
-      console.error("[messagingCenter] suggest-name error:", err);
+      console.error("[campaignCenter] suggest-name error:", err);
     }
   });
 
@@ -834,12 +858,19 @@ function updateSubjectVisibility() {
         sendHint.textContent = "Select at least one channel.";
       else if (!hasBody)
         sendHint.textContent = "Write a message before sending.";
-      else if (!hasName)
-        sendHint.textContent =
-          campaignMode === "new"
+      else if (!hasName) {
+        if (campaignMode === "new") {
+          sendHint.textContent = "Enter a campaign name.";
+        } else if (campaignMode === "followup") {
+          sendHint.textContent = parentBatchSelect?.value
             ? "Enter a campaign name."
-            : "Select an existing campaign.";
-      else sendHint.textContent = "";
+            : "Select a parent campaign.";
+        } else {
+          sendHint.textContent = "Select an existing campaign.";
+        }
+      } else {
+        sendHint.textContent = "";
+      }
     }
   }
 
@@ -900,20 +931,6 @@ function updateSubjectVisibility() {
         : null;
     const responseNeeded = responseNeededChk?.checked ?? true;
 
-    const channelLabel =
-      sendEmail && sendSms ? "email and SMS" : sendEmail ? "email" : "SMS";
-    const modeLabel =
-      campaignMode === "add_to"
-        ? "to existing campaign"
-        : campaignMode === "followup"
-          ? "as follow-up campaign"
-          : "as new campaign";
-
-    const confirmed = confirm(
-      `Send to ${recipientIds.length} recipient${recipientIds.length !== 1 ? "s" : ""} via ${channelLabel} (${modeLabel})?`,
-    );
-    if (!confirmed) return;
-
     /** Whether this send is a reminder — reuse existing tokens rather than INSERT. */
     const isReminder = campaignMode === "add_to" && (pendingVolIds?.length ?? 0) > 0;
 
@@ -925,7 +942,7 @@ function updateSubjectVisibility() {
      * @returns {Promise<object>}
      */
     async function doSend(force) {
-      const res = await fetch("/oversight/tools/messaging/send", {
+      const res = await fetch("/oversight/tools/campaigns/send", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -971,16 +988,27 @@ function updateSubjectVisibility() {
 
       renderResults(data);
 
-      // After a successful reminder, offer to overwrite the campaign's saved
-      // message template with the tweaked nudge version.
+      // After a successful reminder, offer to update the campaign's saved message
+      // via an inline button rather than a blocking confirm() dialog.
       if (isReminder && data.success && data.batchId && preselectedBatch) {
-        const update = confirm(
-          "Reminder sent. Do you want to update this campaign\u2019s saved message with the version you just sent?"
-        );
-        if (update) {
+        const updatePrompt = document.createElement("div");
+        updatePrompt.className = "d-flex align-items-center gap-2 flex-wrap mt-2";
+        updatePrompt.innerHTML = `
+          <span class="small text-muted">Update this campaign\u2019s saved message with the version just sent?</span>
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="mcUpdateMsgBtn">
+            <i class="fa-solid fa-floppy-disk me-1"></i>Update message
+          </button>`;
+        resultsBody?.appendChild(updatePrompt);
+
+        document.getElementById("mcUpdateMsgBtn")?.addEventListener("click", async () => {
+          const btn = document.getElementById("mcUpdateMsgBtn");
+          if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Saving\u2026`;
+          }
           try {
             const putRes = await fetch(
-              `/oversight/tools/messaging/batches/${data.batchId}`,
+              `/oversight/tools/campaigns/batches/${data.batchId}`,
               {
                 method: "PUT",
                 headers: {
@@ -988,30 +1016,32 @@ function updateSubjectVisibility() {
                   "X-CSRF-Token": getCsrf(),
                 },
                 body: JSON.stringify({
-                  name:            preselectedBatch.name,
-                  messageSubject:  subject || null,
-                  messageBody:     body,
-                  parentBatchId:   preselectedBatch.parent_batch_id || null,
-                  responseNeeded:  preselectedBatch.response_needed !== false,
-                  active:          preselectedBatch.active !== false,
+                  name:           preselectedBatch.name,
+                  messageSubject: subject || null,
+                  messageBody:    body,
+                  parentBatchId:  preselectedBatch.parent_batch_id || null,
+                  responseNeeded: preselectedBatch.response_needed !== false,
+                  active:         preselectedBatch.active !== false,
                 }),
               }
             );
             const putData = await putRes.json().catch(() => ({}));
-            const note = document.createElement("div");
-            note.className = `alert ${putData.success ? "alert-success" : "alert-warning"} mt-2 mb-0`;
-            note.innerHTML = putData.success
-              ? `<i class="fa-solid fa-circle-check me-1"></i>Campaign message updated.`
-              : `<i class="fa-solid fa-triangle-exclamation me-1"></i>Could not update campaign message — changes were not saved.`;
-            resultsBody?.appendChild(note);
+            updatePrompt.outerHTML = `<div class="alert ${putData.success ? "alert-success" : "alert-warning"} mt-2 mb-0">
+              <i class="fa-solid fa-${putData.success ? "circle-check" : "triangle-exclamation"} me-1"></i>
+              ${putData.success
+                ? "Campaign message updated."
+                : "Could not update campaign message \u2014 changes were not saved."}
+            </div>`;
           } catch {
-            // Non-fatal — send already succeeded
+            updatePrompt.outerHTML = `<div class="alert alert-warning mt-2 mb-0">
+              <i class="fa-solid fa-triangle-exclamation me-1"></i>Network error \u2014 could not update campaign message.
+            </div>`;
           }
-        }
+        });
       }
 
     } catch (err) {
-      console.error("[messagingCenter] send error:", err);
+      console.error("[campaignCenter] send error:", err);
       renderResults({
         success: false,
         error: "Network error — please try again.",
@@ -1051,7 +1081,7 @@ function updateSubjectVisibility() {
             <div class="alert alert-success mb-3">
                 <i class="fa-solid fa-circle-check me-2"></i>
                 <strong>${data.sent}</strong> message${data.sent !== 1 ? "s" : ""} sent successfully.
-                ${data.batchId ? `<a href="/oversight/tools/messaging/tracker?batchId=${data.batchId}" class="alert-link ms-2">View in Tracker →</a>` : ""}
+                ${data.batchId ? `<a href="/oversight/tools/campaigns/tracker?batchId=${data.batchId}" class="alert-link ms-2">View in Tracker →</a>` : ""}
             </div>`;
 
     if (data.skipped?.length) {
@@ -1218,8 +1248,8 @@ function updateSubjectVisibility() {
 
     const isEdit = editingTemplateId !== null;
     const url = isEdit
-      ? `/oversight/tools/messaging/templates/${editingTemplateId}`
-      : `/oversight/tools/messaging/templates`;
+      ? `/oversight/tools/campaigns/templates/${editingTemplateId}`
+      : `/oversight/tools/campaigns/templates`;
     const method = isEdit ? "PUT" : "POST";
 
     try {
@@ -1255,7 +1285,7 @@ function updateSubjectVisibility() {
       renderTemplateList();
       closeTemplateEditor();
     } catch (err) {
-      console.error("[messagingCenter] template save error:", err);
+      console.error("[campaignCenter] template save error:", err);
       if (tplStatus)
         tplStatus.innerHTML = `<div class="alert alert-danger py-1 small">Network error.</div>`;
     } finally {
@@ -1275,7 +1305,7 @@ function updateSubjectVisibility() {
    */
   function confirmDeleteTemplate(id, name) {
     if (!confirm(`Delete template "${name}"? This cannot be undone.`)) return;
-    fetch(`/oversight/tools/messaging/templates/${id}`, {
+    fetch(`/oversight/tools/campaigns/templates/${id}`, {
       method: "DELETE",
       headers: { "X-CSRF-Token": getCsrf() },
     })
@@ -1290,7 +1320,7 @@ function updateSubjectVisibility() {
         if (editingTemplateId === id) closeTemplateEditor();
       })
       .catch((err) => {
-        console.error("[messagingCenter] template delete error:", err);
+        console.error("[campaignCenter] template delete error:", err);
         alert("Network error — delete failed.");
       });
   }

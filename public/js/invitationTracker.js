@@ -335,7 +335,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!addVolunteersWrap || !addVolunteersBtn) return;
 
     if (batchVal) {
-      addVolunteersBtn.href = `/oversight/tools/messaging?batchId=${batchVal}`;
+      addVolunteersBtn.href = `/oversight/tools/campaigns?batchId=${batchVal}`;
       addVolunteersWrap.classList.remove("d-none");
     } else {
       addVolunteersWrap.classList.add("d-none");
@@ -392,7 +392,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     remindWrap.innerHTML = `
-      <a href="/oversight/tools/messaging?batchId=${batchVal}&selectPending=1"
+      <a href="/oversight/tools/campaigns?batchId=${batchVal}&selectPending=1"
          class="btn btn-warning btn-sm">
         <i class="fa-solid fa-bell me-1"></i>Remind ${pendingCount} pending
       </a>`;

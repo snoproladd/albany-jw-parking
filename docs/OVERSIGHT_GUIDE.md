@@ -104,9 +104,9 @@ Filter volunteers by status: **Active**, **Inactive**, or **Deleted**.
 
 ## 4. Communications
 
-### Messaging Center *(OVERSEER+)*
+### Campaign Center *(OVERSEER+)*
 
-**Path:** Oversight Tools → Messaging Center
+**Path:** Oversight Tools → Campaign Center
 
 The primary tool for sending convention invitations to volunteers.
 
@@ -161,21 +161,41 @@ View all sent invitations for the current year. Filter by:
 
 #### Stat Cards
 
-The four cards (Invited, RSVP Yes, Pending, Revoked) update live as you
-apply filters — they always reflect the filtered rows, not the full dataset.
+The six cards (Total Sent, Yes, No, Maybe, Pending, Revoked) update live as you
+apply filters — they always reflect deduplicated volunteer counts from the
+visible rows, not the raw invitation total. A volunteer who appears in both a
+parent campaign row and a follow-up row is counted only once, in the bucket
+matching their most definitive response.
+
+> **Note:** The Pending card does not respond to clicks. Filtering the table to
+> “pending” only is intentionally disabled because it hides responded rows that
+> the deduplication logic needs to correctly classify volunteers — which would
+> cause the pending count to inflate.
+
+#### Campaign-level Actions
+
+When a campaign is selected in the **Campaign** filter:
+
+- **Remind N pending** (amber button, top-right) — opens the Campaign Center
+  pre-loaded with the selected campaign and all pending volunteers already
+  selected. The original message pre-fills the compose area so you can send a
+  nudge with minimal editing. Only appears when the selected campaign has
+  **Response needed** enabled.
+- **Edit campaign** (pencil icon next to the Campaign dropdown, ADMIN only) —
+  opens a modal to rename the campaign, edit its saved message, change its
+  parent campaign, toggle **Response needed**, or deactivate it.
 
 #### Actions Per Row
 
-- **Remind** — sends a follow-up message to a volunteer who hasn't responded.
-  Uses the original campaign's channel and message template.
 - **Revoke** — cancels an invitation. The volunteer's RSVP link will show a
   "no longer active" message if they try to use it.
 - **Reinstate** — restores a previously revoked invitation.
 
-#### Campaign Edit *(ADMIN only)*
+#### Add Volunteers
 
-Click the pencil icon on a campaign row to edit the batch name or mark it
-as requiring a response.
+When a campaign is selected, an **Add volunteers to this campaign** button
+appears in the filter bar. It opens the Messaging Center in Add to Existing
+mode pre-set to that campaign.
 
 ---
 

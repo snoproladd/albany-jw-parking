@@ -600,6 +600,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const shiftLabel = document.getElementById("shiftLabel");
     const shiftStart = document.getElementById("shiftStart");
     const shiftEnd = document.getElementById("shiftEnd");
+    const shiftSmsCode = document.getElementById("shiftSmsCode");
+    const shiftInvitable = document.getElementById("shiftInvitable");
     const shiftNotes = document.getElementById("shiftNotes");
     const shiftSaveBtn = document.getElementById("shiftSaveBtn");
     const shiftCancelBtn = document.getElementById("shiftCancelBtn");
@@ -614,7 +616,9 @@ document.addEventListener("DOMContentLoaded", () => {
       shiftLabel.value = "";
       shiftStart.value = "";
       shiftEnd.value = "";
+      shiftSmsCode.value = "";
       shiftNotes.value = "";
+      shiftInvitable.checked = false;
       shiftDeleteBtn.classList.add("d-none");
       shiftFormTitle.textContent = "Add Shift";
       shiftFormStatus.innerHTML = "";
@@ -637,7 +641,9 @@ document.addEventListener("DOMContentLoaded", () => {
         shiftLabel.value = btn.dataset.label || "";
         shiftStart.value = btn.dataset.start || "";
         shiftEnd.value = btn.dataset.end || "";
+        shiftSmsCode.value = btn.dataset.smsCode || "";
         shiftNotes.value = btn.dataset.notes || "";
+        shiftInvitable.checked = btn.dataset.invitable === "true";
         shiftDeleteBtn.classList.remove("d-none");
         shiftFormTitle.textContent = `Edit Shift — ${btn.dataset.label}`;
         shiftFormStatus.innerHTML = "";
@@ -677,7 +683,9 @@ document.addEventListener("DOMContentLoaded", () => {
             start_time: shiftStart.value,
             end_time: shiftEnd.value,
             volunteer_need: null,
+            sms_code: shiftSmsCode.value.trim().toUpperCase() || null,
             notes: shiftNotes.value.trim() || null,
+            invitable: shiftInvitable.checked,
           });
           window.location.reload();
         } catch (err) {

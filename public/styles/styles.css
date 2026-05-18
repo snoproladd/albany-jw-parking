@@ -1696,6 +1696,10 @@ b {
   width: auto;
 }
 
+.badge-xs {
+    font-size: 0.65rem;
+}
+
 .shift-card {
   border-left: 4px solid var(--shift-border-color, #6c757d);
 }

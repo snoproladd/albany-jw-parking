@@ -5,27 +5,83 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [2.13.0] — 2026-05-15
+### Added
+- **Shift alert scheduler** — `lib/alertScheduler.js` fully wired into `index.js`.
+  `startAlertScheduler` called on startup with Twilio credentials and year; `alertScheduler.stop()`
+  hooked into `SIGINT`/`SIGTERM` shutdown handlers. Fixed `initTwilio` missing `()` call
+  that was preventing Twilio from initializing.
+- **Inbound SMS webhook** — extended `/api/sms/webhook` to handle volunteer replies beyond
+  STOP/UNSTOP/HELP. Shift code replies (e.g. `FRIN`) confirm the volunteer's RSVP and,
+  if the shift is today, mark them as attended. `CHECK` replies mark the volunteer attended
+  on their nearest shift today without requiring a code.
+- **New `dbSync.js` functions** for inbound SMS handling: `findVolunteerIdByPhone`,
+  `getVolunteerShiftByCode`, `getVolunteerActiveShiftToday`, `confirmShiftRsvpBySms`.
+- **Timelines — SMS code field** — `sms_code` is now visible and editable in the shift
+  edit form. Displayed as a dark monospace badge on the shift card when set.
+- **Timelines — Invitable checkbox in shift form** — the Invitable toggle is now a labeled
+  checkbox inside the shift edit form, making it discoverable without relying on the
+  icon-only card button. `invitable` added to `updateShift` in `dbSync.js` and the
+  `PUT /oversight/tools/timelines/shifts/:id` route.
+
+---
+
 ## [2.12.0] — 2026-05-15
 ### Changed
-- **Messaging Center — send flow**: Removed the initial "Send to N recipients?"
+- **Renamed: Messaging Center → Campaign Center**: The tool formerly known as
+  Messaging Center is now Campaign Center. Route prefix changed from
+  `/oversight/tools/messaging` to `/oversight/tools/campaigns`. Files renamed:
+  `campaignCenter.ejs`, `campaignCenter.js`, `campaignCenter.css`.
+  Rationale: preserves the "Messaging" namespace for a planned future
+  live two-way SMS tool.
+- **Campaign Center — send flow**: Removed the initial "Send to N recipients?"
   `confirm()` dialog. The send button already displays the recipient count, making
-  the extra prompt redundant. The double-send warning is retained.
-- **Messaging Center — reminder update prompt**: Replaced the post-send
+  the extra prompt redundant. The double-send warning (for volunteers with an
+  existing unanswered invite for the same event) is retained.
+- **Campaign Center — reminder update prompt**: Replaced the post-send
   "Update campaign message?" `confirm()` dialog with an inline button rendered
   inside the results card. The send flow no longer blocks on a third sequential
-  modal dialog after a successful reminder send.
-- **Messaging Center — original message preview**: Added a "View original message"
+  modal dialog after a successful reminder.
+- **Campaign Center — original message preview**: Added a "View original message"
   toggle link to the batch preview line in Add to Existing mode. Expands inline
-  to show the saved subject and body; collapses and resets when a different
-  campaign is selected.
-- **Messaging Center — Add to Existing auto-select**: Pending volunteers are now
+  to show the saved subject and body for the selected campaign without leaving
+  the page. Collapses and resets automatically when a different campaign is selected.
+- **Campaign Center — Add to Existing auto-select**: Pending volunteers are now
   only auto-selected when the page is opened from the Invitation Tracker reminder
-  flow (`?batchId=`).
-- **Invitation Tracker — pending stat card**: Added `cursor: default` to remove
-  the false pointer affordance on the non-clickable pending card.
- 
+  flow (`?batchId=`). Manually selecting a campaign in Add to Existing mode shows
+  invitation-status badges on the volunteer list without auto-selecting anyone.
+- **Campaign Center — campaign dropdown hierarchy**: Both the "Add to Existing"
+  and "Follow-up to" `<select>` elements now prefix child/follow-up campaigns
+  with `↳`, matching the formatting already used in the Invitation Tracker
+  campaign filter.
+- **Invitation Tracker — pending stat card**: Added `cursor: default` to clarify
+  the card is not clickable. Filtering to "pending" is intentionally disabled
+  because it breaks the volunteer-deduplication logic that keeps stat card counts
+  accurate when a volunteer appears in both a parent and a follow-up campaign row.
+
 ---
- 
+
+## [2.11.1] — 2026-05-15
+### Fixed
+- **Campaign Center — "Response needed" hidden on load**: `mcResponseNeededWrap`
+  carried `d-none` in its initial class but `setCampaignMode("new")` was never
+  called during init, so the checkbox never appeared in New Campaign mode unless
+  the user clicked away to another mode and back.
+- **Invitation Tracker — Edit Campaign button broken**: The button was rendered
+  with `id="iteditcampaignbtn"` (all lowercase) in the EJS but the JS referenced
+  `getElementById("itEditCampaignBtn")` (camelCase), making the entire
+  edit-campaign flow silently non-functional.
+- **Campaign Center — wrong send hint in Follow-up mode**: The `!hasName` branch
+  in `updateSendButton()` fell through to the Add to Existing hint text
+  ("Select an existing campaign") when in Follow-up mode. Now shows
+  "Select a parent campaign" or "Enter a campaign name" depending on what
+  is actually missing.
+- **Campaign Center — orphaned JSDoc block**: Removed a stale JSDoc comment
+  above `setCampaignMode()` left from before Follow-up mode was added; it
+  described only the two-mode `'new' | 'add_to'` signature.
+
+---
+
 ## [2.11.0] — 2026-05-13
 ### Added
 - **Schedule Publish** — new Publish button on the schedule report page
