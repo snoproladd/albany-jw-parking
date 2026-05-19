@@ -79,12 +79,217 @@
             
 
             <% if (isAtLeast('KEYMAN')) { %>
-            <li class="nav-item">
-            <a class="nav-link" href="/oversight/tools">
-              <i class="fa-solid fa-user me-1"></i>
-              Oversight Tools
-            </a>
-          </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" id="oversightDropdown"
+                 role="button" data-bs-toggle="dropdown" aria-expanded="false"
+                 data-bs-auto-close="outside">
+                <i class="fa-solid fa-screwdriver-wrench me-1"></i>
+                Oversight
+              </a>
+              <ul class="dropdown-menu ot-nav-dropdown" aria-labelledby="oversightDropdown">
+
+                <%# ── All Tools ─────────────────────────────────── %>
+                <li>
+                  <a class="dropdown-item ot-nav-all-tools" href="/oversight/tools">
+                    <i class="fa-solid fa-table-cells-large me-2"></i>All Tools
+                  </a>
+                </li>
+
+                <% if (can('accessAdminConsole')) { %>
+                <%# ── Communications ─────────────────────────────── %>
+                <li>
+                  <button class="ot-nav-category" type="button"
+                          data-bs-toggle="collapse"
+                          data-bs-target="#otNavComms">
+                    <span><i class="fa-solid fa-paper-plane me-2"></i>Communications</span>
+                    <i class="fa-solid fa-chevron-down ot-nav-chevron"></i>
+                  </button>
+                </li>
+                <li>
+                  <div class="collapse show" id="otNavComms">
+                    <ul class="ot-nav-items">
+                      <li><a class="ot-nav-item" href="/oversight/tools/campaigns">
+                        <i class="fa-solid fa-envelope-open-text"></i>Campaign Center
+                      </a></li>
+                      <li><a class="ot-nav-item" href="/oversight/tools/campaigns/tracker">
+                        <i class="fa-solid fa-chart-gantt"></i>Invitation Tracker
+                      </a></li>
+                      <li><a class="ot-nav-item" href="/oversight/tools/send-reset">
+                        <i class="fa-solid fa-link"></i>Send Reset Link
+                      </a></li>
+                    </ul>
+                  </div>
+                </li>
+                <% } %>
+
+                <% if (can('manageRoles') || can('editVolunteerInfo') || can('createVolunteerAccounts') || isAtLeast('OVERSEER')) { %>
+                <%# ── Volunteer Management ────────────────────────── %>
+                <li>
+                  <button class="ot-nav-category" type="button"
+                          data-bs-toggle="collapse"
+                          data-bs-target="#otNavVolunteers">
+                    <span><i class="fa-solid fa-users me-2"></i>Volunteer Management</span>
+                    <i class="fa-solid fa-chevron-down ot-nav-chevron"></i>
+                  </button>
+                </li>
+                <li>
+                  <div class="collapse show" id="otNavVolunteers">
+                    <ul class="ot-nav-items">
+                      <% if (can('editVolunteerInfo')) { %>
+                        <li><a class="ot-nav-item" href="/editVolunteer">
+                          <i class="fa-solid fa-id-card"></i>Edit Volunteer
+                        </a></li>
+                      <% } %>
+                      <% if (can('createVolunteerAccounts')) { %>
+                        <li><a class="ot-nav-item" href="/oversight/tools/create-volunteer">
+                          <i class="fa-solid fa-user-plus"></i>Create Volunteer
+                        </a></li>
+                      <% } %>
+                      <% if (can('manageRoles') || isAtLeast('OVERSEER')) { %>
+                        <li><a class="ot-nav-item" href="/oversight/roles">
+                          <i class="fa-solid fa-user-shield"></i>Role Management
+                        </a></li>
+                      <% } %>
+                    </ul>
+                  </div>
+                </li>
+                <% } %>
+
+                <% if (isAtLeast('OVERSEER')) { %>
+                <%# ── Reports ─────────────────────────────────────── %>
+                <li>
+                  <button class="ot-nav-category" type="button"
+                          data-bs-toggle="collapse"
+                          data-bs-target="#otNavReports">
+                    <span><i class="fa-solid fa-chart-bar me-2"></i>Reports</span>
+                    <i class="fa-solid fa-chevron-down ot-nav-chevron"></i>
+                  </button>
+                </li>
+                <li>
+                  <div class="collapse show" id="otNavReports">
+                    <ul class="ot-nav-items">
+                      <li><a class="ot-nav-item" href="/oversight/tools/reports">
+                        <i class="fa-solid fa-clipboard-list"></i>Application Status
+                      </a></li>
+                    </ul>
+                  </div>
+                </li>
+                <% } %>
+
+                <% if (can('manageShifts') || can('accessAdminConsole')) { %>
+                <%# ── Scheduling ──────────────────────────────────── %>
+                <li>
+                  <button class="ot-nav-category" type="button"
+                          data-bs-toggle="collapse"
+                          data-bs-target="#otNavScheduling">
+                    <span><i class="fa-regular fa-calendar-days me-2"></i>Scheduling</span>
+                    <i class="fa-solid fa-chevron-down ot-nav-chevron"></i>
+                  </button>
+                </li>
+                <li>
+                  <div class="collapse show" id="otNavScheduling">
+                    <ul class="ot-nav-items">
+                      <% if (can('manageShifts')) { %>
+                        <li><a class="ot-nav-item" href="/oversight/tools/timelines">
+                          <i class="fa-regular fa-clock"></i>Timelines
+                        </a></li>
+                        <li><a class="ot-nav-item" href="/oversight/tools/locationsAndTasks">
+                          <i class="fa-solid fa-map-pin"></i>Locations
+                        </a></li>
+                      <% } %>
+                      <% if (can('accessAdminConsole')) { %>
+                        <li><a class="ot-nav-item" href="/oversight/tools/timelines/event-types">
+                          <i class="fa-solid fa-tags"></i>Event Types
+                        </a></li>
+                      <% } %>
+                      <% if (can('createAssignments')) { %>
+                        <li><a class="ot-nav-item" href="/oversight/tools/crew-assignments">
+                          <i class="fa-solid fa-people-group"></i>Crew Assignments
+                        </a></li>
+                        <li><a class="ot-nav-item" href="/oversight/tools/scheduler">
+                          <i class="fa-solid fa-calendar-days"></i>Scheduler
+                        </a></li>
+                      <% } %>
+                    </ul>
+                  </div>
+                </li>
+                <% } %>
+
+                <% if (can('logAttendance') || can('viewAttendance')) { %>
+                <%# ── Attendance ───────────────────────────────────── %>
+                <li>
+                  <button class="ot-nav-category" type="button"
+                          data-bs-toggle="collapse"
+                          data-bs-target="#otNavAttendance">
+                    <span><i class="fa-solid fa-clipboard-check me-2"></i>Attendance</span>
+                    <i class="fa-solid fa-chevron-down ot-nav-chevron"></i>
+                  </button>
+                </li>
+                <li>
+                  <div class="collapse show" id="otNavAttendance">
+                    <ul class="ot-nav-items">
+                      <% if (can('logAttendance')) { %>
+                        <li><a class="ot-nav-item" href="/oversight/tools/attendance/checkin">
+                          <i class="fa-solid fa-clipboard-check"></i>Check-In Tool
+                        </a></li>
+                      <% } %>
+                      <% if (can('viewAttendance')) { %>
+                        <li><a class="ot-nav-item" href="/oversight/tools/attendance/report">
+                          <i class="fa-solid fa-chart-bar"></i>Attendance Report
+                        </a></li>
+                      <% } %>
+                    </ul>
+                  </div>
+                </li>
+                <% } %>
+
+                <% if (can('accessAdminConsole')) { %>
+                <%# ── Decently Sync ───────────────────────────────── %>
+                <li>
+                  <button class="ot-nav-category" type="button"
+                          data-bs-toggle="collapse"
+                          data-bs-target="#otNavDecently">
+                    <span><i class="fa-solid fa-rotate me-2"></i>Decently Sync</span>
+                    <i class="fa-solid fa-chevron-down ot-nav-chevron"></i>
+                  </button>
+                </li>
+                <li>
+                  <div class="collapse show" id="otNavDecently">
+                    <ul class="ot-nav-items">
+                      <li><a class="ot-nav-item" href="/oversight/tools/decently-export">
+                        <i class="fa-solid fa-file-export"></i>Export to Decently
+                      </a></li>
+                      <li><a class="ot-nav-item" href="/oversight/tools/decently-import">
+                        <i class="fa-solid fa-file-import"></i>Import from Decently
+                      </a></li>
+                    </ul>
+                  </div>
+                </li>
+                <% } %>
+
+                <% if (can('manageRoles') && isAtLeast('ADMIN')) { %>
+                <%# ── Administration ─────────────────────────────── %>
+                <li>
+                  <button class="ot-nav-category" type="button"
+                          data-bs-toggle="collapse"
+                          data-bs-target="#otNavAdmin">
+                    <span><i class="fa-solid fa-gear me-2"></i>Administration</span>
+                    <i class="fa-solid fa-chevron-down ot-nav-chevron"></i>
+                  </button>
+                </li>
+                <li>
+                  <div class="collapse show" id="otNavAdmin">
+                    <ul class="ot-nav-items">
+                      <li><a class="ot-nav-item" href="/oversight/tools/permissions">
+                        <i class="fa-solid fa-sliders"></i>Permission Matrix
+                      </a></li>
+                    </ul>
+                  </div>
+                </li>
+                <% } %>
+
+              </ul>
+            </li>
             <% } %>
 
           <% } %>

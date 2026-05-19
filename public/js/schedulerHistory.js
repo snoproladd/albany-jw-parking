@@ -383,6 +383,15 @@ function _clonePillForDz(poolPill) {
   const clone = poolPill.cloneNode(true);
   clone.classList.remove('in-pool');
   clone.querySelector('.pill-assign-badge')?.remove();
+  const nameEl = clone.querySelector('.pill-name');
+  if (nameEl) {
+    const suffix = clone.dataset.suffix || '';
+    const parts  = nameEl.textContent.trim().split(' ');
+    if (parts.length >= 2) {
+      const abbreviated = `${parts[0].charAt(0)}. ${parts.slice(1).join(' ')}`;
+      nameEl.textContent = suffix ? `${abbreviated} ${suffix}` : abbreviated;
+    }
+  }
   return clone;
 }
 

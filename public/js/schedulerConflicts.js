@@ -98,3 +98,65 @@ export function assignmentCount(volunteerId) {
 export function clearAll() {
     _map.clear();
 }
+
+/**
+ * Remove a blackout entry (dzEl === null) matching the given volunteer
+ * and time range. Called when a blackout is deleted via the panel.
+ *
+ * @param {number} volunteerId
+ * @param {number} startMins
+ * @param {number} endMins
+ * @returns {void}
+ */
+/**
+ * Return all assignments that conflict with a given time window.
+ * Used to populate the conflict modal before confirming a drop.
+ *
+ * @param {number} volunteerId
+ * @param {number} shiftStart
+ * @param {number} shiftEnd
+ * @returns {Array<{ dzEl: HTMLElement|null, shiftStart: number, shiftEnd: number }>}
+ */
+/**
+ * Return all assignments that overlap a given time window.
+ * Pass excludeDz to skip the slot that was just filled (avoids
+ * counting the new assignment as a conflict with itself).
+ *
+ * @param {number}          volunteerId
+ * @param {number}          shiftStart
+ * @param {number}          shiftEnd
+ * @param {HTMLElement|null} [excludeDz]
+ * @returns {Array<{ dzEl: HTMLElement|null, shiftStart: number, shiftEnd: number }>}
+ */
+export function getConflicts(volunteerId, shiftStart, shiftEnd, excludeDz = null) {
+    const assignments = _map.get(volunteerId);
+    if (!assignments || assignments.size === 0) return [];
+    const out = [];
+    for (const a of assignments) {
+        if (excludeDz !== null && a.dzEl === excludeDz) continue;
+        if (!(a.shiftEnd <= shiftStart || a.shiftStart >= shiftEnd)) {
+            out.push(a);
+        }
+    }
+    return out;
+}
+
+/**
+ * Remove a blackout entry (dzEl === null) matching the given volunteer
+ * and time range. Called when a blackout is deleted via the panel.
+ *
+ * @param {number} volunteerId
+ * @param {number} startMins
+ * @param {number} endMins
+ * @returns {void}
+ */
+export function untrackBlackout(volunteerId, startMins, endMins) {
+    const assignments = _map.get(volunteerId);
+    if (!assignments) return;
+    for (const a of assignments) {
+        if (a.dzEl === null && a.shiftStart === startMins && a.shiftEnd === endMins) {
+            assignments.delete(a);
+            return;
+        }
+    }
+}

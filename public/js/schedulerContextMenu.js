@@ -14,6 +14,7 @@
  */
 
 import { unbindDraggable } from './schedulerDraggable.js';
+import { trackAssign, untrackBlackout, getConflicts } from './schedulerConflicts.js';
 
 // ─────────────────────────────────────────────
 //  Module state
@@ -21,6 +22,9 @@ import { unbindDraggable } from './schedulerDraggable.js';
 
 /** @type {HTMLElement|null} Active context menu element. */
 let _menuEl = null;
+
+/** @type {number|null} Currently selected convention day ID. */
+let _currentDayId = null;
 
 /** @type {HTMLElement|null} Active assignments panel element. */
 let _panelEl = null;
@@ -40,6 +44,11 @@ let _lastPos = null;
  */
 export function initContextMenu() {
     document.addEventListener('contextmenu', _onContextMenu);
+
+    // Track current day for the Manage Blackouts panel
+    document.addEventListener('scheduler:dayChange', (e) => {
+        _currentDayId = e.detail?.dayId || null;
+    });
 
     // Dismiss menu (not panel) on outside click
     document.addEventListener('mousedown', (e) => {
@@ -134,6 +143,40 @@ function _buildMenu(volId, volName, pill, inDz) {
         menu.appendChild(_item('fa-solid fa-xmark', 'Remove from Slot', ['danger'], () => {
             _removePillFromSlot(pill);
         }));
+
+        // ── Conflict list (DZ only, when conflicts exist) ────────────
+        const dzEl       = pill.parentElement;
+        const dzStart    = Number(dzEl?.dataset.shiftStartMins);
+        const dzEnd      = Number(dzEl?.dataset.shiftEndMins);
+        if (dzStart > 0 && dzEnd > 0) {
+            const conflicts = getConflicts(volId, dzStart, dzEnd, dzEl);
+            if (conflicts.length > 0) {
+                const conflictHdr = document.createElement('div');
+                conflictHdr.classList.add('sched-ctx-conflict-header');
+                conflictHdr.textContent =
+                    `${conflicts.length} conflict${conflicts.length !== 1 ? 's' : ''}`;
+                menu.appendChild(conflictHdr);
+
+                for (const c of conflicts) {
+                    const timeRange =
+                        `${_fmtMins(c.shiftStart)}\u2013${_fmtMins(c.shiftEnd)}`;
+                    const row = document.createElement('div');
+                    row.classList.add('sched-ctx-conflict-row');
+                    if (c.dzEl === null) {
+                        row.textContent = `Unavailable ${timeRange}`;
+                    } else {
+                        const name = c.dzEl.closest('.sched-shift-block')
+                            ?.querySelector('.sched-shift-header')
+                            ?.textContent?.trim() || 'another shift';
+                        row.innerHTML =
+                            `<i class="fa-solid fa-arrow-right-arrow-left"></i>
+                             <span><strong>${name}</strong> · ${timeRange}</span>`;
+                    }
+                    menu.appendChild(row);
+                }
+            }
+        }
+
         menu.appendChild(_divider());
     }
 
@@ -162,8 +205,11 @@ function _buildMenu(volId, volName, pill, inDz) {
 
     // ── Future stubs ─────────────────────────────────────────────────
     menu.appendChild(_divider());
-    menu.appendChild(_item('fa-solid fa-clock-rotate-left', 'Manage Blackouts', ['muted'], null, true));
-    menu.appendChild(_item('fa-solid fa-envelope',          'Message Volunteer', ['muted'], null, true));
+    menu.appendChild(_item('fa-solid fa-clock-rotate-left', 'Manage Blackouts', [], () => {
+        _dismissMenu();
+        _showBlackoutsPanel(volId, volName);
+    }));
+    menu.appendChild(_item('fa-solid fa-envelope', 'Message Volunteer', ['muted'], null, true));
 
     return menu;
 }
@@ -216,8 +262,238 @@ function _divider() {
 }
 
 // ─────────────────────────────────────────────
-//  Today's Assignments panel
+//  Manage Blackouts panel
 // ─────────────────────────────────────────────
+
+/**
+ * Convert an HH:MM string (from <input type="time">) to minutes from midnight.
+ * @param {string} str
+ * @returns {number}
+ */
+function _timeToMins(str) {
+    const [h, m] = (str || '').split(':').map(Number);
+    return (h || 0) * 60 + (m || 0);
+}
+
+/**
+ * Open the Manage Blackouts panel for a volunteer on the current day.
+ * Shows existing blackout windows and provides an add form.
+ *
+ * @param {number} volId
+ * @param {string} volName
+ * @returns {Promise<void>}
+ */
+async function _showBlackoutsPanel(volId, volName) {
+    _dismissPanel();
+
+    const dayId = _currentDayId;
+    if (!dayId) return;
+
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+    const panel = document.createElement('div');
+    panel.classList.add('sched-assign-panel', 'sched-blackout-panel');
+
+    // ── Header ───────────────────────────────────────────────────────
+    const hdr = document.createElement('div');
+    hdr.classList.add('sched-assign-panel-header');
+
+    const ttl = document.createElement('span');
+    ttl.textContent = `Blackouts — ${volName}`;
+
+    const closeBtn = document.createElement('button');
+    closeBtn.classList.add('sched-assign-panel-close');
+    closeBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+    closeBtn.addEventListener('click', () => _dismissPanel());
+
+    hdr.appendChild(ttl);
+    hdr.appendChild(closeBtn);
+    panel.appendChild(hdr);
+
+    // ── Blackout list ─────────────────────────────────────────────────
+    const listEl = document.createElement('div');
+    listEl.classList.add('sched-blackout-list');
+    panel.appendChild(listEl);
+
+    // ── Add form ──────────────────────────────────────────────────────
+    const addSection = document.createElement('div');
+    addSection.classList.add('sched-blackout-add');
+    addSection.innerHTML = `
+        <div class="sched-blackout-add-label">Add blackout</div>
+        <div class="sched-blackout-time-row">
+            <input type="time" class="sched-blackout-time-input" id="bkStart" />
+            <span class="sched-blackout-sep">–</span>
+            <input type="time" class="sched-blackout-time-input" id="bkEnd" />
+        </div>
+        <input type="text" class="sched-blackout-reason-input" id="bkReason"
+               placeholder="Reason (optional)" maxlength="200" />
+        <button type="button" class="sched-blackout-add-btn" id="bkAddBtn">
+            <i class="fa-solid fa-plus"></i> Add
+        </button>
+        <div class="sched-blackout-status"></div>
+    `;
+    panel.appendChild(addSection);
+
+    document.body.appendChild(panel);
+    _panelEl = panel;
+    if (_lastPos) _positionEl(panel, _lastPos.x, _lastPos.y);
+
+    // ── Load + render list ────────────────────────────────────────────
+
+    /**
+     * @param {Array<object>} blackouts
+     * @returns {void}
+     */
+    function renderList(blackouts) {
+        listEl.innerHTML = '';
+
+        if (blackouts.length === 0) {
+            const p = document.createElement('p');
+            p.classList.add('sched-assign-panel-empty');
+            p.textContent = 'No blackouts for this day.';
+            listEl.appendChild(p);
+            return;
+        }
+
+        for (const bk of blackouts) {
+            const row = document.createElement('div');
+            row.classList.add('sched-blackout-row');
+
+            const info = document.createElement('div');
+            info.classList.add('sched-blackout-info');
+
+            const timeSpan = document.createElement('span');
+            timeSpan.classList.add('sched-blackout-time-range');
+            timeSpan.textContent = `${_fmtMins(bk.start_mins)} – ${_fmtMins(bk.end_mins)}`;
+            info.appendChild(timeSpan);
+
+            if (bk.reason) {
+                const reasonSpan = document.createElement('span');
+                reasonSpan.classList.add('sched-blackout-reason-text');
+                reasonSpan.textContent = bk.reason;
+                info.appendChild(reasonSpan);
+            }
+
+            const delBtn = document.createElement('button');
+            delBtn.classList.add('sched-blackout-del-btn');
+            delBtn.title = 'Remove this blackout';
+            delBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+
+            delBtn.addEventListener('click', async () => {
+                delBtn.disabled = true;
+                try {
+                    const r = await fetch(`/api/scheduler/blackouts/${bk.id}`, {
+                        method:  'DELETE',
+                        headers: { 'X-CSRF-Token': csrf },
+                    });
+                    const d = await r.json().catch(() => ({}));
+                    if (d.success) {
+                        untrackBlackout(volId, bk.start_mins, bk.end_mins);
+                        document.dispatchEvent(new CustomEvent('scheduler:blackoutChanged', { detail: { volId } }));
+                        row.remove();
+                        if (!listEl.querySelector('.sched-blackout-row')) {
+                            const p = document.createElement('p');
+                            p.classList.add('sched-assign-panel-empty');
+                            p.textContent = 'No blackouts for this day.';
+                            listEl.appendChild(p);
+                        }
+                    }
+                } catch (err) {
+                    console.error('[contextMenu] delete blackout error:', err);
+                    delBtn.disabled = false;
+                }
+            });
+
+            row.appendChild(info);
+            row.appendChild(delBtn);
+            listEl.appendChild(row);
+        }
+    }
+
+    /**
+     * @returns {Promise<void>}
+     */
+    async function loadList() {
+        listEl.innerHTML = `<p class="sched-assign-panel-empty">
+            <span class="spinner-border spinner-border-sm me-1"></span>Loading…
+        </p>`;
+        try {
+            const res  = await fetch(`/api/scheduler/blackouts/${dayId}?volunteerId=${volId}`);
+            const data = await res.json().catch(() => ({}));
+            renderList(data.blackouts || []);
+        } catch {
+            listEl.innerHTML = '<p class="sched-assign-panel-empty text-danger small">Failed to load.</p>';
+        }
+    }
+
+    // ── Add button handler ────────────────────────────────────────────
+
+    const addBtn     = addSection.querySelector('#bkAddBtn');
+    const startInput = addSection.querySelector('#bkStart');
+    const endInput   = addSection.querySelector('#bkEnd');
+    const reasonInput = addSection.querySelector('#bkReason');
+    const statusEl   = addSection.querySelector('.sched-blackout-status');
+
+    addBtn?.addEventListener('click', async () => {
+        const startVal = /** @type {HTMLInputElement} */ (startInput)?.value;
+        const endVal   = /** @type {HTMLInputElement} */ (endInput)?.value;
+
+        if (!startVal || !endVal) {
+            statusEl.textContent = 'Start and end times are required.';
+            statusEl.className   = 'sched-blackout-status text-danger';
+            return;
+        }
+
+        const startMins = _timeToMins(startVal);
+        const endMins   = _timeToMins(endVal);
+
+        if (endMins <= startMins) {
+            statusEl.textContent = 'End must be after start.';
+            statusEl.className   = 'sched-blackout-status text-danger';
+            return;
+        }
+
+        addBtn.disabled      = true;
+        statusEl.textContent = 'Saving…';
+        statusEl.className   = 'sched-blackout-status text-muted';
+
+        try {
+            const res = await fetch('/api/scheduler/blackouts', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+                body: JSON.stringify({
+                    volunteerId:     volId,
+                    conventionDayId: dayId,
+                    startMins,
+                    endMins,
+                    reason: /** @type {HTMLInputElement} */ (reasonInput)?.value.trim() || null,
+                }),
+            });
+            const data = await res.json().catch(() => ({}));
+
+            if (data.success) {
+                trackAssign(volId, startMins, endMins, null);
+                document.dispatchEvent(new CustomEvent('scheduler:blackoutChanged', { detail: { volId } }));
+                /** @type {HTMLInputElement} */ (startInput).value  = '';
+                /** @type {HTMLInputElement} */ (endInput).value    = '';
+                /** @type {HTMLInputElement} */ (reasonInput).value = '';
+                statusEl.textContent = '';
+                await loadList();
+            } else {
+                statusEl.textContent = data.error || 'Failed to save.';
+                statusEl.className   = 'sched-blackout-status text-danger';
+            }
+        } catch (err) {
+            console.error('[contextMenu] create blackout error:', err);
+            statusEl.textContent = 'Network error.';
+            statusEl.className   = 'sched-blackout-status text-danger';
+        } finally {
+            addBtn.disabled = false;
+        }
+    });
+
+    await loadList();
+}
 
 /**
  * @typedef {{ shiftName:string, dept:string, deptName:string, startMins:number, endMins:number }} GridAssignment

@@ -11,7 +11,7 @@
 
 const { Draggable, Droppable } = window.agnosticDraggable;
 
-import { hasConflict } from './schedulerConflicts.js';
+
 
 // ─────────────────────────────────────────────
 //  Module state
@@ -320,21 +320,7 @@ function canDrop(pill, dz) {
   )
     return false;
 
-  // ── Time-conflict check — volunteer already assigned to an overlapping shift ─
-  // Some departments intentionally use overlapping coverage windows (e.g. Security).
-  const shiftStart = Number(dz.dataset.shiftStartMins);
-  const shiftEnd = Number(dz.dataset.shiftEndMins);
-  if (shiftStart > 0 && shiftEnd > 0) {
-    const dept = dz.closest("[data-department]")?.dataset.department;
-    const OVERLAP_OK = new Set(["security"]);
-    if (!OVERLAP_OK.has(dept)) {
-      const volId = Number(pill.dataset.id);
-      const fromDz = pill.classList.contains("in-pool")
-        ? null
-        : pill.parentElement;
-      if (hasConflict(volId, shiftStart, shiftEnd, fromDz)) return false;
-    }
-  }
+  
 
   // ── Role check ──────────────────────────────────────────────────────
   const slotRole = dz.dataset.role;
@@ -361,7 +347,32 @@ function canDrop(pill, dz) {
 // ─────────────────────────────────────────────
 //  Internal helpers
 // ─────────────────────────────────────────────
-
+/**
+ * Shorten the first name on a DZ pill clone to an initial + period.
+ * Keeps last name in full so the slot is still readable at a glance.
+ * e.g. "Jonathan Smith" → "J. Smith"
+ *
+ * @param {HTMLElement} pill
+ * @returns {void}
+ */
+/**
+ * Shorten the displayed name on a DZ pill clone.
+ * - If the volunteer has a suffix: abbreviate first name to initial
+ *   and append the suffix — e.g. "Jonathan Smith Jr."  → "J. Smith Jr."
+ * - If no suffix: show the full first name — no abbreviation needed.
+ *
+ * @param {HTMLElement} pill
+ * @returns {void}
+ */
+function _abbreviatePillName(pill) {
+  const nameEl = pill.querySelector('.pill-name');
+  if (!nameEl) return;
+  const suffix = pill.dataset.suffix || '';
+  const parts  = nameEl.textContent.trim().split(' ');
+  if (parts.length < 2) return;
+  const abbreviated = `${parts[0].charAt(0)}. ${parts.slice(1).join(' ')}`;
+  nameEl.textContent = suffix ? `${abbreviated} ${suffix}` : abbreviated;
+}
 /**
  * Clear the inline position and transform styles that agnostic-draggable
  * applies during a drag so the pill renders naturally in its new parent.
@@ -389,5 +400,6 @@ function _clonePill(poolPill) {
   const clone = poolPill.cloneNode(true);
   clone.classList.remove('in-pool');
   clone.querySelector('.pill-assign-badge')?.remove();
+  _abbreviatePillName(clone);
   return clone;
 }

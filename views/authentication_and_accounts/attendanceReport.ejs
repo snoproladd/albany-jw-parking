@@ -28,24 +28,29 @@
         const can         = (permission) => !!(_perms[_role] && _perms[_role][permission]);
     %>
 
-    <main class="container-fluid py-4 px-4">
+    <main class="container py-4">
+      <div class="row justify-content-center">
+        <div class="col-12 col-xl-10 col-xxl-9">
 
-        <%# ── Page header ──────────────────────────────────────────────── %>
-        <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
-            <h1 class="h3 mb-0">
-                <i class="fa-solid fa-chart-bar me-2"></i>Attendance Report
-            </h1>
-            <div class="d-flex gap-2 flex-wrap">
-                <% if (can('logAttendance')) { %>
+          <section class="card shadow-lg admin-console-card mb-4">
+            <header class="card-header">
+              <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <h1 class="h4 mb-0">
+                  <i class="fa-solid fa-chart-bar me-2"></i>Attendance Report
+                </h1>
+                <div class="d-flex gap-2 flex-wrap">
+                  <% if (can('logAttendance')) { %>
                     <a href="/oversight/tools/attendance/checkin" class="btn btn-info btn-sm">
-                        <i class="fa-solid fa-clipboard-check me-1"></i>Check-In Tool
+                      <i class="fa-solid fa-clipboard-check me-1"></i>Check-In Tool
                     </a>
-                <% } %>
-                <a href="/oversight/tools" class="btn btn-secondary btn-sm">
-                    <i class="fa-solid fa-arrow-left me-1"></i>Tools
-                </a>
-            </div>
-        </div>
+                  <% } %>
+                  <a href="/oversight/tools" class="btn btn-secondary btn-sm">
+                    <i class="fa-solid fa-arrow-left me-1"></i>Oversight Tools
+                  </a>
+                </div>
+              </div>
+            </header>
+            <div class="card-body py-4 px-4">
 
         <%# ── Day picker ────────────────────────────────────────────────── %>
         <div class="card shadow-sm mb-4 at-picker-card">
@@ -145,6 +150,11 @@
             No shifts found for this day.
         </div>
 
+    </div><%# /.card-body %>
+          </section>
+
+        </div>
+      </div>
     </main>
 
 

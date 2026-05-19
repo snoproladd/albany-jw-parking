@@ -30,6 +30,77 @@
     <div class="row justify-content-center">
       <div class="col-12 col-xl-10 col-xxl-9">
 
+        <%# ── Mobile section jump dropdown ───────────────────────────── %>
+        <div class="d-lg-none mb-3">
+          <select class="form-select" id="otMobileNav" aria-label="Jump to section">
+            <option value="">Jump to section…</option>
+            <% if (can('accessAdminConsole')) { %>
+              <option value="communications">📣 Communications</option>
+            <% } %>
+            <% if (can('manageRoles') || can('editVolunteerInfo') || can('createVolunteerAccounts') || isAtLeast('OVERSEER')) { %>
+              <option value="volunteer-management">👥 Volunteer Management</option>
+            <% } %>
+            <% if (isAtLeast('OVERSEER')) { %>
+              <option value="reports">📊 Reports</option>
+            <% } %>
+            <% if (can('manageShifts') || can('accessAdminConsole')) { %>
+              <option value="scheduling">📅 Scheduling</option>
+            <% } %>
+            <% if (can('logAttendance') || can('viewAttendance')) { %>
+              <option value="attendance">✅ Attendance</option>
+            <% } %>
+            <% if (can('accessAdminConsole')) { %>
+              <option value="decently-sync">🔄 Decently Sync</option>
+            <% } %>
+            <% if (can('manageRoles') && isAtLeast('ADMIN')) { %>
+              <option value="administration">⚙️ Administration</option>
+            <% } %>
+          </select>
+        </div>
+
+        <div class="d-flex gap-4 align-items-start">
+
+          <%# ── Desktop sidebar ─────────────────────────────────────── %>
+          <nav class="d-none d-lg-flex flex-column gap-1 ot-sidebar flex-shrink-0" aria-label="Section navigation">
+            <div class="ot-sidebar-label">Sections</div>
+            <% if (can('accessAdminConsole')) { %>
+              <a class="ot-sidebar-link" href="#communications">
+                <i class="fa-solid fa-paper-plane"></i> Communications
+              </a>
+            <% } %>
+            <% if (can('manageRoles') || can('editVolunteerInfo') || can('createVolunteerAccounts') || isAtLeast('OVERSEER')) { %>
+              <a class="ot-sidebar-link" href="#volunteer-management">
+                <i class="fa-solid fa-users"></i> Volunteer Management
+              </a>
+            <% } %>
+            <% if (isAtLeast('OVERSEER')) { %>
+              <a class="ot-sidebar-link" href="#reports">
+                <i class="fa-solid fa-chart-bar"></i> Reports
+              </a>
+            <% } %>
+            <% if (can('manageShifts') || can('accessAdminConsole')) { %>
+              <a class="ot-sidebar-link" href="#scheduling">
+                <i class="fa-regular fa-calendar-days"></i> Scheduling
+              </a>
+            <% } %>
+            <% if (can('logAttendance') || can('viewAttendance')) { %>
+              <a class="ot-sidebar-link" href="#attendance">
+                <i class="fa-solid fa-clipboard-check"></i> Attendance
+              </a>
+            <% } %>
+            <% if (can('accessAdminConsole')) { %>
+              <a class="ot-sidebar-link" href="#decently-sync">
+                <i class="fa-solid fa-rotate"></i> Decently Sync
+              </a>
+            <% } %>
+            <% if (can('manageRoles') && isAtLeast('ADMIN')) { %>
+              <a class="ot-sidebar-link" href="#administration">
+                <i class="fa-solid fa-gear"></i> Administration
+              </a>
+            <% } %>
+          </nav>
+
+          <div class="flex-grow-1 min-w-0">
         <section class="card shadow-lg admin-console-card">
           <header class="card-header text-center">
             <h1 class="h2 my-2">
@@ -44,7 +115,7 @@
                 1. COMMUNICATIONS
             ══════════════════════════════════════════════ %>
             <% if (can('accessAdminConsole')) { %>
-              <h2 class="tools-group-heading">
+              <h2 class="tools-group-heading" id="communications">
                 <i class="fa-solid fa-paper-plane me-2"></i>Communications
               </h2>
               <div class="row g-4 mb-5">
@@ -95,7 +166,7 @@
                 2. VOLUNTEER MANAGEMENT
             ══════════════════════════════════════════════ %>
             <% if (can('manageRoles') || can('editVolunteerInfo') || can('createVolunteerAccounts') || isAtLeast('OVERSEER')) { %>
-              <h2 class="tools-group-heading">
+              <h2 class="tools-group-heading" id="volunteer-management">
                 <i class="fa-solid fa-users me-2"></i>Volunteer Management
               </h2>
               <div class="row g-4 mb-5">
@@ -151,7 +222,7 @@
                 3. REPORTS
             ══════════════════════════════════════════════ %>
             <% if (isAtLeast('OVERSEER')) { %>
-              <h2 class="tools-group-heading">
+              <h2 class="tools-group-heading" id="reports">
                 <i class="fa-solid fa-chart-bar me-2"></i>Reports
               </h2>
               <div class="row g-4 mb-5">
@@ -175,7 +246,7 @@
                 4. SCHEDULING
             ══════════════════════════════════════════════ %>
             <% if (can('manageShifts') || can('accessAdminConsole')) { %>
-              <h2 class="tools-group-heading">
+              <h2 class="tools-group-heading" id="scheduling">
                 <i class="fa-regular fa-calendar-days me-2"></i>Scheduling
               </h2>
               <div class="row g-4 mb-5">
@@ -262,7 +333,7 @@
                 4. ATTENDANCE
             ══════════════════════════════════════════════ %>
             <% if (can('logAttendance') || can('viewAttendance')) { %>
-              <h2 class="tools-group-heading">
+              <h2 class="tools-group-heading" id="attendance">
                 <i class="fa-solid fa-clipboard-check me-2"></i>Attendance
               </h2>
               <div class="row g-4 mb-5">
@@ -304,7 +375,7 @@
                 5. DECENTLY SYNC
             ══════════════════════════════════════════════ %>
             <% if (can('accessAdminConsole')) { %>
-              <h2 class="tools-group-heading">
+              <h2 class="tools-group-heading" id="decently-sync">
                 <i class="fa-solid fa-rotate me-2"></i>Decently Sync
               </h2>
               <div class="row g-4 mb-5">
@@ -342,7 +413,7 @@
                 6. ADMINISTRATION
             ══════════════════════════════════════════════ %>
             <% if (can('manageRoles') && isAtLeast('ADMIN')) { %>
-              <h2 class="tools-group-heading">
+              <h2 class="tools-group-heading" id="administration">
                 <i class="fa-solid fa-gear me-2"></i>Administration
               </h2>
               <div class="row g-4 mb-2">
@@ -366,6 +437,9 @@
           </div><!-- /.card-body -->
         </section>
 
+          </div><%# /.flex-grow-1 %>
+        </div><%# /.d-flex sidebar wrapper %>
+
       </div>
     </div>
   </main>
@@ -373,5 +447,6 @@
   <%- include('../partials/footer') %>
 
   <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+  <script src="/js/oversightTools.js"></script>
 </body>
 </html>

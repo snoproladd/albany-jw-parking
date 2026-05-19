@@ -7,13 +7,13 @@
     <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
     <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
     <link rel="stylesheet" type="text/css" href="/styles/permissionMatrix.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
     <meta name="csrf-token" content="<%= csrfToken %>" />
-    <link rel="stylesheet" href="/styles/permissionMatrix.css" />
   </head>
 
   <body class="min-vh-100 bg-body-tertiary" data-authed="true">
@@ -29,13 +29,18 @@
         <div class="col-12">
 
           <section class="card shadow-lg admin-console-card">
-            <header class="card-header text-center">
-              <h1 class="h2 my-2">
-                <i class="fa-solid fa-sliders me-2"></i>Permission Matrix
-              </h1>
-              <p class="mb-0">
+            <header class="card-header">
+              <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <h1 class="h4 mb-0">
+                  <i class="fa-solid fa-sliders me-2"></i>Permission Matrix
+                </h1>
+                <a href="/oversight/tools" class="btn btn-secondary btn-sm">
+                  <i class="fa-solid fa-arrow-left me-1"></i>Oversight Tools
+                </a>
+              </div>
+              <p class="mb-0 mt-1 text-muted small">
                 Override default role permissions. Changes take effect on next login.
-                <span class="badge bg-warning text-dark ms-2">ADMIN only</span>
+                <span class="badge bg-warning text-dark ms-1">ADMIN only</span>
               </p>
             </header>
 
@@ -83,7 +88,7 @@
                   editVolunteerInfo:       'Edit volunteer info',
                   printUserData:           'Print volunteer data',
                   createVolunteerAccounts: 'Create volunteer accounts',
-                  deleteVolunteer:         'Delete volunteers'
+                  deleteVolunteer:         'Delete volunteers',
                   sendMessages:            'Send messages',
                   createCampaign:          'Create campaigns',
                   manageCampaigns:         'Manage campaigns',
@@ -172,13 +177,7 @@
                 <span class="badge bg-warning text-dark">DB</span> badge indicates a DB override is active for that cell.
                 Reload the page after bulk changes to see the updated state.
               </p>
-
-              <div class="mt-3">
-                <a href="/oversight/tools" class="btn btn-outline-secondary btn-sm">
-                  <i class="fa-solid fa-arrow-left me-1"></i>Back to Oversight Tools
-                </a>
-              </div>
-
+              </div><%# /.card-body %>
             </div>
           </section>
         </div>

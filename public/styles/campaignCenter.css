@@ -74,6 +74,7 @@
     padding: 1.5rem 2rem 3rem;
     overflow-y: auto;
     /* main content scrolls independently */
+    background: var(--bs-body-bg);
 }
 
 

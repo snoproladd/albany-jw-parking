@@ -4,6 +4,63 @@ All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ---
+
+## [2.15.0] — 2026-05-19
+### Added
+- **Volunteer blackout windows** — oversight staff can now define unavailable
+  time windows for individual volunteers on a convention day. Blackouts are
+  managed via the **Manage Blackouts** option in the scheduler right-click
+  context menu on any volunteer pill.
+  - New DB table `dbo.volunteer_blackouts` (`volunteer_id`, `convention_day_id`,
+    `start_mins`, `end_mins`, `reason`, `created_by`, `created_at`).
+  - New `dbSync.js` functions: `getBlackoutsForDay`, `getBlackoutsForVolunteer`,
+    `createBlackout`, `deleteBlackout`.
+  - New API routes: `GET /api/scheduler/blackouts/:dayId`,
+    `POST /api/scheduler/blackouts`, `DELETE /api/scheduler/blackouts/:id`.
+  - Blackouts load into the conflict tracker on day change, blocking drops
+    into overlapping shift slots.
+- **Scheduling conflict modal** — dropping a volunteer into an overlapping
+  shift now shows a Bootstrap modal describing the conflict (existing
+  assignment or blackout window) with **Place Anyway** / **Return to Pool**
+  options. Security department bypasses the modal but still badges silently.
+- **Conflict badges on DZ pills** — pills placed with a known conflict display
+  a `⚠` warning badge. Conflicts are also listed in the right-click context
+  menu under the Remove from Slot action.
+- **`getConflicts` + `untrackBlackout` + `getBlackouts`** added to
+  `schedulerConflicts.js` to support the above.
+
+### Changed
+- **Scheduler name pills** — first names are now abbreviated to an initial on
+  DZ slot pills (e.g. `J. Smith`). Volunteers with a suffix always show the
+  suffix for disambiguation (`J. Smith Jr.`). Pool pills retain the full name.
+- **Oversight nav dropdown** — categories are now collapsible with animated
+  chevrons. Dark background styling improved with better contrast on item text
+  and icons. Uses `data-bs-auto-close="outside"` so clicking a category
+  toggle does not close the dropdown.
+- **Oversight Tools page sidebar** — frosted-glass background, branded active
+  state, and improved readability against the hero image.
+
+### Fixed
+- **Full UI consistency pass** across all oversight tool pages:
+  - All pages now share a consistent card-on-image layout.
+  - Back button standardised to `← Oversight Tools` with `fa-arrow-left`
+    icon, placed in the card header top-right on every tool page.
+  - Attendance Check-In and Attendance Report wrapped in outer card.
+  - Invitation Tracker wrapped in outer card; stats calculation correctly
+    ordered before header render.
+  - Campaign Center `mc-main` given explicit `background: var(--bs-body-bg)`
+    so the hero image no longer bleeds through between cards.
+  - Timelines and Event Types card header converted to flex layout; bottom
+    back button removed; `data-authed="true"` added to body tag.
+  - Decently Export card header converted to flex layout; bottom back button
+    removed.
+  - Permission Matrix: `styles.css` added (was missing), duplicate
+    `permissionMatrix.css` link removed, back button moved to card header,
+    EJS syntax error (`deleteVolunteer` missing trailing comma) fixed.
+  - Reports page back button label updated to `← Oversight Tools`.
+
+---
+
 ## [2.14.0] — 2026-05-19
 ### Added
 - **Edit Volunteer — RSVP override panel**: A new "Convention Invitations"

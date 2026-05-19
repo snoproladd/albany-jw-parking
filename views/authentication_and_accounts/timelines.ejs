@@ -15,7 +15,7 @@
     <meta name="csrf-token" content="<%= csrfToken %>" />
   </head>
 
-  <body class="min-vh-100 bg-body-tertiary">
+  <body class="min-vh-100 bg-body-tertiary" data-authed="true">
     <%- include('../partials/header') %>
 
     <main class="container-fluid py-4">
@@ -28,11 +28,16 @@
           ══════════════════════════════════════════════════════ %>
 
           <section class="card shadow-lg admin-console-card timeline-card-full">
-            <header class="card-header text-center">
-              <h1 class="h2 my-2">
-                <i class="fa-solid fa-tags me-2"></i>Event Types
-              </h1>
-              <p class="mb-0">Manage the event categories used across all shift scheduling.</p>
+            <header class="card-header">
+              <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <h1 class="h4 mb-0">
+                  <i class="fa-solid fa-tags me-2"></i>Event Types
+                </h1>
+                <a href="/oversight/tools" class="btn btn-secondary btn-sm">
+                  <i class="fa-solid fa-arrow-left me-1"></i>Oversight Tools
+                </a>
+              </div>
+              <p class="mb-0 mt-1 text-muted small">Manage the event categories used across all shift scheduling.</p>
             </header>
 
             <div class="card-body py-4">
@@ -126,13 +131,7 @@
                 </div>
               <% } %>
 
-              <div class="mt-4">
-                <a href="/oversight/tools" class="btn btn-outline-secondary btn-sm">
-                  <i class="fa-solid fa-arrow-left me-1"></i>Back to Oversight Tools
-                </a>
               </div>
-
-            </div>
           </section>
 
           <% } else { %>
@@ -141,11 +140,16 @@
           ══════════════════════════════════════════════════════ %>
 
           <section class="card shadow-lg admin-console-card timeline-card-full">
-            <header class="card-header text-center">
-              <h1 class="h2 my-2">
-                <i class="fa-regular fa-clock me-2"></i>Timelines
-              </h1>
-              <p class="mb-0">Define convention days, sessions, and event shifts for <strong><%= year %></strong>.</p>
+            <header class="card-header">
+              <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <h1 class="h4 mb-0">
+                  <i class="fa-regular fa-clock me-2"></i>Timelines
+                </h1>
+                <a href="/oversight/tools" class="btn btn-secondary btn-sm">
+                  <i class="fa-solid fa-arrow-left me-1"></i>Oversight Tools
+                </a>
+              </div>
+              <p class="mb-0 mt-1 text-muted small">Define convention days, sessions, and event shifts for <strong><%= year %></strong>.</p>
             </header>
 
             <div class="card-body py-4">
@@ -660,16 +664,13 @@
 
               <% } %><%# end selectedDay %>
 
-              <div class="mt-4 d-flex gap-2">
-                <a href="/oversight/tools" class="btn btn-outline-secondary btn-sm">
-                  <i class="fa-solid fa-arrow-left me-1"></i>Back to Oversight Tools
+              <% if (view === 'timelines') { %>
+              <div class="mt-4">
+                <a href="/oversight/tools/timelines/event-types" class="btn btn-outline-secondary btn-sm">
+                  <i class="fa-solid fa-tags me-1"></i>Manage Event Types
                 </a>
-                <% if (view === 'timelines') { %>
-                  <a href="/oversight/tools/timelines/event-types" class="btn btn-outline-secondary btn-sm">
-                    <i class="fa-solid fa-tags me-1"></i>Manage Event Types
-                  </a>
-                <% } %>
               </div>
+              <% } %>
 
             </div>
           </section>

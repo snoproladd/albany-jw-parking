@@ -40,21 +40,28 @@
             const totalRevoked = invitations.filter(i => i.revoked).length;
         %>
 
-        <%# ── Page header ──────────────────────────────────────────────────── %>
-        <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
-            <h1 class="h3 mb-0">
-                <i class="fa-solid fa-chart-gantt me-2"></i>Invitation Tracker
-            </h1>
-            <div class="d-flex gap-2 flex-wrap">
-                <div id="itRemindWrap" data-pending-count="<%= totalPending %>"></div>
-                <a href="/oversight/tools/campaigns" class="btn btn-primary btn-sm">
+      <div class="row justify-content-center">
+        <div class="col-12 col-xxl-11">
+          <section class="card shadow-lg admin-console-card mb-4">
+            <header class="card-header">
+              <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <h1 class="h4 mb-0">
+                  <i class="fa-solid fa-chart-gantt me-2"></i>Invitation Tracker
+                </h1>
+                <div class="d-flex gap-2 flex-wrap">
+                  <div id="itRemindWrap" data-pending-count="<%= totalPending %>"></div>
+                  <a href="/oversight/tools/campaigns" class="btn btn-primary btn-sm">
                     <i class="fa-solid fa-paper-plane me-1"></i>Campaign Center
-                </a>
-                <a href="/oversight/tools" class="btn btn-secondary btn-sm">
-                    <i class="fa-solid fa-arrow-left me-1"></i>Tools
-                </a>
-            </div>
-        </div>
+                  </a>
+                  <a href="/oversight/tools" class="btn btn-secondary btn-sm">
+                    <i class="fa-solid fa-arrow-left me-1"></i>Oversight Tools
+                  </a>
+                </div>
+              </div>
+            </header>
+            <div class="card-body py-4 px-4">
+
+        
 
         <%# ── Summary stats ─────────────────────────────────────────────────── %>
         <div class="row g-3 mb-4">
@@ -356,6 +363,11 @@
         <p class="text-muted small mt-2 mb-0" id="itRowCount">
             Showing <%= invitations.length %> invitation<%= invitations.length !== 1 ? 's' : '' %>
         </p>
+
+            </div><%# /.card-body %>
+          </section>
+        </div>
+      </div>
         <div class="it-toast-container">
             <div id="itNoBatchToast" class="toast align-items-center text-bg-secondary border-0" role="alert" aria-live="assertive" aria-atomic="true">
                 <div class="d-flex">

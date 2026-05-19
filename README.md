@@ -212,10 +212,12 @@ Schema highlights:
   - `shifts.department` — department key for scheduler grid grouping
   - `schedule_assignments.vol_min / vol_max` — flanking `volunteer_need` (vol_ideal) for slot sizing and colour-coding
   - `shift_slot_assignments` — live scheduler assignments (volunteer → slot); one row per slot, cascades on schedule_assignment delete
-- `public/js/schedulerConflicts.js` — per-volunteer time-conflict tracker; extension point for blackout windows
+- `public/js/schedulerConflicts.js` — per-volunteer time-conflict tracker; tracks shift assignments and blackout windows
+- `public/js/schedulerContextMenu.js` — right-click context menu; includes Manage Blackouts panel and conflict display
 - `public/js/schedulerContextMenu.js` — right-click context menu for scheduler pills
 - `public/styles/schedulerReport.css`, `views/authentication_and_accounts/schedulerReport.ejs` — printable schedule report
 - `attendance` — check-in records (walk-ins + invited volunteers)
+- `volunteer_blackouts` — per-volunteer unavailable time windows for scheduler conflict detection (`volunteer_id`, `convention_day_id`, `start_mins`, `end_mins`, `reason`, `created_by`)
 - `invitations.response` — updated directly by `setInvitationResponseById`
   for verbal RSVPs logged via the Edit Volunteer oversight panel
 - `role_permissions` — runtime permission overrides (delta from defaults)

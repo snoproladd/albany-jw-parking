@@ -30,9 +30,12 @@ your password, contact an admin — they can send a reset link via email or SMS.
 
 ### Oversight Tools Hub
 
-After logging in, click **Oversight Tools** in the navigation bar (visible to
-KEYMAN and above). The hub groups all available tools by category. Which tools
-appear depends on your role — higher roles see more options.
+After logging in, click **Oversight** in the navigation bar (visible to
+KEYMAN and above) to open the Oversight dropdown. Categories are collapsible —
+click a category header to expand or collapse its tools. Click **All Tools**
+at the top to go to the full hub page, which groups every available tool by
+category with descriptions. Which tools appear depends on your role — higher
+roles see more options.
 
 ---
 
@@ -351,8 +354,12 @@ Right-clicking any volunteer name pill opens a context-sensitive menu.
 - **Highlight on Grid** — pulses a gold outline on every shift block the
   volunteer currently occupies so you can spot them at a glance.
 - **Copy Name** — copies the volunteer’s display name to the clipboard.
-- **Manage Blackouts** / **Message Volunteer** — not yet active (shown
-  with a “soon” badge).
+- **Manage Blackouts** — opens a panel showing this volunteer's unavailable
+  time windows for the current day. Add a blackout with a start time, end
+  time, and optional reason. Delete any existing blackout with the × button.
+  Blackouts are loaded into the conflict tracker when a day is selected — the
+  scheduler will warn before placing the volunteer into an overlapping slot.
+- **Message Volunteer** — not yet active (shown with a "soon" badge).
 
 ### Pool pill behaviour
 
@@ -364,10 +371,25 @@ today.
 
 ### Time-conflict guard
 
-If a volunteer is already assigned to a shift whose time window overlaps
-the target slot, the slot will not accept the drop (it won’t highlight
-yellow). Security shifts are exempt because their coverage windows
-overlap by design.
+If a volunteer already has an assignment or blackout window that overlaps
+the target slot's time range, a **conflict modal** appears describing the
+clash. You can choose **Place Anyway** to override, or **Return to Pool**
+to cancel the drop. Security department drops bypass the modal but still
+badge the pill silently with a `⚠` warning icon.
+
+If a conflict is overridden or a security overlap exists, the DZ pill
+displays a `⚠` badge. Right-clicking that pill lists the specific conflicts
+under the **Remove from Slot** action so oversight can see exactly what
+is clashing.
+
+### Blackout windows
+
+Blackouts mark a volunteer as unavailable for a specific time range on a
+convention day. They are managed via **Manage Blackouts** in the right-click
+context menu on any volunteer pill. Unlike shift assignments, blackouts have
+no associated slot — they exist only to trigger the conflict guard. Adding
+or removing a blackout immediately re-evaluates any existing DZ pills for
+that volunteer and updates their `⚠` badges live.
 
 ---
 
@@ -540,3 +562,13 @@ to see the change.
 **Soft-deleted volunteers are not gone.** Deleting a volunteer via the oversight
 panel sets their status to "deleted" — all their data is preserved and they
 can be reinstated at any time.
+
+**Blackouts do not remove existing assignments.** Adding a blackout window for
+a volunteer who is already scheduled does not un-assign them — it only prevents
+future drops into overlapping slots. Existing assignments will gain a `⚠`
+conflict badge so you can review them.
+
+**Conflict overrides are not saved as a flag.** Choosing "Place Anyway" places
+the volunteer normally. The `⚠` badge persists as long as the conflict exists
+in the tracker, but there is no separate "conflict acknowledged" record in the
+database.

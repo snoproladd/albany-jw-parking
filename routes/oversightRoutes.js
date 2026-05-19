@@ -95,6 +95,10 @@ import {
   saveSlotAssignment,
   deleteSlotAssignment,
   getSlotAssignmentsByDay,
+  getBlackoutsForDay,
+  getBlackoutsForVolunteer,
+  createBlackout,
+  deleteBlackout,
   getSessionsForDay,
   getSchedulerReportData,
   getCrewMatrix,
@@ -4397,6 +4401,119 @@ export function oversightRouter({
         return res.json({ success: ok });
       } catch (err) {
         (logError || console.error)("api/scheduler/slots DELETE error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * GET /api/scheduler/blackouts/:dayId
+   * Return all blackout windows for a convention day.
+   * Pass ?volunteerId=N to filter to one volunteer (used by the panel).
+   *
+   * Response: { success: boolean, blackouts: Array }
+   *
+   * @requires createAssignments permission
+   */
+  router.get(
+    "/api/scheduler/blackouts/:dayId",
+    requireAuth,
+    requirePermission("createAssignments"),
+    async (req, res) => {
+      const dayId = Number(req.params.dayId);
+      const volunteerId = req.query.volunteerId
+        ? Number(req.query.volunteerId)
+        : null;
+      if (!dayId)
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid day ID." });
+      try {
+        const blackouts = volunteerId
+          ? await getBlackoutsForVolunteer(volunteerId, dayId)
+          : await getBlackoutsForDay(dayId);
+        return res.json({ success: true, blackouts });
+      } catch (err) {
+        (logError || console.error)("api/scheduler/blackouts GET error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * POST /api/scheduler/blackouts
+   * Create a blackout window for a volunteer on a convention day.
+   *
+   * Body: { volunteerId, conventionDayId, startMins, endMins, reason? }
+   * Response: { success: boolean, id: number }
+   *
+   * @requires createAssignments permission
+   */
+  router.post(
+    "/api/scheduler/blackouts",
+    requireAuth,
+    requirePermission("createAssignments"),
+    csrfProtection,
+    async (req, res) => {
+      const { volunteerId, conventionDayId, startMins, endMins, reason } =
+        req.body || {};
+      if (
+        !volunteerId ||
+        !conventionDayId ||
+        startMins == null ||
+        endMins == null ||
+        Number(endMins) <= Number(startMins)
+      ) {
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid parameters." });
+      }
+      try {
+        const id = await createBlackout({
+          volunteerId: Number(volunteerId),
+          conventionDayId: Number(conventionDayId),
+          startMins: Number(startMins),
+          endMins: Number(endMins),
+          reason: reason || null,
+          createdBy: req.session.userEmail || null,
+        });
+        return res.json({ success: true, id });
+      } catch (err) {
+        (logError || console.error)("api/scheduler/blackouts POST error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * DELETE /api/scheduler/blackouts/:id
+   * Remove a blackout window.
+   *
+   * Response: { success: boolean }
+   *
+   * @requires createAssignments permission
+   */
+  router.delete(
+    "/api/scheduler/blackouts/:id",
+    requireAuth,
+    requirePermission("createAssignments"),
+    csrfProtection,
+    async (req, res) => {
+      const id = Number(req.params.id);
+      if (!id)
+        return res.status(400).json({ success: false, error: "Invalid ID." });
+      try {
+        const deleted = await deleteBlackout(id);
+        if (!deleted)
+          return res
+            .status(404)
+            .json({ success: false, error: "Blackout not found." });
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)(
+          "api/scheduler/blackouts DELETE error:",
+          err,
+        );
         return res.status(500).json({ success: false, error: "Server error." });
       }
     },
