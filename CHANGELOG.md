@@ -4,7 +4,23 @@ All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ---
+## [2.14.0] — 2026-05-19
+### Added
+- **Edit Volunteer — RSVP override panel**: A new "Convention Invitations"
+  accordion section on the Edit Volunteer page shows all current-year
+  invitations for the selected volunteer. Each row has a four-button toggle
+  (Yes / No / Maybe / Pending) that saves immediately via AJAX — does not
+  go through the Finalize flow. Clicking the active button a second time
+  clears the response back to Pending. Revoked invitations are shown
+  read-only. Intended for recording verbal RSVPs given directly to oversight
+  staff on convention day.
+- **New DB function** `setInvitationResponseById(invitationId, response)` —
+  updates `response`, `responded_at`, and `last_updated` directly by
+  invitation ID. Passing `null` clears the response back to pending.
+- **New route** `POST /edit-volunteer/set-rsvp` — requires `editVolunteerInfo`
+  permission (OVERSEER+).
 
+---
 ## [2.13.0] — 2026-05-15
 ### Added
 - **Shift alert scheduler** — `lib/alertScheduler.js` fully wired into `index.js`.

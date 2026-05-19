@@ -332,13 +332,17 @@ b {
   max-width: 500px;
 }
 
+/* My Account card is wider than the standard 500px entry card */
+#summary-card.card.shadow-lg {
+  max-width: 700px;
+}
+
 /* ================================================================
    SUMMARY PAGE CARD
    ================================================================ */
 
 #summary-card {
-  max-width: 600px;
-  /* it was 800px, but reduced for better mobile experience */
+  max-width: 700px;
   margin: 0 auto;
   background: rgba(255, 255, 255, 0.80);
   backdrop-filter: blur(6px);
@@ -364,8 +368,8 @@ b {
 
 /* Vertical scroll when the summary is too long */
 #summary-card .accordion {
-  max-height: 75vh;
-  overflow-y: auto;
+  max-height: none;
+  overflow-y: visible;
 }
 
 /* Keep accordion children fully opaque inside the frosted card */
@@ -1697,7 +1701,7 @@ b {
 }
 
 .badge-xs {
-    font-size: 0.65rem;
+  font-size: 0.65rem;
 }
 
 .shift-card {
@@ -1720,6 +1724,7 @@ b {
 .assignment-remove-btn {
   font-size: 0.55rem;
 }
+
 /* ─────────────────────────────────────────────────────────────
    Invite respond — event context block
    ───────────────────────────────────────────────────────────── */
@@ -1781,6 +1786,7 @@ b {
   border-radius: 50%;
   flex-shrink: 0;
 }
+
 .ir-sms-consent {
   font-size: 0.72rem;
   line-height: 1.4;

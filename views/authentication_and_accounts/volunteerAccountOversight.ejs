@@ -637,7 +637,78 @@
                                   </div>
 
                                 </div>
-
+<%# ── Convention Invitations (RSVP override) ── %>
+                                  <% if (typeof rsvpHistory !== 'undefined' && rsvpHistory && rsvpHistory.length > 0) { %>
+                                  <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                      <button class="accordion-button collapsed" type="button"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#collapseInvitations"
+                                        data-bs-parent="#accountAccordion">
+                                        Convention Invitations
+                                        <span class="badge bg-secondary ms-2"><%= rsvpHistory.length %></span>
+                                      </button>
+                                    </h2>
+                                    <div id="collapseInvitations" class="accordion-collapse collapse"
+                                      data-bs-parent="#accountAccordion">
+                                      <div class="accordion-body p-0">
+                                        <div class="table-responsive">
+                                          <table class="table table-sm table-hover mb-0 small">
+                                            <thead class="table-light">
+                                              <tr>
+                                                <th>Day / Shift</th>
+                                                <th>Sent</th>
+                                                <th>RSVP</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              <% rsvpHistory.forEach(function(inv) {
+                                                const dateFmt = inv.convention_date
+                                                  ? new Date(inv.convention_date).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', timeZone:'UTC' })
+                                                  : '—';
+                                                const sentFmt = inv.last_sent_at
+                                                  ? new Date(inv.last_sent_at).toLocaleDateString('en-US', { month:'short', day:'numeric' })
+                                                  : '—';
+                                                const shiftLabel = inv.shift_label || 'Full Day';
+                                              %>
+                                              <tr>
+                                                <td>
+                                                  <div class="fw-semibold"><%= inv.day_label ? inv.day_label + ' — ' : '' %><%= dateFmt %></div>
+                                                  <div class="text-muted"><%= shiftLabel %></div>
+                                                </td>
+                                                <td class="text-nowrap"><%= sentFmt %></td>
+                                                <td>
+                                                  <% if (inv.revoked) { %>
+                                                    <span class="badge bg-secondary">Revoked</span>
+                                                  <% } else { %>
+                                                    <div class="btn-group btn-group-sm rsvp-toggle-group"
+                                                         role="group"
+                                                         data-invitation-id="<%= inv.invitation_id %>">
+                                                      <button type="button"
+                                                        class="btn btn-sm rsvp-btn <%= inv.response === 'yes' ? 'btn-success' : 'btn-outline-success' %>"
+                                                        data-response="yes">Yes</button>
+                                                      <button type="button"
+                                                        class="btn btn-sm rsvp-btn <%= inv.response === 'no' ? 'btn-danger' : 'btn-outline-danger' %>"
+                                                        data-response="no">No</button>
+                                                      <button type="button"
+                                                        class="btn btn-sm rsvp-btn <%= inv.response === 'maybe' ? 'btn-warning' : 'btn-outline-warning' %>"
+                                                        data-response="maybe">Maybe</button>
+                                                      <button type="button"
+                                                        class="btn btn-sm rsvp-btn <%= !inv.response ? 'btn-secondary' : 'btn-outline-secondary' %>"
+                                                        data-response="">Pending</button>
+                                                    </div>
+                                                    <div class="rsvp-status mt-1" style="font-size:0.72rem; min-height:1em"></div>
+                                                  <% } %>
+                                                </td>
+                                              </tr>
+                                              <% }); %>
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <% } %>
                                 <!-- FINALIZE -->
                                 <div class="text-end mt-4">
                                   <button id="return-home" class="btn btn-outline-secondary me-2">

@@ -744,13 +744,13 @@ document.addEventListener("DOMContentLoaded", () => {
    * @returns {void}
    */
   function initDeleteReinstateActions() {
-    const deleteBtn    = document.getElementById("deleteVolunteerBtn");
+    const deleteBtn = document.getElementById("deleteVolunteerBtn");
     const reinstateBtn = document.getElementById("reinstateVolunteerBtn");
-    const modalEl      = document.getElementById("deleteVolunteerModal");
-    const modalNameEl  = document.getElementById("deleteModalName");
-    const modalErrEl   = document.getElementById("deleteModalError");
-    const confirmBtn   = document.getElementById("deleteModalConfirmBtn");
-    const statusEl     = document.getElementById("deleteActionStatus");
+    const modalEl = document.getElementById("deleteVolunteerModal");
+    const modalNameEl = document.getElementById("deleteModalName");
+    const modalErrEl = document.getElementById("deleteModalError");
+    const confirmBtn = document.getElementById("deleteModalConfirmBtn");
+    const statusEl = document.getElementById("deleteActionStatus");
 
     /** @returns {string} */
     function getCsrf() {
@@ -761,8 +761,11 @@ document.addEventListener("DOMContentLoaded", () => {
     deleteBtn?.addEventListener("click", () => {
       const name = deleteBtn.dataset.name || "this volunteer";
       if (modalNameEl) modalNameEl.textContent = name;
-      if (modalErrEl)  modalErrEl.classList.add("d-none");
-      if (confirmBtn)  { confirmBtn.disabled = false; confirmBtn.innerHTML = `<i class="fa-solid fa-trash me-1"></i>Delete`; }
+      if (modalErrEl) modalErrEl.classList.add("d-none");
+      if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = `<i class="fa-solid fa-trash me-1"></i>Delete`;
+      }
       if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).show();
     });
 
@@ -778,14 +781,18 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         const res = await fetch("/edit-volunteer/delete", {
           method: "POST",
-          headers: { "Content-Type": "application/json", "X-CSRF-Token": getCsrf() },
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-Token": getCsrf(),
+          },
           body: JSON.stringify({ targetUserId }),
         });
         const data = await res.json().catch(() => ({}));
 
         if (!res.ok || !data.success) {
           if (modalErrEl) {
-            modalErrEl.textContent = data.message || "Delete failed — please try again.";
+            modalErrEl.textContent =
+              data.message || "Delete failed — please try again.";
             modalErrEl.classList.remove("d-none");
           }
           confirmBtn.disabled = false;
@@ -797,7 +804,6 @@ document.addEventListener("DOMContentLoaded", () => {
         if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).hide();
         window.__suppressBeforeUnload = true;
         window.location.reload();
-
       } catch (err) {
         console.error("[oversight] delete error:", err);
         if (modalErrEl) {
@@ -814,23 +820,35 @@ document.addEventListener("DOMContentLoaded", () => {
       const targetUserId = getTargetUserId();
       if (!targetUserId) return;
 
-      if (!confirm("Reinstate this volunteer? Their previous status will be restored.")) return;
+      if (
+        !confirm(
+          "Reinstate this volunteer? Their previous status will be restored.",
+        )
+      )
+        return;
 
       reinstateBtn.disabled = true;
       reinstateBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Reinstating…`;
-      if (statusEl) { statusEl.textContent = ""; statusEl.classList.add("d-none"); }
+      if (statusEl) {
+        statusEl.textContent = "";
+        statusEl.classList.add("d-none");
+      }
 
       try {
         const res = await fetch("/edit-volunteer/reinstate", {
           method: "POST",
-          headers: { "Content-Type": "application/json", "X-CSRF-Token": getCsrf() },
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-Token": getCsrf(),
+          },
           body: JSON.stringify({ targetUserId }),
         });
         const data = await res.json().catch(() => ({}));
 
         if (!res.ok || !data.success) {
           if (statusEl) {
-            statusEl.textContent = data.message || "Reinstate failed — please try again.";
+            statusEl.textContent =
+              data.message || "Reinstate failed — please try again.";
             statusEl.className = "mt-2 small text-danger";
             statusEl.classList.remove("d-none");
           }
@@ -841,7 +859,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         window.__suppressBeforeUnload = true;
         window.location.reload();
-
       } catch (err) {
         console.error("[oversight] reinstate error:", err);
         if (statusEl) {
@@ -932,8 +949,125 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
+  // ---------------------------------------------------------------------
+  // RSVP panel — immediate AJAX toggle
+  // ---------------------------------------------------------------------
 
+  /**
+   * Initialise the Convention Invitations RSVP toggle buttons.
+   * Each button group represents one invitation. Clicking a button
+   * PATCHes the response immediately — does not go through finalize.
+   * Clicking the already-active button clears back to Pending.
+   * @returns {void}
+   */
+  function initRsvpPanel() {
+    const accordion = root.querySelector("#accountAccordion");
+    if (!accordion) return;
+
+    /** @returns {string} */
+    function getCsrf() {
+      return document.querySelector('input[name="_csrf"]')?.value || "";
+    }
+
+    /**
+     * Update button visual states within a toggle group.
+     * @param {HTMLElement} group
+     * @param {string|null} activeResponse
+     * @returns {void}
+     */
+    function syncGroupButtons(group, activeResponse) {
+      const map = {
+        yes: ["btn-success", "btn-outline-success"],
+        no: ["btn-danger", "btn-outline-danger"],
+        maybe: ["btn-warning", "btn-outline-warning"],
+        "": ["btn-secondary", "btn-outline-secondary"],
+      };
+
+      group.querySelectorAll(".rsvp-btn").forEach((btn) => {
+        const resp = btn.dataset.response ?? "";
+        const [active, inactive] = map[resp] ?? [
+          "btn-secondary",
+          "btn-outline-secondary",
+        ];
+        const isActive = (activeResponse ?? "") === resp;
+        btn.classList.toggle(active, isActive);
+        btn.classList.toggle(inactive, !isActive);
+      });
+    }
+
+    accordion.addEventListener("click", async (ev) => {
+      const btn = ev.target.closest(".rsvp-btn");
+      if (!btn) return;
+
+      const group = btn.closest(".rsvp-toggle-group");
+      if (!group) return;
+
+      const invitationId = Number(group.dataset.invitationId);
+      if (!invitationId) return;
+
+      const statusEl = group.nextElementSibling;
+
+      // Clicking the already-active button clears to pending
+      const currentActive = group.querySelector(
+        ".btn-success, .btn-danger, .btn-warning, .btn-secondary:not(.btn-outline-secondary)",
+      );
+      const clickedResponse = btn.dataset.response;
+      const newResponse = currentActive === btn ? "" : clickedResponse;
+
+      // Disable group while saving
+      group.querySelectorAll(".rsvp-btn").forEach((b) => {
+        b.disabled = true;
+      });
+      if (statusEl) {
+        statusEl.textContent = "Saving…";
+        statusEl.className = "rsvp-status mt-1 text-muted";
+        statusEl.style.fontSize = "0.72rem";
+      }
+
+      try {
+        const res = await fetch("/edit-volunteer/set-rsvp", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-Token": getCsrf(),
+          },
+          body: JSON.stringify({ invitationId, response: newResponse }),
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok || !data.success) {
+          if (statusEl) {
+            statusEl.textContent = data.error || "Save failed.";
+            statusEl.className = "rsvp-status mt-1 text-danger";
+            statusEl.style.fontSize = "0.72rem";
+          }
+        } else {
+          syncGroupButtons(group, newResponse);
+          if (statusEl) {
+            statusEl.textContent = "Saved.";
+            statusEl.className = "rsvp-status mt-1 text-success";
+            statusEl.style.fontSize = "0.72rem";
+            setTimeout(() => {
+              statusEl.textContent = "";
+            }, 2500);
+          }
+        }
+      } catch (err) {
+        console.error("[oversight] set-rsvp error:", err);
+        if (statusEl) {
+          statusEl.textContent = "Network error.";
+          statusEl.className = "rsvp-status mt-1 text-danger";
+          statusEl.style.fontSize = "0.72rem";
+        }
+      } finally {
+        group.querySelectorAll(".rsvp-btn").forEach((b) => {
+          b.disabled = false;
+        });
+      }
+    });
+  }
   initDeleteReinstateActions();
   initActiveToggle();
+  initRsvpPanel();
   initCollapseGuard();
 });

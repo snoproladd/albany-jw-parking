@@ -70,6 +70,12 @@ The **Assignment & Role** section (collapsed at top) lets you set:
 - Their role (REGISTERED or KEYMAN — OVERSEER+ only)
 - Crew assignments: Lots & Garages, Signs, Security, Mobile Support, Dropoff & Pickup
 
+The **Convention Invitations** section (collapsed at bottom) shows all
+current-year invitations for this volunteer. Use the Yes / No / Maybe /
+Pending buttons to record a verbal RSVP — saves immediately without going
+through Finalize. Clicking the active button a second time clears the
+response back to Pending. Revoked invitations are shown read-only.
+
 ### Create Volunteer *(OVERSEER+)*
 
 **Path:** Oversight Tools → Create Volunteer

@@ -216,6 +216,8 @@ Schema highlights:
 - `public/js/schedulerContextMenu.js` — right-click context menu for scheduler pills
 - `public/styles/schedulerReport.css`, `views/authentication_and_accounts/schedulerReport.ejs` — printable schedule report
 - `attendance` — check-in records (walk-ins + invited volunteers)
+- `invitations.response` — updated directly by `setInvitationResponseById`
+  for verbal RSVPs logged via the Edit Volunteer oversight panel
 - `role_permissions` — runtime permission overrides (delta from defaults)
 - `sms_opt_out_log` — Twilio webhook opt-out events
 

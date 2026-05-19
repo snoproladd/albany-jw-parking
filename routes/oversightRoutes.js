@@ -69,6 +69,8 @@ import {
   getInvitationsForTracker,
   getVolunteersWithPendingInvites,
   getVolunteersWithPendingInvitesDeep,
+  getVolunteerRsvpHistory,
+  setInvitationResponseById,
   getInvitationBatches,
   getInvitationBatch,
   createInvitationBatch,
@@ -115,7 +117,6 @@ import { sendResetEmail, sendResetSms, getBaseUrl } from "../lib/messaging.js";
 
 import { PDF_SECRET, publishDaySchedule } from "../lib/publishSchedule.js";
 import { buildAlertMessage, sendAlertSms } from "../lib/alertScheduler.js";
-
 
 import { isProfileComplete } from "../lib/volunteerStatus.js";
 
@@ -252,9 +253,16 @@ export function oversightRouter({
 
       try {
         const targetUser = await getVolunteerById(Number(targetUserId));
-        const volunteers = await getActiveVolunteers({ includeDeleted });
-        const editor = await getVolunteerById(req.session.userId);
-        const congregations = await getCongregations();
+        const [volunteers, editor, congregations, rsvpHistory] =
+          await Promise.all([
+            getActiveVolunteers({ includeDeleted }),
+            getVolunteerById(req.session.userId),
+            getCongregations(),
+            getVolunteerRsvpHistory(
+              Number(targetUserId),
+              new Date().getFullYear(),
+            ),
+          ]);
 
         return res.render("volunteerAccountOversight", {
           csrfToken: req.csrfToken(),
@@ -265,6 +273,7 @@ export function oversightRouter({
           privilegeRulesJSON: JSON.stringify(INCOMPATIBILITIES),
           canDelete,
           includeDeleted,
+          rsvpHistory,
         });
       } catch (err) {
         (logError || console.error)("selectVolEdit error:", err);
@@ -389,12 +398,10 @@ export function oversightRouter({
           .json({ success: false, message: "No volunteer selected." });
 
       if (id === req.session.userId)
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message: "You cannot delete your own account.",
-          });
+        return res.status(400).json({
+          success: false,
+          message: "You cannot delete your own account.",
+        });
 
       try {
         const ok = await softDeleteVolunteer(
@@ -402,12 +409,10 @@ export function oversightRouter({
           req.session.userEmail || "admin",
         );
         if (!ok)
-          return res
-            .status(404)
-            .json({
-              success: false,
-              message: "Volunteer not found or already deleted.",
-            });
+          return res.status(404).json({
+            success: false,
+            message: "Volunteer not found or already deleted.",
+          });
         return res.json({ success: true });
       } catch (err) {
         (logError || console.error)("edit-volunteer/delete POST error:", err);
@@ -446,12 +451,10 @@ export function oversightRouter({
           req.session.userEmail || "admin",
         );
         if (!ok)
-          return res
-            .status(404)
-            .json({
-              success: false,
-              message: "Volunteer not found or not currently deleted.",
-            });
+          return res.status(404).json({
+            success: false,
+            message: "Volunteer not found or not currently deleted.",
+          });
         return res.json({ success: true });
       } catch (err) {
         (logError || console.error)(
@@ -894,7 +897,7 @@ export function oversightRouter({
 
       if (targetId === req.session.userId) {
         return res.redirect(
-          "/oversight/roles?error=You+cannot+change+your+own+role"
+          "/oversight/roles?error=You+cannot+change+your+own+role",
         );
       }
 
@@ -902,7 +905,7 @@ export function oversightRouter({
         const ok = await assignDeskRole(targetId, editedBy);
         if (!ok) {
           return res.redirect(
-            "/oversight/roles?error=Volunteer+not+found+or+already+approved"
+            "/oversight/roles?error=Volunteer+not+found+or+already+approved",
           );
         }
         return res.redirect("/oversight/roles?success=1");
@@ -910,7 +913,7 @@ export function oversightRouter({
         (logError || console.error)("oversight/roles/desk POST error:", err);
         return res.redirect("/oversight/roles?error=Server+error");
       }
-    }
+    },
   );
 
   /**
@@ -2551,7 +2554,8 @@ export function oversightRouter({
           end_time,
           volunteer_need,
           notes,
-          sms_code: sms_code !== undefined ? (sms_code?.trim() || null) : undefined,
+          sms_code:
+            sms_code !== undefined ? sms_code?.trim() || null : undefined,
           invitable: !!invitable,
         });
         if (!ok)
@@ -2595,19 +2599,26 @@ export function oversightRouter({
     requirePermission("manageShifts"),
     csrfProtection,
     async (req, res) => {
-      const { shift_id, location_task_id, volunteer_need, vol_min, vol_max, notes } =
-        req.body || {};
+      const {
+        shift_id,
+        location_task_id,
+        volunteer_need,
+        vol_min,
+        vol_max,
+        notes,
+      } = req.body || {};
       if (!shift_id || !location_task_id)
         return res
           .status(400)
           .json({ success: false, error: "Missing required fields." });
       try {
         const id = await createScheduleAssignment({
-          shift_id:         Number(shift_id),
+          shift_id: Number(shift_id),
           location_task_id: Number(location_task_id),
-          volunteer_need:   volunteer_need != null ? Number(volunteer_need) : null,
-          vol_min:          vol_min        != null && vol_min        !== '' ? Number(vol_min)  : null,
-          vol_max:          vol_max        != null && vol_max        !== '' ? Number(vol_max)  : null,
+          volunteer_need:
+            volunteer_need != null ? Number(volunteer_need) : null,
+          vol_min: vol_min != null && vol_min !== "" ? Number(vol_min) : null,
+          vol_max: vol_max != null && vol_max !== "" ? Number(vol_max) : null,
           notes,
         });
         return res.json({ success: true, id });
@@ -2635,11 +2646,11 @@ export function oversightRouter({
       try {
         const ok = await updateScheduleAssignment(id, {
           volunteer_need:
-            volunteer_need != null && volunteer_need !== ''
+            volunteer_need != null && volunteer_need !== ""
               ? Number(volunteer_need)
               : null,
-          vol_min: vol_min != null && vol_min !== '' ? Number(vol_min) : null,
-          vol_max: vol_max != null && vol_max !== '' ? Number(vol_max) : null,
+          vol_min: vol_min != null && vol_min !== "" ? Number(vol_min) : null,
+          vol_max: vol_max != null && vol_max !== "" ? Number(vol_max) : null,
           notes,
         });
         if (!ok)
@@ -2893,12 +2904,10 @@ export function oversightRouter({
           .status(400)
           .json({ success: false, error: "Campaign name is required." });
       if (campaignMode === "followup" && !resolvedParent)
-        return res
-          .status(400)
-          .json({
-            success: false,
-            error: "Select a parent campaign for the follow-up.",
-          });
+        return res.status(400).json({
+          success: false,
+          error: "Select a parent campaign for the follow-up.",
+        });
       if (campaignMode === "followup" && !batchName?.trim())
         return res
           .status(400)
@@ -2913,12 +2922,10 @@ export function oversightRouter({
         const perms = req.session.permissions ?? {};
         const role = req.session.userRole ?? "NON_REGISTERED";
         if (!perms[role]?.createCampaign) {
-          return res
-            .status(403)
-            .json({
-              success: false,
-              error: "You do not have permission to create campaigns.",
-            });
+          return res.status(403).json({
+            success: false,
+            error: "You do not have permission to create campaigns.",
+          });
         }
       }
 
@@ -3188,7 +3195,7 @@ export function oversightRouter({
           }
         } catch (err) {
           (logError || console.error)(
-          `campaigns/send ${existingInvitation ? "remindInvitation" : "createInvitation"} error for vol ${vol.id}:`,
+            `campaigns/send ${existingInvitation ? "remindInvitation" : "createInvitation"} error for vol ${vol.id}:`,
             err,
           );
           errors.push({
@@ -3626,12 +3633,10 @@ export function oversightRouter({
       // Prevent a batch from being its own parent
       const resolvedParent = parentBatchId ? Number(parentBatchId) : null;
       if (resolvedParent === id)
-        return res
-          .status(400)
-          .json({
-            success: false,
-            error: "A campaign cannot be its own parent.",
-          });
+        return res.status(400).json({
+          success: false,
+          error: "A campaign cannot be its own parent.",
+        });
 
       try {
         const ok = await updateInvitationBatch({
@@ -3952,12 +3957,10 @@ export function oversightRouter({
       } = req.body || {};
 
       if (!volunteerId || !conventionDayId) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            error: "volunteerId and conventionDayId are required.",
-          });
+        return res.status(400).json({
+          success: false,
+          error: "volunteerId and conventionDayId are required.",
+        });
       }
 
       try {
@@ -4032,6 +4035,47 @@ export function oversightRouter({
     },
   );
 
+  /**
+   * POST /edit-volunteer/set-rsvp
+   * Directly set the RSVP response on an invitation by ID.
+   * Used by the oversight tool to record verbal RSVPs.
+   *
+   * Body: { invitationId: number, response: 'yes'|'no'|'maybe'|null }
+   * Response: { success: boolean }
+   *
+   * @requires editVolunteerInfo permission
+   */
+  router.post(
+    "/edit-volunteer/set-rsvp",
+    requireAuth,
+    requirePermission("editVolunteerInfo"),
+    csrfProtection,
+    async (req, res) => {
+      const { invitationId, response } = req.body || {};
+      const id = Number(invitationId);
+      const validResponses = ["yes", "no", "maybe", null];
+      const normalised = response === "" || response == null ? null : response;
+
+      if (!id || !validResponses.includes(normalised)) {
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid parameters." });
+      }
+
+      try {
+        const updated = await setInvitationResponseById(id, normalised);
+        if (!updated) {
+          return res
+            .status(404)
+            .json({ success: false, error: "Invitation not found." });
+        }
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("set-rsvp POST error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
   // ============================================================
   // CREW MATRIX
   // ============================================================
@@ -4082,13 +4126,20 @@ export function oversightRouter({
       const { volunteerIds, value } = req.body || {};
 
       if (!Array.isArray(volunteerIds) || volunteerIds.length === 0)
-        return res.status(400).json({ success: false, error: "volunteerIds must be a non-empty array." });
+        return res.status(400).json({
+          success: false,
+          error: "volunteerIds must be a non-empty array.",
+        });
       if (value === undefined || value === null)
-        return res.status(400).json({ success: false, error: "value is required." });
+        return res
+          .status(400)
+          .json({ success: false, error: "value is required." });
 
       const ids = volunteerIds.map(Number).filter((n) => n > 0);
       if (ids.length === 0)
-        return res.status(400).json({ success: false, error: "No valid volunteer IDs provided." });
+        return res
+          .status(400)
+          .json({ success: false, error: "No valid volunteer IDs provided." });
 
       try {
         const updated = await batchUpdateVolunteerCrew(ids, crewKey, !!value);
@@ -4123,14 +4174,25 @@ export function oversightRouter({
       const value = req.body?.value;
 
       if (!volunteerId)
-        return res.status(400).json({ success: false, error: "Invalid volunteer ID." });
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid volunteer ID." });
       if (value === undefined || value === null)
-        return res.status(400).json({ success: false, error: "value is required." });
+        return res
+          .status(400)
+          .json({ success: false, error: "value is required." });
 
       try {
-        const updated = await updateVolunteerCrew(volunteerId, crewKey, !!value);
+        const updated = await updateVolunteerCrew(
+          volunteerId,
+          crewKey,
+          !!value,
+        );
         if (!updated)
-          return res.status(404).json({ success: false, error: "Volunteer not found or not active." });
+          return res.status(404).json({
+            success: false,
+            error: "Volunteer not found or not active.",
+          });
         return res.json({ success: true });
       } catch (err) {
         if (err.message?.startsWith("Invalid crew key")) {
@@ -4252,7 +4314,9 @@ export function oversightRouter({
     async (req, res) => {
       const dayId = Number(req.params.dayId);
       if (!dayId)
-        return res.status(400).json({ success: false, error: "Invalid day ID." });
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid day ID." });
       try {
         const assignments = await getSlotAssignmentsByDay(dayId);
         return res.json({ success: true, assignments });
@@ -4278,17 +4342,30 @@ export function oversightRouter({
     requirePermission("createAssignments"),
     csrfProtection,
     async (req, res) => {
-      const { schedule_assignment_id, convention_day_id, volunteer_id, slot_type, slot_index } =
-        req.body || {};
-      if (!schedule_assignment_id || !convention_day_id || !volunteer_id || !slot_type || slot_index == null)
-        return res.status(400).json({ success: false, error: "Missing required fields." });
+      const {
+        schedule_assignment_id,
+        convention_day_id,
+        volunteer_id,
+        slot_type,
+        slot_index,
+      } = req.body || {};
+      if (
+        !schedule_assignment_id ||
+        !convention_day_id ||
+        !volunteer_id ||
+        !slot_type ||
+        slot_index == null
+      )
+        return res
+          .status(400)
+          .json({ success: false, error: "Missing required fields." });
       try {
         const id = await saveSlotAssignment({
           schedule_assignment_id: Number(schedule_assignment_id),
-          convention_day_id:      Number(convention_day_id),
-          volunteer_id:           Number(volunteer_id),
-          slot_type:              String(slot_type),
-          slot_index:             Number(slot_index),
+          convention_day_id: Number(convention_day_id),
+          volunteer_id: Number(volunteer_id),
+          slot_type: String(slot_type),
+          slot_index: Number(slot_index),
         });
         return res.json({ success: true, id });
       } catch (err) {
@@ -4372,27 +4449,27 @@ export function oversightRouter({
    * The ?secret= query param must match PDF_SECRET (random, server-startup value).
    * This route is intentionally unauthenticated — the secret is the credential.
    */
-  router.get('/internal/pdf/report', async (req, res) => {
-      if (!req.query.secret || req.query.secret !== PDF_SECRET) {
-          return res.status(403).end();
-      }
-      const dayId = Number(req.query.dayId);
-      if (!dayId) return res.status(400).end();
-      try {
-          const [reportData, conventionDays] = await Promise.all([
-              getSchedulerReportData(dayId),
-              getConventionDays(new Date().getFullYear()),
-          ]);
-          return res.render('authentication_and_accounts/schedulerReport', {
-              csrfToken:       '',           // Puppeteer render — no CSRF needed
-              reportData,
-              conventionDays,
-              selectedDayId:   dayId,
-          });
-      } catch (err) {
-          (logError || console.error)('internal/pdf/report error:', err);
-          return res.status(500).end();
-      }
+  router.get("/internal/pdf/report", async (req, res) => {
+    if (!req.query.secret || req.query.secret !== PDF_SECRET) {
+      return res.status(403).end();
+    }
+    const dayId = Number(req.query.dayId);
+    if (!dayId) return res.status(400).end();
+    try {
+      const [reportData, conventionDays] = await Promise.all([
+        getSchedulerReportData(dayId),
+        getConventionDays(new Date().getFullYear()),
+      ]);
+      return res.render("authentication_and_accounts/schedulerReport", {
+        csrfToken: "", // Puppeteer render — no CSRF needed
+        reportData,
+        conventionDays,
+        selectedDayId: dayId,
+      });
+    } catch (err) {
+      (logError || console.error)("internal/pdf/report error:", err);
+      return res.status(500).end();
+    }
   });
 
   // ============================================================
@@ -4409,65 +4486,71 @@ export function oversightRouter({
    * @requires ASSISTANT_ADMIN+ (accessAdminConsole permission)
    */
   router.post(
-      '/oversight/tools/scheduler/publish',
-      requireAuth,
-      requirePermission('accessAdminConsole'),
-      csrfProtection,
-      async (req, res) => {
-          const dayId = Number(req.body?.dayId);
-          if (!dayId) {
-              return res.status(400).json({ success: false, error: 'dayId is required.' });
-          }
+    "/oversight/tools/scheduler/publish",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    csrfProtection,
+    async (req, res) => {
+      const dayId = Number(req.body?.dayId);
+      if (!dayId) {
+        return res
+          .status(400)
+          .json({ success: false, error: "dayId is required." });
+      }
 
-          // Resolve the day label + date for the filename and notification copy
-          let dayLabel = `Day_${dayId}`;
-          let conventionDate = null;
-          try {
-              const days = await getConventionDays(new Date().getFullYear());
-              const day  = days.find((d) => d.id === dayId);
-              if (day) {
-                  dayLabel       = day.label;
-                  conventionDate = day.convention_date
-                      ? new Date(day.convention_date).toISOString().slice(0, 10)
-                      : null;
-              }
-          } catch { /* non-fatal */ }
+      // Resolve the day label + date for the filename and notification copy
+      let dayLabel = `Day_${dayId}`;
+      let conventionDate = null;
+      try {
+        const days = await getConventionDays(new Date().getFullYear());
+        const day = days.find((d) => d.id === dayId);
+        if (day) {
+          dayLabel = day.label;
+          conventionDate = day.convention_date
+            ? new Date(day.convention_date).toISOString().slice(0, 10)
+            : null;
+        }
+      } catch {
+        /* non-fatal */
+      }
 
-          // Graph config: prefer injected graphConfig, fall back to process.env
-          const resolvedGraphConfig = graphConfig ?? {
-              tenantId:     process.env.GRAPH_TENANT_ID,
-              clientId:     process.env.GRAPH_CLIENT_ID,
-              clientSecret: process.env.GRAPH_CLIENT_SECRET,
-              driveUser:    process.env.GRAPH_DRIVE_USER ||
-                            'jladd@jakeofalltradespropertyserv.onmicrosoft.com',
-              folderPath:   process.env.GRAPH_FOLDER_PATH ||
-                            '2026 Convention Parking/Documents for Distribution',
-          };
+      // Graph config: prefer injected graphConfig, fall back to process.env
+      const resolvedGraphConfig = graphConfig ?? {
+        tenantId: process.env.GRAPH_TENANT_ID,
+        clientId: process.env.GRAPH_CLIENT_ID,
+        clientSecret: process.env.GRAPH_CLIENT_SECRET,
+        driveUser:
+          process.env.GRAPH_DRIVE_USER ||
+          "jladd@jakeofalltradespropertyserv.onmicrosoft.com",
+        folderPath:
+          process.env.GRAPH_FOLDER_PATH ||
+          "2026 Convention Parking/Documents for Distribution",
+      };
 
-          try {
-              const result = await publishDaySchedule({
-                  dayId,
-                  dayLabel,
-                  conventionDate,
-                  publishedBy:      req.session.userEmail || 'admin',
-                  serverPort:       serverPort || Number(process.env.PORT) || 3000,
-                  smtpConfig,
-                  twilioAccountSid,
-                  twilioAuthToken,
-                  twilioMsgSid,
-                  graphConfig:      resolvedGraphConfig,
-                  dryRun:           req.body?.dryRun === true,
-              });
+      try {
+        const result = await publishDaySchedule({
+          dayId,
+          dayLabel,
+          conventionDate,
+          publishedBy: req.session.userEmail || "admin",
+          serverPort: serverPort || Number(process.env.PORT) || 3000,
+          smtpConfig,
+          twilioAccountSid,
+          twilioAuthToken,
+          twilioMsgSid,
+          graphConfig: resolvedGraphConfig,
+          dryRun: req.body?.dryRun === true,
+        });
 
-              return res.json({ success: true, ...result });
-          } catch (err) {
-              (logError || console.error)('scheduler/publish POST error:', err);
-              return res.status(500).json({
-                  success: false,
-                  error: err.message || 'Publish failed.',
-              });
-          }
-      },
+        return res.json({ success: true, ...result });
+      } catch (err) {
+        (logError || console.error)("scheduler/publish POST error:", err);
+        return res.status(500).json({
+          success: false,
+          error: err.message || "Publish failed.",
+        });
+      }
+    },
   );
 
   // ===========================
@@ -4491,11 +4574,16 @@ export function oversightRouter({
     (req, res) => {
       const { conventionDate, eventTypeName, shiftLabel } = req.query;
       if (!conventionDate || !eventTypeName) {
-        return res
-          .status(400)
-          .json({ success: false, error: "conventionDate and eventTypeName are required." });
+        return res.status(400).json({
+          success: false,
+          error: "conventionDate and eventTypeName are required.",
+        });
       }
-      const code = generateShiftCode(conventionDate, eventTypeName, shiftLabel || "");
+      const code = generateShiftCode(
+        conventionDate,
+        eventTypeName,
+        shiftLabel || "",
+      );
       return res.json({ success: true, code });
     },
   );
@@ -4516,7 +4604,9 @@ export function oversightRouter({
     requireAuth,
     requirePermission("accessAdminConsole"),
     async (req, res) => {
-      const year = req.query.year ? Number(req.query.year) : new Date().getFullYear();
+      const year = req.query.year
+        ? Number(req.query.year)
+        : new Date().getFullYear();
       try {
         const schedules = await getAlertSchedules(year);
         return res.json({ success: true, schedules });
@@ -4555,12 +4645,18 @@ export function oversightRouter({
       } = req.body || {};
 
       if (!year || !name?.trim() || !alert_category) {
-        return res
-          .status(400)
-          .json({ success: false, error: "year, name, and alert_category are required." });
+        return res.status(400).json({
+          success: false,
+          error: "year, name, and alert_category are required.",
+        });
       }
 
-      const validCategories = ["next_day", "same_day", "all_upcoming", "t15min"];
+      const validCategories = [
+        "next_day",
+        "same_day",
+        "all_upcoming",
+        "t15min",
+      ];
       if (!validCategories.includes(alert_category)) {
         return res
           .status(400)
@@ -4569,15 +4665,16 @@ export function oversightRouter({
 
       try {
         const id = await createAlertSchedule({
-          year:              Number(year),
-          name:              name.trim(),
-          fire_date:         fire_date         || null,
-          fire_time_utc:     fire_time_utc     || null,
+          year: Number(year),
+          name: name.trim(),
+          fire_date: fire_date || null,
+          fire_time_utc: fire_time_utc || null,
           alert_category,
-          departments:       departments       || null,
-          include_null_dept: include_null_dept !== false && include_null_dept !== "false",
-          message_override:  message_override  || null,
-          created_by:        req.session.userEmail || null,
+          departments: departments || null,
+          include_null_dept:
+            include_null_dept !== false && include_null_dept !== "false",
+          message_override: message_override || null,
+          created_by: req.session.userEmail || null,
         });
         return res.json({ success: true, id });
       } catch (err) {
@@ -4604,7 +4701,8 @@ export function oversightRouter({
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
-      if (!id) return res.status(400).json({ success: false, error: "Invalid id." });
+      if (!id)
+        return res.status(400).json({ success: false, error: "Invalid id." });
 
       const {
         name,
@@ -4618,23 +4716,28 @@ export function oversightRouter({
       } = req.body || {};
 
       if (!name?.trim() || !alert_category) {
-        return res
-          .status(400)
-          .json({ success: false, error: "name and alert_category are required." });
+        return res.status(400).json({
+          success: false,
+          error: "name and alert_category are required.",
+        });
       }
 
       try {
         const ok = await updateAlertSchedule(id, {
-          name:              name.trim(),
-          fire_date:         fire_date         || null,
-          fire_time_utc:     fire_time_utc     || null,
+          name: name.trim(),
+          fire_date: fire_date || null,
+          fire_time_utc: fire_time_utc || null,
           alert_category,
-          departments:       departments       || null,
-          include_null_dept: include_null_dept !== false && include_null_dept !== "false",
-          message_override:  message_override  || null,
-          active:            active !== false && active !== "false",
+          departments: departments || null,
+          include_null_dept:
+            include_null_dept !== false && include_null_dept !== "false",
+          message_override: message_override || null,
+          active: active !== false && active !== "false",
         });
-        if (!ok) return res.status(404).json({ success: false, error: "Schedule not found." });
+        if (!ok)
+          return res
+            .status(404)
+            .json({ success: false, error: "Schedule not found." });
         return res.json({ success: true });
       } catch (err) {
         (logError || console.error)("shift-alerts/schedules PUT error:", err);
@@ -4657,13 +4760,20 @@ export function oversightRouter({
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
-      if (!id) return res.status(400).json({ success: false, error: "Invalid id." });
+      if (!id)
+        return res.status(400).json({ success: false, error: "Invalid id." });
       try {
         const ok = await deleteAlertSchedule(id);
-        if (!ok) return res.status(404).json({ success: false, error: "Schedule not found." });
+        if (!ok)
+          return res
+            .status(404)
+            .json({ success: false, error: "Schedule not found." });
         return res.json({ success: true });
       } catch (err) {
-        (logError || console.error)("shift-alerts/schedules DELETE error:", err);
+        (logError || console.error)(
+          "shift-alerts/schedules DELETE error:",
+          err,
+        );
         return res.status(500).json({ success: false, error: "Server error." });
       }
     },
@@ -4687,34 +4797,40 @@ export function oversightRouter({
     async (req, res) => {
       const id = Number(req.params.id);
       const force = req.body?.force === true;
-      if (!id) return res.status(400).json({ success: false, error: "Invalid id." });
+      if (!id)
+        return res.status(400).json({ success: false, error: "Invalid id." });
 
       try {
         const schedule = await getAlertSchedule(id);
         if (!schedule) {
-          return res.status(404).json({ success: false, error: "Schedule not found." });
+          return res
+            .status(404)
+            .json({ success: false, error: "Schedule not found." });
         }
         if (!schedule.active) {
-          return res.status(400).json({ success: false, error: "Schedule is inactive." });
+          return res
+            .status(400)
+            .json({ success: false, error: "Schedule is inactive." });
         }
 
-        const year      = schedule.year;
-        const fireDate  = schedule.fire_date
-            ? new Date(schedule.fire_date).toISOString().slice(0, 10)
-            : new Date().toISOString().slice(0, 10);
+        const year = schedule.year;
+        const fireDate = schedule.fire_date
+          ? new Date(schedule.fire_date).toISOString().slice(0, 10)
+          : new Date().toISOString().slice(0, 10);
 
         let rows;
         if (schedule.alert_category === "t15min") {
-          return res
-            .status(400)
-            .json({ success: false, error: "t15min schedules are rolling — trigger via the scheduler." });
+          return res.status(400).json({
+            success: false,
+            error: "t15min schedules are rolling — trigger via the scheduler.",
+          });
         } else {
           rows = await getShiftsForAlertBurst({
-            scheduleId:       id,
-            alertCategory:    schedule.alert_category,
+            scheduleId: id,
+            alertCategory: schedule.alert_category,
             fireDate,
-            departments:      schedule.departments || null,
-            includeNullDept:  !!schedule.include_null_dept,
+            departments: schedule.departments || null,
+            includeNullDept: !!schedule.include_null_dept,
             year,
           });
         }
@@ -4726,39 +4842,44 @@ export function oversightRouter({
           // A more complete implementation would pass a `force` flag to the DB query.
         }
 
-        let sent = 0, failed = 0;
+        let sent = 0,
+          failed = 0;
         const logRows = [];
 
         for (const row of rows) {
           const body = buildAlertMessage(schedule, row);
           try {
             const msgSid = await sendAlertSms(
-              row.phone, body,
-              twilioAccountSid, twilioAuthToken, twilioMsgSid,
+              row.phone,
+              body,
+              twilioAccountSid,
+              twilioAuthToken,
+              twilioMsgSid,
             );
             logRows.push({
-              schedule_id:    id,
-              shift_id:       row.shift_id,
-              volunteer_id:   row.volunteer_id,
+              schedule_id: id,
+              shift_id: row.shift_id,
+              volunteer_id: row.volunteer_id,
               alert_category: schedule.alert_category,
-              phone:          row.phone,
-              twilio_sid:     msgSid || null,
-              status:         "sent",
+              phone: row.phone,
+              twilio_sid: msgSid || null,
+              status: "sent",
             });
             sent++;
           } catch (err) {
             (logError || console.error)(
-              `shift-alerts send error vol ${row.volunteer_id} shift ${row.shift_id}:`, err,
+              `shift-alerts send error vol ${row.volunteer_id} shift ${row.shift_id}:`,
+              err,
             );
             logRows.push({
-              schedule_id:    id,
-              shift_id:       row.shift_id,
-              volunteer_id:   row.volunteer_id,
+              schedule_id: id,
+              shift_id: row.shift_id,
+              volunteer_id: row.volunteer_id,
               alert_category: schedule.alert_category,
-              phone:          row.phone,
-              twilio_sid:     null,
-              status:         "failed",
-              error_msg:      err.message?.slice(0, 500) || "Unknown error",
+              phone: row.phone,
+              twilio_sid: null,
+              status: "failed",
+              error_msg: err.message?.slice(0, 500) || "Unknown error",
             });
             failed++;
           }
@@ -4767,7 +4888,10 @@ export function oversightRouter({
         await logShiftAlerts(logRows);
         return res.json({ success: true, sent, failed, skipped: 0 });
       } catch (err) {
-        (logError || console.error)("shift-alerts/schedules/:id/send POST error:", err);
+        (logError || console.error)(
+          "shift-alerts/schedules/:id/send POST error:",
+          err,
+        );
         return res.status(500).json({ success: false, error: "Server error." });
       }
     },
@@ -4793,11 +4917,15 @@ export function oversightRouter({
     async (req, res) => {
       try {
         const log = await getAlertLog({
-          scheduleId:  req.query.scheduleId  ? Number(req.query.scheduleId)  : null,
-          volunteerId: req.query.volunteerId ? Number(req.query.volunteerId) : null,
-          shiftId:     req.query.shiftId     ? Number(req.query.shiftId)     : null,
-          status:      req.query.status      || null,
-          year:        req.query.year        ? Number(req.query.year)        : null,
+          scheduleId: req.query.scheduleId
+            ? Number(req.query.scheduleId)
+            : null,
+          volunteerId: req.query.volunteerId
+            ? Number(req.query.volunteerId)
+            : null,
+          shiftId: req.query.shiftId ? Number(req.query.shiftId) : null,
+          status: req.query.status || null,
+          year: req.query.year ? Number(req.query.year) : null,
         });
         return res.json({ success: true, log });
       } catch (err) {
