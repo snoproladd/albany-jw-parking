@@ -310,6 +310,7 @@ app.use(
     useDefaults: true,
     directives: {
       "default-src": ["'self'"],
+      "frame-src":   ["'self'"],
       "script-src": [
         "'self'",
         "https://cdn.jsdelivr.net",
@@ -324,8 +325,8 @@ app.use(
       "img-src": ["'self'", "data:"],
       "font-src": ["'self'", "https://fonts.gstatic.com"],
       "connect-src": isProd
-        ? ["'self'", "https:", "https://api.kickbox.com"]
-        : ["'self'", "http://localhost:3000", "https://api.kickbox.com"],
+        ? ["'self'", "https:", "https://api.kickbox.com", "https://api.open-meteo.com"]
+        : ["'self'", "http://localhost:3000", "https://api.kickbox.com", "https://api.open-meteo.com"],
     },
   }),
 );
@@ -498,6 +499,77 @@ const server = http.createServer(app);
 
     // API
     app.use("/api", apiRoutes);
+    // ── Home page — dashboard for authenticated users ──────────────
+    app.get("/", csrfProtection, async (req, res) => {
+      const baseData = {
+        csrfToken: req.csrfToken(),
+        volunteer: null,
+        conventionDay: null,
+        shifts: [],
+        hierarchy: [],
+        allDays: [],
+        currentDayIndex: 0,
+      };
+
+      if (!req.session.userId) {
+        return res.render("index", baseData);
+      }
+
+      try {
+        const year = new Date().getFullYear();
+        const [volunteer, conventionDay, rawHierarchy, allDays] =
+          await Promise.all([
+            db.getVolunteerById(req.session.userId),
+            db.getVolunteerDashboardDay(year),
+            db.getCommandHierarchy(),
+            db.getConventionDays(year),
+          ]);
+
+        let shifts = [];
+        if (conventionDay) {
+          shifts = await db.getVolunteerShiftsForDay(
+            req.session.userId,
+            conventionDay.id,
+          );
+        }
+
+        /**
+         * Flatten a parent-child node list into a pre-order array with depth.
+         * @param {Array<object>} nodes
+         * @param {number|null}   parentId
+         * @param {number}        depth
+         * @param {Array<object>} out
+         * @returns {Array<object>}
+         */
+        function flattenTree(nodes, parentId = null, depth = 0, out = []) {
+          nodes
+            .filter((n) => (n.parent_id ?? null) === parentId)
+            .sort((a, b) => a.sort_order - b.sort_order)
+            .forEach((n) => {
+              out.push({ ...n, depth });
+              flattenTree(nodes, n.id, depth + 1, out);
+            });
+          return out;
+        }
+
+        const currentDayIndex = allDays.findIndex(
+          (d) => d.id === conventionDay?.id,
+        );
+
+        return res.render("index", {
+          ...baseData,
+          volunteer,
+          conventionDay,
+          shifts,
+          hierarchy: flattenTree(rawHierarchy),
+          allDays,
+          currentDayIndex: currentDayIndex >= 0 ? currentDayIndex : 0,
+        });
+      } catch (err) {
+        logError("Home dashboard error:", err);
+        return res.render("index", baseData);
+      }
+    });
 
     // Registration router (FULL FLOW)
     app.use(
@@ -818,7 +890,9 @@ const server = http.createServer(app);
             // Volunteer not in system — ignore silently
             if (!smsVol) {
               res.set("Content-Type", "text/xml");
-              return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response></Response>`);
+              return res.send(
+                `<?xml version="1.0" encoding="UTF-8"?><Response></Response>`,
+              );
             }
 
             // Eastern date helper (UTC-4, valid for August convention)
@@ -828,43 +902,51 @@ const server = http.createServer(app);
 
             // ── CHECK = arrive / check-in ────────────────────────
             if (bodyText === "CHECK") {
-              const shift = await db.getVolunteerActiveShiftToday(smsVol.id, easternToday);
+              const shift = await db.getVolunteerActiveShiftToday(
+                smsVol.id,
+                easternToday,
+              );
 
               if (!shift) {
                 res.set("Content-Type", "text/xml");
                 return res.send(
                   `<?xml version="1.0" encoding="UTF-8"?><Response>` +
-                  `<Message>Albany JW Parking: We don't have you scheduled for a shift today. ` +
-                  `Questions? Contact your overseer.</Message></Response>`
+                    `<Message>Albany JW Parking: We don't have you scheduled for a shift today. ` +
+                    `Questions? Contact your overseer.</Message></Response>`,
                 );
               }
 
               await db.upsertAttendance({
-                volunteerId:     smsVol.id,
+                volunteerId: smsVol.id,
                 conventionDayId: shift.convention_day_id,
-                sessionId:       shift.session_id,
-                shiftId:         shift.shift_id,
-                attended:        true,
-                recordedBy:      `sms:${fromPhone}`,
+                sessionId: shift.session_id,
+                shiftId: shift.shift_id,
+                attended: true,
+                recordedBy: `sms:${fromPhone}`,
               });
 
               log(`SMS CHECK-IN: vol ${smsVol.id} shift ${shift.shift_id}`);
               res.set("Content-Type", "text/xml");
               return res.send(
                 `<?xml version="1.0" encoding="UTF-8"?><Response>` +
-                `<Message>Albany JW Parking: Checked in! Thanks for being here, ` +
-                `we've recorded your attendance for ${shift.shift_label}.</Message></Response>`
+                  `<Message>Albany JW Parking: Checked in! Thanks for being here, ` +
+                  `we've recorded your attendance for ${shift.shift_label}.</Message></Response>`,
               );
             }
 
             // ── Shift code = confirm attendance ───────────────────
             if (/^[A-Z0-9]{2,8}$/.test(bodyText)) {
-              const shift = await db.getVolunteerShiftByCode(smsVol.id, bodyText);
+              const shift = await db.getVolunteerShiftByCode(
+                smsVol.id,
+                bodyText,
+              );
 
               if (!shift) {
                 // Code doesn't match any of their shifts — ignore silently
                 res.set("Content-Type", "text/xml");
-                return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response></Response>`);
+                return res.send(
+                  `<?xml version="1.0" encoding="UTF-8"?><Response></Response>`,
+                );
               }
 
               // Confirm RSVP (no-op if already answered)
@@ -877,27 +959,31 @@ const server = http.createServer(app);
 
               if (shiftDate === easternToday) {
                 await db.upsertAttendance({
-                  volunteerId:     smsVol.id,
+                  volunteerId: smsVol.id,
                   conventionDayId: shift.convention_day_id,
-                  sessionId:       shift.session_id,
-                  shiftId:         shift.shift_id,
-                  attended:        true,
-                  recordedBy:      `sms:${fromPhone}`,
+                  sessionId: shift.session_id,
+                  shiftId: shift.shift_id,
+                  attended: true,
+                  recordedBy: `sms:${fromPhone}`,
                 });
               }
 
-              log(`SMS code confirm: vol ${smsVol.id} code ${bodyText} shift ${shift.shift_id}`);
+              log(
+                `SMS code confirm: vol ${smsVol.id} code ${bodyText} shift ${shift.shift_id}`,
+              );
               res.set("Content-Type", "text/xml");
               return res.send(
                 `<?xml version="1.0" encoding="UTF-8"?><Response>` +
-                `<Message>Albany JW Parking: Got it! You're confirmed for ` +
-                `${shift.shift_label}. See you there. Reply STOP to opt out.</Message></Response>`
+                  `<Message>Albany JW Parking: Got it! You're confirmed for ` +
+                  `${shift.shift_label}. See you there. Reply STOP to opt out.</Message></Response>`,
               );
             }
 
             // Not a keyword, not a shift code — ignore
             res.set("Content-Type", "text/xml");
-            return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response></Response>`);
+            return res.send(
+              `<?xml version="1.0" encoding="UTF-8"?><Response></Response>`,
+            );
           }
 
           // ── Process the event ──────────────────────────────────────
@@ -950,7 +1036,33 @@ const server = http.createServer(app);
     // ========================================================
     // Health & 404
     // ========================================================
-
+    /**
+     * GET /api/dashboard/shifts?dayId=N
+     * Returns a volunteer's slot assignments for one convention day.
+     * Used by the home page day-navigator widget.
+     */
+    app.get("/api/dashboard/shifts", async (req, res) => {
+      if (!req.session?.userId)
+        return res
+          .status(401)
+          .json({ success: false, error: "Not authenticated." });
+      const dayId = Number(req.query.dayId);
+      if (!dayId)
+        return res
+          .status(400)
+          .json({ success: false, error: "dayId required." });
+      try {
+        const shifts = await db.getVolunteerShiftsForDay(
+          req.session.userId,
+          dayId,
+        );
+        return res.json({ success: true, shifts });
+      } catch (err) {
+        logError("dashboard shifts API error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    });
+    
     app.get("/health", (req, res) => res.send("OK"));
 
     app.use((req, res) => {

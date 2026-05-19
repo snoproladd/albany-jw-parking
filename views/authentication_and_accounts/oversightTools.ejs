@@ -433,6 +433,22 @@
 
               </div>
             <% } %>
+            <%# ── Chain of Command ── %>
+            <% if (can('manageCampaigns')) { %>
+            <div class="col">
+              <a href="/oversight/tools/hierarchy" class="ot-card-link">
+                <div class="card ot-tool-card h-100">
+                  <div class="card-body">
+                    <div class="ot-tool-icon">
+                      <i class="fa-solid fa-sitemap"></i>
+                    </div>
+                    <h3 class="ot-tool-title">Chain of Command</h3>
+                    <p class="ot-tool-desc">Configure the reporting hierarchy shown on volunteer home pages.</p>
+                  </div>
+                </div>
+              </a>
+            </div>
+            <% } %>
 
           </div><!-- /.card-body -->
         </section>

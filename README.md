@@ -154,12 +154,17 @@ parking/
 │   └── roles.js              # RBAC permission matrix + middleware
 ├── views/
 │   ├── authentication_and_accounts/  # Login, My Account, oversight tools
+│   │   └── commandHierarchy.ejs      # Chain of command admin tree editor
 │   ├── partials/             # header.ejs, footer.ejs
 │   ├── registration/         # Multi-step registration EJS views
 │   └── upgrade/              # Account upgrade flow views
 ├── public/
 │   ├── js/                   # Frontend JS modules (one file per page)
+│   │   ├── dashboardWeather.js       # Open-Meteo 3-day weather widget
+│   │   ├── dashboardShifts.js        # Home page day-navigator for shifts
+│   │   └── commandHierarchy.js       # Chain of command admin tree JS
 │   ├── styles/               # CSS files
+│   │   └── commandHierarchy.css      # Chain of command admin styles
 │   └── vendor/               # Third-party UMD bundles (agnostic-draggable, Bootstrap)
 ├── docs/
 │   └── OVERSIGHT_GUIDE.md    # End-user guide for oversight staff
@@ -216,6 +221,7 @@ Schema highlights:
 - `public/js/schedulerContextMenu.js` — right-click context menu; includes Manage Blackouts panel and conflict display
 - `public/js/schedulerContextMenu.js` — right-click context menu for scheduler pills
 - `public/styles/schedulerReport.css`, `views/authentication_and_accounts/schedulerReport.ejs` — printable schedule report
+- `command_hierarchy` — chain of command tree (`volunteer_id`, `parent_id`, `role_title`, `sort_order`)
 - `attendance` — check-in records (walk-ins + invited volunteers)
 - `volunteer_blackouts` — per-volunteer unavailable time windows for scheduler conflict detection (`volunteer_id`, `convention_day_id`, `start_mins`, `end_mins`, `reason`, `created_by`)
 - `invitations.response` — updated directly by `setInvitationResponseById`

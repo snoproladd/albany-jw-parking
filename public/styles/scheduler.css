@@ -364,6 +364,38 @@
     padding: 0.25rem;
 }
 
+/* Time range row inside each shift block */
+.sched-shift-time {
+    font-size: 0.58rem;
+    color: var(--bs-secondary-color);
+    padding: 0 0.4rem 0.1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
+    line-height: 1.3;
+}
+
+/* ─────────────────────────────────────────────
+   Column tracks — continuous vertical dividers
+   Rendered behind all grid content (z-index 0).
+───────────────────────────────────────────── */
+
+.sched-col-track {
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Department boundary — stronger divider between crews */
+.sched-col-track--dept {
+    border-left: 2px solid var(--bs-border-color);
+}
+
+/* Location divider — subtle line between locations within a crew */
+.sched-col-track--loc {
+    border-left: 1px dashed var(--bs-border-color-translucent);
+}
+
 
 /* ─────────────────────────────────────────────
    Dropzones
@@ -455,7 +487,7 @@
     padding: 0.1rem 0.3rem;
     border-radius: 0.2rem;
     gap: 0;
-    justify-content: center;
+    justify-content: flex-start;  /* stack name + badge row from top */
 }
 
 .scheduler-dropzone .pill-name {
@@ -465,26 +497,60 @@
     line-height: 1.25;
     overflow: hidden;
     display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
+    -webkit-line-clamp: 1;  /* single line — badge row uses the rest */
+    line-clamp: 1;
     -webkit-box-orient: vertical;
+}
+
+/* Badge row — sits below the name, badges flow horizontally */
+.pill-badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.1rem;
+    align-items: center;
+    margin-top: 0.05rem;
+}
+
+/* Tighter sizing inside dropzones */
+.scheduler-dropzone .pill-conflict-badge,
+.scheduler-dropzone .pill-note-badge {
+    font-size: 0.55rem;
+    padding: 0.02rem 0.15rem;
+    margin-left: 0;
 }
 
 /* Crew badges add no value once a pill is assigned — hide them */
 .scheduler-dropzone .pill-crews {
     display: none;
 }
-/* Conflict warning badge on DZ pills */
+/* Conflict warning badge — shift overlap (amber). Uses explicit hex so the
+   colour is never inherited from a red DZ parent (e.g. dz-required). */
 .pill-conflict-badge {
     display: inline-flex;
     align-items: center;
     font-size: 0.62rem;
     padding: 0.05rem 0.22rem;
     border-radius: 0.75rem;
-    background: var(--bs-warning-bg-subtle);
-    color: var(--bs-warning-text-emphasis);
-    border: 1px solid var(--bs-warning-border-subtle);
-    margin-left: auto;
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fcd34d;
+    margin-left: 0.15rem;
+    flex-shrink: 0;
+    cursor: default;
+    line-height: 1;
+}
+
+/* Personal/blackout note badge — blue info circle */
+.pill-note-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.62rem;
+    padding: 0.05rem 0.22rem;
+    border-radius: 0.75rem;
+    background: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #93c5fd;
+    margin-left: 0.15rem;
     flex-shrink: 0;
     cursor: default;
     line-height: 1;

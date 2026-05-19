@@ -97,28 +97,29 @@ export function clearHistory() {
  * @param {HTMLElement} dz
  * @returns {Promise<void>}
  */
-export async function recordAssign(pill, dz) {
-  const volunteerId = Number(pill.dataset.id);
+export async function recordAssign(pill, dz, note = null) {
+  const volunteerId  = Number(pill.dataset.id);
   const assignmentId = Number(dz.dataset.assignmentId);
-  const slotType = dz.dataset.slotType;
-  const slotIndex = Number(dz.dataset.slotIndex);
+  const slotType     = dz.dataset.slotType;
+  const slotIndex    = Number(dz.dataset.slotIndex);
 
   if (!assignmentId || !volunteerId || !slotType || isNaN(slotIndex)) return;
 
   try {
     const id = await _apiSave({
       schedule_assignment_id: assignmentId,
-      convention_day_id: _currentDayId,
-      volunteer_id: volunteerId,
-      slot_type: slotType,
-      slot_index: slotIndex,
+      convention_day_id:      _currentDayId,
+      volunteer_id:           volunteerId,
+      slot_type:              slotType,
+      slot_index:             slotIndex,
+      note,
     });
     dz.dataset.slotDbId = String(id);
     _redoStack = [];
-    _undoStack.push({ type: "assign", volunteerId, dz, dbId: id });
+    _undoStack.push({ type: 'assign', volunteerId, dz, dbId: id, note });
     _syncButtons();
   } catch (err) {
-    console.error("[scheduler] recordAssign error:", err);
+    console.error('[scheduler] recordAssign error:', err);
   }
 }
 
@@ -160,8 +161,8 @@ export async function recordUnassign(pill, fromDz) {
  * @param {number}      dbId - The existing shift_slot_assignments.id.
  * @returns {void}
  */
-export function silentlyPlacePill(pill, dz, dbId) {
-  _movePillToDz(pill, dz);
+export function silentlyPlacePill(pill, dz, dbId, note = null) {
+  _movePillToDz(pill, dz, note);
   dz.dataset.slotDbId = String(dbId);
 }
 
@@ -266,9 +267,10 @@ export async function redo() {
  * @param {HTMLElement} dz
  * @returns {void}
  */
-function _movePillToDz(poolPill, dz) {
+function _movePillToDz(poolPill, dz, note = null) {
   // Pool pill stays in pool — clone goes into the dropzone
   const clone = _clonePillForDz(poolPill);
+  if (note) clone.dataset.conflictNote = note;
   _resetPillTransform(clone);
   dz.appendChild(clone);
   makeDraggable(
@@ -283,8 +285,8 @@ function _movePillToDz(poolPill, dz) {
     { "drag:start": onDragStart, "drag:stop": onDragStop },
   );
   document.dispatchEvent(
-    new CustomEvent("scheduler:slotAssigned", {
-      detail: { pill: clone, dz, record: false },
+    new CustomEvent('scheduler:slotAssigned', {
+      detail: { pill: clone, dz, record: false, note },
     }),
   );
 }
@@ -321,13 +323,13 @@ function _movePillToPool(slotPill) {
  * @returns {Promise<number>} The new row id.
  */
 async function _apiSave(data) {
-  const res = await fetch("/api/scheduler/slots", {
-    method: "POST",
+  const res = await fetch('/api/scheduler/slots', {
+    method:  'POST',
     headers: {
-      "Content-Type": "application/json",
-      "csrf-token": _getCsrf(),
+      'Content-Type': 'application/json',
+      'csrf-token':   _getCsrf(),
     },
-    body: JSON.stringify(data),
+    body: JSON.stringify(data),  // note is included when present in data
   });
   const json = await res.json();
   if (!json.success) throw new Error(json.error || "Save failed");

@@ -14,7 +14,7 @@
  */
 
 /**
- * @typedef {{ dzEl: HTMLElement|null, shiftStart: number, shiftEnd: number }} Assignment
+ * @typedef {{ dzEl: HTMLElement|null, shiftStart: number, shiftEnd: number, reason: string|null }} Assignment
  */
 
 /** @type {Map<number, Set<Assignment>>} volunteerId → active assignments */
@@ -34,9 +34,9 @@ const _map = new Map();
  * @param {HTMLElement|null} dzEl       - the dropzone element, or null for blackouts
  * @returns {void}
  */
-export function trackAssign(volunteerId, shiftStart, shiftEnd, dzEl) {
+export function trackAssign(volunteerId, shiftStart, shiftEnd, dzEl, reason = null) {
     if (!_map.has(volunteerId)) _map.set(volunteerId, new Set());
-    _map.get(volunteerId).add({ dzEl, shiftStart, shiftEnd });
+    _map.get(volunteerId).add({ dzEl, shiftStart, shiftEnd, reason });
 }
 
 /**
@@ -86,7 +86,13 @@ export function hasConflict(volunteerId, shiftStart, shiftEnd, excludeDz = null)
  * @returns {number}
  */
 export function assignmentCount(volunteerId) {
-    return _map.get(volunteerId)?.size ?? 0;
+    const assignments = _map.get(volunteerId);
+    if (!assignments) return 0;
+    let count = 0;
+    for (const a of assignments) {
+        if (a.dzEl !== null) count++;
+    }
+    return count;
 }
 
 /**

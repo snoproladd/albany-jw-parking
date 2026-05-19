@@ -99,6 +99,10 @@ import {
   getBlackoutsForVolunteer,
   createBlackout,
   deleteBlackout,
+  getCommandHierarchy,
+  addHierarchyNode,
+  saveHierarchyOrder,
+  deleteHierarchyNode,
   getSessionsForDay,
   getSchedulerReportData,
   getCrewMatrix,
@@ -257,7 +261,7 @@ export function oversightRouter({
 
       try {
         const targetUser = await getVolunteerById(Number(targetUserId));
-        const [volunteers, editor, congregations, rsvpHistory] =
+        const [volunteers, editor, congregations, rsvpHistory, conventionDays] =
           await Promise.all([
             getActiveVolunteers({ includeDeleted }),
             getVolunteerById(req.session.userId),
@@ -266,7 +270,21 @@ export function oversightRouter({
               Number(targetUserId),
               new Date().getFullYear(),
             ),
+            getConventionDays(new Date().getFullYear()),
           ]);
+
+        return res.render("volunteerAccountOversight", {
+          csrfToken: req.csrfToken(),
+          editor,
+          targetUser,
+          volunteers,
+          congregations,
+          privilegeRulesJSON: JSON.stringify(INCOMPATIBILITIES),
+          canDelete,
+          includeDeleted,
+          rsvpHistory,
+          conventionDays,
+        });
 
         return res.render("volunteerAccountOversight", {
           csrfToken: req.csrfToken(),
@@ -4038,7 +4056,224 @@ export function oversightRouter({
       }
     },
   );
+  /**
+   * GET /edit-volunteer/blackouts/:volunteerId
+   * Fetch blackout windows for one volunteer on a specific day.
+   * Query: ?dayId=N
+   *
+   * Response: { success: boolean, blackouts: Array }
+   *
+   * @requires editVolunteerInfo permission
+   */
+  router.get(
+    "/edit-volunteer/blackouts/:volunteerId",
+    requireAuth,
+    requirePermission("editVolunteerInfo"),
+    async (req, res) => {
+      const volunteerId = Number(req.params.volunteerId);
+      const dayId = Number(req.query.dayId);
+      if (!volunteerId || !dayId)
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid parameters." });
+      try {
+        const blackouts = await getBlackoutsForVolunteer(volunteerId, dayId);
+        return res.json({ success: true, blackouts });
+      } catch (err) {
+        (logError || console.error)("edit-volunteer/blackouts GET error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
 
+  /**
+   * POST /edit-volunteer/blackouts
+   * Create a blackout window for a volunteer on a convention day.
+   *
+   * Body: { volunteerId, conventionDayId, startMins, endMins, reason? }
+   * Response: { success: boolean, id: number }
+   *
+   * @requires editVolunteerInfo permission
+   */
+  router.post(
+    "/edit-volunteer/blackouts",
+    requireAuth,
+    requirePermission("editVolunteerInfo"),
+    csrfProtection,
+    async (req, res) => {
+      const { volunteerId, conventionDayId, startMins, endMins, reason } =
+        req.body || {};
+      if (
+        !volunteerId ||
+        !conventionDayId ||
+        startMins == null ||
+        endMins == null ||
+        Number(endMins) <= Number(startMins)
+      ) {
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid parameters." });
+      }
+      try {
+        const id = await createBlackout({
+          volunteerId: Number(volunteerId),
+          conventionDayId: Number(conventionDayId),
+          startMins: Number(startMins),
+          endMins: Number(endMins),
+          reason: reason || null,
+          createdBy: req.session.userEmail || null,
+        });
+        return res.json({ success: true, id });
+      } catch (err) {
+        (logError || console.error)(
+          "edit-volunteer/blackouts POST error:",
+          err,
+        );
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * DELETE /edit-volunteer/blackouts/:id
+   * Remove a blackout window.
+   *
+   * Response: { success: boolean }
+   *
+   * @requires editVolunteerInfo permission
+   */
+  router.delete(
+    "/edit-volunteer/blackouts/:id",
+    requireAuth,
+    requirePermission("editVolunteerInfo"),
+    csrfProtection,
+    async (req, res) => {
+      const id = Number(req.params.id);
+      if (!id)
+        return res.status(400).json({ success: false, error: "Invalid ID." });
+      try {
+        const deleted = await deleteBlackout(id);
+        if (!deleted)
+          return res
+            .status(404)
+            .json({ success: false, error: "Blackout not found." });
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)(
+          "edit-volunteer/blackouts DELETE error:",
+          err,
+        );
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  // ============================================================
+  // COMMAND HIERARCHY
+  // ============================================================
+
+  /**
+   * GET /oversight/tools/hierarchy
+   * Admin page to view and edit the command hierarchy.
+   * @requires manageCampaigns (ADMIN only)
+   */
+  router.get(
+    "/oversight/tools/hierarchy",
+    requireAuth,
+    requirePermission("manageCampaigns"),
+    async (req, res) => {
+      try {
+        const [rawHierarchy, volunteers] = await Promise.all([
+          getCommandHierarchy(),
+          getActiveVolunteers({}),
+        ]);
+        return res.render("authentication_and_accounts/commandHierarchy", {
+          csrfToken: req.csrfToken(),
+          rawHierarchy,
+          volunteers,
+        });
+      } catch (err) {
+        (logError || console.error)("hierarchy GET error:", err);
+        return res.status(500).send("Server error");
+      }
+    },
+  );
+
+  /**
+   * POST /oversight/tools/hierarchy/save
+   * Bulk-save the full hierarchy after a reorder/edit.
+   * Body: { nodes: [{id, parent_id, sort_order, role_title, volunteer_id}] }
+   */
+  router.post(
+    "/oversight/tools/hierarchy/save",
+    requireAuth,
+    requirePermission("manageCampaigns"),
+    csrfProtection,
+    async (req, res) => {
+      const { nodes } = req.body || {};
+      if (!Array.isArray(nodes))
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid payload." });
+      try {
+        await saveHierarchyOrder(nodes);
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("hierarchy save error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * POST /oversight/tools/hierarchy/add
+   * Add a new node. Body: { parent_id, role_title, volunteer_id, sort_order }
+   */
+  router.post(
+    "/oversight/tools/hierarchy/add",
+    requireAuth,
+    requirePermission("manageCampaigns"),
+    csrfProtection,
+    async (req, res) => {
+      const { parent_id, role_title, volunteer_id, sort_order } =
+        req.body || {};
+      try {
+        const id = await addHierarchyNode({
+          parent_id: parent_id ? Number(parent_id) : null,
+          volunteer_id: volunteer_id ? Number(volunteer_id) : null,
+          role_title: role_title || "",
+          sort_order: Number(sort_order) || 0,
+        });
+        return res.json({ success: true, id });
+      } catch (err) {
+        (logError || console.error)("hierarchy add error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * DELETE /oversight/tools/hierarchy/:id
+   * Delete a node and promote its children.
+   */
+  router.delete(
+    "/oversight/tools/hierarchy/:id",
+    requireAuth,
+    requirePermission("manageCampaigns"),
+    csrfProtection,
+    async (req, res) => {
+      const id = Number(req.params.id);
+      if (!id)
+        return res.status(400).json({ success: false, error: "Invalid ID." });
+      try {
+        await deleteHierarchyNode(id);
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("hierarchy delete error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
   /**
    * POST /edit-volunteer/set-rsvp
    * Directly set the RSVP response on an invitation by ID.
@@ -4352,6 +4587,7 @@ export function oversightRouter({
         volunteer_id,
         slot_type,
         slot_index,
+        note,
       } = req.body || {};
       if (
         !schedule_assignment_id ||
@@ -4370,6 +4606,7 @@ export function oversightRouter({
           volunteer_id: Number(volunteer_id),
           slot_type: String(slot_type),
           slot_index: Number(slot_index),
+          note: note ? String(note) : null,
         });
         return res.json({ success: true, id });
       } catch (err) {

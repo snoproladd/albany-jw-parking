@@ -521,6 +521,39 @@ on any override to restore the factory default.
 
 ---
 
+### Chain of Command *(ADMIN)*
+
+**Path:** Oversight Tools → Chain of Command
+
+Define the reporting hierarchy shown on every volunteer's home page dashboard.
+
+#### Building the tree
+
+- Click **Add root node** to create a top-level position (e.g. Head Overseer).
+- Use the **+** button on any row to add a child node beneath it.
+- Enter a **role title** (e.g. "Area Overseer") in the text field and select
+  the volunteer who holds that position from the dropdown. Leave the volunteer
+  unassigned to show the title as a placeholder.
+- Use **↑ / ↓** to reorder a node among its siblings.
+- Use **→ (Indent)** to make a node a child of the previous sibling.
+- Use **← (Outdent)** to promote a node up one level (makes it a sibling
+  of its current parent).
+- Use the red **✕** button to delete a node. Its children are automatically
+  promoted to the deleted node's level.
+- Click **Save order** when finished. All changes (new nodes, reorders,
+  edits, deletions) are persisted in one save operation.
+
+> New nodes are assigned temporary IDs until Save is clicked. If you delete
+> an unsaved new node before saving, it is removed without any DB write.
+
+#### What volunteers see
+
+The hierarchy appears as a read-only indented tree in the **Chain of Command**
+card on the home page dashboard. Phone numbers render as tap-to-call links on
+mobile. The tree is visible to all authenticated users regardless of role.
+
+---
+
 ## 10. Role Reference
 
 | Role | Key Capabilities |

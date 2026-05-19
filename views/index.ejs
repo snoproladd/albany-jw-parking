@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Convention Volunteer Home Page</title>
+    <title>Convention Volunteer Home</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
@@ -9,15 +9,207 @@
     <link rel="stylesheet" href="/styles/fontawesome/css/all.css">
     <link rel="stylesheet" type="text/css" href="/styles/styles.css">
     <link rel="stylesheet" type="text/css" href="/styles/index.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
 </head>
-<body>
+<body data-authed="<%= typeof volunteer !== 'undefined' && volunteer ? 'true' : 'false' %>"
+      class="<%= typeof volunteer !== 'undefined' && volunteer ? 'db-bg' : '' %>">
 
     <%- include('partials/header.ejs') %>
 
+    <% if (typeof volunteer !== 'undefined' && volunteer) { %>
+
+    <%# ── HERO — slim banner for logged-in users ──────────────────── %>
+    <div class="db-banner">
+      <h1 class="hero-heading db-banner-title">Albany Regional Convention of Jehovah's Witnesses</h1>
+    </div>
+
+    <%# ── DASHBOARD — logged-in view ──────────────────────────────── %>
+    <main class="container-fluid py-4 px-4 db-main">
+      <div class="row justify-content-center g-4">
+        <div class="col-12 col-xxl-10">
+
+          <%# Greeting + weather row %>
+          <div class="db-greeting-row mb-4">
+            <div class="db-greeting">
+              <h2 class="db-greeting-name">
+                <% const hour = new Date().getUTCHours(); %>
+                <%= hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening' %>,
+                <%= volunteer.firstName %>
+              </h2>
+              <% if (typeof conventionDay !== 'undefined' && conventionDay) { %>
+                <p class="db-greeting-day mb-0">
+                  <i class="fa-regular fa-calendar-days me-1"></i>
+                  Next convention day:
+                  <strong><%= conventionDay.label %></strong>
+                  &mdash;
+                  <%= new Date(conventionDay.convention_date + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' }) %>
+                </p>
+              <% } %>
+            </div>
+            <div class="db-weather" id="dbWeatherWidget">
+              <div class="db-weather-loading">
+                <span class="spinner-border spinner-border-sm me-1"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-4">
+
+            <%# ── Shifts card ── %>
+            <%
+              const _fmtDayLabel = (day) => day
+                ? day.label + ' — ' + new Date(day.convention_date + 'T12:00:00Z')
+                    .toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })
+                : '';
+            %>
+            <script id="db-days-data" type="application/json">
+              <%- JSON.stringify(typeof allDays !== 'undefined' ? allDays.map(d => ({
+                id:    d.id,
+                label: d.label,
+                date:  d.convention_date
+              })) : []) %>
+            </script>
+            <script id="db-initial-shifts" type="application/json">
+              <%- JSON.stringify(typeof shifts !== 'undefined' ? shifts : []) %>
+            </script>
+
+            <div class="col-12 col-lg-7">
+              <section class="card shadow-sm h-100">
+                <header class="card-header">
+                  <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                    <h2 class="h5 mb-0">
+                      <i class="fa-solid fa-clock me-2 text-primary"></i>Your Shifts
+                    </h2>
+                    <% if (typeof allDays !== 'undefined' && allDays.length > 0) { %>
+                    <div class="db-day-nav"
+                         data-current-index="<%= typeof currentDayIndex !== 'undefined' ? currentDayIndex : 0 %>">
+                      <button type="button" class="btn btn-sm btn-outline-secondary"
+                              id="dbDayPrev" <%= (typeof currentDayIndex !== 'undefined' && currentDayIndex <= 0) ? 'disabled' : '' %>>
+                        <i class="fa-solid fa-chevron-left"></i>
+                      </button>
+                      <span id="dbDayLabel" class="db-day-label-text">
+                        <%= _fmtDayLabel(conventionDay) %>
+                      </span>
+                      <button type="button" class="btn btn-sm btn-outline-secondary"
+                              id="dbDayNext" <%= (typeof currentDayIndex !== 'undefined' && typeof allDays !== 'undefined' && currentDayIndex >= allDays.length - 1) ? 'disabled' : '' %>>
+                        <i class="fa-solid fa-chevron-right"></i>
+                      </button>
+                    </div>
+                    <% } %>
+                  </div>
+                </header>
+                <div class="card-body p-0" id="dbShiftsBody">
+                  <% if (typeof shifts === 'undefined' || shifts.length === 0) { %>
+                    <div class="text-center text-muted py-5">
+                      <i class="fa-solid fa-calendar-xmark fa-2x d-block mb-2 text-secondary"></i>
+                      No shifts assigned for this convention day.
+                    </div>
+                  <% } else { %>
+                    <div class="list-group list-group-flush">
+                      <% shifts.forEach(function(shift) { %>
+                        <div class="list-group-item db-shift-item">
+                          <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+                            <div class="db-shift-main">
+                              <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                                <span class="fw-semibold"><%= shift.shift_label %></span>
+                                <% if (shift.slot_type === 'keyman') { %>
+                                  <span class="badge db-badge-km">KM</span>
+                                <% } else if (shift.slot_type === 'keyman_asst') { %>
+                                  <span class="badge db-badge-ka">KA</span>
+                                <% } %>
+                              </div>
+                              <div class="text-muted small">
+                                <i class="fa-solid fa-location-dot me-1"></i><%= shift.location_name %>
+                                &nbsp;&middot;&nbsp;
+                                <span class="db-dept-pill db-dept-<%= shift.dept_name.toLowerCase().replace(/[^a-z]/g, '-') %>"><%= shift.dept_name %></span>
+                              </div>
+                            </div>
+                            <div class="db-shift-time text-end text-nowrap">
+                              <i class="fa-regular fa-clock me-1 text-muted"></i>
+                              <%= shift.start_time %> – <%= shift.end_time %>
+                            </div>
+                          </div>
+
+                          <% if (shift.keyman || shift.keyman_asst) { %>
+                            <div class="db-shift-leaders mt-2">
+                              <% if (shift.keyman) { %>
+                                <div class="db-leader-row">
+                                  <span class="db-leader-badge db-badge-km">KM</span>
+                                  <span class="db-leader-name"><%= shift.keyman.firstName %> <%= shift.keyman.lastName %></span>
+                                  <% if (shift.keyman.phone) { %>
+                                    <a href="tel:<%= shift.keyman.phone %>" class="db-leader-phone">
+                                      <i class="fa-solid fa-phone fa-xs me-1"></i><%= shift.keyman.phone %>
+                                    </a>
+                                  <% } %>
+                                </div>
+                              <% } %>
+                              <% if (shift.keyman_asst) { %>
+                                <div class="db-leader-row">
+                                  <span class="db-leader-badge db-badge-ka">KA</span>
+                                  <span class="db-leader-name"><%= shift.keyman_asst.firstName %> <%= shift.keyman_asst.lastName %></span>
+                                  <% if (shift.keyman_asst.phone) { %>
+                                    <a href="tel:<%= shift.keyman_asst.phone %>" class="db-leader-phone">
+                                      <i class="fa-solid fa-phone fa-xs me-1"></i><%= shift.keyman_asst.phone %>
+                                    </a>
+                                  <% } %>
+                                </div>
+                              <% } %>
+                            </div>
+                          <% } %>
+                        </div>
+                      <% }) %>
+                    </div>
+                  <% } %>
+                </div>
+              </section>
+            </div>
+
+            <%# ── Chain of command card ── %>
+            <div class="col-12 col-lg-5">
+              <section class="card shadow-sm h-100">
+                <header class="card-header">
+                  <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-sitemap me-2 text-primary"></i>Chain of Command
+                  </h2>
+                </header>
+                <div class="card-body">
+                  <% if (typeof hierarchy === 'undefined' || hierarchy.length === 0) { %>
+                    <p class="text-muted small mb-0">No hierarchy configured yet.</p>
+                  <% } else { %>
+                    <div class="db-hierarchy">
+                      <% hierarchy.forEach(function(node) { %>
+                        <div class="db-hierarchy-node" style="--depth: <%= node.depth %>;">
+                          <div class="db-hierarchy-connector"></div>
+                          <div class="db-hierarchy-content">
+                            <div class="db-hierarchy-role"><%= node.role_title %></div>
+                            <% if (node.firstName) { %>
+                              <div class="db-hierarchy-name">
+                                <%= node.firstName %> <%= node.lastName %>
+                                <% if (node.phone) { %>
+                                  <a href="tel:<%= node.phone %>" class="db-hierarchy-phone">
+                                    <i class="fa-solid fa-phone fa-xs"></i> <%= node.phone %>
+                                  </a>
+                                <% } %>
+                              </div>
+                            <% } %>
+                          </div>
+                        </div>
+                      <% }) %>
+                    </div>
+                  <% } %>
+                </div>
+              </section>
+            </div>
+
+          </div><%# /.row %>
+        </div>
+      </div>
+    </main>
+
+    <% } else { %>
+
+    <%# ── LANDING PAGE — logged-out view (unchanged) ─────────────── %>
     <main>
         <section id="hero" class="bg-body-tertiary">
             <div class="container">
@@ -28,6 +220,7 @@
                     <h2 class="mt-3 text-body-emphasis hero-subheading p-3">
                         Welcome, Convention Volunteers!
                     </h2>
+                    <% if (!nav.isLoggedIn) { %>
                     <div class="hero-cta-wrap">
                         <a href="/create-profile" class="hero-cta">
                             <i class="fa-solid fa-user-plus me-2"></i>Create Your Profile
@@ -37,6 +230,13 @@
                             <a href="/login">Already have an account? Sign in</a>
                         </div>
                     </div>
+                    <% } else { %>
+                    <div class="hero-cta-wrap">
+                        <a href="/my-account" class="hero-cta">
+                            <i class="fa-solid fa-user me-2"></i>My Account
+                        </a>
+                    </div>
+                    <% } %>
                 </div>
             </div>
         </section>
@@ -44,51 +244,57 @@
         <section id="home-features">
             <div class="container px-4">
                 <div class="row row-cols-1 row-cols-md-3 g-4 justify-content-center py-5">
-
-                    <div class="col d-flex flex-column gap-2 home-feature-tile">
+                    <a href="<%= nav.isLoggedIn ? '/my-account' : '/login' %>"
+                       class="col d-flex flex-column gap-2 home-feature-tile home-feature-tile--link text-decoration-none">
                         <div class="feature-icon-small d-inline-flex align-items-center justify-content-center fs-4 rounded-3">
                             <img src="../images/information-svgrepo-com.svg"
-                                 alt="List with adjacent letter I"
-                                 class="feature-icon">
+                                 alt="" class="feature-icon">
                         </div>
                         <h4 class="fw-semibold mb-0 text-body-emphasis">View my information</h4>
                         <p class="text-body-secondary mb-0">View and edit your contact information</p>
-                    </div>
+                    </a>
 
-                    <div class="col d-flex flex-column gap-2 home-feature-tile">
+                    <a href="<%= nav.isLoggedIn ? '/schedules' : '/login' %>"
+                       class="col d-flex flex-column gap-2 home-feature-tile home-feature-tile--link text-decoration-none">
                         <div class="feature-icon-small d-inline-flex align-items-center justify-content-center fs-4 rounded-3">
                             <img src="../images/weekly-calendar-monthly-calendar-svgrepo-com.svg"
-                                 alt="Calendar with a date circled"
-                                 class="feature-icon">
+                                 alt="" class="feature-icon">
                         </div>
                         <h4 class="fw-semibold mb-0 text-body-emphasis">Parking schedules</h4>
                         <p class="text-body-secondary mb-0">View and download your crew schedule</p>
+                        <% if (!nav.isLoggedIn) { %>
                         <span class="feature-lock-badge">
                             <i class="fa-solid fa-lock"></i> Enhanced account
                         </span>
-                    </div>
+                        <% } %>
+                    </a>
 
-                    <div class="col d-flex flex-column gap-2 home-feature-tile">
+                    <a href="<%= nav.isLoggedIn ? '/maps' : '/login' %>"
+                       class="col d-flex flex-column gap-2 home-feature-tile home-feature-tile--link text-decoration-none">
                         <div class="feature-icon-small d-inline-flex align-items-center justify-content-center fs-4 rounded-3">
                             <img src="../images/maps-and-flags-map-location-svgrepo-com.svg"
-                                 alt="Map with a pin pointing to a location"
-                                 class="feature-icon">
+                                 alt="" class="feature-icon">
                         </div>
                         <h4 class="fw-semibold mb-0 text-body-emphasis">Maps</h4>
                         <p class="text-body-secondary mb-0">View various maps related to parking</p>
+                        <% if (!nav.isLoggedIn) { %>
                         <span class="feature-lock-badge">
                             <i class="fa-solid fa-lock"></i> Enhanced account
                         </span>
-                    </div>
-
+                        <% } %>
+                    </a>
                 </div>
             </div>
         </section>
     </main>
 
+    <% } %>
+
     <%- include('partials/footer.ejs') %>
-
     <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
-
+    <% if (typeof volunteer !== 'undefined' && volunteer) { %>
+    <script type="module" src="/js/dashboardWeather.js"></script>
+    <script type="module" src="/js/dashboardShifts.js"></script>
+    <% } %>
 </body>
 </html>

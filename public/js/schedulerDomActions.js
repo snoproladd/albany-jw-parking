@@ -126,66 +126,120 @@ export async function initDomActions() {
   );
   document.addEventListener("filter:select", (e) => _onFilterSelect(e.detail));
 
-  // Persist + track assignment on drop — conflict modal for non-security,
-  // silent badge for security
+  // Persist + track assignment on drop.
+  // Conflict logic:
+  //   - Non-security shift conflicts: blocked in canDrop (shouldn't reach here)
+  //   - Security dept + shift conflicts: modal with Place Anyway
+  //   - Any dept + blackout conflicts: modal with Place Anyway
+  //   - Place Anyway: auto-note saved to DB, badge applied to pill
+  //   - Silent load (record=false): apply saved note badge if present
   document.addEventListener("scheduler:slotAssigned", async (e) => {
-    const { pill, dz, record } = e.detail;
+    const { pill, dz, record, note: loadedNote, fromDz: priorDz = null } = e.detail;
     const volId = Number(pill.dataset.id);
     const shiftStart = Number(dz.dataset.shiftStartMins);
     const shiftEnd = Number(dz.dataset.shiftEndMins);
     const dept = dz.closest("[data-department]")?.dataset.department;
     const isSecurity = dept === "security";
 
-    // Track the assignment first so the slot is registered
+    // Track assignment
     if (shiftStart > 0 && shiftEnd > 0) {
       trackAssign(volId, shiftStart, shiftEnd, dz);
       _updatePillBadge(volId);
     }
 
-    // Check conflicts — exclude the DZ we just filled so it doesn't
-    // count as a conflict with itself
+    // Silent load — just track the assignment. All badge application is
+    // deferred to _recheckConflictBadges which runs after every pill is
+    // placed, guaranteeing both sides of any conflict are tracked first.
+    if (!record) {
+      _updatePoolCount();
+      _applyVolunteerFilters();
+      return;
+    }
+    // Clear any stale conflict badge from a previous slot on this clone
+    // Clear any stale badges from a previous slot on this clone
+    pill.querySelector(".pill-badge-row")?.remove();
+    delete pill.dataset.conflictCount;
+    delete pill.dataset.conflictNote;
+    delete pill.dataset.blackoutNote;
+
+    // Live drop — check conflicts (exclude the slot just filled)
     const conflicts =
       shiftStart > 0 && shiftEnd > 0
         ? getConflicts(volId, shiftStart, shiftEnd, dz)
         : [];
 
-    if (conflicts.length > 0) {
-      if (isSecurity) {
-        // Security overlaps are allowed — badge silently
-        _applyConflictBadge(pill, conflicts);
-      } else {
-        const volName =
-          pill.querySelector(".pill-name")?.textContent?.trim() ||
-          "This volunteer";
-        const shiftLabel =
-          dz
-            .closest(".sched-shift-block")
-            ?.querySelector(".sched-shift-header")
-            ?.textContent?.trim() || "this shift";
+    const blackoutConflicts = conflicts.filter((c) => c.dzEl === null);
+    const shiftConflicts = conflicts.filter((c) => c.dzEl !== null);
 
-        const placeAnyway = await _showConflictModal(
-          conflicts,
-          volName,
-          shiftLabel,
-        );
+    let noteToSave = null;
 
-        if (!placeAnyway) {
-          // Undo tracking and remove clone from DZ
-          trackUnassign(dz);
-          _updatePillBadge(volId);
+    const needsModal =
+      blackoutConflicts.length > 0 || (isSecurity && shiftConflicts.length > 0);
+
+    if (needsModal) {
+      const conflictsForModal = [
+        ...blackoutConflicts,
+        ...(isSecurity ? shiftConflicts : []),
+      ];
+      const volName =
+        pill.querySelector(".pill-name")?.textContent?.trim() ||
+        "This volunteer";
+      const shiftLabel =
+        dz
+          .closest(".sched-shift-block")
+          ?.querySelector(".sched-shift-header")
+          ?.textContent?.trim() || "this shift";
+
+      const placeAnyway = await _showConflictModal(
+        conflictsForModal,
+        volName,
+        shiftLabel,
+      );
+
+      if (!placeAnyway) {
+        trackUnassign(dz);
+        if (priorDz) {
+          // DZ→DZ move cancelled — restore pill to original slot, no DB changes
+          priorDz.appendChild(pill);
+          trackAssign(
+            volId,
+            Number(priorDz.dataset.shiftStartMins),
+            Number(priorDz.dataset.shiftEndMins),
+            priorDz,
+          );
+        } else {
           if (!pill.classList.contains("in-pool")) pill.remove();
-          _updatePoolCount();
-          _applyVolunteerFilters();
-          return;
         }
-        // Placed anyway — badge to keep oversight aware
-        _applyConflictBadge(pill, conflicts);
+        _updatePillBadge(volId);
+        _updatePoolCount();
+        _applyVolunteerFilters();
+        return;
       }
+
+      noteToSave = _generateConflictNote(conflictsForModal);
+      pill.dataset.conflictNote = noteToSave;
+      // Badges for all affected pills handled by _recheckConflictBadges below —
+      // this ensures the FIRST pill (already placed) also gets its badge updated.
+    } else if (!isSecurity && shiftConflicts.length > 0) {
+      // Shift conflict slipped through canDrop — remove as bug guard
+      trackUnassign(dz);
+      _updatePillBadge(volId);
+      if (!pill.classList.contains("in-pool")) pill.remove();
+      _updatePoolCount();
+      _applyVolunteerFilters();
+      return;
     }
 
     _updatePoolCount();
     _applyVolunteerFilters();
-    if (record) recordAssign(pill, dz);
+    // Recheck ALL DZ pills for this volunteer — updates both the newly dropped
+    // pill AND any existing pills now in conflict with it
+    _recheckConflictBadges(volId);
+    if (record) {
+      // For DZ→DZ moves: delete the old slot first, then insert the new one
+      if (priorDz) await recordUnassign(pill, priorDz);
+      recordAssign(pill, dz, noteToSave);
+    }
   });
 
   // Remove + untrack on return to pool
@@ -195,6 +249,8 @@ export async function initDomActions() {
     if (fromDz) {
       trackUnassign(fromDz);
       _updatePillBadge(volId);
+      // Recheck remaining DZ pills — a removal may resolve or create conflicts
+      _recheckConflictBadges(volId);
     }
     _applyVolunteerFilters();
     if (record && fromDz) recordUnassign(pill, fromDz);
@@ -233,22 +289,66 @@ export async function initDomActions() {
   }
 
   /**
-   * Add a warning badge to a DZ pill indicating it has scheduling conflicts.
-   * Stores the conflict count as a data attribute for the context menu to read.
+   * Generate a human-readable note string from a list of conflict entries.
+   * Blackout entries (dzEl === null) describe unavailable windows;
+   * shift entries describe overlapping assignments.
    *
-   * @param {HTMLElement} pill
-   * @param {Array<object>} conflicts
-   * @returns {void}
+   * @param {Array<{ dzEl: HTMLElement|null, shiftStart: number, shiftEnd: number }>} conflicts
+   * @returns {string}
    */
-  function _applyConflictBadge(pill, conflicts) {
-    pill.dataset.conflictCount = String(conflicts.length);
-    if (!pill.querySelector(".pill-conflict-badge")) {
-      const badge = document.createElement("span");
-      badge.classList.add("pill-conflict-badge");
-      badge.title = `${conflicts.length} conflict${conflicts.length !== 1 ? "s" : ""}`;
-      badge.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
-      pill.appendChild(badge);
+  function _generateConflictNote(conflicts) {
+    return conflicts
+      .map((c) => {
+        const t = `${_fmtConflictTime(c.shiftStart)}–${_fmtConflictTime(c.shiftEnd)}`;
+        if (c.dzEl === null) return `Unavailable from ${t}`;
+        const name =
+          c.dzEl
+            .closest(".sched-shift-block")
+            ?.querySelector(".sched-shift-header")
+            ?.textContent?.trim() || "another shift";
+        return `Overlap: ${name} (${t})`;
+      })
+      .join("; ");
+  }
+
+  /**
+   * Find or create the `.pill-badge-row` container inside a pill.
+   * @param {HTMLElement} pill
+   * @returns {HTMLElement}
+   */
+  function _getBadgeRow(pill) {
+    let row = pill.querySelector(".pill-badge-row");
+    if (!row) {
+      row = document.createElement("div");
+      row.classList.add("pill-badge-row");
+      pill.appendChild(row);
     }
+    return row;
+  }
+
+  function _applyConflictBadge(pill, title) {
+    const row = _getBadgeRow(pill);
+    let badge = row.querySelector(".pill-conflict-badge");
+    if (!badge) {
+      badge = document.createElement("span");
+      badge.classList.add("pill-conflict-badge");
+      badge.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+      row.appendChild(badge);
+    }
+    badge.title = title;
+  }
+
+  function _applyNoteBadge(pill, note) {
+    pill.dataset.blackoutNote = note;
+    const row = _getBadgeRow(pill);
+    let badge = row.querySelector(".pill-note-badge");
+    if (!badge) {
+      badge = document.createElement("span");
+      badge.classList.add("pill-note-badge");
+      badge.innerHTML = '<i class="fa-solid fa-circle-info"></i>';
+      row.appendChild(badge);
+    }
+    badge.title = note;
   }
 
   /**
@@ -278,7 +378,8 @@ export async function initDomActions() {
         .map((c) => {
           const timeRange = `${_fmtConflictTime(c.shiftStart)} – ${_fmtConflictTime(c.shiftEnd)}`;
           if (c.dzEl === null) {
-            return `Marked unavailable from ${timeRange}`;
+            const reasonSuffix = c.reason ? ` — ${c.reason}` : "";
+            return `Marked unavailable from ${timeRange}${reasonSuffix}`;
           }
           const name =
             c.dzEl
@@ -724,10 +825,10 @@ export async function initDomActions() {
       _buildCalendarGrid(dayData, dayLabel);
       _setState("grid");
 
-      // Load any previously saved slot assignments into the grid
-      await _loadDayAssignments(_currentDayId);
-      // Load blackout windows into the conflict tracker
+      // Load blackouts FIRST so conflict checks during assignment load are accurate
       await _loadDayBlackouts(_currentDayId);
+      // Then load saved slot assignments — badges are applied using live conflict state
+      await _loadDayAssignments(_currentDayId);
     } catch (err) {
       console.error("[scheduler] schedule fetch error:", err);
       _setState("nodata");
@@ -913,6 +1014,26 @@ export async function initDomActions() {
           }
         }
       }
+    }
+
+    // ── Column tracks — continuous vertical dividers behind shift blocks ──
+    let _firstDept = true;
+    for (const { deptKey, subCols, startCol } of deptMeta) {
+      subCols.forEach((_, i) => {
+        const track = document.createElement("div");
+        track.classList.add("sched-col-track");
+        track.dataset.dept = deptKey;
+        track.dataset.locIdx = String(i);
+        track.style.gridRow = `3 / ${totalRows + 3}`;
+        track.style.gridColumn = String(startCol + i);
+        if (i === 0 && !_firstDept) {
+          track.classList.add("sched-col-track--dept");
+        } else if (i > 0) {
+          track.classList.add("sched-col-track--loc");
+        }
+        grid.appendChild(track);
+      });
+      _firstDept = false;
     }
 
     wrap.appendChild(grid);
@@ -1333,6 +1454,14 @@ export async function initDomActions() {
               : String(startCol + Number(subcol));
           block.style.display = hidden ? "none" : "";
         });
+
+      // Column tracks
+      _gridEl
+        .querySelectorAll(`.sched-col-track[data-dept="${deptKey}"]`)
+        .forEach((track) => {
+          track.style.gridColumn = String(startCol + Number(track.dataset.locIdx));
+          track.style.display = hidden ? "none" : "";
+        });
     }
   }
 
@@ -1363,6 +1492,15 @@ export async function initDomActions() {
     header.classList.add("sched-shift-header");
     header.textContent = shift.shift_name;
     block.appendChild(header);
+
+    const s = shift.schedule?.start_time;
+    const e = shift.schedule?.end_time;
+    if (s || e) {
+      const time = document.createElement("div");
+      time.classList.add("sched-shift-time");
+      time.textContent = s && e ? `${s} – ${e}` : (s || e);
+      block.appendChild(time);
+    }
 
     return block;
   }
@@ -1515,45 +1653,60 @@ export async function initDomActions() {
     }
   }
 
-  /**
-   * Re-evaluate conflict badges for every DZ pill belonging to a volunteer.
-   * Called after a blackout is added or removed so existing assignments
-   * immediately reflect their conflict state without a page reload.
-   *
-   * @param {number} volId
-   * @returns {void}
-   */
-  function _recheckConflictBadges(volId) {
-    const pills = document.querySelectorAll(
-      `.scheduler-calendar .name-pill[data-id="${volId}"]`,
-    );
-    pills.forEach((pill) => {
-      const dz = pill.parentElement;
-      if (!dz?.classList.contains("scheduler-dropzone")) return;
-      const dzStart = Number(dz.dataset.shiftStartMins);
-      const dzEnd = Number(dz.dataset.shiftEndMins);
-      if (!dzStart || !dzEnd) return;
+function _recheckConflictBadges(volId) {
+  const pills = document.querySelectorAll(
+    `.scheduler-calendar .name-pill[data-id="${volId}"]`,
+  );
+  pills.forEach((pill) => {
+    const dz = pill.parentElement;
+    if (!dz?.classList.contains("scheduler-dropzone")) return;
+    const dzStart = Number(dz.dataset.shiftStartMins);
+    const dzEnd = Number(dz.dataset.shiftEndMins);
+    if (!dzStart || !dzEnd) return;
 
-      const conflicts = getConflicts(volId, dzStart, dzEnd, dz);
-      const badge = pill.querySelector(".pill-conflict-badge");
+    pill.querySelector(".pill-badge-row")?.remove();
+    delete pill.dataset.conflictCount;
 
-      if (conflicts.length > 0) {
-        pill.dataset.conflictCount = String(conflicts.length);
-        if (!badge) {
-          const b = document.createElement("span");
-          b.classList.add("pill-conflict-badge");
-          b.title = `${conflicts.length} conflict${conflicts.length !== 1 ? "s" : ""}`;
-          b.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
-          pill.appendChild(b);
-        } else {
-          badge.title = `${conflicts.length} conflict${conflicts.length !== 1 ? "s" : ""}`;
-        }
-      } else {
-        delete pill.dataset.conflictCount;
-        badge?.remove();
+    const conflicts = getConflicts(volId, dzStart, dzEnd, dz);
+    const shiftConflicts = conflicts.filter((c) => c.dzEl !== null);
+    const blackoutConflicts = conflicts.filter((c) => c.dzEl === null);
+
+    if (shiftConflicts.length > 0) {
+      pill.dataset.conflictCount = String(shiftConflicts.length);
+      _applyConflictBadge(pill, _generateConflictNote(shiftConflicts));
+    }
+    if (blackoutConflicts.length > 0) {
+      const noteTitle = blackoutConflicts
+        .map((c) => {
+          const t = `${_fmtConflictTime(c.shiftStart)}–${_fmtConflictTime(c.shiftEnd)}`;
+          return c.reason
+            ? `Unavailable ${t} — ${c.reason}`
+            : `Unavailable ${t}`;
+        })
+        .join("; ");
+      _applyNoteBadge(pill, noteTitle);
+    }
+
+    // Fallback: no live conflicts but pill has a stored DB note — the
+    // blackout may have been deleted after this assignment was saved.
+    if (conflicts.length === 0) {
+      const savedNote = pill.dataset.conflictNote || "";
+      if (savedNote) {
+        const parts = savedNote.split("; ");
+        const shiftParts = parts.filter(
+          (p) => !p.startsWith("Unavailable from"),
+        );
+        const blackoutParts = parts.filter((p) =>
+          p.startsWith("Unavailable from"),
+        );
+        if (shiftParts.length > 0)
+          _applyConflictBadge(pill, shiftParts.join("; "));
+        if (blackoutParts.length > 0)
+          _applyNoteBadge(pill, blackoutParts.join("; "));
       }
-    });
-  }
+    }
+  });
+}
 
   // ─────────────────────────────────────────────
   //  Day assignments loader
@@ -1581,7 +1734,13 @@ export async function initDomActions() {
       const data = await res.json();
       if (!data.success || !data.blackouts?.length) return;
       for (const bk of data.blackouts) {
-        trackAssign(bk.volunteer_id, bk.start_mins, bk.end_mins, null);
+        trackAssign(
+          bk.volunteer_id,
+          bk.start_mins,
+          bk.end_mins,
+          null,
+          bk.reason || null,
+        );
       }
     } catch (err) {
       console.error("[scheduler] _loadDayBlackouts error:", err);
@@ -1594,6 +1753,8 @@ export async function initDomActions() {
       const data = await res.json();
       if (!data.success || !data.assignments?.length) return;
 
+      const loadedVolIds = new Set();
+
       for (const a of data.assignments) {
         const dz = _gridEl?.querySelector(
           `.scheduler-dropzone[data-assignment-id="${a.schedule_assignment_id}"][data-slot-type="${a.slot_type}"][data-slot-index="${a.slot_index}"]`,
@@ -1605,7 +1766,15 @@ export async function initDomActions() {
         );
         if (!pill) continue;
 
-        silentlyPlacePill(pill, dz, a.id);
+        silentlyPlacePill(pill, dz, a.id, a.note || null);
+        loadedVolIds.add(a.volunteer_id);
+      }
+
+      // After all pills are placed and tracked, recheck every loaded volunteer.
+      // This ensures the first-placed pill also gets a badge when a later-placed
+      // pill creates a bidirectional conflict.
+      for (const volId of loadedVolIds) {
+        _recheckConflictBadges(volId);
       }
 
       _updatePoolCount();

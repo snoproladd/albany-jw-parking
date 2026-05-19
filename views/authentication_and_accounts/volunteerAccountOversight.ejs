@@ -709,6 +709,69 @@
                                     </div>
                                   </div>
                                   <% } %>
+                                  <%# ── Blackout Windows ── %>
+                                <% if (typeof conventionDays !== 'undefined' && conventionDays && conventionDays.length > 0) { %>
+                                <div class="accordion-item mt-2">
+                                  <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button"
+                                      data-bs-toggle="collapse"
+                                      data-bs-target="#collapseBlackouts">
+                                      <i class="fa-solid fa-clock-rotate-left me-2"></i>Blackout Windows
+                                    </button>
+                                  </h2>
+                                  <div id="collapseBlackouts" class="accordion-collapse collapse">
+                                    <div class="accordion-body" data-section="blackouts"></div>
+
+                                      <p class="text-muted small mb-3">
+                                        Define times when this volunteer is unavailable on a convention day.
+                                        The scheduler will warn before placing them in an overlapping slot.
+                                      </p>
+
+                                      <%# Day picker %>
+                                      <div class="mb-3">
+                                        <label class="form-label small fw-semibold" for="bkDaySelect">Convention Day</label>
+                                        <select class="form-select form-select-sm" id="bkDaySelect" style="max-width:320px">
+                                          <option value="">— Select a day —</option>
+                                          <% conventionDays.forEach(function(day) { %>
+                                            <option value="<%= day.id %>">
+                                              <%= day.label %> —
+                                              <%= new Date(day.convention_date).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', timeZone:'UTC' }) %>
+                                            </option>
+                                          <% }); %>
+                                        </select>
+                                      </div>
+
+                                      <%# Blackout list (populated by JS) %>
+                                      <div id="bkList" class="mb-3"></div>
+
+                                      <%# Add form (hidden until day selected) %>
+                                      <div id="bkAddForm" class="d-none">
+                                        <div class="d-flex align-items-center gap-2 flex-wrap mb-2">
+                                          <div>
+                                            <label class="form-label small mb-1" for="bkStart">Start</label>
+                                            <input type="time" class="form-control form-control-sm" id="bkStart" style="width:130px" />
+                                          </div>
+                                          <div>
+                                            <label class="form-label small mb-1" for="bkEnd">End</label>
+                                            <input type="time" class="form-control form-control-sm" id="bkEnd" style="width:130px" />
+                                          </div>
+                                          <div class="flex-grow-1">
+                                            <label class="form-label small mb-1" for="bkReason">Reason <span class="text-muted fw-normal">(optional)</span></label>
+                                            <input type="text" class="form-control form-control-sm" id="bkReason" maxlength="200" placeholder="e.g. Doctor appointment" />
+                                          </div>
+                                          <div class="align-self-end">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="bkAddBtn">
+                                              <i class="fa-solid fa-plus me-1"></i>Add
+                                            </button>
+                                          </div>
+                                        </div>
+                                        <div id="bkFormStatus" class="small"></div>
+                                      </div>
+
+                                    </div>
+                                  </div>
+                                </div>
+                                <% } %>
                                 <!-- FINALIZE -->
                                 <div class="text-end mt-4">
                                   <button id="return-home" class="btn btn-outline-secondary me-2">

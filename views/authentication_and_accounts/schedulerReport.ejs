@@ -170,23 +170,47 @@
                       <% if (loc.keyman) { %>
                         <div class="report-vol-row is-keyman">
                           <span class="report-vol-role-badge role-km">KM</span>
-                          <span class="report-vol-name"><%= loc.keyman.lastName %>, <%= loc.keyman.firstName %></span>
-                          <% if (loc.keyman.phone) { %><span class="report-vol-phone"><%= loc.keyman.phone %></span><% } %>
+                          <div class="report-vol-info">
+                            <span class="report-vol-name"><%= loc.keyman.lastName %>, <%= loc.keyman.firstName %></span>
+                            <% if (loc.keyman.phone) { %><span class="report-vol-phone"><%= loc.keyman.phone %></span><% } %>
+                            <% const _kmBk = loc.keyman.note ? loc.keyman.note.split('; ').filter(function(s){ return s.indexOf('Unavailable from') === 0; }).join('; ') : ''; %>
+                            <% if (_kmBk) { %>
+                              <span class="report-vol-note">
+                                <i class="fa-solid fa-circle-info"></i> <%= _kmBk %>
+                              </span>
+                            <% } %>
+                          </div>
                         </div>
                       <% } %>
 
                       <% if (loc.keyman_asst) { %>
                         <div class="report-vol-row is-keyman-asst">
                           <span class="report-vol-role-badge role-ka">KA</span>
-                          <span class="report-vol-name"><%= loc.keyman_asst.lastName %>, <%= loc.keyman_asst.firstName %></span>
-                          <% if (loc.keyman_asst.phone) { %><span class="report-vol-phone"><%= loc.keyman_asst.phone %></span><% } %>
+                          <div class="report-vol-info">
+                            <span class="report-vol-name"><%= loc.keyman_asst.lastName %>, <%= loc.keyman_asst.firstName %></span>
+                            <% if (loc.keyman_asst.phone) { %><span class="report-vol-phone"><%= loc.keyman_asst.phone %></span><% } %>
+                            <% const _kaBk = loc.keyman_asst.note ? loc.keyman_asst.note.split('; ').filter(function(s){ return s.indexOf('Unavailable from') === 0; }).join('; ') : ''; %>
+                            <% if (_kaBk) { %>
+                              <span class="report-vol-note">
+                                <i class="fa-solid fa-circle-info"></i> <%= _kaBk %>
+                              </span>
+                            <% } %>
+                          </div>
                         </div>
                       <% } %>
 
                       <% loc.volunteers.forEach(vol => { %>
                         <div class="report-vol-row">
                           <span class="report-vol-role-badge"></span>
-                          <%= vol.lastName %>, <%= vol.firstName %>
+                          <div class="report-vol-info">
+                            <span class="report-vol-name"><%= vol.lastName %>, <%= vol.firstName %></span>
+                            <% const _vBk = vol.note ? vol.note.split('; ').filter(function(s){ return s.indexOf('Unavailable from') === 0; }).join('; ') : ''; %>
+                            <% if (_vBk) { %>
+                              <span class="report-vol-note">
+                                <i class="fa-solid fa-circle-info"></i> <%= _vBk %>
+                              </span>
+                            <% } %>
+                          </div>
                         </div>
                       <% }) %>
 

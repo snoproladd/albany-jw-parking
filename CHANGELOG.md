@@ -5,6 +5,66 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [2.16.0] — 2026-05-19
+### Added
+- **Volunteer home page dashboard** — authenticated users now see a personalized
+  dashboard instead of the generic landing page.
+  - Full-page fixed parking background image with frosted-glass cards.
+  - **Greeting pill** — frosted glass card showing a time-aware greeting
+    (Good morning / afternoon / evening) and the next upcoming convention day
+    in amber text.
+  - **Live weather widget** (`public/js/dashboardWeather.js`) — fetches current
+    conditions and a 3-day hi/lo forecast for Albany, NY from the Open-Meteo
+    API (free, no API key, CORS-enabled). Displays current temp, feels-like,
+    wind, and a compact 3-day forecast row with WMO weather-code icons. Sits
+    inline with the greeting on desktop, stacks below on mobile.
+  - **Your Shifts card** — shows the volunteer's slot assignments for the
+    current (or next upcoming) convention day. Each shift shows the shift name,
+    time range, location, department pill, and role badge (KM/KA). KM and KA
+    contact rows appear below each shift with tap-to-call phone links.
+  - **Day navigator** (`public/js/dashboardShifts.js`) — prev/next buttons in
+    the Shifts card header let volunteers browse all convention days. Fetches
+    via `GET /api/dashboard/shifts?dayId=N` without a page reload. Day label
+    updates inline; buttons disable at the first/last day boundary.
+  - **Chain of Command card** — read-only indented tree showing the reporting
+    hierarchy configured by admins. Phone numbers are tap-to-call links.
+- **Chain of Command admin page** — new page at `/oversight/tools/hierarchy`
+  (ADMIN only, `manageCampaigns` permission).
+  - Visual tree editor: add root nodes, add children, edit role title and
+    assigned volunteer inline, delete nodes (children promoted to parent level).
+  - Up / Down buttons reorder within siblings; Indent (→) / Outdent (←)
+    buttons change the parent relationship.
+  - **Save order** bulk-saves all changes via `POST /oversight/tools/hierarchy/save`.
+  - New nodes get temporary negative IDs; a sequential add-then-save flow
+    resolves real IDs before the bulk update.
+  - New files: `views/authentication_and_accounts/commandHierarchy.ejs`,
+    `public/js/commandHierarchy.js`, `public/styles/commandHierarchy.css`.
+- **New DB table:** `dbo.command_hierarchy` (`id`, `volunteer_id`, `parent_id`,
+  `role_title`, `sort_order`) — stores the chain of command tree.
+- **New `dbSync.js` functions:** `getVolunteerDashboardDay`, `getVolunteerShiftsForDay`,
+  `getCommandHierarchy`, `addHierarchyNode`, `saveHierarchyOrder`, `deleteHierarchyNode`.
+- **New API endpoints:**
+  - `GET /api/dashboard/shifts?dayId=N` — volunteer's slot assignments for one day
+  - `POST /oversight/tools/hierarchy/save` — bulk save hierarchy order
+  - `POST /oversight/tools/hierarchy/add` — add a single hierarchy node
+  - `DELETE /oversight/tools/hierarchy/:id` — delete a node
+- **Chain of Command** added to Oversight Tools hub (Administration section)
+  and the Oversight nav dropdown Administration collapse.
+- **CSP** updated to allow `https://api.open-meteo.com` in `connect-src`.
+
+### Changed
+- **Landing page (logged-out):** Feature tiles are now clickable links.
+  Logged-in users redirected to `/my-account`; logged-out users to `/login`.
+  Lock badges hidden for logged-in users. Create Profile button hidden when
+  already authenticated.
+- **Home page route** moved to `index.js` (before the registration router)
+  so it can inject dashboard data for authenticated users without touching
+  `registrationRoutes.js`.
+- **`getVolunteerShiftsForDay`** return now includes `dept_key` alongside
+  `dept_name` so the client-side JS can apply department colour pills.
+
+---
+
 ## [2.15.0] — 2026-05-19
 ### Added
 - **Volunteer blackout windows** — oversight staff can now define unavailable

@@ -11,6 +11,8 @@
 
 const { Draggable, Droppable } = window.agnosticDraggable;
 
+import { getConflicts } from './schedulerConflicts.js';
+
 
 
 // ─────────────────────────────────────────────
@@ -245,13 +247,16 @@ export function onDrop(event) {
       { 'drag:start': onDragStart, 'drag:stop': onDragStop },
     );
 
+    // Delay the DB delete until after the conflict modal resolves.
+    // slotAssigned handler coordinates both unassign + assign in one
+    // atomic sequence once the user makes a decision.
     if (fromDz) {
       document.dispatchEvent(new CustomEvent('scheduler:slotUnassigned', {
-        detail: { pill, fromDz, record: true },
+        detail: { pill, fromDz, record: false },
       }));
     }
     document.dispatchEvent(new CustomEvent('scheduler:slotAssigned', {
-      detail: { pill, dz, record: true },
+      detail: { pill, dz, record: true, fromDz: fromDz || null },
     }));
   }
 }
@@ -320,7 +325,24 @@ function canDrop(pill, dz) {
   )
     return false;
 
-  
+  // ── Shift-conflict check — hard block non-security shift-to-shift overlaps ──
+  // Blackout conflicts (dzEl === null) are allowed through and handled post-drop.
+  // Security dept is exempt — overlapping coverage shifts are by design.
+  const dzStart = Number(dz.dataset.shiftStartMins);
+  const dzEnd = Number(dz.dataset.shiftEndMins);
+  if (dzStart > 0 && dzEnd > 0) {
+    const targetDept = dz.closest("[data-department]")?.dataset.department;
+    if (targetDept !== "security") {
+      const volId = Number(pill.dataset.id);
+      const fromDz = pill.classList.contains("in-pool")
+        ? null
+        : pill.parentElement;
+      const shiftConflicts = getConflicts(volId, dzStart, dzEnd, fromDz).filter(
+        (c) => c.dzEl !== null,
+      );
+      if (shiftConflicts.length > 0) return false;
+    }
+  }
 
   // ── Role check ──────────────────────────────────────────────────────
   const slotRole = dz.dataset.role;
@@ -399,6 +421,7 @@ function _resetPillTransform(pill) {
 function _clonePill(poolPill) {
   const clone = poolPill.cloneNode(true);
   clone.classList.remove('in-pool');
+  clone.classList.remove('pill-dragging');
   clone.querySelector('.pill-assign-badge')?.remove();
   _abbreviatePillName(clone);
   return clone;

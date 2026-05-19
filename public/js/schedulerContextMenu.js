@@ -144,12 +144,16 @@ function _buildMenu(volId, volName, pill, inDz) {
             _removePillFromSlot(pill);
         }));
 
-        // ── Conflict list (DZ only, when conflicts exist) ────────────
-        const dzEl       = pill.parentElement;
-        const dzStart    = Number(dzEl?.dataset.shiftStartMins);
-        const dzEnd      = Number(dzEl?.dataset.shiftEndMins);
+        // ── Conflict list (DZ only) — live conflicts + saved note ─────
+        const dzEl    = pill.parentElement;
+        const dzStart = Number(dzEl?.dataset.shiftStartMins);
+        const dzEnd   = Number(dzEl?.dataset.shiftEndMins);
+        const pillNote = pill.dataset.conflictNote || '';
+
         if (dzStart > 0 && dzEnd > 0) {
             const conflicts = getConflicts(volId, dzStart, dzEnd, dzEl);
+
+            // Use live conflicts if available; fall back to saved note for loaded assignments
             if (conflicts.length > 0) {
                 const conflictHdr = document.createElement('div');
                 conflictHdr.classList.add('sched-ctx-conflict-header');
@@ -163,7 +167,9 @@ function _buildMenu(volId, volName, pill, inDz) {
                     const row = document.createElement('div');
                     row.classList.add('sched-ctx-conflict-row');
                     if (c.dzEl === null) {
-                        row.textContent = `Unavailable ${timeRange}`;
+                        row.textContent = c.reason
+                            ? `Unavailable ${timeRange} — ${c.reason}`
+                            : `Unavailable ${timeRange}`;
                     } else {
                         const name = c.dzEl.closest('.sched-shift-block')
                             ?.querySelector('.sched-shift-header')
@@ -174,6 +180,43 @@ function _buildMenu(volId, volName, pill, inDz) {
                     }
                     menu.appendChild(row);
                 }
+            } else if (pillNote || pill.dataset.blackoutNote) {
+                // Loaded from DB — show saved note sections
+                const shiftParts    = (pillNote || '').split('; ').filter((p) => !p.startsWith('Blackout'));
+                const blackoutParts = (pill.dataset.blackoutNote || '').split('; ').filter(Boolean);
+
+                if (shiftParts.length > 0) {
+                    const hdr = document.createElement('div');
+                    hdr.classList.add('sched-ctx-conflict-header');
+                    hdr.textContent = 'Shift overlap';
+                    menu.appendChild(hdr);
+                    shiftParts.forEach((p) => {
+                        const row = document.createElement('div');
+                        row.classList.add('sched-ctx-conflict-row');
+                        row.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i><span>${p}</span>`;
+                        menu.appendChild(row);
+                    });
+                }
+
+          if (blackoutParts.length > 0 || pill.dataset.blackoutNote) {
+            const hdr = document.createElement("div");
+            hdr.classList.add("sched-ctx-conflict-header");
+            hdr.textContent = "Personal constraint";
+            menu.appendChild(hdr);
+
+            // pill.dataset.blackoutNote holds the full title (time + reason)
+            // blackoutParts holds the time-only segments from the DB note
+            const lines = pill.dataset.blackoutNote
+              ? pill.dataset.blackoutNote.split("; ")
+              : blackoutParts;
+
+            lines.forEach((p) => {
+              const row = document.createElement("div");
+              row.classList.add("sched-ctx-conflict-row");
+              row.innerHTML = `<i class="fa-solid fa-circle-info"></i><span>${p}</span>`;
+              menu.appendChild(row);
+            });
+          }
             }
         }
 
