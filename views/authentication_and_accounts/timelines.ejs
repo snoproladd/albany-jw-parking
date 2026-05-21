@@ -189,11 +189,13 @@
                     </div>
                     <div class="col-12 col-md-2">
                       <label for="dayStart" class="form-label small">Program Start <span class="text-danger">*</span></label>
-                      <input type="time" id="dayStart" class="form-control" />
+                      <input type="text" id="dayStart" class="form-control" placeholder="e.g. 7:30 AM" />
+                      <div class="invalid-feedback">Enter a valid time, e.g. "7:30 AM".</div>
                     </div>
                     <div class="col-12 col-md-2">
                       <label for="dayEnd" class="form-label small">Program End <span class="text-danger">*</span></label>
-                      <input type="time" id="dayEnd" class="form-control" />
+                      <input type="text" id="dayEnd" class="form-control" placeholder="e.g. 5:00 PM" />
+                      <div class="invalid-feedback">Enter a valid time, e.g. "5:00 PM".</div>
                     </div>
                     <div class="col-12 col-md-2">
                       <label for="dayNotes" class="form-label small">Notes</label>
@@ -235,11 +237,13 @@
                     </div>
                     <div class="col-12 col-md-2">
                       <label for="copyDayStart" class="form-label small">Program Start <span class="text-danger">*</span></label>
-                      <input type="time" id="copyDayStart" class="form-control" />
+                      <input type="text" id="copyDayStart" class="form-control" placeholder="e.g. 7:30 AM" />
+                      <div class="invalid-feedback">Enter a valid time, e.g. "7:30 AM".</div>
                     </div>
                     <div class="col-12 col-md-2">
                       <label for="copyDayEnd" class="form-label small">Program End <span class="text-danger">*</span></label>
-                      <input type="time" id="copyDayEnd" class="form-control" />
+                      <input type="text" id="copyDayEnd" class="form-control" placeholder="e.g. 5:00 PM" />
+                      <div class="invalid-feedback">Enter a valid time, e.g. "5:00 PM".</div>
                     </div>
                     <div class="col-12 col-md-2">
                       <label for="copyDayNotes" class="form-label small">Notes</label>
@@ -354,11 +358,13 @@
                       </div>
                       <div class="col-12 col-md-2">
                         <label for="sessionStart" class="form-label small">Start <span class="text-danger">*</span></label>
-                        <input type="time" id="sessionStart" class="form-control" />
+                        <input type="text" id="sessionStart" class="form-control" placeholder="e.g. 7:30 AM" />
+                        <div class="invalid-feedback">Enter a valid time, e.g. "7:30 AM".</div>
                       </div>
                       <div class="col-12 col-md-2">
                         <label for="sessionEnd" class="form-label small">End <span class="text-danger">*</span></label>
-                        <input type="time" id="sessionEnd" class="form-control" />
+                        <input type="text" id="sessionEnd" class="form-control" placeholder="e.g. 5:00 PM" />
+                        <div class="invalid-feedback">Enter a valid time, e.g. "5:00 PM".</div>
                       </div>
                       <div class="col-12 col-md-3">
                         <label for="sessionNotes" class="form-label small">Notes</label>
@@ -413,13 +419,25 @@
                       </div>
                       <div class="col-12 col-md-2">
                         <label for="shiftStart" class="form-label small">Start <span class="text-danger">*</span></label>
-                        <input type="time" id="shiftStart" class="form-control" />
+                        <input type="text" id="shiftStart" class="form-control" placeholder="e.g. 7:30 AM" />
+                      <div class="invalid-feedback">Enter a valid time, e.g. "7:30 AM".</div>
                       </div>
                       <div class="col-12 col-md-2">
                         <label for="shiftEnd" class="form-label small">End <span class="text-danger">*</span></label>
-                        <input type="time" id="shiftEnd" class="form-control" />
+                        <input type="text" id="shiftEnd" class="form-control" placeholder="e.g. 5:00 PM" />
+                      <div class="invalid-feedback">Enter a valid time, e.g. "5:00 PM".</div>
                       </div>
-                      <div class="col-12 col-md-3">
+                      <div class="col-12 col-md-2"><label for="shiftDepartment" class="form-label small">Scheduler Dept <span class="text-danger">*</span></label>
+                        <select id="shiftDepartment" class="form-select">
+                          <option value="">Select…</option>
+                          <option value="lots_and_garages">Lots & Garages</option>
+                          <option value="signs">Signs</option>
+                          <option value="security">Security</option>
+                          <option value="dropoff_pickup">Drop-off / Pickup</option>
+                          <option value="mobile_support">Mobile Support</option>
+                        </select>
+                      </div>
+                      <div class="col-12 col-md-2">
                         <label for="shiftSmsCode" class="form-label small">SMS Code</label>
                         <input type="text" id="shiftSmsCode" class="form-control font-monospace text-uppercase"
                           maxlength="8" placeholder="FRIN" title="Volunteer reply code (max 8 chars)" />
@@ -601,6 +619,7 @@
                                               data-need="<%= shift.volunteer_need || '' %>"
                                               data-notes="<%= shift.notes || '' %>"
                                               data-sms-code="<%= shift.sms_code || '' %>"
+                                              data-department="<%= shift.department || '' %>"
                                               data-invitable="<%= shift.invitable ? 'true' : 'false' %>">
                                               <i class="fa-solid fa-pen"></i>
                                             </button>
@@ -686,6 +705,6 @@
     <%- include('../partials/footer') %>
 
     <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
-    <script src="/js/timelines.js"></script>
+    <script type="module" src="/js/timelines.js"></script>
   </body>
 </html>

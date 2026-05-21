@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Shift Alerts — Albany JW Parking</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content="<%= csrfToken %>" />
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" href="/styles/styles.css" />
+    <link rel="stylesheet" href="/styles/shiftAlerts.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+</head>
+
+<body class="min-vh-100 bg-body-tertiary" data-authed="true">
+    <%- include('../partials/header') %>
+
+    <%
+        const _ROLE_ORDER = ['NON_REGISTERED','REGISTERED','DESK','KEYMAN','OVERSEER','ASSISTANT_ADMIN','ADMIN'];
+        const _role       = typeof userRole        !== 'undefined' ? userRole        : 'NON_REGISTERED';
+        const _perms      = typeof userPermissions !== 'undefined' ? userPermissions : {};
+        const roleLevel   = _ROLE_ORDER.indexOf(_role);
+        const isAtLeast   = (r) => roleLevel >= _ROLE_ORDER.indexOf(r);
+        const can         = (permission) => !!(_perms[_role] && _perms[_role][permission]);
+    %>
+
+    <%# ── Toast container ──────────────────────────────────────── %>
+    <div class="toast-container position-fixed bottom-0 end-0 p-3"
+         id="saToastContainer" style="z-index:1100"></div>
+
+    <main class="container py-4">
+        <div class="row justify-content-center">
+            <div class="col-12 col-xl-10 col-xxl-9">
+
+                <section class="card shadow-lg admin-console-card mb-4">
+                    <header class="card-header">
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                            <h1 class="h4 mb-0">
+                                <i class="fa-solid fa-bell me-2"></i>Shift Alerts
+                            </h1>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <a href="/oversight/tools" class="btn btn-secondary btn-sm">
+                                    <i class="fa-solid fa-arrow-left me-1"></i>Oversight Tools
+                                </a>
+                            </div>
+                        </div>
+                    </header>
+
+                    <div class="card-body p-0">
+
+                        <%# ── Tabs ────────────────────────────────────────── %>
+                        <ul class="nav nav-tabs px-3 pt-3" id="saTab" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="sa-schedules-tab"
+                                        data-bs-toggle="tab" data-bs-target="#sa-schedules"
+                                        type="button" role="tab"
+                                        aria-controls="sa-schedules" aria-selected="true">
+                                    <i class="fa-solid fa-calendar-check me-1"></i>Schedules
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="sa-log-tab"
+                                        data-bs-toggle="tab" data-bs-target="#sa-log"
+                                        type="button" role="tab"
+                                        aria-controls="sa-log" aria-selected="false">
+                                    <i class="fa-solid fa-list-check me-1"></i>Send Log
+                                </button>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content p-3">
+
+                            <%# ══ TAB 1: SCHEDULES ══════════════════════════ %>
+                            <div class="tab-pane fade show active" id="sa-schedules"
+                                 role="tabpanel" aria-labelledby="sa-schedules-tab">
+
+                                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                                    <p class="mb-0 text-secondary" style="font-size:.875rem">
+                                        Manage timed burst alerts and rolling T‑15 alerts for the
+                                        <strong><%= year %></strong> convention.
+                                    </p>
+                                    <button class="btn btn-primary btn-sm flex-shrink-0"
+                                            id="saNewScheduleBtn">
+                                        <i class="fa-solid fa-plus me-1"></i>New Schedule
+                                    </button>
+                                </div>
+
+                                <%# Cards rendered by shiftAlerts.js from seed data %>
+                                <div id="saScheduleList"></div>
+
+                            </div>
+
+                            <%# ══ TAB 2: SEND LOG ════════════════════════════ %>
+                            <div class="tab-pane fade" id="sa-log"
+                                 role="tabpanel" aria-labelledby="sa-log-tab">
+
+                                <div class="d-flex flex-wrap gap-2 mb-3 align-items-end">
+                                    <div>
+                                        <label class="form-label form-label-sm mb-1"
+                                               for="saLogStatusFilter">Status</label>
+                                        <select class="form-select form-select-sm"
+                                                id="saLogStatusFilter" style="width:120px">
+                                            <option value="">All</option>
+                                            <option value="sent">Sent</option>
+                                            <option value="failed">Failed</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="form-label form-label-sm mb-1"
+                                               for="saLogScheduleFilter">Schedule</label>
+                                        <select class="form-select form-select-sm"
+                                                id="saLogScheduleFilter" style="min-width:180px">
+                                            <option value="">All Schedules</option>
+                                            <%# Populated by shiftAlerts.js %>
+                                        </select>
+                                    </div>
+                                    <button class="btn btn-outline-secondary btn-sm"
+                                            id="saLogRefreshBtn">
+                                        <i class="fa-solid fa-rotate me-1"></i>Refresh
+                                    </button>
+                                </div>
+
+                                <div id="saLogTableWrap">
+                                    <div class="sa-empty">
+                                        <div class="sa-empty-icon">
+                                            <i class="fa-solid fa-list-check"></i>
+                                        </div>
+                                        <div>Switch to this tab to load send log entries.</div>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div><%# /.tab-content %>
+                    </div><%# /.card-body %>
+                </section>
+
+            </div>
+        </div>
+    </main>
+
+    <%# ── Schedule offcanvas form ──────────────────────────────── %>
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="saOffcanvas"
+         aria-labelledby="saOffcanvasLabel" style="width:min(500px,100vw)">
+
+        <div class="offcanvas-header border-bottom">
+            <h5 class="offcanvas-title" id="saOffcanvasLabel">
+                <i class="fa-solid fa-bell me-2"></i>New Schedule
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"
+                    aria-label="Close"></button>
+        </div>
+
+        <div class="offcanvas-body d-flex flex-column gap-3">
+
+            <input type="hidden" id="saFormId" value="" />
+
+            <%# Name %>
+            <div>
+                <label class="form-label" for="saFormName">
+                    Name <span class="text-danger">*</span>
+                </label>
+                <input type="text" class="form-control form-control-sm" id="saFormName"
+                       maxlength="100" placeholder="e.g. Day 1 Evening Reminder" />
+            </div>
+
+            <%# Alert category %>
+            <div>
+                <label class="form-label" for="saFormCategory">
+                    Alert Category <span class="text-danger">*</span>
+                </label>
+                <select class="form-select form-select-sm" id="saFormCategory">
+                    <option value="next_day">Next Day — shifts the day after the fire date</option>
+                    <option value="same_day">Same Day — shifts on the fire date</option>
+                    <option value="all_upcoming">All Upcoming — all shifts from fire date onward</option>
+                    <option value="t15min">T‑15 Rolling — auto-fires 15 min before each shift</option>
+                </select>
+            </div>
+
+            <%# Fire date + time (hidden for t15min) %>
+            <div id="saFireDateWrap">
+                <div class="row g-2">
+                    <div class="col-7">
+                        <label class="form-label" for="saFormFireDate">
+                            Fire Date <span class="text-danger">*</span>
+                        </label>
+                        <input type="date" class="form-control form-control-sm"
+                               id="saFormFireDate" />
+                        <div class="form-text">Eastern local date to send.</div>
+                    </div>
+                    <div class="col-5">
+                        <label class="form-label" for="saFormFireTime">
+                            Fire Time <span class="text-danger">*</span>
+                            <span class="text-muted" style="font-size:.72rem">(EDT)</span>
+                        </label>
+                        <input type="text" class="form-control form-control-sm"
+                               id="saFormFireTime" placeholder="e.g. 7:30 PM" />
+                        <div class="invalid-feedback">Enter a valid time, e.g. "7:30 PM".</div>
+                        <div class="form-text">Converted to UTC automatically.</div>
+                    </div>
+                </div>
+            </div>
+
+            <%# Departments %>
+            <div>
+                <label class="form-label mb-1">Departments</label>
+                <div class="d-flex flex-wrap gap-3">
+                    <div class="form-check">
+                        <input class="form-check-input sa-dept-check" type="checkbox"
+                               id="saDepLots" value="lots_and_garages" />
+                        <label class="form-check-label" for="saDepLots">Lots &amp; Garages</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input sa-dept-check" type="checkbox"
+                               id="saDepSigns" value="signs" />
+                        <label class="form-check-label" for="saDepSigns">Signs</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input sa-dept-check" type="checkbox"
+                               id="saDepSec" value="security" />
+                        <label class="form-check-label" for="saDepSec">Security</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input sa-dept-check" type="checkbox"
+                               id="saDepMobile" value="mobile_support" />
+                        <label class="form-check-label" for="saDepMobile">Mobile Support</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input sa-dept-check" type="checkbox"
+                               id="saDepDropoff" value="dropoff_pickup" />
+                        <label class="form-check-label" for="saDepDropoff">Drop-off / Pickup</label>
+                    </div>
+                </div>
+                <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox"
+                           id="saFormIncludeNull" checked />
+                    <label class="form-check-label" for="saFormIncludeNull">
+                        Include volunteers with no department set
+                    </label>
+                </div>
+                <div class="form-text">Leave all unchecked to include all departments.</div>
+            </div>
+
+            <%# Active toggle — only visible in edit mode %>
+            <div id="saActiveWrap" class="d-none">
+                <label class="form-label mb-1">Status</label>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch"
+                           id="saFormActive" checked />
+                    <label class="form-check-label" for="saFormActive">Active</label>
+                </div>
+            </div>
+
+            <%# Message override %>
+            <div>
+                <label class="form-label" for="saFormOverride">
+                    Message Override
+                    <span class="text-muted" style="font-size:.75rem">(optional)</span>
+                </label>
+                <textarea class="form-control form-control-sm" id="saFormOverride"
+                          rows="4" maxlength="1600"
+                          placeholder="Leave blank to use the default template."></textarea>
+                <div class="form-text mb-1">
+                    Placeholders: <code>{firstName}</code> <code>{shiftType}</code>
+                    <code>{shiftLabel}</code> <code>{time}</code>
+                    <code>{date}</code> <code>{code}</code>
+                </div>
+                <%# Live preview — populated by shiftAlerts.js %>
+                <div class="sa-msg-preview" id="saPreviewBox" aria-live="polite"></div>
+            </div>
+
+            <%# Save / Cancel %>
+            <div class="d-flex gap-2 mt-auto pt-3 border-top">
+                <button class="btn btn-primary btn-sm" id="saFormSaveBtn">
+                    <i class="fa-solid fa-floppy-disk me-1"></i>Save Schedule
+                </button>
+                <button class="btn btn-outline-secondary btn-sm"
+                        data-bs-dismiss="offcanvas">Cancel</button>
+            </div>
+
+        </div><%# /.offcanvas-body %>
+    </div><%# /#saOffcanvas %>
+
+    <%# ── Server-side seed data ────────────────────────────────── %>
+    <script id="sa-schedules-data" type="application/json" nonce="<%= nonce %>">
+        <%- JSON.stringify(schedules) %>
+    </script>
+    <script id="sa-year-data" type="application/json" nonce="<%= nonce %>">
+        <%- JSON.stringify(year) %>
+    </script>
+
+    <%- include('../partials/footer') %>
+
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="/js/shiftAlerts.js"></script>
+</body>
+</html>

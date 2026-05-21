@@ -4,6 +4,36 @@ All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ---
+## [2.18.0]
+### Added
+- **`public/js/timeUtils.js`** — new shared ES module centralising all time
+  parse/format/input utilities. Exports: `EDT_OFFSET_HOURS` (single tz knob),
+  `parseLocalTime`, `formatTimeDisplay`, `fmtTimeInput`, `localToUtc`,
+  `utcToLocal`, `utcToEdtCard`, `utcToEdtDisplay`, `bindTimeInput`,
+  `validateTimeInput`. Both `timelines.js` and `shiftAlerts.js` now import
+  from this module; duplicate implementations removed from both files.
+- **Department field on shift form** (`timelines.ejs`, `timelines.js`) — new
+  required Department select (Lots & Garages / Signs / Security / Drop-off &
+  Pickup / Mobile Support) in the Add/Edit Shift form. `department` is now
+  included in the shift create/update payload. This fixes the scheduler
+  "no scheduler data for this day" error caused by `getSchedulerData()`
+  filtering `WHERE sh.department IS NOT NULL` — all UI-created shifts had
+  `NULL` because the form never provided a value.
+- **Inline time-input validation** — invalid time fields now highlight red
+  (`is-invalid`) with a Bootstrap `invalid-feedback` message on blur, and
+  submission is blocked until corrected. `invalid-feedback` divs added to
+  all 9 time inputs across `timelines.ejs` and `shiftAlerts.ejs`.
+
+### Changed
+- `timelines.js`, `shiftAlerts.js` script tags changed to `type="module"`
+  to support ES module imports from `timeUtils.js`.
+- `shiftAlerts.js`: `lots_garages` department key corrected to
+  `lots_and_garages` to match the scheduler and crew matrix.
+- Save handlers across all four Timelines forms (day, copy-day, session,
+  shift) now call `validateTimeInput()` instead of `parseTimeInput()`;
+  error message updated to "Please correct the highlighted time fields."
+
+---
 ## [2.17.0] = 2026-05-21
 ### Added
 - Cookie consent banner (viewport-fixed, slide-up/down transition) with

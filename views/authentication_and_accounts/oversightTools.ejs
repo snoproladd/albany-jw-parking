@@ -326,6 +326,21 @@
                   </div>
                 <% } %>
 
+                <% if (can('accessAdminConsole')) { %>
+                  <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="admin-tool-card h-100">
+                      <div class="admin-tool-icon text-danger">
+                        <i class="fa-solid fa-bell"></i>
+                      </div>
+                      <h3 class="admin-tool-title">Shift Alerts</h3>
+                      <p class="admin-tool-desc">Schedule and send SMS shift reminders. Manage burst alerts and rolling T‑15 notifications, and review the full send log.</p>
+                      <a href="/oversight/tools/shift-alerts" class="btn btn-danger admin-tool-btn">
+                        Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                      </a>
+                    </div>
+                  </div>
+                <% } %>
+
               </div>
             <% } %>
 

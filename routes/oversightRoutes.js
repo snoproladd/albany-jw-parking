@@ -108,6 +108,15 @@ import {
   getCrewMatrix,
   updateVolunteerCrew,
   batchUpdateVolunteerCrew,
+  getAlertSchedules,
+  getAlertSchedule,
+  createAlertSchedule,
+  updateAlertSchedule,
+  deleteAlertSchedule,
+  hardDeleteAlertSchedule,
+  getShiftsForAlertBurst,
+  logShiftAlerts,
+  getAlertLog,
 } from "../lib/dbSync.js";
 
 import { verifyPassword, hashPassword } from "../lib/passwordVer.js";
@@ -2508,12 +2517,13 @@ export function oversightRouter({
     requirePermission("manageShifts"),
     csrfProtection,
     async (req, res) => {
-      const {
+  const {
         session_id,
         event_type_id,
         label,
         start_time,
         end_time,
+        department,
         volunteer_need,
         notes,
         sms_code,
@@ -2528,13 +2538,13 @@ export function oversightRouter({
         return res
           .status(400)
           .json({ success: false, error: "Missing required fields." });
-      try {
-        const id = await createShift({
+      try {const id = await createShift({
           session_id: Number(session_id),
           event_type_id: Number(event_type_id),
           label,
           start_time,
           end_time,
+          department: department?.trim() || null,
           volunteer_need,
           notes,
           sms_code: sms_code?.trim() || null,
@@ -2559,6 +2569,7 @@ export function oversightRouter({
         label,
         start_time,
         end_time,
+        department,
         volunteer_need,
         notes,
         sms_code,
@@ -2574,6 +2585,7 @@ export function oversightRouter({
           label,
           start_time,
           end_time,
+          department: department?.trim() || null,
           volunteer_need,
           notes,
           sms_code:
@@ -4908,6 +4920,38 @@ export function oversightRouter({
   );
 
   // ===========================
+  // SHIFT ALERTS — Page
+  // ===========================
+
+  /**
+   * GET /oversight/tools/shift-alerts
+   * Render the Shift Alert Schedules management page.
+   * Seeds the current year's schedules as JSON for the client.
+   *
+   * @requires accessAdminConsole permission
+   */
+  router.get(
+    "/oversight/tools/shift-alerts",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    csrfProtection,
+    async (req, res) => {
+      const year = new Date().getFullYear();
+      try {
+        const schedules = await getAlertSchedules(year);
+        return res.render("authentication_and_accounts/shiftAlerts", {
+          csrfToken: req.csrfToken(),
+          schedules,
+          year,
+        });
+      } catch (err) {
+        (logError || console.error)("shift-alerts GET error:", err);
+        return res.status(500).send("Server error");
+      }
+    },
+  );
+
+  // ===========================
   // SHIFTS — SMS code suggestion
   // ===========================
 
@@ -5134,6 +5178,40 @@ export function oversightRouter({
   );
 
   /**
+   * DELETE /oversight/tools/shift-alerts/schedules/:id/permanent
+   * Permanently delete a deactivated alert schedule and its log rows.
+   * Guards against deleting active schedules.
+   * Response: { success: true }
+   *
+   * @requires accessAdminConsole permission
+   */
+  router.delete(
+    "/oversight/tools/shift-alerts/schedules/:id/permanent",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    csrfProtection,
+    async (req, res) => {
+      const id = Number(req.params.id);
+      if (!id)
+        return res.status(400).json({ success: false, error: "Invalid id." });
+      try {
+        const schedule = await getAlertSchedule(id);
+        if (!schedule)
+          return res.status(404).json({ success: false, error: "Schedule not found." });
+        if (schedule.active)
+          return res.status(400).json({ success: false, error: "Deactivate the schedule before deleting it." });
+        const ok = await hardDeleteAlertSchedule(id);
+        if (!ok)
+          return res.status(404).json({ success: false, error: "Schedule not found." });
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("shift-alerts/schedules/permanent DELETE error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
    * POST /oversight/tools/shift-alerts/schedules/:id/send
    * Manually trigger a burst send for a specific schedule, bypassing the
    * fire_date/fire_time_utc window. Useful for retries and missed sends.
@@ -5188,6 +5266,8 @@ export function oversightRouter({
             year,
           });
         }
+
+        (logError || console.log)(`[shift-alerts send] schedule ${id}: category=${schedule.alert_category} fireDate=${fireDate} year=${year} depts=${schedule.departments} rows=${rows.length}`);
 
         if (force) {
           // On a forced re-send, bypass the dupe guard by re-querying without it.

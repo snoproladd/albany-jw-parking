@@ -210,6 +210,11 @@
                           <i class="fa-solid fa-calendar-days"></i>Scheduler
                         </a></li>
                       <% } %>
+                      <% if (can('accessAdminConsole')) { %>
+                        <li><a class="ot-nav-item" href="/oversight/tools/shift-alerts">
+                          <i class="fa-solid fa-bell"></i>Shift Alerts
+                        </a></li>
+                      <% } %>
                     </ul>
                   </div>
                 </li>

@@ -49,18 +49,11 @@ function fmtDate(raw) {
   });
 }
 
-/**
- * Convert a raw mssql TIME ISO string to HH:MM for <input type="time">.
- *
- * @param {string|null} raw
- * @returns {string}
- */
-function fmtTimeInput(raw) {
-  if (!raw) return "";
-  const d = new Date(raw);
-  if (isNaN(d.valueOf())) return "";
-  return `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
-}
+import {
+  fmtTimeInput,
+  bindTimeInput,
+  validateTimeInput,
+} from './timeUtils.js';
 
 document.addEventListener("DOMContentLoaded", () => {
   const csrfToken =
@@ -322,6 +315,9 @@ document.addEventListener("DOMContentLoaded", () => {
       dayLabel.focus();
     });
 
+    bindTimeInput("dayStart");
+    bindTimeInput("dayEnd");
+
     document.querySelectorAll(".day-edit-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         dayEditId.value = btn.dataset.id;
@@ -377,13 +373,20 @@ document.addEventListener("DOMContentLoaded", () => {
           ? `/oversight/tools/timelines/days/${id}`
           : "/oversight/tools/timelines/days";
 
+        const parsedDayStart = validateTimeInput("dayStart");
+        const parsedDayEnd   = validateTimeInput("dayEnd");
+        if (!parsedDayStart || !parsedDayEnd) {
+          showAlert(dayFormStatus, "Please correct the highlighted time fields.");
+          return;
+        }
+
         try {
           await apiFetch(url, method, {
             year,
             label: dayLabel.value.trim(),
             convention_date: dayDate.value,
-            program_start: dayStart.value,
-            program_end: dayEnd.value,
+            program_start: parsedDayStart,
+            program_end: parsedDayEnd,
             notes: dayNotes.value.trim() || null,
           });
           window.location.reload();
@@ -430,8 +433,8 @@ document.addEventListener("DOMContentLoaded", () => {
         copySourceDayId.value = btn.dataset.id;
         copyDayLabel.value = btn.dataset.label || "";
         copyDayDate.value = "";
-        copyDayStart.value = fmtTimeInput(btn.dataset.start);
-        copyDayEnd.value = fmtTimeInput(btn.dataset.end);
+        copyDayStart.value = btn.dataset.start || "";
+        copyDayEnd.value = btn.dataset.end || "";
         copyDayNotes.value = "";
         copyDayFormStatus.innerHTML = "";
         copyDayFormTitle.textContent = `Copy — ${btn.dataset.label}`;
@@ -443,6 +446,9 @@ document.addEventListener("DOMContentLoaded", () => {
     [copyDayCancelBtn, copyDayFormClose].forEach((el) =>
       el.addEventListener("click", () => closePanel(copyDayFormPanel)),
     );
+
+    bindTimeInput("copyDayStart");
+    bindTimeInput("copyDayEnd");
 
     copyDaySaveBtn.addEventListener("click", () =>
       withSpinner(copyDaySaveBtn, async () => {
@@ -467,6 +473,13 @@ document.addEventListener("DOMContentLoaded", () => {
           );
           return;
         }
+        const parsedCopyStart = validateTimeInput("copyDayStart");
+        const parsedCopyEnd   = validateTimeInput("copyDayEnd");
+        if (!parsedCopyStart || !parsedCopyEnd) {
+          showAlert(copyDayFormStatus, "Please correct the highlighted time fields.");
+          return;
+        }
+
         try {
           await apiFetch(
             `/oversight/tools/timelines/days/${copySourceDayId.value}/copy`,
@@ -475,8 +488,8 @@ document.addEventListener("DOMContentLoaded", () => {
               year,
               label: copyDayLabel.value.trim(),
               convention_date: copyDayDate.value,
-              program_start: copyDayStart.value,
-              program_end: copyDayEnd.value,
+              program_start: parsedCopyStart,
+              program_end: parsedCopyEnd,
               notes: copyDayNotes.value.trim() || null,
             },
           );
@@ -543,6 +556,9 @@ document.addEventListener("DOMContentLoaded", () => {
       el.addEventListener("click", () => closePanel(sessionFormPanel)),
     );
 
+    bindTimeInput("sessionStart");
+    bindTimeInput("sessionEnd");
+
     sessionSaveBtn.addEventListener("click", () =>
       withSpinner(sessionSaveBtn, async () => {
         if (
@@ -559,13 +575,20 @@ document.addEventListener("DOMContentLoaded", () => {
           ? `/oversight/tools/timelines/sessions/${id}`
           : "/oversight/tools/timelines/sessions";
 
+        const parsedSessionStart = validateTimeInput("sessionStart");
+        const parsedSessionEnd   = validateTimeInput("sessionEnd");
+        if (!parsedSessionStart || !parsedSessionEnd) {
+          showAlert(sessionFormStatus, "Please correct the highlighted time fields.");
+          return;
+        }
+
         try {
           await apiFetch(url, method, {
             convention_day_id: Number(sessionDayId.value),
             label: sessionLabel.value.trim(),
             session_order: sessionOrder.value ? Number(sessionOrder.value) : 0,
-            start_time: sessionStart.value,
-            end_time: sessionEnd.value,
+            start_time: parsedSessionStart,
+            end_time: parsedSessionEnd,
             notes: sessionNotes.value.trim() || null,
           });
           if (id) storeLastAccordion(id);
@@ -619,6 +642,8 @@ document.addEventListener("DOMContentLoaded", () => {
       shiftSmsCode.value = "";
       shiftNotes.value = "";
       shiftInvitable.checked = false;
+      const shiftDepartment = document.getElementById("shiftDepartment");
+      if (shiftDepartment) shiftDepartment.value = "";
       shiftDeleteBtn.classList.add("d-none");
       shiftFormTitle.textContent = "Add Shift";
       shiftFormStatus.innerHTML = "";
@@ -644,6 +669,8 @@ document.addEventListener("DOMContentLoaded", () => {
         shiftSmsCode.value = btn.dataset.smsCode || "";
         shiftNotes.value = btn.dataset.notes || "";
         shiftInvitable.checked = btn.dataset.invitable === "true";
+        const shiftDeptSel = document.getElementById("shiftDepartment");
+        if (shiftDeptSel) shiftDeptSel.value = btn.dataset.department || "";
         shiftDeleteBtn.classList.remove("d-none");
         shiftFormTitle.textContent = `Edit Shift — ${btn.dataset.label}`;
         shiftFormStatus.innerHTML = "";
@@ -655,17 +682,21 @@ document.addEventListener("DOMContentLoaded", () => {
       el.addEventListener("click", () => closePanel(shiftFormPanel)),
     );
 
+    bindTimeInput("shiftStart");
+    bindTimeInput("shiftEnd");
+
     shiftSaveBtn.addEventListener("click", () =>
       withSpinner(shiftSaveBtn, async () => {
         if (
           !shiftEventType.value ||
           !shiftLabel.value.trim() ||
           !shiftStart.value ||
-          !shiftEnd.value
+          !shiftEnd.value ||
+          !document.getElementById("shiftDepartment")?.value
         ) {
           showAlert(
             shiftFormStatus,
-            "Event type, label, start, and end are required.",
+            "Event type, label, department, start, and end are required.",
           );
           return;
         }
@@ -675,14 +706,22 @@ document.addEventListener("DOMContentLoaded", () => {
           ? `/oversight/tools/timelines/shifts/${id}`
           : "/oversight/tools/timelines/shifts";
 
+        const parsedShiftStart = validateTimeInput("shiftStart");
+        const parsedShiftEnd   = validateTimeInput("shiftEnd");
+        if (!parsedShiftStart || !parsedShiftEnd) {
+          showAlert(shiftFormStatus, "Please correct the highlighted time fields.");
+          return;
+        }
+
         try {
           await apiFetch(url, method, {
             session_id: Number(shiftSessionId.value),
             event_type_id: Number(shiftEventType.value),
             label: shiftLabel.value.trim(),
-            start_time: shiftStart.value,
-            end_time: shiftEnd.value,
+            start_time: parsedShiftStart,
+            end_time: parsedShiftEnd,
             volunteer_need: null,
+            department: document.getElementById("shiftDepartment")?.value || null,
             sms_code: shiftSmsCode.value.trim().toUpperCase() || null,
             notes: shiftNotes.value.trim() || null,
             invitable: shiftInvitable.checked,
@@ -727,9 +766,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const assignSaveBtnLabel = document.getElementById("assignSaveBtnLabel");
     const assignCancelBtn = document.getElementById("assignCancelBtn");
     const assignFormClose = document.getElementById("assignFormClose");
-    const assignVolNeed = document.getElementById('assignVolNeed');
-    const assignVolMin  = document.getElementById('assignVolMin');
-    const assignVolMax  = document.getElementById('assignVolMax');
+    const assignVolNeed = document.getElementById("assignVolNeed");
+    const assignVolMin = document.getElementById("assignVolMin");
+    const assignVolMax = document.getElementById("assignVolMax");
 
     document.querySelectorAll(".add-assignment-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -741,9 +780,9 @@ document.addEventListener("DOMContentLoaded", () => {
         assignLocTask.disabled = false;
         assignLocTask.value = "";
         assignLocationNote.classList.add("d-none");
-        if (assignVolMin)  assignVolMin.value  = '';
-        if (assignVolNeed) assignVolNeed.value = '';
-        if (assignVolMax)  assignVolMax.value  = '';
+        if (assignVolMin) assignVolMin.value = "";
+        if (assignVolNeed) assignVolNeed.value = "";
+        if (assignVolMax) assignVolMax.value = "";
         assignNotes.value = "";
         assignFormStatus.innerHTML = "";
         assignFormTitle.textContent = `Assign to: ${btn.dataset.shiftLabel}`;
@@ -762,12 +801,13 @@ document.addEventListener("DOMContentLoaded", () => {
         assignShiftId.value = "";
         assignLocTask.disabled = true;
         assignLocationNote.classList.remove("d-none");
-        if (assignVolMin)  assignVolMin.value  = btn.dataset.volMin  || '';
-        if (assignVolNeed) assignVolNeed.value = btn.dataset.volunteerNeed || '';
-        if (assignVolMax)  assignVolMax.value  = btn.dataset.volMax  || '';
+        if (assignVolMin) assignVolMin.value = btn.dataset.volMin || "";
+        if (assignVolNeed)
+          assignVolNeed.value = btn.dataset.volunteerNeed || "";
+        if (assignVolMax) assignVolMax.value = btn.dataset.volMax || "";
         assignNotes.value = btn.dataset.notes || "";
         assignFormStatus.innerHTML = "";
-        assignFormTitle.textContent = `Edit — ${btn.dataset.locationName}${btn.dataset.shiftLabel ? ` (${btn.dataset.shiftLabel})` : ''}`;
+        assignFormTitle.textContent = `Edit — ${btn.dataset.locationName}${btn.dataset.shiftLabel ? ` (${btn.dataset.shiftLabel})` : ""}`;
         assignSaveBtnLabel.textContent = "Save";
         openPanel(assignFormPanel);
         if (assignVolNeed) assignVolNeed.focus();
@@ -788,12 +828,21 @@ document.addEventListener("DOMContentLoaded", () => {
           try {
             await apiFetch(
               `/oversight/tools/timelines/assignments/${editId}`,
-              'PUT',
+              "PUT",
               {
-                volunteer_need: assignVolNeed?.value !== '' ? Number(assignVolNeed?.value) : null,
-                vol_min:        assignVolMin?.value  !== '' ? Number(assignVolMin?.value)  : null,
-                vol_max:        assignVolMax?.value  !== '' ? Number(assignVolMax?.value)  : null,
-                notes:          assignNotes.value.trim() || null,
+                volunteer_need:
+                  assignVolNeed?.value !== ""
+                    ? Number(assignVolNeed?.value)
+                    : null,
+                vol_min:
+                  assignVolMin?.value !== ""
+                    ? Number(assignVolMin?.value)
+                    : null,
+                vol_max:
+                  assignVolMax?.value !== ""
+                    ? Number(assignVolMax?.value)
+                    : null,
+                notes: assignNotes.value.trim() || null,
               },
             );
             storeLastAccordion(assignContextSessionId);
@@ -815,13 +864,22 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
           await Promise.all(
             selected.map((locationTaskId) =>
-              apiFetch('/oversight/tools/timelines/assignments', 'POST', {
-                shift_id:         Number(assignShiftId.value),
+              apiFetch("/oversight/tools/timelines/assignments", "POST", {
+                shift_id: Number(assignShiftId.value),
                 location_task_id: locationTaskId,
-                volunteer_need:   assignVolNeed?.value !== '' ? Number(assignVolNeed?.value) : null,
-                vol_min:          assignVolMin?.value  !== '' ? Number(assignVolMin?.value)  : null,
-                vol_max:          assignVolMax?.value  !== '' ? Number(assignVolMax?.value)  : null,
-                notes:            assignNotes.value.trim() || null,
+                volunteer_need:
+                  assignVolNeed?.value !== ""
+                    ? Number(assignVolNeed?.value)
+                    : null,
+                vol_min:
+                  assignVolMin?.value !== ""
+                    ? Number(assignVolMin?.value)
+                    : null,
+                vol_max:
+                  assignVolMax?.value !== ""
+                    ? Number(assignVolMax?.value)
+                    : null,
+                notes: assignNotes.value.trim() || null,
               }),
             ),
           );
