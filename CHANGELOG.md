@@ -4,6 +4,17 @@ All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ---
+## [2.17.0] = 2026-05-21
+### Added
+- Cookie consent banner (viewport-fixed, slide-up/down transition) with
+  Accept All, Essential Only, and Manage Preferences options; choice
+  persisted in localStorage
+- `/privacy` — Privacy Policy page
+- `/terms` — Terms of Service page (friendly, volunteer tone)
+- Footer links to Privacy Policy and Terms of Service
+- Cookie consent styles added to styles.css for global coverage
+
+---
 
 ## [2.16.0] — 2026-05-19
 ### Added

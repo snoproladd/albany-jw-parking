@@ -7,24 +7,34 @@
   <i class="fa-solid fa-chevron-up"></i>
 </button>
 
+
+
 <footer>
   <p class="footer-text">
     <a class="footer-text" href="https://www.vecteezy.com/">Vectors credits Vecteezy</a>
   </p>
 
   <% const year = new Date().getFullYear(); %>
-  <p class="footer-text">Copyright © <%= year %></p>
+  <p class="footer-text">Copyright &copy; <%= year %></p>
 
   <p class="footer-text">
     <strong>Disclaimer:</strong>
     This website is not sponsored, created, or controlled by Jehovah's Witnesses or www.JW.org,
     legally known as the Watch Tower Bible and Tract Society of Pennsylvania.
   </p>
+
+  <p class="footer-text">
+    <a class="footer-text" href="/privacy">Privacy Policy</a>
+    &middot;
+    <a class="footer-text" href="/terms">Terms of Service</a>
+  </p>
+
   <p class="footer-text">v<%= typeof appVersion !== 'undefined' ? appVersion : '—' %></p>
 </footer>
 
 <script src="/js/scrollToTop.js"></script>
 <script src="/js/navDropdown.js"></script>
+<script src="/js/cookieConsent.js"></script>
 <% if (typeof nav !== 'undefined' && nav && nav.isLoggedIn) { %>
   <script src="/js/sessionKeepAlive.js"></script>
   <script src="/js/bfcacheGuard.js"></script>

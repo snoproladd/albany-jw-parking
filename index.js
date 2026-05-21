@@ -1063,6 +1063,22 @@ const server = http.createServer(app);
       }
     });
     
+    /**
+     * GET /privacy
+     * Public privacy policy page. No authentication required.
+     */
+    app.get('/privacy', (req, res) => {
+        res.render('privacy');
+    });
+
+    /**
+     * GET /terms
+     * Public terms of service page. No authentication required.
+     */
+    app.get('/terms', (req, res) => {
+        res.render('terms');
+    });
+
     app.get("/health", (req, res) => res.send("OK"));
 
     app.use((req, res) => {
