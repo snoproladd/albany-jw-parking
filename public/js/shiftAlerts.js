@@ -218,6 +218,8 @@ function buildScheduleCard(s) {
            </button>`
     : "";
 
+  const previewId = `saPreview-${s.id}`;
+
   return `
         <div class="sa-schedule-card mb-3${s.active ? "" : " sa-schedule-card--inactive"}"
              data-id="${s.id}">
@@ -254,6 +256,22 @@ function buildScheduleCard(s) {
                         <i class="fa-solid ${toggleIcon} me-1"></i>${toggleLabel}
                     </button>
                     ${deleteBtn}
+                </div>
+            </div>
+            <div class="sa-preview-toggle mt-2">
+                <button class="btn btn-link btn-sm p-0 text-decoration-none"
+                        data-action="preview" data-id="${s.id}"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#${previewId}"
+                        aria-expanded="false">
+                    <i class="fa-solid fa-chevron-down fa-xs me-1"></i>Next Alert Preview
+                </button>
+            </div>
+            <div class="collapse" id="${previewId}" data-preview-loaded="false">
+                <div class="sa-preview-body mt-2">
+                    <div class="sa-preview-loading text-muted" style="font-size:.8rem">
+                        <i class="fa-solid fa-spinner fa-spin me-1"></i>Loading…
+                    </div>
                 </div>
             </div>
         </div>`;
@@ -548,6 +566,119 @@ async function deleteSchedule(id) {
 }
 
 /**
+ * Fetch and render the "next alert" preview for a schedule card.
+ * Called lazily on first expand of the preview panel.
+ *
+ * @param {number} id          Schedule primary key.
+ * @param {HTMLElement} panel  The collapse element containing `.sa-preview-body`.
+ * @returns {Promise<void>}
+ */
+async function loadPreview(id, panel) {
+  const body = panel.querySelector(".sa-preview-body");
+  if (!body) return;
+
+  try {
+    const res = await fetch(
+      `/oversight/tools/shift-alerts/schedules/${id}/preview`,
+    );
+    const data = await res.json();
+
+    if (!data.success || !data.shifts?.length) {
+      body.innerHTML = `<p class="text-muted mb-0" style="font-size:.8rem">
+          <i class="fa-solid fa-circle-info me-1"></i>
+          No eligible recipients found — either no shifts match the criteria or all have already been alerted.
+      </p>`;
+      return;
+    }
+
+    const schedule = schedules.find((s) => s.id === id);
+    const isT15 = schedule?.alert_category === "t15min";
+
+    let fireHtml = "";
+    if (!isT15 && data.fireAt) {
+      const fireDate = new Date(data.fireAt);
+      const edtOffset = 4 * 60;
+      const local = new Date(fireDate.getTime() - edtOffset * 60 * 1000);
+      const opts = { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", hour12: true };
+      fireHtml = `<div class="sa-preview-fire mb-2">
+          <i class="fa-solid fa-clock me-1"></i>
+          <strong>Fires:</strong> ${local.toLocaleString("en-US", opts)} EDT
+      </div>`;
+    } else if (isT15) {
+      fireHtml = `<div class="sa-preview-fire mb-2">
+          <i class="fa-solid fa-clock me-1"></i>
+          <strong>Fires:</strong> Automatically 15 min before each shift
+      </div>`;
+    }
+
+    // Group by convention day
+    /** @type {Record<string, {dayLabel:string, shifts:Array}>} */
+    const byDay = {};
+    for (const sh of data.shifts) {
+      const key = sh.convention_date;
+      if (!byDay[key]) byDay[key] = { dayLabel: sh.day_label, shifts: [] };
+      byDay[key].shifts.push(sh);
+    }
+
+    const deptLabel = (key) => DEPT_LABELS[key] ?? key ?? "No dept";
+
+    const fmtShiftTime = (raw) => {
+      if (!raw) return "";
+      const parts = String(raw).split(":");
+      const h = Number(parts[0]), m = Number(parts[1] ?? 0);
+      const ap = h >= 12 ? "PM" : "AM";
+      return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${ap}`;
+    };
+
+    const dayRows = Object.entries(byDay).map(([date, { dayLabel, shifts }]) => {
+      const shiftRows = shifts.map((sh) => `
+          <tr>
+            <td class="ps-3">${escHtml(sh.shift_label)}</td>
+            <td>${escHtml(sh.event_type_name)}</td>
+            <td>${escHtml(deptLabel(sh.department))}</td>
+            <td>${fmtShiftTime(sh.start_time)}</td>
+            <td class="text-end pe-2">
+              <span class="badge text-bg-secondary">${sh.recipient_count}</span>
+            </td>
+          </tr>`).join("");
+
+      const totalRecipients = shifts.reduce((s, sh) => s + sh.recipient_count, 0);
+
+      return `
+          <div class="sa-preview-day mb-2">
+            <div class="sa-preview-day-label">${escHtml(dayLabel)}
+              <span class="ms-2 text-muted fw-normal" style="font-size:.75rem">${escHtml(date)}</span>
+            </div>
+            <table class="sa-preview-table w-100">
+              <thead>
+                <tr>
+                  <th class="ps-3">Shift</th><th>Type</th><th>Dept</th>
+                  <th>Time</th><th class="text-end pe-2">Recipients</th>
+                </tr>
+              </thead>
+              <tbody>${shiftRows}</tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="4" class="ps-3 pt-1 text-muted" style="font-size:.75rem">Total</td>
+                  <td class="text-end pe-2 pt-1">
+                    <span class="badge text-bg-primary">${totalRecipients}</span>
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>`;
+    }).join("");
+
+    body.innerHTML = fireHtml + dayRows;
+  } catch (err) {
+    body.innerHTML = `<p class="text-muted mb-0" style="font-size:.8rem">
+        <i class="fa-solid fa-triangle-exclamation me-1"></i>Failed to load preview.
+    </p>`;
+    console.error("loadPreview error:", err);
+  }
+}
+
+/**
  * Manually trigger an immediate burst send for a schedule.
  * Skips the dupe guard (force: false) so already-sent pairs are still excluded.
  *
@@ -803,6 +934,12 @@ function bindEvents() {
       sendNow(id);
     } else if (action === "delete") {
       deleteSchedule(id);
+    } else if (action === "preview") {
+      const collapseEl = document.getElementById(`saPreview-${id}`);
+      if (collapseEl && collapseEl.dataset.previewLoaded === "false") {
+        collapseEl.dataset.previewLoaded = "true";
+        loadPreview(id, collapseEl);
+      }
     }
   });
 

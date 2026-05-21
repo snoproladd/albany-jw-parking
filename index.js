@@ -916,16 +916,27 @@ const server = http.createServer(app);
                 );
               }
 
+              const checkT15 = await db.hasT15AlertBeenSent(smsVol.id, shift.shift_id);
+              if (!checkT15) {
+                res.set("Content-Type", "text/xml");
+                return res.send(
+                  `<?xml version="1.0" encoding="UTF-8"?><Response>` +
+                    `<Message>Albany JW Parking: Thanks! We\u2019ll check you in automatically ` +
+                    `when your T-15 reminder goes out. See you soon!</Message></Response>`,
+                );
+              }
+
+              const checkDayId = (await db.getSchedulerDayForVolunteerShift(smsVol.id, shift.shift_id)) ?? shift.convention_day_id;
               await db.upsertAttendance({
                 volunteerId: smsVol.id,
-                conventionDayId: shift.convention_day_id,
+                conventionDayId: checkDayId,
                 sessionId: shift.session_id,
                 shiftId: shift.shift_id,
                 attended: true,
                 recordedBy: `sms:${fromPhone}`,
               });
 
-              log(`SMS CHECK-IN: vol ${smsVol.id} shift ${shift.shift_id}`);
+              log(`SMS CHECK-IN: vol ${smsVol.id} shift ${shift.shift_id} day ${checkDayId}`);
               res.set("Content-Type", "text/xml");
               return res.send(
                 `<?xml version="1.0" encoding="UTF-8"?><Response>` +
@@ -958,19 +969,21 @@ const server = http.createServer(app);
                 .slice(0, 10);
 
               if (shiftDate === easternToday) {
-                await db.upsertAttendance({
-                  volunteerId: smsVol.id,
-                  conventionDayId: shift.convention_day_id,
-                  sessionId: shift.session_id,
-                  shiftId: shift.shift_id,
-                  attended: true,
-                  recordedBy: `sms:${fromPhone}`,
-                });
+                const codeT15 = await db.hasT15AlertBeenSent(smsVol.id, shift.shift_id);
+                if (codeT15) {
+                  const codeDayId = (await db.getSchedulerDayForVolunteerShift(smsVol.id, shift.shift_id)) ?? shift.convention_day_id;
+                  await db.upsertAttendance({
+                    volunteerId: smsVol.id,
+                    conventionDayId: codeDayId,
+                    sessionId: shift.session_id,
+                    shiftId: shift.shift_id,
+                    attended: true,
+                    recordedBy: `sms:${fromPhone}`,
+                  });
+                }
               }
 
-              log(
-                `SMS code confirm: vol ${smsVol.id} code ${bodyText} shift ${shift.shift_id}`,
-              );
+              log(`SMS code confirm: vol ${smsVol.id} code ${bodyText} shift ${shift.shift_id}`);
               res.set("Content-Type", "text/xml");
               return res.send(
                 `<?xml version="1.0" encoding="UTF-8"?><Response>` +
@@ -1063,22 +1076,6 @@ const server = http.createServer(app);
       }
     });
     
-    /**
-     * GET /privacy
-     * Public privacy policy page. No authentication required.
-     */
-    app.get('/privacy', (req, res) => {
-        res.render('privacy');
-    });
-
-    /**
-     * GET /terms
-     * Public terms of service page. No authentication required.
-     */
-    app.get('/terms', (req, res) => {
-        res.render('terms');
-    });
-
     app.get("/health", (req, res) => res.send("OK"));
 
     app.use((req, res) => {

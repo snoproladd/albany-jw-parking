@@ -4,6 +4,29 @@ All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ---
+## [2.18.1] — 2026-05-21
+### Fixed
+- **SMS check-in: wrong `convention_day_id` written to attendance** — `getVolunteerShiftByCode`
+  and `getVolunteerActiveShiftToday` return `convention_day_id` via the sessions chain, which
+  can differ from the scheduler assignment day when old test days exist in the DB. Added
+  `getSchedulerDayForVolunteerShift()` to `dbSync.js` (queries `shift_slot_assignments`) and
+  used it in both SMS handler paths in `index.js` so attendance rows are always written with
+  the day the scheduler actually placed the volunteer on.
+- **SMS check-in: Twilio inbound webhook never reached server** — the Albany Parking
+  Messaging Service in Twilio had its inbound Request URL set to the placeholder
+  `https://yourdomain.com/api/sms/webhook`. Number-level webhook settings are overridden
+  by the Messaging Service, so all volunteer replies were silently dropped. Updated to the
+  correct application URL.
+- **SMS check-in: T-15 guard missing from both inbound paths** — `CHECK` and shift-code
+  reply handlers in `index.js` now call `hasT15AlertBeenSent()` before writing attendance.
+  If no T-15 has been sent for the shift, the volunteer receives a message explaining they
+  will be checked in automatically when the T-15 goes out.
+- **Scheduler KM/KA pill check-in badge overlapping name** — the `.pill-badge-row` is now
+  `position: absolute` inside KM and KA dropzones, floating as a small corner overlay
+  instead of pushing the volunteer name out of view in the compact 44×34px slot.
+  (`scheduler.css`)
+
+---
 ## [2.18.0]
 ### Added
 - **`public/js/timeUtils.js`** — new shared ES module centralising all time

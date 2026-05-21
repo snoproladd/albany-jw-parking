@@ -185,3 +185,73 @@
     background: var(--bs-success-bg-subtle, #d1e7dd);
     border-color: var(--bs-success-border-subtle, #a3cfbb);
 }
+
+
+/* ─────────────────────────────────────────────────────────────
+   7. Next alert preview panel
+   ───────────────────────────────────────────────────────────── */
+
+.sa-preview-toggle .btn-link {
+    color: var(--bs-secondary-color);
+    font-size: 0.78rem;
+}
+
+.sa-preview-toggle .btn-link:hover {
+    color: var(--bs-body-color);
+}
+
+.sa-preview-toggle .btn-link[aria-expanded="true"] .fa-chevron-down {
+    transform: rotate(180deg);
+    transition: transform 0.2s;
+}
+
+.sa-preview-body {
+    border-top: 1px solid var(--bs-border-color-translucent);
+    padding-top: 0.6rem;
+}
+
+.sa-preview-fire {
+    font-size: 0.8rem;
+    color: var(--bs-secondary-color);
+}
+
+.sa-preview-day-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--bs-body-color);
+    margin-bottom: 0.25rem;
+}
+
+.sa-preview-table {
+    font-size: 0.75rem;
+    border-collapse: collapse;
+}
+
+.sa-preview-table th {
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--bs-secondary-color);
+    padding-bottom: 0.2rem;
+}
+
+.sa-preview-table td,
+.sa-preview-table th {
+    vertical-align: middle;
+    padding: 0.15rem 0.3rem;
+}
+
+.sa-preview-table tbody tr:hover {
+    background: var(--bs-tertiary-bg);
+}
+
+.sa-preview-table tfoot td {
+    border-top: 1px solid var(--bs-border-color-translucent);
+}
+
+.sa-preview-day + .sa-preview-day {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--bs-border-color-translucent);
+}

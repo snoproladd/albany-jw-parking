@@ -108,6 +108,100 @@ const DEPT_ABBREV = {
 };
 
 // ─────────────────────────────────────────────
+//  Attendance state + badge helpers (module-level)
+// ─────────────────────────────────────────────
+
+/**
+ * Attended volunteer+shift pairs for the currently loaded day.
+ * Keys are "volunteerId:shiftId" strings.
+ * @type {Set<string>}
+ */
+let _attendanceSet = new Set();
+
+/**
+ * Find or create the `.pill-badge-row` container inside a pill.
+ * Module-level so both conflict and check-in badge helpers can use it.
+ *
+ * @param {HTMLElement} pill
+ * @returns {HTMLElement}
+ */
+function _getBadgeRow(pill) {
+  let row = pill.querySelector(".pill-badge-row");
+  if (!row) {
+    row = document.createElement("div");
+    row.classList.add("pill-badge-row");
+    pill.appendChild(row);
+  }
+  return row;
+}
+
+/**
+ * Apply a green check-in badge to a DZ pill.
+ * No-op if the badge is already present.
+ *
+ * @param {HTMLElement} pill
+ * @returns {void}
+ */
+function _applyCheckinBadge(pill) {
+  const row = _getBadgeRow(pill);
+  if (row.querySelector(".pill-checkin-badge")) return;
+  const badge = document.createElement("span");
+  badge.classList.add("pill-checkin-badge");
+  badge.innerHTML = '<i class="fa-solid fa-check"></i>';
+  badge.title = "Checked in";
+  row.appendChild(badge);
+}
+
+/**
+ * Remove a check-in badge from a pill if present.
+ *
+ * @param {HTMLElement} pill
+ * @returns {void}
+ */
+function _removeCheckinBadge(pill) {
+  pill.querySelector(".pill-checkin-badge")?.remove();
+}
+
+/**
+ * Fetch current attendance for the loaded day and update check-in badges
+ * on all DZ pills. Returns the full API response so the caller can read
+ * `conventionDate` for smart polling decisions.
+ *
+ * @returns {Promise<{success:boolean, attendance:Array, conventionDate:string|null}|null>}
+ */
+export async function refreshAttendanceBadges() {
+  if (!_currentDayId) return null;
+  try {
+    const res = await fetch(`/api/scheduler/attendance/${_currentDayId}`);
+    const data = await res.json();
+    if (!data.success) return data;
+
+    _attendanceSet = new Set(
+      (data.attendance || []).map((a) => `${a.volunteer_id}:${a.shift_id}`),
+    );
+
+    const pills = document.querySelectorAll(
+      ".scheduler-calendar .scheduler-dropzone .name-pill",
+    );
+    for (const pill of pills) {
+      const volId = pill.dataset.id;
+      const shiftId = pill.closest(".sched-shift-block")?.dataset.shiftId;
+      if (!volId || !shiftId) continue;
+      if (_attendanceSet.has(`${volId}:${shiftId}`)) {
+        _applyCheckinBadge(pill);
+      } else {
+        _removeCheckinBadge(pill);
+      }
+    }
+
+    return data;
+  } catch (err) {
+    console.error("[scheduler] refreshAttendanceBadges error:", err);
+    return null;
+  }
+}
+
+// ─────────────────────────────────────────────
 //  Public entry point
 // ─────────────────────────────────────────────
 
@@ -313,18 +407,12 @@ export async function initDomActions() {
 
   /**
    * Find or create the `.pill-badge-row` container inside a pill.
+   * Delegates to the module-level helper.
+   *
    * @param {HTMLElement} pill
    * @returns {HTMLElement}
    */
-  function _getBadgeRow(pill) {
-    let row = pill.querySelector(".pill-badge-row");
-    if (!row) {
-      row = document.createElement("div");
-      row.classList.add("pill-badge-row");
-      pill.appendChild(row);
-    }
-    return row;
-  }
+  // Note: _getBadgeRow is defined at module level above initDomActions.
 
   function _applyConflictBadge(pill, title) {
     const row = _getBadgeRow(pill);
@@ -1221,6 +1309,22 @@ export async function initDomActions() {
     reportLink.appendChild(document.createTextNode("\u00a0Report"));
     historyBtns.appendChild(reportLink);
 
+    const refreshBtn = document.createElement("button");
+    refreshBtn.type = "button";
+    refreshBtn.id = "schedRefreshAttendanceBtn";
+    refreshBtn.classList.add("sched-history-btn");
+    refreshBtn.title = "Manually refresh check-in badges";
+    const refreshIcon = document.createElement("i");
+    refreshIcon.className = "fa-solid fa-rotate";
+    refreshBtn.appendChild(refreshIcon);
+    refreshBtn.appendChild(document.createTextNode("\u00a0Check-ins"));
+    refreshBtn.addEventListener("click", async () => {
+      refreshBtn.disabled = true;
+      await refreshAttendanceBadges();
+      refreshBtn.disabled = false;
+    });
+    historyBtns.appendChild(refreshBtn);
+
     const togglesWrap = document.createElement("div");
     togglesWrap.classList.add("sched-dept-toggles-wrap");
 
@@ -1778,6 +1882,18 @@ function _recheckConflictBadges(volId) {
       }
 
       _updatePoolCount();
+
+      // Fetch attendance and apply check-in badges. Dispatch the result so
+      // scheduler.js can set up the smart attendance poller.
+      const attendanceData = await refreshAttendanceBadges();
+      document.dispatchEvent(
+        new CustomEvent("scheduler:attendanceReady", {
+          detail: {
+            dayId,
+            conventionDate: attendanceData?.conventionDate ?? null,
+          },
+        }),
+      );
     } catch (err) {
       console.error("[scheduler] _loadDayAssignments error:", err);
     }

@@ -95,6 +95,7 @@ import {
   saveSlotAssignment,
   deleteSlotAssignment,
   getSlotAssignmentsByDay,
+  getAttendanceByDay,
   getBlackoutsForDay,
   getBlackoutsForVolunteer,
   createBlackout,
@@ -117,6 +118,7 @@ import {
   getShiftsForAlertBurst,
   logShiftAlerts,
   getAlertLog,
+  getSchedulePreview,
 } from "../lib/dbSync.js";
 
 import { verifyPassword, hashPassword } from "../lib/passwordVer.js";
@@ -4650,6 +4652,96 @@ export function oversightRouter({
         return res.json({ success: ok });
       } catch (err) {
         (logError || console.error)("api/scheduler/slots DELETE error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * GET /api/scheduler/attendance/:dayId
+   * Return attended volunteer+shift pairs for a convention day, plus the
+   * convention date so the client can decide on auto-poll interval.
+   *
+   * Response: { success: boolean, attendance: Array, conventionDate: string|null }
+   *
+   * @requires createAssignments permission
+   */
+  router.get(
+    "/api/scheduler/attendance/:dayId",
+    requireAuth,
+    requirePermission("createAssignments"),
+    async (req, res) => {
+      const dayId = Number(req.params.dayId);
+      if (!dayId)
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid day ID." });
+      try {
+        const [attendance, days] = await Promise.all([
+          getAttendanceByDay(dayId),
+          getConventionDays(new Date().getFullYear()),
+        ]);
+        const day = days.find((d) => d.id === dayId);
+        const conventionDate = day?.convention_date
+          ? new Date(day.convention_date).toISOString().slice(0, 10)
+          : null;
+        return res.json({ success: true, attendance, conventionDate });
+      } catch (err) {
+        (logError || console.error)("api/scheduler/attendance GET error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * GET /oversight/tools/shift-alerts/schedules/:id/preview
+   * Return a preview of shifts targeted by a schedule's next send.
+   * Recipient counts exclude already-sent pairs (dupe guard applied).
+   *
+   * Response: { success: boolean, shifts: Array, fireAt: string|null }
+   *
+   * @requires accessAdminConsole permission
+   */
+  router.get(
+    "/oversight/tools/shift-alerts/schedules/:id/preview",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    async (req, res) => {
+      const id = Number(req.params.id);
+      if (!id)
+        return res.status(400).json({ success: false, error: "Invalid id." });
+      try {
+        const schedule = await getAlertSchedule(id);
+        if (!schedule)
+          return res.status(404).json({ success: false, error: "Schedule not found." });
+
+        const easternToday = new Date(Date.now() - 4 * 60 * 60 * 1000)
+          .toISOString()
+          .slice(0, 10);
+
+        const fireDate = schedule.fire_date
+          ? new Date(schedule.fire_date).toISOString().slice(0, 10)
+          : easternToday;
+
+        const shifts = await getSchedulePreview({
+          scheduleId:      schedule.id,
+          alertCategory:   schedule.alert_category,
+          fireDate,
+          departments:     schedule.departments || null,
+          includeNullDept: !!schedule.include_null_dept,
+          year:            schedule.year,
+        });
+
+        // Build human-readable fire time for the response
+        let fireAt = null;
+        if (schedule.alert_category !== "t15min" && schedule.fire_date && schedule.fire_time_utc) {
+          const fireDateStr = new Date(schedule.fire_date).toISOString().slice(0, 10);
+          fireAt = `${fireDateStr}T${schedule.fire_time_utc}Z`;
+        }
+
+        return res.json({ success: true, shifts, fireAt });
+      } catch (err) {
+        (logError || console.error)("shift-alerts/preview GET error:", err);
         return res.status(500).json({ success: false, error: "Server error." });
       }
     },

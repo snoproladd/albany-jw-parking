@@ -605,3 +605,15 @@ conflict badge so you can review them.
 the volunteer normally. The `⚠` badge persists as long as the conflict exists
 in the tracker, but there is no separate "conflict acknowledged" record in the
 database.
+
+**SMS check-in requires a T-15 alert to have fired first.** Volunteers can only
+check themselves in via SMS (`CHECK` or their shift code) after the T-15 reminder
+has been sent for their shift. If they text in before that, they receive a message
+telling them they will be checked in automatically when the T-15 goes out. This
+prevents advance check-ins from being recorded hours before the shift.
+
+**Twilio inbound webhook must be set on the Messaging Service, not the phone number.**
+If SMS replies stop reaching the server, check the Albany Parking Messaging Service
+settings in the Twilio console (Messaging → Messaging Services → Albany Parking →
+Settings → Inbound messages → Request URL). The number-level webhook is overridden
+by the service and has no effect.

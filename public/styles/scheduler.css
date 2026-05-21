@@ -571,9 +571,54 @@
     cursor: default;
 }
 
+/* Check-in badge — green tick on DZ pills when attendance.attended = 1 */
+.pill-checkin-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.62rem;
+    padding: 0.05rem 0.22rem;
+    border-radius: 0.75rem;
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #86efac;
+    margin-left: 0.15rem;
+    flex-shrink: 0;
+    cursor: default;
+    line-height: 1;
+    font-weight: 700;
+}
+
 /* Hide the badge once the pill is inside a DZ */
 .scheduler-dropzone .pill-assign-badge {
     display: none;
+}
+
+/* KM/KA pills — compact layout: badge row floats as a corner overlay
+   so it doesn't push the volunteer name out of view */
+.dz-keyman .name-pill,
+.dz-keyman-asst .name-pill {
+    position: relative;
+}
+
+.dz-keyman .pill-badge-row,
+.dz-keyman-asst .pill-badge-row {
+    position: absolute;
+    bottom: 1px;
+    right: 1px;
+    margin: 0;
+    gap: 0.05rem;
+    flex-wrap: nowrap;
+}
+
+.dz-keyman .pill-checkin-badge,
+.dz-keyman-asst .pill-checkin-badge,
+.dz-keyman .pill-conflict-badge,
+.dz-keyman-asst .pill-conflict-badge,
+.dz-keyman .pill-note-badge,
+.dz-keyman-asst .pill-note-badge {
+    font-size: 0.48rem;
+    padding: 0.01rem 0.06rem;
+    margin: 0;
 }
 
 /* KM / KA role badge on pills dropped into leadership slots */
