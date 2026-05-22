@@ -4,6 +4,34 @@ All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 
+## [2.23.0] - 2026-05-22
+
+### Changed
+- Invitation Tracker now collapses to one row per volunteer per campaign
+  family. A "family" is a parent batch plus all direct follow-up children.
+  The winning row per volunteer is resolved by: responded (non-revoked) first,
+  then pending, then revoked, tiebroken by most-recent invitation id. This
+  means a follow-up RSVP surfaces correctly when viewing the parent campaign.
+- `getInvitationsForTracker` unified into a single family-aware CTE path.
+  `family_root_id` (COALESCE(parent_batch_id, batch_id)) is computed and
+  returned on every row. Server-side batch/day/response filters removed from
+  the tracker page load — all filtering is now client-side so switching
+  campaigns requires no page reload.
+- Tracker campaign filter resolves child batch selection to the parent family
+  root automatically — selecting a follow-up batch shows the merged parent view.
+- Campaign center invite-status badges now reflect family-wide RSVP status.
+  The `batches/:id/invited` endpoint resolves to the family root before
+  querying so a follow-up RSVP correctly badges the volunteer as responded.
+
+### Fixed
+- Undeclared `modeFollowupBtn` variable in `campaignCenter.js` caused a
+  ReferenceError that crashed the entire DOMContentLoaded handler, silently
+  preventing invite-status badges and batch preview from loading when a
+  campaign was selected. Fixed by adding the missing `getElementById` declaration.
+- Split email/SMS sends that were created as two independent top-level batches
+  (Scam Warning batches 7 and 8) caused every volunteer to appear twice in the
+  tracker pending count. Fixed in data by setting batch 8 `parent_batch_id = 7`.
+
 ## [2.22.0] - 2026-05-22
 
 ### Added

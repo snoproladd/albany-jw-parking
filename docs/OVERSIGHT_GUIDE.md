@@ -188,9 +188,26 @@ parent campaign row and a follow-up row is counted only once, in the bucket
 matching their most definitive response.
 
 > **Note:** The Pending card does not respond to clicks. Filtering the table to
-> “pending” only is intentionally disabled because it hides responded rows that
+> "pending" only is intentionally disabled because it hides responded rows that
 > the deduplication logic needs to correctly classify volunteers — which would
 > cause the pending count to inflate.
+
+#### Campaign Families
+
+Follow-up campaigns (child batches) are merged into their parent in the tracker.
+When you select a parent campaign in the filter, its follow-up children are
+automatically included and each volunteer is shown once with their effective
+response across all sends in the family. Selecting a child batch in the dropdown
+resolves to the parent family view automatically.
+
+The group note below the campaign dropdown ("Includes N follow-up campaigns")
+confirms how many child batches are included in the current view.
+
+> **Tip:** When two separate sends (e.g. email and SMS) were accidentally
+> created as independent top-level campaigns with the same name rather than
+> as one campaign with both channels, they will appear as separate families
+> and volunteers will be counted twice. Fix this in the DB by setting the
+> later batch's `parent_batch_id` to the earlier one's id.
 
 #### Campaign-level Actions
 
@@ -198,9 +215,9 @@ When a campaign is selected in the **Campaign** filter:
 
 - **Remind N pending** (amber button, top-right) — opens the Campaign Center
   pre-loaded with the selected campaign and all pending volunteers already
-  selected. The original message pre-fills the compose area so you can send a
-  nudge with minimal editing. Only appears when the selected campaign has
-  **Response needed** enabled.
+  selected. Pending is calculated across the whole campaign family — a
+  volunteer who responded to any send in the family is not counted as pending.
+  Only appears when the selected campaign has **Response needed** enabled.
 - **Edit campaign** (pencil icon next to the Campaign dropdown, ADMIN only) —
   opens a modal to rename the campaign, edit its saved message, change its
   parent campaign, toggle **Response needed**, or deactivate it.

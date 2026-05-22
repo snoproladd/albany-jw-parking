@@ -240,6 +240,7 @@
                                         data-name="<%= volName.toLowerCase() %>"
                                         data-revoked="<%= inv.revoked ? 'true' : 'false' %>"
                                         data-batch-id="<%= inv.batch_id || '' %>"
+                                        data-family-root-id="<%= inv.family_root_id || inv.batch_id || '' %>"
                                         data-day-id="<%= inv.convention_day_id || '' %>"
                                         data-response="<%= inv.response || (inv.revoked ? 'revoked' : 'pending') %>"
                                         data-reminder-count="<%= inv.reminder_count || 0 %>"
@@ -247,7 +248,7 @@
                                         data-vol-status="<%= inv.volunteer_status || '' %>"
                                         data-volunteer-id="<%= inv.volunteer_id %>"
                                         data-message-type="<%= inv.batch_message_type || 'invitation' %>"
-data-response-needed="<%= inv.response_needed ? 'true' : 'false' %>">
+                                        data-response-needed="<%= inv.response_needed ? 'true' : 'false' %>">
                                         <td class="it-col-name fw-semibold"><%= volName %></td>
 
                                         <td class="it-col-campaign">

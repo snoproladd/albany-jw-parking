@@ -61,8 +61,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const modeWrap          = document.getElementById("mcModeWrap");
 
   // Campaign mode
-  const modeNewBtn = document.getElementById("mcModeNew");
-  const modeAddToBtn = document.getElementById("mcModeAddTo");
+  const modeNewBtn      = document.getElementById("mcModeNew");
+  const modeAddToBtn    = document.getElementById("mcModeAddTo");
+  const modeFollowupBtn = document.getElementById("mcModeFollowup");
   const campaignNameWrap = document.getElementById("mcCampaignNameWrap");
   const campaignNameInput = document.getElementById("mcCampaignName");
   const suggestNameBtn = document.getElementById("mcSuggestNameBtn");

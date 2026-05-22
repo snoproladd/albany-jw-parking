@@ -72,26 +72,27 @@ document.addEventListener("DOMContentLoaded", () => {
   // =========================================================
 
   /**
-   * Build a Set of batch IDs to include for a given filter value.
+   * Resolve a selected batch option value to its family root id.
    *
-   * If the selected batch is a parent (other options point to it via
-   * data-parent-id), the Set includes the parent plus all direct children.
-   * If the selected batch is itself a child, only that child is included —
-   * the user explicitly narrowed to a single follow-up.
+   * If the selected option is a child batch (has data-parent-id set),
+   * returns the parent id so filtering uses family_root_id correctly.
+   * Also returns the count of child batches belonging to the resolved root
+   * for the batch group note.
    *
    * @param {string} batchVal - The selected batch option value, or "" for all.
-   * @returns {{ ids: Set<string>, childCount: number }}
+   * @returns {{ rootId: string, childCount: number }}
    */
-  function getRelatedBatchIds(batchVal) {
-    if (!batchVal) return { ids: new Set(), childCount: 0 };
-    const children = Array.from(
-      batchFilter?.querySelectorAll(`option[data-parent-id="${batchVal}"]`) ||
-        [],
-    ).map((opt) => opt.value);
-    return {
-      ids: new Set([batchVal, ...children]),
-      childCount: children.length,
-    };
+  function resolveFamilyRoot(batchVal) {
+    if (!batchVal) return { rootId: '', childCount: 0 };
+
+    const selectedOpt = batchFilter?.querySelector(`option[value="${batchVal}"]`);
+    const rootId = selectedOpt?.dataset.parentId || batchVal;
+
+    const childCount = Array.from(
+      batchFilter?.querySelectorAll(`option[data-parent-id="${rootId}"]`) || [],
+    ).length;
+
+    return { rootId, childCount };
   }
 
   // =========================================================
@@ -125,8 +126,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const showRevoked          = revokedChk?.checked ?? true;
     const responseRequiredOnly = responseRequiredChk?.checked ?? false;
 
-    const { ids: relatedBatchIds, childCount: batchChildCount } =
-      getRelatedBatchIds(batchVal);
+    const { rootId: familyRootVal, childCount: batchChildCount } =
+      resolveFamilyRoot(batchVal);
 
     const rows = document.querySelectorAll(".it-row");
     let visible = 0;
@@ -163,8 +164,10 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // Campaign filter — expand to include direct child (follow-up) batches
-      if (batchVal && !relatedBatchIds.has(batchId)) {
+      // Campaign filter — match on family_root_id so follow-up rows are
+      // included when viewing the parent, and child selection resolves to parent.
+      const familyRootId = row.dataset.familyRootId || '';
+      if (familyRootVal && familyRootId !== familyRootVal) {
         row.hidden = true;
         return;
       }
@@ -253,34 +256,19 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     // Pending count for the Remind button — mirrors the Pending stat card.
-    // Scoped to the selected parent batch only (not follow-ups), and excludes
-    // any volunteer who has responded in ANY visible row (including follow-ups),
-    // keeping it in sync with cntPending.
-    const cntPendingParentOnly = batchVal
-      ? new Set(
-          Array.from(rows)
-            .filter(
-              (r) =>
-                !r.hidden &&
-                r.dataset.batchId === batchVal &&
-                r.dataset.response === "pending" &&
-                r.dataset.volStatus === "completed" &&
-                !hasRespondedAnywhere(r.dataset.volunteerId),
-            )
-            .map((r) => r.dataset.volunteerId),
-        ).size
-      : new Set(
-          Array.from(rows)
-            .filter(
-              (r) =>
-                !r.hidden &&
-                r.dataset.response === "pending" &&
-                r.dataset.volStatus === "completed" &&
-                batchResponseNeededMap.get(r.dataset.batchId) !== false &&
-                !hasRespondedAnywhere(r.dataset.volunteerId),
-            )
-            .map((r) => r.dataset.volunteerId),
-        ).size;
+    // Since the DB now returns one row per volunteer per family, each visible
+    // pending row IS the canonical pending state — no cross-row dedup needed.
+    const cntPendingParentOnly = new Set(
+      Array.from(rows)
+        .filter(
+          (r) =>
+            !r.hidden &&
+            r.dataset.response === 'pending' &&
+            r.dataset.volStatus === 'completed' &&
+            batchResponseNeededMap.get(r.dataset.batchId) !== false,
+        )
+        .map((r) => r.dataset.volunteerId),
+    ).size;
 
     if (rowCount) {
       rowCount.textContent = `Showing ${visible} invitation${visible !== 1 ? "s" : ""}`;
@@ -303,12 +291,12 @@ document.addEventListener("DOMContentLoaded", () => {
     // Update batch group note
     const groupNote = document.getElementById("itBatchGroupNote");
     if (groupNote) {
-      if (batchVal && batchChildCount > 0) {
-        groupNote.textContent = `Includes ${batchChildCount} follow-up campaign${batchChildCount !== 1 ? "s" : ""}`;
-        groupNote.classList.remove("d-none");
+      if (familyRootVal && batchChildCount > 0) {
+        groupNote.textContent = `Includes ${batchChildCount} follow-up campaign${batchChildCount !== 1 ? 's' : ''}`;
+        groupNote.classList.remove('d-none');
       } else {
-        groupNote.textContent = "";
-        groupNote.classList.add("d-none");
+        groupNote.textContent = '';
+        groupNote.classList.add('d-none');
       }
     }
 
@@ -355,11 +343,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const batchVal = batchFilter?.value || "";
     if (!addVolunteersWrap || !addVolunteersBtn) return;
 
-    if (batchVal) {
-      addVolunteersBtn.href = `/oversight/tools/campaigns?batchId=${batchVal}`;
-      addVolunteersWrap.classList.remove("d-none");
+    if (familyRootVal) {
+      addVolunteersBtn.href = `/oversight/tools/campaigns?batchId=${familyRootVal}`;
+      addVolunteersWrap.classList.remove('d-none');
     } else {
-      addVolunteersWrap.classList.add("d-none");
+      addVolunteersWrap.classList.add('d-none');
     }
   }
 
@@ -388,11 +376,11 @@ document.addEventListener("DOMContentLoaded", () => {
       livePendingCount ?? Number(remindWrap?.dataset.pendingCount ?? 0);
 
     // Determine response_needed for selected batch
-    const selectedOpt = batchVal
-      ? batchFilter?.querySelector(`option[value="${batchVal}"]`)
+    const selectedOpt = familyRootVal
+      ? batchFilter?.querySelector(`option[value="${familyRootVal}"]`)
       : null;
     const responseNeeded =
-      !selectedOpt || selectedOpt.dataset.responseNeeded !== "0";
+      !selectedOpt || selectedOpt.dataset.responseNeeded !== '0';
 
     // ── Pending stat card ───────────────────────────────────────────────
     // No click behaviour — setting the response filter to "pending" hides
@@ -404,18 +392,18 @@ document.addEventListener("DOMContentLoaded", () => {
     // ── Remind button ───────────────────────────────────────────────────
     if (!remindWrap) return;
 
-    if (!batchVal) {
-      remindWrap.innerHTML = "";
+    if (!familyRootVal) {
+      remindWrap.innerHTML = '';
       return;
     }
 
     if (!responseNeeded) {
-      remindWrap.innerHTML = "";
+      remindWrap.innerHTML = '';
       return;
     }
 
     remindWrap.innerHTML = `
-      <a href="/oversight/tools/campaigns?batchId=${batchVal}&selectPending=1"
+      <a href="/oversight/tools/campaigns?batchId=${familyRootVal}&selectPending=1"
          class="btn btn-warning btn-sm">
         <i class="fa-solid fa-bell me-1"></i>Remind ${pendingCount} pending
       </a>`;
@@ -554,7 +542,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function updateEditCampaignBtn() {
     if (!editCampaignBtn) return;
     const batchVal = batchFilter?.value || "";
-    editCampaignBtn.classList.toggle("d-none", !batchVal);
+    editCampaignBtn.classList.toggle('d-none', !batchFilter?.value);
   }
 
   /**

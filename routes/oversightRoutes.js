@@ -3752,13 +3752,12 @@ export function oversightRouter({
         : "all";
 
       try {
+        // Load all deduplicated invitations — server-side filters are omitted
+        // intentionally so the client can switch filters without a page reload.
+        // batchId, dayId, and responseFilter are passed to the template only
+        // to pre-select the client-side filter dropdowns on initial load.
         const [invitations, conventionDays, batches] = await Promise.all([
-          getInvitationsForTracker({
-            conventionDayId: dayId,
-            batchId,
-            response: responseFilter,
-            includeRevoked,
-          }),
+          getInvitationsForTracker({ includeRevoked }),
           getConventionDays(year),
           getInvitationBatches(year),
         ]);
@@ -3850,8 +3849,13 @@ export function oversightRouter({
         return res.status(400).json({ success: false, error: "Invalid id." });
 
       try {
+        // Resolve to the family root so follow-up children are included
+        // and the campaign center correctly marks already-invited volunteers.
+        const batchRecord = await getInvitationBatch(id);
+        const familyRootId = batchRecord?.parent_batch_id || id;
+
         const invitations = await getInvitationsForTracker({
-          batchId: id,
+          batchId: familyRootId,
           includeRevoked: true,
           response: "all",
         });
