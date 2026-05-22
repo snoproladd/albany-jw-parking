@@ -36,7 +36,7 @@
             const totalYes     = invitations.filter(i => i.response === 'yes').length;
             const totalNo      = invitations.filter(i => i.response === 'no').length;
             const totalMaybe   = invitations.filter(i => i.response === 'maybe').length;
-            const totalPending = invitations.filter(i => !i.responded_at && !i.revoked).length;
+            const totalPending = invitations.filter(i => !i.responded_at && !i.revoked && i.response_needed).length;
             const totalRevoked = invitations.filter(i => i.revoked).length;
         %>
 
@@ -166,6 +166,12 @@
                                 Show revoked
                             </label>
                         </div>
+                        <div class="form-check mb-1">
+                            <input class="form-check-input" type="checkbox" id="itResponseRequiredOnly" />
+                            <label class="form-check-label form-label-sm" for="itResponseRequiredOnly">
+                                Response required only
+                            </label>
+                        </div>
                     </div>
 
                     <div>
@@ -239,8 +245,9 @@
                                         data-reminder-count="<%= inv.reminder_count || 0 %>"
                                         data-last-reminded-channel="<%= inv.last_reminded_channel || '' %>"
                                         data-vol-status="<%= inv.volunteer_status || '' %>"
-                                        data-volunteer-id="<%= inv.volunteer_id %>">
-
+                                        data-volunteer-id="<%= inv.volunteer_id %>"
+                                        data-message-type="<%= inv.batch_message_type || 'invitation' %>"
+data-response-needed="<%= inv.response_needed ? 'true' : 'false' %>">
                                         <td class="it-col-name fw-semibold"><%= volName %></td>
 
                                         <td class="it-col-campaign">
@@ -249,6 +256,11 @@
                                                     <span class="text-muted small me-1" title="follow-up campaign">↳</span>
                                                 <% } %>
                                                 <span class="small"><%= inv.batch_name %></span>
+                                                <% if (inv.batch_message_type === 'alert') { %>
+                                                    <span class="badge bg-warning text-dark ms-1 it-type-badge">Alert</span>
+                                                <% } else if (inv.batch_message_type === 'followup') { %>
+                                                    <span class="badge bg-info text-white ms-1 it-type-badge">Follow-up</span>
+                                                <% } %>
                                             <% } else { %>
                                                 <span class="text-muted">—</span>
                                             <% } %>
@@ -311,7 +323,11 @@
                                                     <i class="fa-solid fa-ban me-1"></i>Revoked
                                                 </span>
                                             <% } else if (!inv.responded_at) { %>
-                                                <span class="badge it-badge-pending">Pending</span>
+                                                <% if (!inv.response_needed) { %>
+                                                    <span class="text-muted small">—</span>
+                                                <% } else { %>
+                                                    <span class="badge it-badge-pending">Pending</span>
+                                                <% } %>
                                             <% } else if (inv.response === 'yes') { %>
                                                 <span class="badge it-badge-yes">
                                                     <i class="fa-solid fa-circle-check me-1"></i>Yes
@@ -428,6 +444,16 @@
                         <div class="form-text" id="itEditParentHint"></div>
                     </div>
 
+                    <%# Message type %>
+                    <div class="mb-3">
+                        <label class="form-label" for="itEditMessageType">Message type</label>
+                        <select class="form-select" id="itEditMessageType">
+                            <option value="invitation">Invitation</option>
+                            <option value="alert">Alert</option>
+                            <option value="followup">Follow-up</option>
+                        </select>
+                    </div>
+
                     <%# Response needed %>
                     <div class="mb-3">
                         <div class="form-check">
@@ -440,7 +466,7 @@
                     </div>
 
                     <%# Active toggle %>
-                    <div class="mb-1 p-3 border rounded" style="border-color: var(--bs-danger-border-subtle) !important; background: var(--bs-danger-bg-subtle);">
+                    <div class="mb-1 p-3 border rounded it-danger-zone">
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" role="switch" id="itEditActive" />
                             <label class="form-check-label" for="itEditActive">

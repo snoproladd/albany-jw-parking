@@ -2894,6 +2894,7 @@ export function oversightRouter({
         shiftId = null,
         force = false,
         isReminder = false,
+        messageType = 'invitation',
       } = req.body || {};
 
       const sentBy = req.session.userEmail || "admin";
@@ -3059,6 +3060,9 @@ export function oversightRouter({
             parentBatchId: campaignMode === "followup" ? resolvedParent : null,
             responseNeeded:
               responseNeeded !== false && responseNeeded !== "false",
+            messageType: ['invitation','alert','followup'].includes(messageType)
+              ? messageType
+              : 'invitation',
           });
         }
       } catch (err) {
@@ -3670,6 +3674,7 @@ export function oversightRouter({
         parentBatchId,
         responseNeeded,
         active,
+        messageType,
       } = req.body || {};
 
       if (!name?.trim())
@@ -3699,6 +3704,9 @@ export function oversightRouter({
           responseNeeded:
             responseNeeded !== false && responseNeeded !== "false",
           active: active !== false && active !== "false",
+          messageType: ['invitation','alert','followup'].includes(messageType)
+            ? messageType
+            : 'invitation',
         });
 
         if (!ok)

@@ -53,10 +53,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const resultsDismiss = document.getElementById("mcResultsDismiss");
   const csrfTokenEl = document.getElementById("mcCsrfToken");
 
+  // Message type
+  const typeInvitationBtn = document.getElementById("mcTypeInvitation");
+  const typeAlertBtn      = document.getElementById("mcTypeAlert");
+  const typeFollowupBtn   = document.getElementById("mcTypeFollowup");
+  const typeDesc          = document.getElementById("mcTypeDesc");
+  const modeWrap          = document.getElementById("mcModeWrap");
+
   // Campaign mode
   const modeNewBtn = document.getElementById("mcModeNew");
   const modeAddToBtn = document.getElementById("mcModeAddTo");
-  const modeFollowupBtn = document.getElementById("mcModeFollowup");
   const campaignNameWrap = document.getElementById("mcCampaignNameWrap");
   const campaignNameInput = document.getElementById("mcCampaignName");
   const suggestNameBtn = document.getElementById("mcSuggestNameBtn");
@@ -97,6 +103,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /** @type {'new'|'add_to'|'followup'} */
   let campaignMode = "new";
+
+  /** @type {'invitation'|'alert'|'followup'} */
+  let messageType = "invitation";
 
   /** @type {number|null} */
   let editingTemplateId = null;
@@ -426,7 +435,144 @@ function updateChipAreaVisibility() {
   // Campaign mode toggle
   // =========================================================
 
-   /**
+   // =========================================================
+  // Message type constants
+  // =========================================================
+
+  /**
+   * Default behavior for each message type.
+   * @type {Record<string, {responseNeeded:boolean, showLink:boolean, description:string}>}
+   */
+  const TYPE_DEFAULTS = {
+    invitation: {
+      responseNeeded: true,
+      showLink:       true,
+      description:    "Invite volunteers to a shift. Includes an RSVP link and response prompt.",
+    },
+    alert: {
+      responseNeeded: false,
+      showLink:       false,
+      description:    "Send an announcement or reminder. No RSVP link or response prompt by default.",
+    },
+    followup: {
+      responseNeeded: true,
+      showLink:       true,
+      description:    "Follow up on a previous campaign. Includes an RSVP link.",
+    },
+  };
+
+  // =========================================================
+  // Confirmation modal helper
+  // =========================================================
+
+  /**
+   * Show a small confirmation modal and resolve true if the user clicks
+   * Continue, false if they cancel or dismiss.
+   *
+   * @param {string} title
+   * @param {string} body
+   * @returns {Promise<boolean>}
+   */
+  function confirmAction(title, body) {
+    return new Promise((resolve) => {
+      const modalEl  = document.getElementById("mcConfirmModal");
+      const titleEl  = document.getElementById("mcConfirmTitle");
+      const bodyEl   = document.getElementById("mcConfirmBody");
+      const okBtn    = document.getElementById("mcConfirmOkBtn");
+
+      if (!modalEl) { resolve(true); return; }
+
+      if (titleEl) titleEl.textContent = title;
+      if (bodyEl)  bodyEl.textContent  = body;
+
+      const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+      /** @returns {void} */
+      function cleanup() {
+        okBtn?.removeEventListener("click", onOk);
+        modalEl.removeEventListener("hide.bs.modal", onHide);
+      }
+
+      /** @returns {void} */
+      function onOk() {
+        cleanup();
+        modal.hide();
+        resolve(true);
+      }
+
+      /** @returns {void} */
+      function onHide() {
+        cleanup();
+        resolve(false);
+      }
+
+      okBtn?.addEventListener("click", onOk);
+      modalEl.addEventListener("hide.bs.modal", onHide, { once: true });
+      modal.show();
+    });
+  }
+
+  // =========================================================
+  // Message type selection
+  // =========================================================
+
+  /**
+   * Set the active message type, apply defaults, and update all
+   * dependent UI: type buttons, description, sub-mode visibility,
+   * campaign mode, responseNeeded checkbox, and {link} chip visibility.
+   *
+   * @param {'invitation'|'alert'|'followup'} type
+   * @returns {void}
+   */
+  function setMessageType(type) {
+    const defaults = TYPE_DEFAULTS[type];
+    if (!defaults) return;
+
+    messageType = type;
+
+    // Type button active states
+    for (const [btn, t] of [
+      [typeInvitationBtn, "invitation"],
+      [typeAlertBtn,      "alert"],
+      [typeFollowupBtn,   "followup"],
+    ]) {
+      btn?.classList.toggle("active",             t === type);
+      btn?.classList.toggle("btn-primary",        t === type);
+      btn?.classList.toggle("btn-outline-primary", t !== type);
+    }
+
+    // Description
+    if (typeDesc) typeDesc.textContent = defaults.description;
+
+    // Sub-mode wrap — only visible for invitation type
+    modeWrap?.classList.toggle("d-none", type !== "invitation");
+
+    // Drive campaign mode from type
+    if (type === "followup") {
+      setCampaignMode("followup");
+    } else if (type === "alert") {
+      setCampaignMode("new");
+    } else {
+      // invitation — keep current sub-mode unless it's followup (reset to new)
+      if (campaignMode === "followup") setCampaignMode("new");
+    }
+
+    // Response needed default
+    if (responseNeededChk) responseNeededChk.checked = defaults.responseNeeded;
+
+    // Show/hide {link} merge chips
+    document.querySelectorAll(".mc-link-chip").forEach((chip) => {
+      chip.classList.toggle("d-none", !defaults.showLink);
+    });
+
+    updateSendButton();
+  }
+
+  typeInvitationBtn?.addEventListener("click", () => setMessageType("invitation"));
+  typeAlertBtn?.addEventListener("click",      () => setMessageType("alert"));
+  typeFollowupBtn?.addEventListener("click",   () => setMessageType("followup"));
+
+  /**
    * Switch between New Campaign, Add to Existing, and Follow-up modes.
    * Controls visibility of campaign name, parent picker, response needed,
    * existing batch picker, and event picker panels.
@@ -439,15 +585,14 @@ function updateChipAreaVisibility() {
     const isAddTo = mode === "add_to";
     const isFollowup = mode === "followup";
 
-    // Button active states
+    // Sub-mode button active states (secondary color — primary is reserved for type buttons)
     for (const [btn, active] of [
-      [modeNewBtn,     isNew],
-      [modeAddToBtn,   isAddTo],
-      [modeFollowupBtn, isFollowup],
+      [modeNewBtn,   isNew],
+      [modeAddToBtn, isAddTo],
     ]) {
-      btn?.classList.toggle("active", active);
-      btn?.classList.toggle("btn-primary", active);
-      btn?.classList.toggle("btn-outline-primary", !active);
+      btn?.classList.toggle("active",              active);
+      btn?.classList.toggle("btn-secondary",       active);
+      btn?.classList.toggle("btn-outline-secondary", !active);
     }
 
     // Panel visibility
@@ -821,6 +966,27 @@ function updateSubjectVisibility() {
   });
   sendSmsChk?.addEventListener("change", updateSendButton);
 
+  // ── Response needed manual override warning ─────────────────────────────
+  responseNeededChk?.addEventListener("change", async () => {
+    const checked = responseNeededChk.checked;
+
+    if (checked && messageType === "alert") {
+      const ok = await confirmAction(
+        "Add response prompt to alert?",
+        "Alerts don't usually require a response. Adding an RSVP prompt may confuse recipients. Continue?",
+      );
+      if (!ok) { responseNeededChk.checked = false; return; }
+    } else if (!checked && (messageType === "invitation" || messageType === "followup")) {
+      const ok = await confirmAction(
+        "Remove response prompt?",
+        "Invitations typically require a response. Removing it will send this as info-only with no RSVP. Continue?",
+      );
+      if (!ok) { responseNeededChk.checked = true; return; }
+    }
+
+    updateSendButton();
+  });
+
   // =========================================================
   // Send button gating
   // =========================================================
@@ -927,6 +1093,15 @@ function updateSubjectVisibility() {
     /** Whether this send is a reminder — reuse existing tokens rather than INSERT. */
     const isReminder = campaignMode === "add_to" && (pendingVolIds?.length ?? 0) > 0;
 
+    // Warn if {link} appears in an alert body
+    if (messageType === "alert" && (bodyInput?.value || "").includes("{link}")) {
+      const ok = await confirmAction(
+        "RSVP link in an alert?",
+        "You've included {link} in an alert message. Alerts don't typically require an RSVP response. Send anyway?",
+      );
+      if (!ok) return;
+    }
+
     sendBtn.disabled = true;
     sendBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>Sending…`;
 
@@ -957,6 +1132,7 @@ function updateSubjectVisibility() {
           shiftId,
           force,
           isReminder,
+          messageType,
         }),
       });
       return res.json().catch(() => ({}));
@@ -1337,6 +1513,11 @@ function updateSubjectVisibility() {
     );
     if (opt) {
       existingBatchSelect.value = String(preselectedBatch.id);
+      // Set type from the preselected batch before switching mode
+      const batchType = preselectedBatch.message_type || "invitation";
+      if (["invitation","alert","followup"].includes(batchType)) {
+        setMessageType(batchType);
+      }
       setCampaignMode("add_to");
       // onExistingBatchChange() is already invoked inside setCampaignMode
       // when isAddTo is true and a batch value is present — calling it

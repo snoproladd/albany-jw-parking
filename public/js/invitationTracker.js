@@ -27,6 +27,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const responseFilter = document.getElementById("itResponseFilter");
   /** @type {HTMLInputElement|null} */
   const revokedChk = document.getElementById("itIncludeRevoked");
+  /** @type {HTMLInputElement|null} */
+  const responseRequiredChk = document.getElementById("itResponseRequiredOnly");
   /** @type {HTMLButtonElement|null} */
   const resetBtn = document.getElementById("itResetFilters");
   /** @type {HTMLElement|null} */
@@ -83,9 +85,13 @@ document.addEventListener("DOMContentLoaded", () => {
   function getRelatedBatchIds(batchVal) {
     if (!batchVal) return { ids: new Set(), childCount: 0 };
     const children = Array.from(
-      batchFilter?.querySelectorAll(`option[data-parent-id="${batchVal}"]`) || []
+      batchFilter?.querySelectorAll(`option[data-parent-id="${batchVal}"]`) ||
+        [],
     ).map((opt) => opt.value);
-    return { ids: new Set([batchVal, ...children]), childCount: children.length };
+    return {
+      ids: new Set([batchVal, ...children]),
+      childCount: children.length,
+    };
   }
 
   // =========================================================
@@ -116,7 +122,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const batchVal = batchFilter?.value || "";
     const dayVal = dayFilter?.value || "";
     const responseVal = responseFilter?.value || "all";
-    const showRevoked = revokedChk?.checked ?? true;
+    const showRevoked          = revokedChk?.checked ?? true;
+    const responseRequiredOnly = responseRequiredChk?.checked ?? false;
 
     const { ids: relatedBatchIds, childCount: batchChildCount } =
       getRelatedBatchIds(batchVal);
@@ -126,10 +133,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Sets of volunteer IDs per response bucket — deduplicates volunteers
     // who have multiple historical rows from pre-reminder sends.
-    const seenTotal   = new Set();
-    const seenYes     = new Set();
-    const seenNo      = new Set();
-    const seenMaybe   = new Set();
+    const seenTotal = new Set();
+    const seenYes = new Set();
+    const seenNo = new Set();
+    const seenMaybe = new Set();
     const seenPending = new Set();
     const seenRevoked = new Set();
 
@@ -143,12 +150,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const volResponseAccum = new Map();
 
     rows.forEach((row) => {
-      const name      = row.dataset.name      || "";
-      const batchId   = row.dataset.batchId   || "";
-      const dayId     = row.dataset.dayId     || "";
-      const response  = row.dataset.response  || "";
-      const revoked   = row.dataset.revoked   === "true";
-      const volId     = row.dataset.volunteerId || "";
+      const name = row.dataset.name || "";
+      const batchId = row.dataset.batchId || "";
+      const dayId = row.dataset.dayId || "";
+      const response = row.dataset.response || "";
+      const revoked = row.dataset.revoked === "true";
+      const volId = row.dataset.volunteerId || "";
 
       // Revoked visibility
       if (revoked && !showRevoked) {
@@ -179,6 +186,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
 
+      // Response required filter
+      if (responseRequiredOnly && row.dataset.responseNeeded !== "true") {
+        row.hidden = true;
+        return;
+      }
+
       // Name search
       if (query && !name.includes(query)) {
         row.hidden = true;
@@ -190,14 +203,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Accumulate this row's response state for later per-volunteer resolution
       if (!volResponseAccum.has(volId)) {
-        volResponseAccum.set(volId, { yes: false, no: false, maybe: false, pending: false, revoked: false });
+        volResponseAccum.set(volId, {
+          yes: false,
+          no: false,
+          maybe: false,
+          pending: false,
+          revoked: false,
+        });
       }
       const accum = volResponseAccum.get(volId);
-      if (revoked)                   accum.revoked = true;
-      else if (response === "yes")   accum.yes     = true;
-      else if (response === "no")    accum.no      = true;
-      else if (response === "maybe") accum.maybe   = true;
-      else                           accum.pending  = true;
+      if (revoked) accum.revoked = true;
+      else if (response === "yes") accum.yes = true;
+      else if (response === "no") accum.no = true;
+      else if (response === "maybe") accum.maybe = true;
+      else accum.pending = true;
     });
 
     // Resolve per-volunteer accumulated responses to stat card buckets.
@@ -207,17 +226,17 @@ document.addEventListener("DOMContentLoaded", () => {
     for (const [vid, accum] of volResponseAccum) {
       const hasResponded = accum.yes || accum.no || accum.maybe;
       seenTotal.add(vid);
-      if (accum.yes)                      seenYes.add(vid);
-      if (accum.no)                       seenNo.add(vid);
-      if (accum.maybe)                    seenMaybe.add(vid);
+      if (accum.yes) seenYes.add(vid);
+      if (accum.no) seenNo.add(vid);
+      if (accum.maybe) seenMaybe.add(vid);
       if (!hasResponded && accum.pending) seenPending.add(vid);
       if (!hasResponded && accum.revoked) seenRevoked.add(vid);
     }
 
-    const cntTotal   = seenTotal.size;
-    const cntYes     = seenYes.size;
-    const cntNo      = seenNo.size;
-    const cntMaybe   = seenMaybe.size;
+    const cntTotal = seenTotal.size;
+    const cntYes = seenYes.size;
+    const cntNo = seenNo.size;
+    const cntMaybe = seenMaybe.size;
     const cntPending = seenPending.size;
     const cntRevoked = seenRevoked.size;
 
@@ -302,6 +321,7 @@ document.addEventListener("DOMContentLoaded", () => {
     el?.addEventListener("change", applyFilters);
   });
   revokedChk?.addEventListener("change", applyFilters);
+  responseRequiredChk?.addEventListener("change", applyFilters);
   searchInput?.addEventListener("input", applyFilters);
 
   // =========================================================
@@ -316,8 +336,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if (batchFilter) batchFilter.value = "";
     if (dayFilter) dayFilter.value = "";
     if (responseFilter) responseFilter.value = "all";
-    if (revokedChk) revokedChk.checked = true;
-    if (searchInput) searchInput.value = "";
+    if (revokedChk)          revokedChk.checked = true;
+    if (responseRequiredChk) responseRequiredChk.checked = false;
+    if (searchInput)         searchInput.value = "";
     applyFilters();
   });
 
@@ -363,13 +384,15 @@ document.addEventListener("DOMContentLoaded", () => {
    */
   function updateRemindButton(livePendingCount) {
     const batchVal = batchFilter?.value || "";
-    const pendingCount = livePendingCount ?? Number(remindWrap?.dataset.pendingCount ?? 0);
+    const pendingCount =
+      livePendingCount ?? Number(remindWrap?.dataset.pendingCount ?? 0);
 
     // Determine response_needed for selected batch
     const selectedOpt = batchVal
       ? batchFilter?.querySelector(`option[value="${batchVal}"]`)
       : null;
-    const responseNeeded = !selectedOpt || selectedOpt.dataset.responseNeeded !== "0";
+    const responseNeeded =
+      !selectedOpt || selectedOpt.dataset.responseNeeded !== "0";
 
     // ── Pending stat card ───────────────────────────────────────────────
     // No click behaviour — setting the response filter to "pending" hides
@@ -550,21 +573,23 @@ document.addEventListener("DOMContentLoaded", () => {
     editingBatchId = id;
 
     // Populate fields
-    const nameEl      = document.getElementById("itEditName");
-    const subjectEl   = document.getElementById("itEditSubject");
-    const bodyEl      = document.getElementById("itEditBody");
-    const parentEl    = document.getElementById("itEditParent");
-    const parentHint  = document.getElementById("itEditParentHint");
-    const respEl      = document.getElementById("itEditResponseNeeded");
-    const activeEl    = document.getElementById("itEditActive");
-    const errorEl     = document.getElementById("itEditError");
+    const nameEl = document.getElementById("itEditName");
+    const subjectEl = document.getElementById("itEditSubject");
+    const bodyEl = document.getElementById("itEditBody");
+    const parentEl = document.getElementById("itEditParent");
+    const parentHint = document.getElementById("itEditParentHint");
+    const respEl = document.getElementById("itEditResponseNeeded");
+    const activeEl = document.getElementById("itEditActive");
+    const errorEl = document.getElementById("itEditError");
 
-    if (nameEl)    nameEl.value    = batch.name || "";
+    if (nameEl) nameEl.value = batch.name || "";
     if (subjectEl) subjectEl.value = batch.message_subject || "";
-    if (bodyEl)    bodyEl.value    = batch.message_body || "";
-    if (respEl)    respEl.checked  = !!batch.response_needed;
-    if (activeEl)  activeEl.checked = batch.active !== false && batch.active !== 0;
-    if (errorEl)   errorEl.classList.add("d-none");
+    if (bodyEl) bodyEl.value = batch.message_body || "";
+    if (respEl) respEl.checked = batch.response_needed !== false;
+    if (activeEl) activeEl.checked = batch.active !== false;
+    const msgTypeEl = document.getElementById("itEditMessageType");
+    if (msgTypeEl) msgTypeEl.value = batch.message_type || "invitation";
+    if (errorEl) errorEl.classList.add("d-none");
 
     // Rebuild parent picker — exclude self and any of its own children
     // (to avoid cycles: child of a child cannot become the parent)
@@ -578,13 +603,16 @@ document.addEventListener("DOMContentLoaded", () => {
         opt.hidden = optId === id || childIds.has(optId);
       });
 
-      parentEl.value = batch.parent_batch_id ? String(batch.parent_batch_id) : "";
+      parentEl.value = batch.parent_batch_id
+        ? String(batch.parent_batch_id)
+        : "";
 
       if (parentHint) {
         const childCount = childIds.size;
-        parentHint.textContent = childCount > 0
-          ? `This campaign has ${childCount} follow-up${childCount !== 1 ? "s" : ""}. They cannot be selected as a parent.`
-          : "";
+        parentHint.textContent =
+          childCount > 0
+            ? `This campaign has ${childCount} follow-up${childCount !== 1 ? "s" : ""}. They cannot be selected as a parent.`
+            : "";
       }
     }
 
@@ -605,103 +633,144 @@ document.addEventListener("DOMContentLoaded", () => {
    * otherwise closes the modal.
    * @returns {Promise<void>}
    */
-  document.getElementById("itEditSaveBtn")?.addEventListener("click", async () => {
-    if (!editingBatchId) return;
+  document
+    .getElementById("itEditSaveBtn")
+    ?.addEventListener("click", async () => {
+      if (!editingBatchId) return;
 
-    const nameEl    = document.getElementById("itEditName");
-    const subjectEl = document.getElementById("itEditSubject");
-    const bodyEl    = document.getElementById("itEditBody");
-    const parentEl  = document.getElementById("itEditParent");
-    const respEl    = document.getElementById("itEditResponseNeeded");
-    const activeEl  = document.getElementById("itEditActive");
-    const errorEl   = document.getElementById("itEditError");
-    const saveBtn   = document.getElementById("itEditSaveBtn");
+      const nameEl = document.getElementById("itEditName");
+      const subjectEl = document.getElementById("itEditSubject");
+      const bodyEl = document.getElementById("itEditBody");
+      const parentEl = document.getElementById("itEditParent");
+      const respEl = document.getElementById("itEditResponseNeeded");
+      const activeEl = document.getElementById("itEditActive");
+      const errorEl = document.getElementById("itEditError");
+      const saveBtn = document.getElementById("itEditSaveBtn");
 
-    const name        = nameEl?.value.trim() || "";
-    const messageSubject = subjectEl?.value.trim() || null;
-    const messageBody = bodyEl?.value.trim() || "";
-    const parentBatchId = Number(parentEl?.value) || null;
-    const responseNeeded = respEl?.checked ?? true;
-    const active      = activeEl?.checked ?? true;
+      const name = nameEl?.value.trim() || "";
+      const messageSubject = subjectEl?.value.trim() || null;
+      const messageBody = bodyEl?.value.trim() || "";
+      const parentBatchId = Number(parentEl?.value) || null;
+      const responseNeeded = respEl?.checked ?? true;
+      const active = activeEl?.checked ?? true;
 
-    if (!name) {
-      if (errorEl) { errorEl.textContent = "Name is required."; errorEl.classList.remove("d-none"); }
-      return;
-    }
-    if (!messageBody) {
-      if (errorEl) { errorEl.textContent = "Message body is required."; errorEl.classList.remove("d-none"); }
-      return;
-    }
-
-    if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Saving…`; }
-    if (errorEl) errorEl.classList.add("d-none");
-
-    try {
-      const res = await fetch(`/oversight/tools/messaging/batches/${editingBatchId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", "X-CSRF-Token": getCsrf() },
-        body: JSON.stringify({ name, messageSubject, messageBody, parentBatchId, responseNeeded, active }),
-      });
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok || !data.success) {
-        if (errorEl) { errorEl.textContent = data.error || "Save failed — please try again."; errorEl.classList.remove("d-none"); }
-        if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = `<i class="fa-solid fa-floppy-disk me-1"></i>Save changes`; }
+      if (!name) {
+        if (errorEl) {
+          errorEl.textContent = "Name is required.";
+          errorEl.classList.remove("d-none");
+        }
+        return;
+      }
+      if (!messageBody) {
+        if (errorEl) {
+          errorEl.textContent = "Message body is required.";
+          errorEl.classList.remove("d-none");
+        }
         return;
       }
 
-      // If deactivated, the batch will no longer appear — reload to resync
-      if (!active) {
-        window.location.reload();
-        return;
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Saving…`;
       }
+      if (errorEl) errorEl.classList.add("d-none");
 
-      // Update the option text and data attrs in the batch filter select
-      const opt = batchFilter?.querySelector(`option[value="${editingBatchId}"]`);
-      if (opt) {
-        opt.dataset.responseNeeded = responseNeeded ? "1" : "0";
-        opt.dataset.parentId       = parentBatchId ? String(parentBatchId) : "";
-        const prefix = parentBatchId ? "↳ " : "";
-        opt.textContent = `${prefix}${name}`;
-      }
-
-      // Sync the in-memory batches array so re-opening the edit modal
-      // pre-fills with the values that were just saved, not stale page-load data.
-      const batchesEl = document.getElementById("it-batches-data");
-      if (batchesEl) {
-        try {
-          const batches = JSON.parse(batchesEl.textContent);
-          const idx = batches.findIndex((b) => b.id === editingBatchId);
-          if (idx !== -1) {
-            batches[idx] = {
-              ...batches[idx],
+      try {
+        const messageType =
+          document.getElementById("itEditMessageType")?.value || "invitation";
+        const res = await fetch(
+          `/oversight/tools/messaging/batches/${editingBatchId}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRF-Token": getCsrf(),
+            },
+            body: JSON.stringify({
               name,
-              message_subject:  messageSubject,
-              message_body:     messageBody,
-              parent_batch_id:  parentBatchId,
-              response_needed:  responseNeeded,
+              messageSubject,
+              messageBody,
+              parentBatchId,
+              responseNeeded,
               active,
-            };
-            batchesEl.textContent = JSON.stringify(batches);
+              messageType,
+            }),
+          },
+        );
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok || !data.success) {
+          if (errorEl) {
+            errorEl.textContent =
+              data.error || "Save failed — please try again.";
+            errorEl.classList.remove("d-none");
           }
-        } catch {
-          // Non-fatal — worst case the modal pre-fills with stale data
+          if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = `<i class="fa-solid fa-floppy-disk me-1"></i>Save changes`;
+          }
+          return;
+        }
+
+        // If deactivated, the batch will no longer appear — reload to resync
+        if (!active) {
+          window.location.reload();
+          return;
+        }
+
+        // Update the option text and data attrs in the batch filter select
+        const opt = batchFilter?.querySelector(
+          `option[value="${editingBatchId}"]`,
+        );
+        if (opt) {
+          opt.dataset.responseNeeded = responseNeeded ? "1" : "0";
+          opt.dataset.parentId = parentBatchId ? String(parentBatchId) : "";
+          const prefix = parentBatchId ? "↳ " : "";
+          opt.textContent = `${prefix}${name}`;
+        }
+
+        // Sync the in-memory batches array so re-opening the edit modal
+        // pre-fills with the values that were just saved, not stale page-load data.
+        const batchesEl = document.getElementById("it-batches-data");
+        if (batchesEl) {
+          try {
+            const batches = JSON.parse(batchesEl.textContent);
+            const idx = batches.findIndex((b) => b.id === editingBatchId);
+            if (idx !== -1) {
+              batches[idx] = {
+                ...batches[idx],
+                name,
+                message_subject: messageSubject,
+                message_body: messageBody,
+                parent_batch_id: parentBatchId,
+                response_needed: responseNeeded,
+                active,
+              };
+              batchesEl.textContent = JSON.stringify(batches);
+            }
+          } catch {
+            // Non-fatal — worst case the modal pre-fills with stale data
+          }
+        }
+
+        // Close modal
+        const modalEl = document.getElementById("itEditCampaignModal");
+        if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+
+        // Re-run filters so response_needed changes take effect immediately
+        applyFilters();
+      } catch (err) {
+        console.error("[invitationTracker] edit campaign save error:", err);
+        if (errorEl) {
+          errorEl.textContent = "Network error — please try again.";
+          errorEl.classList.remove("d-none");
+        }
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = `<i class="fa-solid fa-floppy-disk me-1"></i>Save changes`;
         }
       }
-
-      // Close modal
-      const modalEl = document.getElementById("itEditCampaignModal");
-      if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).hide();
-
-      // Re-run filters so response_needed changes take effect immediately
-      applyFilters();
-
-    } catch (err) {
-      console.error("[invitationTracker] edit campaign save error:", err);
-      if (errorEl) { errorEl.textContent = "Network error — please try again."; errorEl.classList.remove("d-none"); }
-      if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = `<i class="fa-solid fa-floppy-disk me-1"></i>Save changes`; }
-    }
-  });
+    });
 
   // =========================================================
   // Init

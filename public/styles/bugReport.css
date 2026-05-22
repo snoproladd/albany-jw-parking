@@ -153,3 +153,7 @@
     font-weight: 600;
     margin-bottom: 0.25rem;
 }
+
+.bug-report-page-hint {
+    font-size: 0.75rem;
+}

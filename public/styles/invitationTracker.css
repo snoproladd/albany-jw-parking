@@ -188,3 +188,11 @@
     right: 1rem;
     z-index: 1100;
 }
+
+.it-type-badge {
+    font-size: 0.65rem;
+}
+.it-danger-zone {
+    border-color: var(--bs-danger-border-subtle) !important;
+    background: var(--bs-danger-bg-subtle);
+}

@@ -4,6 +4,29 @@ All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 
+## [2.22.0] - 2026-05-22
+
+### Added
+- Campaign message types (Invitation, Alert, Follow-up) with logical defaults,
+  auto-mode switching, and confirmation modal when defaults are overridden
+- {link} merge chip hidden for Alert type
+- Message type badge on Invitation Tracker campaign column
+- Response required only filter on Invitation Tracker
+- Schedulable flag on convention days — unschedulable days hidden from
+  Scheduler while remaining available for invitations and timelines
+- Report a Bug modal (footer, all authenticated pages, Ctrl+Shift+B)
+- Bug Reports admin page (/oversight/tools/bug-reports, ASSISTANT_ADMIN+)
+  with inline resolution editing and manual log panel
+- bug_reports DB table with full lifecycle tracking
+
+### Fixed
+- Reminder send no longer falls through to createInvitation when no
+  existing invitation row is found
+- Campaign center name filter no longer clears already-selected recipients
+- Invitation Tracker pending badge hidden for campaigns with response
+  not required
+- CSP violations from inline styles on tracker and bug report modal
+
 ## [2.21.0] - 2026-05-22
 
 ### Added
