@@ -9,6 +9,7 @@ send invitations, track RSVPs, log attendance, and administer the platform.
 ## Table of Contents
 
 1. [Getting Started](#1-getting-started)
+   - [Site Map](#site-map)
 2. [My Account](#2-my-account)
 3. [Volunteer Management](#3-volunteer-management)
 4. [Communications](#4-communications)
@@ -36,6 +37,16 @@ click a category header to expand or collapse its tools. Click **All Tools**
 at the top to go to the full hub page, which groups every available tool by
 category with descriptions. Which tools appear depends on your role — higher
 roles see more options.
+
+### Site Map
+
+A full index of every page on the platform is available at `/sitemap` (also
+linked in the footer and as a card at the bottom of the Oversight Tools hub).
+Pages are filtered to your current access level — you will only see entries
+you can actually navigate to. Use the search box at the top to filter by page
+name, description, or path. The sitemap is useful for orientation and as a
+quick-jump reference when you know the name of a tool but can't remember where
+it sits in the navigation.
 
 ---
 

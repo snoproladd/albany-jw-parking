@@ -4,6 +4,17 @@ All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ---
+## [2.19.0] — 2026-05-22
+### Added
+- **JSON-driven sitemap** — new public page at `/sitemap` listing all app pages, filtered server-side to the visitor's current role and permissions. Guests see only public pages; logged-in users see every page their role can reach. No unaccessible paths are sent to the client.
+- **`src/config/sitemap.json`** — single source of truth for all page metadata (title, path, description, icon, `minRole`, `permission`). Adding a new page requires only a new JSON entry — no HTML, no route changes.
+- **Live search** (`public/js/sitemapSearch.js`) — filters cards and hides empty group sections in real time as you type. Shows a "no results" message when nothing matches.
+- **Footer link** — Sitemap added to the footer link row alongside Privacy Policy and Terms of Service.
+- **Oversight Tools card** — Sitemap card added at the bottom of the Oversight Tools hub, visible to all KEYMAN+ users.
+- **New files:** `src/config/sitemap.json`, `routes/sitemapRoutes.js`, `views/sitemap.ejs`, `public/js/sitemapSearch.js`, `public/styles/sitemap.css`.
+
+---
+
 ## [2.18.1] — 2026-05-21
 ### Fixed
 - **SMS check-in: wrong `convention_day_id` written to attendance** — `getVolunteerShiftByCode`

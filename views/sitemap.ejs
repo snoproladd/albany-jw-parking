@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Site Map — Albany JW Parking</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+  <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+  <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+  <link rel="stylesheet" type="text/css" href="/styles/sitemap.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+</head>
+
+<body class="min-vh-100 bg-body-tertiary" <% if (nav && nav.isLoggedIn) { %>data-authed="true"<% } %>>
+  <%- include('partials/header') %>
+
+  <main class="container py-4 px-3 px-md-4">
+    <div class="row justify-content-center">
+      <div class="col-12 col-lg-10 col-xl-9">
+
+        <%# ── Page header ────────────────────────────────────────── %>
+        <div class="sitemap-header mb-4">
+          <h1 class="sitemap-title">
+            <i class="fa-solid fa-sitemap me-2"></i>Site Map
+          </h1>
+          <p class="sitemap-subtitle">
+            All pages available to you based on your current access level.
+          </p>
+        </div>
+
+        <%# ── Search bar ─────────────────────────────────────────── %>
+        <div class="mb-4">
+          <div class="input-group sitemap-search-wrap">
+            <span class="input-group-text bg-transparent">
+              <i class="fa-solid fa-magnifying-glass text-muted"></i>
+            </span>
+            <input
+              id="sitemapSearch"
+              type="search"
+              class="form-control"
+              placeholder="Search pages…"
+              autocomplete="off"
+              aria-label="Search site pages"
+            />
+          </div>
+        </div>
+
+        <%# ── No-results message (hidden by default) ─────────────── %>
+        <div id="sitemapNoResults" class="sitemap-no-results d-none" aria-live="polite">
+          <i class="fa-solid fa-circle-xmark me-2"></i>No pages match your search.
+        </div>
+
+        <%# ── Groups ─────────────────────────────────────────────── %>
+        <% groups.forEach(function(group) { %>
+          <section class="sitemap-group mb-5" data-group-id="<%= group.id %>">
+
+            <h2 class="sitemap-group-heading">
+              <i class="<%= group.icon %> me-2"></i><%= group.label %>
+            </h2>
+
+            <div class="row g-3">
+              <% group.pages.forEach(function(page) { %>
+                <div
+                  class="col-12 col-sm-6 col-lg-4 sitemap-card-col"
+                  data-search="<%= (page.title + ' ' + page.description + ' ' + page.path).toLowerCase() %>"
+                >
+                  <a href="<%= page.path %>" class="sitemap-card-link">
+                    <div class="sitemap-card h-100">
+                      <div class="sitemap-card-icon">
+                        <i class="<%= page.icon %>"></i>
+                      </div>
+                      <div class="sitemap-card-body">
+                        <div class="sitemap-card-title"><%= page.title %></div>
+                        <div class="sitemap-card-path"><%= page.path %></div>
+                        <p class="sitemap-card-desc"><%= page.description %></p>
+                      </div>
+                    </div>
+                  </a>
+                </div>
+              <% }); %>
+            </div>
+
+          </section>
+        <% }); %>
+
+      </div>
+    </div>
+  </main>
+
+  <%- include('partials/footer') %>
+
+  <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+  <script src="/js/sitemapSearch.js"></script>
+</body>
+</html>

@@ -1,0 +1,298 @@
+{
+  "groups": [
+    {
+      "id": "general",
+      "label": "General",
+      "icon": "fa-solid fa-globe",
+      "pages": [
+        {
+          "title": "Home",
+          "path": "/",
+          "description": "Landing page and authenticated user dashboard with convention day overview.",
+          "icon": "fa-solid fa-house",
+          "minRole": null,
+          "permission": null
+        },
+        {
+          "title": "Login",
+          "path": "/login",
+          "description": "Sign in to your volunteer account.",
+          "icon": "fa-solid fa-right-to-bracket",
+          "minRole": null,
+          "permission": null
+        },
+        {
+          "title": "Create Profile",
+          "path": "/create-profile",
+          "description": "Register as a new volunteer for the Albany JW Regional Convention parking team.",
+          "icon": "fa-solid fa-user-plus",
+          "minRole": null,
+          "permission": null
+        },
+        {
+          "title": "Privacy Policy",
+          "path": "/privacy",
+          "description": "How your personal data is collected, stored, and used on this platform.",
+          "icon": "fa-solid fa-shield-halved",
+          "minRole": null,
+          "permission": null
+        },
+        {
+          "title": "Terms of Service",
+          "path": "/terms",
+          "description": "Terms and conditions governing use of this platform.",
+          "icon": "fa-solid fa-file-contract",
+          "minRole": null,
+          "permission": null
+        },
+        {
+          "title": "Site Map",
+          "path": "/sitemap",
+          "description": "Full index of all pages available on this platform, filtered to your access level.",
+          "icon": "fa-solid fa-sitemap",
+          "minRole": null,
+          "permission": null
+        }
+      ]
+    },
+    {
+      "id": "my-account",
+      "label": "My Account",
+      "icon": "fa-solid fa-user",
+      "pages": [
+        {
+          "title": "My Account",
+          "path": "/my-account",
+          "description": "View and update your personal information, contact details, congregation, and password.",
+          "icon": "fa-solid fa-id-card",
+          "minRole": "REGISTERED",
+          "permission": null
+        },
+        {
+          "title": "Continue Registration",
+          "path": "/continue-registration/auto",
+          "description": "Resume an incomplete registration from where you left off.",
+          "icon": "fa-solid fa-forward-step",
+          "minRole": "NON_REGISTERED",
+          "permission": null
+        }
+      ]
+    },
+    {
+      "id": "oversight",
+      "label": "Oversight",
+      "icon": "fa-solid fa-screwdriver-wrench",
+      "pages": [
+        {
+          "title": "All Tools",
+          "path": "/oversight/tools",
+          "description": "Oversight dashboard showing all tools available based on your role and permissions.",
+          "icon": "fa-solid fa-table-cells-large",
+          "minRole": "KEYMAN",
+          "permission": null
+        }
+      ]
+    },
+    {
+      "id": "communications",
+      "label": "Communications",
+      "icon": "fa-solid fa-paper-plane",
+      "pages": [
+        {
+          "title": "Campaign Center",
+          "path": "/oversight/tools/campaigns",
+          "description": "Send convention invitations via email or SMS. Manage campaigns, templates, and track RSVP responses.",
+          "icon": "fa-solid fa-envelope-open-text",
+          "minRole": null,
+          "permission": "accessAdminConsole"
+        },
+        {
+          "title": "Invitation Tracker",
+          "path": "/oversight/tools/campaigns/tracker",
+          "description": "View sent invitations, filter by campaign or response status, and identify non-responders.",
+          "icon": "fa-solid fa-chart-gantt",
+          "minRole": null,
+          "permission": "accessAdminConsole"
+        },
+        {
+          "title": "Send Reset Link",
+          "path": "/oversight/tools/send-reset",
+          "description": "Send password reset or account completion links to volunteers with incomplete registrations.",
+          "icon": "fa-solid fa-link",
+          "minRole": null,
+          "permission": "accessAdminConsole"
+        }
+      ]
+    },
+    {
+      "id": "volunteer-management",
+      "label": "Volunteer Management",
+      "icon": "fa-solid fa-users",
+      "pages": [
+        {
+          "title": "Edit Volunteer",
+          "path": "/editVolunteer",
+          "description": "View and edit volunteer account details including contact, congregation, and spiritual information.",
+          "icon": "fa-solid fa-id-card",
+          "minRole": null,
+          "permission": "editVolunteerInfo"
+        },
+        {
+          "title": "Create Volunteer",
+          "path": "/oversight/tools/create-volunteer",
+          "description": "Manually create a new volunteer account. A temporary password is assigned automatically.",
+          "icon": "fa-solid fa-user-plus",
+          "minRole": null,
+          "permission": "createVolunteerAccounts"
+        },
+        {
+          "title": "Role Management",
+          "path": "/oversight/roles",
+          "description": "Assign and update volunteer roles. Roles control what each user can see and do across the site.",
+          "icon": "fa-solid fa-user-shield",
+          "minRole": "OVERSEER",
+          "permission": null
+        }
+      ]
+    },
+    {
+      "id": "reports",
+      "label": "Reports",
+      "icon": "fa-solid fa-chart-bar",
+      "pages": [
+        {
+          "title": "Application Status",
+          "path": "/oversight/tools/reports",
+          "description": "View all volunteers with their registration status and identify accounts with missing information.",
+          "icon": "fa-solid fa-clipboard-list",
+          "minRole": "OVERSEER",
+          "permission": null
+        }
+      ]
+    },
+    {
+      "id": "scheduling",
+      "label": "Scheduling",
+      "icon": "fa-regular fa-calendar-days",
+      "pages": [
+        {
+          "title": "Timelines",
+          "path": "/oversight/tools/timelines",
+          "description": "Define convention days, sessions, and event shifts. Mark shifts as invitable and attach locations.",
+          "icon": "fa-regular fa-clock",
+          "minRole": null,
+          "permission": "manageShifts"
+        },
+        {
+          "title": "Locations",
+          "path": "/oversight/tools/locationsAndTasks",
+          "description": "Define parking locations and zones for the current year used in building shift assignments.",
+          "icon": "fa-solid fa-map-pin",
+          "minRole": null,
+          "permission": "manageShifts"
+        },
+        {
+          "title": "Event Types",
+          "path": "/oversight/tools/timelines/event-types",
+          "description": "Manage shift categories used in scheduling — Ingress, Egress, Security, and more.",
+          "icon": "fa-solid fa-tags",
+          "minRole": null,
+          "permission": "accessAdminConsole"
+        },
+        {
+          "title": "Crew Assignments",
+          "path": "/oversight/tools/crew-assignments",
+          "description": "Assign volunteers to parking crews. Controls which shifts each volunteer is eligible for in the Scheduler.",
+          "icon": "fa-solid fa-people-group",
+          "minRole": null,
+          "permission": "createAssignments"
+        },
+        {
+          "title": "Scheduler",
+          "path": "/oversight/tools/scheduler",
+          "description": "Assign volunteers to shift slots. Filter by rank or department and enforce role eligibility automatically.",
+          "icon": "fa-solid fa-calendar-days",
+          "minRole": null,
+          "permission": "createAssignments"
+        },
+        {
+          "title": "Shift Alerts",
+          "path": "/oversight/tools/shift-alerts",
+          "description": "Schedule and send SMS shift reminders. Manage burst alerts, rolling T-15 notifications, and the send log.",
+          "icon": "fa-solid fa-bell",
+          "minRole": null,
+          "permission": "accessAdminConsole"
+        }
+      ]
+    },
+    {
+      "id": "attendance",
+      "label": "Attendance",
+      "icon": "fa-solid fa-clipboard-check",
+      "pages": [
+        {
+          "title": "Check-In Tool",
+          "path": "/oversight/tools/attendance/checkin",
+          "description": "Log volunteer attendance shift by shift. Mark arrivals, add walk-ins, and record notes in real time.",
+          "icon": "fa-solid fa-clipboard-check",
+          "minRole": null,
+          "permission": "logAttendance"
+        },
+        {
+          "title": "Attendance Report",
+          "path": "/oversight/tools/attendance/report",
+          "description": "View attendance across all shifts for a convention day. See invited, RSVP, attended, and no-show counts.",
+          "icon": "fa-solid fa-chart-bar",
+          "minRole": null,
+          "permission": "viewAttendance"
+        }
+      ]
+    },
+    {
+      "id": "decently-sync",
+      "label": "Decently Sync",
+      "icon": "fa-solid fa-rotate",
+      "pages": [
+        {
+          "title": "Export to Decently",
+          "path": "/oversight/tools/decently-export",
+          "description": "Download a CSV of volunteers not yet exported and mark them as exported in the system.",
+          "icon": "fa-solid fa-file-export",
+          "minRole": null,
+          "permission": "accessAdminConsole"
+        },
+        {
+          "title": "Import from Decently",
+          "path": "/oversight/tools/decently-import",
+          "description": "Upload an approved volunteer CSV from Decently. Matches records, sets active status, and flags new entries.",
+          "icon": "fa-solid fa-file-import",
+          "minRole": null,
+          "permission": "accessAdminConsole"
+        }
+      ]
+    },
+    {
+      "id": "administration",
+      "label": "Administration",
+      "icon": "fa-solid fa-gear",
+      "pages": [
+        {
+          "title": "Permission Matrix",
+          "path": "/oversight/tools/permissions",
+          "description": "Override default role permissions at runtime. Changes take effect on next login.",
+          "icon": "fa-solid fa-sliders",
+          "minRole": "ADMIN",
+          "permission": "manageRoles"
+        },
+        {
+          "title": "Chain of Command",
+          "path": "/oversight/tools/hierarchy",
+          "description": "Configure the reporting hierarchy displayed on volunteer home pages.",
+          "icon": "fa-solid fa-sitemap",
+          "minRole": null,
+          "permission": "manageCampaigns"
+        }
+      ]
+    }
+  ]
+}

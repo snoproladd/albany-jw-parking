@@ -170,7 +170,7 @@
               <section class="card shadow-sm h-100">
                 <header class="card-header">
                   <h2 class="h5 mb-0">
-                    <i class="fa-solid fa-sitemap me-2 text-primary"></i>Chain of Command
+                    <i class="fa-solid fa-sitemap me-2 text-primary"></i>Oversight
                   </h2>
                 </header>
                 <div class="card-body">
@@ -190,6 +190,11 @@
                                   <a href="tel:<%= node.phone %>" class="db-hierarchy-phone">
                                     <i class="fa-solid fa-phone fa-xs"></i> <%= node.phone %>
                                   </a>
+                                  <% if (node.email) { %>
+                                    <a href="mailto:<%= node.email %>" class="db-hierarchy-email">
+                                      <i class="fa-solid fa-envelope fa-xs"></i> <%= node.email %>
+                                    </a>
+                                    <% } %>
                                 <% } %>
                               </div>
                             <% } %>

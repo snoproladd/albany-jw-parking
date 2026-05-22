@@ -1,0 +1,137 @@
+/* =============================================================================
+   sitemap.css — Site Map page styles
+   ============================================================================= */
+
+/* ── Page header ──────────────────────────────────────────────────────────── */
+
+.sitemap-header {
+    border-bottom: 2px solid var(--bs-border-color);
+    padding-bottom: 1rem;
+}
+
+.sitemap-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--bs-emphasis-color);
+}
+
+.sitemap-subtitle {
+    color: var(--bs-emphasis-color);
+    margin-bottom: 0;
+    text-shadow: 0 1px 4px rgba(255, 255, 255, 0.85);
+}
+
+/* ── Search bar ───────────────────────────────────────────────────────────── */
+
+.sitemap-search-wrap {
+    max-width: 480px;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    border: 1px solid var(--bs-border-color);
+    background: var(--bs-body-bg);
+}
+
+.sitemap-search-wrap .input-group-text {
+    border: none;
+}
+
+.sitemap-search-wrap .form-control {
+    border: none;
+    box-shadow: none;
+}
+
+.sitemap-search-wrap .form-control:focus {
+    box-shadow: none;
+}
+
+/* ── No-results message ───────────────────────────────────────────────────── */
+
+.sitemap-no-results {
+    color: var(--bs-secondary-color);
+    font-size: 0.95rem;
+    padding: 1rem 0;
+}
+
+/* ── Group headings ───────────────────────────────────────────────────────── */
+
+.sitemap-group-heading {
+    font-size: 1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--bs-emphasis-color);
+    margin-bottom: 0.875rem;
+    padding-bottom: 0.375rem;
+    border-bottom: 2px solid var(--bs-emphasis-color);
+    text-shadow: 0 1px 4px rgba(255, 255, 255, 0.85);
+}
+
+/* ── Cards ────────────────────────────────────────────────────────────────── */
+
+.sitemap-card-link {
+    text-decoration: none;
+    display: block;
+    height: 100%;
+}
+
+.sitemap-card {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 0.75rem;
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.5rem;
+    padding: 0.875rem 1rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+
+.sitemap-card-link:hover .sitemap-card,
+.sitemap-card-link:focus-visible .sitemap-card {
+    border-color: var(--bs-primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transform: translateY(-1px);
+}
+
+.sitemap-card-icon {
+    flex-shrink: 0;
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    color: var(--bs-primary);
+    background: color-mix(in srgb, var(--bs-primary) 10%, transparent);
+    border-radius: 0.375rem;
+    margin-top: 0.125rem;
+}
+
+.sitemap-card-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.sitemap-card-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--bs-emphasis-color);
+    margin-bottom: 0.125rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sitemap-card-path {
+    font-size: 0.7rem;
+    font-family: monospace;
+    color: var(--bs-secondary-color);
+    margin-bottom: 0.35rem;
+}
+
+.sitemap-card-desc {
+    font-size: 0.78rem;
+    color: var(--bs-secondary-color);
+    margin-bottom: 0;
+    line-height: 1.4;
+}

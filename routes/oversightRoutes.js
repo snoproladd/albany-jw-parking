@@ -4195,6 +4195,7 @@ export function oversightRouter({
     "/oversight/tools/hierarchy",
     requireAuth,
     requirePermission("manageCampaigns"),
+    csrfProtection,
     async (req, res) => {
       try {
         const [rawHierarchy, volunteers] = await Promise.all([
@@ -5418,6 +5419,148 @@ export function oversightRouter({
           "shift-alerts/schedules/:id/send POST error:",
           err,
         );
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  // ===========================
+  // COMMAND HIERARCHY (Chain of Command)
+  // ===========================
+
+  /**
+   * GET /oversight/tools/hierarchy
+   * Render the Chain of Command editor.
+   * Embeds all hierarchy nodes and the full volunteer list as JSON
+   * for the client-side tree editor.
+   *
+   * @requires manageCampaigns permission (ADMIN only by default)
+   */
+  router.get(
+    "/oversight/tools/hierarchy",
+    requireAuth,
+    requirePermission("manageCampaigns"),
+    csrfProtection,
+    async (req, res) => {
+      try {
+        const [rawHierarchy, volunteers] = await Promise.all([
+          getCommandHierarchy(),
+          getActiveVolunteers({}),
+        ]);
+
+        return res.render("authentication_and_accounts/commandHierarchy", {
+          csrfToken: req.csrfToken(),
+          rawHierarchy,
+          volunteers,
+        });
+      } catch (err) {
+        (logError || console.error)("hierarchy GET error:", err);
+        return res.status(500).send("Server error");
+      }
+    },
+  );
+
+  /**
+   * POST /oversight/tools/hierarchy/add
+   * Add a single new hierarchy node.
+   *
+   * Body (JSON): { parent_id, role_title, volunteer_id, sort_order }
+   * Response:    { success: true, id: number }
+   *
+   * @requires manageCampaigns permission
+   */
+  router.post(
+    "/oversight/tools/hierarchy/add",
+    requireAuth,
+    requirePermission("manageCampaigns"),
+    csrfProtection,
+    async (req, res) => {
+      const { parent_id, role_title, volunteer_id, sort_order } = req.body || {};
+
+      try {
+        const id = await addHierarchyNode({
+          parent_id:    parent_id    != null ? Number(parent_id)    : null,
+          volunteer_id: volunteer_id != null ? Number(volunteer_id) : null,
+          role_title:   role_title?.trim()   || "New Role",
+          sort_order:   sort_order   != null ? Number(sort_order)   : 0,
+        });
+        return res.json({ success: true, id });
+      } catch (err) {
+        (logError || console.error)("hierarchy/add POST error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * POST /oversight/tools/hierarchy/save
+   * Bulk-save the full node list (order, parent, title, volunteer).
+   * Only processes nodes with positive (persisted) IDs — temp IDs are
+   * ignored here because they must be added via /add first.
+   *
+   * Body (JSON): { nodes: Array<{id, parent_id, sort_order, role_title, volunteer_id}> }
+   * Response:    { success: true }
+   *
+   * @requires manageCampaigns permission
+   */
+  router.post(
+    "/oversight/tools/hierarchy/save",
+    requireAuth,
+    requirePermission("manageCampaigns"),
+    csrfProtection,
+    async (req, res) => {
+      const { nodes } = req.body || {};
+
+      if (!Array.isArray(nodes)) {
+        return res
+          .status(400)
+          .json({ success: false, error: "nodes must be an array." });
+      }
+
+      // Filter to only persisted nodes (positive IDs)
+      const persistedNodes = nodes
+        .filter((n) => n.id > 0)
+        .map((n) => ({
+          id:           Number(n.id),
+          parent_id:    n.parent_id != null ? Number(n.parent_id) : null,
+          sort_order:   n.sort_order != null ? Number(n.sort_order) : 0,
+          role_title:   n.role_title?.trim() || "",
+          volunteer_id: n.volunteer_id != null ? Number(n.volunteer_id) : null,
+        }));
+
+      try {
+        await saveHierarchyOrder(persistedNodes);
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("hierarchy/save POST error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * DELETE /oversight/tools/hierarchy/:id
+   * Delete a hierarchy node, promoting its children to its parent level.
+   *
+   * Response: { success: true }
+   *
+   * @requires manageCampaigns permission
+   */
+  router.delete(
+    "/oversight/tools/hierarchy/:id",
+    requireAuth,
+    requirePermission("manageCampaigns"),
+    csrfProtection,
+    async (req, res) => {
+      const id = Number(req.params.id);
+      if (!id)
+        return res.status(400).json({ success: false, error: "Invalid id." });
+
+      try {
+        await deleteHierarchyNode(id);
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("hierarchy DELETE error:", err);
         return res.status(500).json({ success: false, error: "Server error." });
       }
     },

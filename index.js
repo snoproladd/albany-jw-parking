@@ -31,6 +31,7 @@ import upgradeRoutes from "./routes/upgradeRoutes.js";
 import * as db from "./lib/dbSync.js";
 
 import { oversightRouter } from "./routes/oversightRoutes.js";
+import { sitemapRouter }   from "./routes/sitemapRoutes.js";
 import { getBaseUrl, resetSmsClient } from "./lib/messaging.js";
 import { startAlertScheduler } from "./lib/alertScheduler.js";
 
@@ -641,6 +642,8 @@ const server = http.createServer(app);
         },
       }),
     );
+
+    app.use("/", sitemapRouter());
 
     app.use(
       "/",

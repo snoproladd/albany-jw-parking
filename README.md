@@ -146,12 +146,14 @@ parking/
 │   ├── apiRoutes.js          # Internal API endpoints
 │   ├── oversightRoutes.js    # All Oversight Tools routes
 │   ├── registrationRoutes.js # Registration flow (multi-step draft)
+│   ├── sitemapRoutes.js      # Public role-filtered sitemap page
 │   ├── upgradeRoutes.js      # Account upgrade (email/phone → password)
 │   └── validationRoutes.js   # Phone (Twilio) + email (Kickbox) validation
 ├── src/config/
 │   ├── azureConfig.js        # Key Vault + SQL connection bootstrap
 │   ├── privilegeRules.js     # Registration field incompatibility rules
-│   └── roles.js              # RBAC permission matrix + middleware
+│   ├── roles.js              # RBAC permission matrix + middleware
+│   └── sitemap.json          # Page metadata for the role-filtered sitemap
 ├── views/
 │   ├── authentication_and_accounts/  # Login, My Account, oversight tools
 │   │   └── commandHierarchy.ejs      # Chain of command admin tree editor
@@ -162,9 +164,11 @@ parking/
 │   ├── js/                   # Frontend JS modules (one file per page)
 │   │   ├── dashboardWeather.js       # Open-Meteo 3-day weather widget
 │   │   ├── dashboardShifts.js        # Home page day-navigator for shifts
-│   │   └── commandHierarchy.js       # Chain of command admin tree JS
+│   │   ├── commandHierarchy.js       # Chain of command admin tree JS
+│   │   └── sitemapSearch.js          # Live search/filter for the sitemap page
 │   ├── styles/               # CSS files
-│   │   └── commandHierarchy.css      # Chain of command admin styles
+│   │   ├── commandHierarchy.css      # Chain of command admin styles
+│   │   └── sitemap.css               # Sitemap page card grid and layout
 │   └── vendor/               # Third-party UMD bundles (agnostic-draggable, Bootstrap)
 ├── docs/
 │   └── OVERSIGHT_GUIDE.md    # End-user guide for oversight staff
