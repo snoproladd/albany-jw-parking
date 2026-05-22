@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Bug Reports — Albany JW Parking</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content="<%= csrfToken %>" />
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" href="/styles/styles.css" />
+    <link rel="stylesheet" href="/styles/bugReport.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+</head>
+
+<body class="min-vh-100 bg-body-tertiary" data-authed="true">
+    <%- include('../partials/header') %>
+
+    <%
+        const _ROLE_ORDER = ['NON_REGISTERED','REGISTERED','DESK','KEYMAN','OVERSEER','ASSISTANT_ADMIN','ADMIN'];
+        const _role       = typeof userRole        !== 'undefined' ? userRole        : 'NON_REGISTERED';
+        const _perms      = typeof userPermissions !== 'undefined' ? userPermissions : {};
+        const roleLevel   = _ROLE_ORDER.indexOf(_role);
+        const isAtLeast   = (r) => roleLevel >= _ROLE_ORDER.indexOf(r);
+        const can         = (permission) => !!(_perms[_role] && _perms[_role][permission]);
+    %>
+
+    <main class="container py-4">
+        <div class="row justify-content-center">
+            <div class="col-12 col-xxl-11" id="bugReportsRoot">
+
+                <section class="card shadow-lg admin-console-card mb-4">
+                    <header class="card-header">
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                            <h1 class="h4 mb-0">
+                                <i class="fa-solid fa-bug me-2"></i>Bug Reports
+                            </h1>
+                            <a href="/oversight/tools" class="btn btn-secondary btn-sm">
+                                <i class="fa-solid fa-arrow-left me-1"></i>Oversight Tools
+                            </a>
+                        </div>
+                    </header>
+
+                    <div class="card-body">
+
+                        <%# ── Status filter tabs ──────────────────────────── %>
+                        <div class="d-flex gap-2 flex-wrap mb-4">
+                            <% const tabs = ['all','open','fixed','wontfix','duplicate']; %>
+                            <% const tabLabels = { all:'All', open:'Open', fixed:'Fixed', wontfix:"Won't Fix", duplicate:'Duplicate' }; %>
+                            <% tabs.forEach(tab => { %>
+                                <button
+                                    type="button"
+                                    class="btn btn-sm br-filter-tab <%= activeStatus === tab ? 'btn-primary active' : 'btn-outline-secondary' %>"
+                                    data-filter="<%= tab %>">
+                                    <%= tabLabels[tab] %>
+                                    <% if (tab !== 'all') { %>
+                                        <span class="ms-1 badge bg-secondary-subtle text-secondary-emphasis rounded-pill">
+                                            <%= reports.filter(r => r.status === tab).length %>
+                                        </span>
+                                    <% } else { %>
+                                        <span class="ms-1 badge bg-secondary-subtle text-secondary-emphasis rounded-pill">
+                                            <%= reports.length %>
+                                        </span>
+                                    <% } %>
+                                </button>
+                            <% }); %>
+                        </div>
+
+                        <%# ── Manual log panel ───────────────────────────── %>
+                        <div class="mb-4">
+                            <button class="btn btn-outline-secondary btn-sm"
+                                    type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#brManualLog"
+                                    aria-expanded="false">
+                                <i class="fa-solid fa-plus me-1"></i>Log a bug manually
+                            </button>
+
+                            <div class="collapse mt-3" id="brManualLog">
+                                <div class="br-resolve-panel">
+                                    <div class="row g-3">
+
+                                        <div class="col-12">
+                                            <label class="form-label">Description <span class="text-danger">*</span></label>
+                                            <textarea class="form-control form-control-sm"
+                                                      id="brLogDesc" rows="3"
+                                                      placeholder="What was the bug?"></textarea>
+                                        </div>
+
+                                        <div class="col-12">
+                                            <label class="form-label">Steps to reproduce</label>
+                                            <textarea class="form-control form-control-sm"
+                                                      id="brLogSteps" rows="2"
+                                                      placeholder="Optional"></textarea>
+                                        </div>
+
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label">Page / URL</label>
+                                            <input type="text" class="form-control form-control-sm"
+                                                   id="brLogPageUrl" placeholder="/oversight/tools/…" />
+                                        </div>
+
+                                        <div class="col-12 col-md-3">
+                                            <label class="form-label">Status</label>
+                                            <select class="form-select form-select-sm" id="brLogStatus">
+                                                <option value="open">Open</option>
+                                                <option value="fixed" selected>Fixed</option>
+                                                <option value="wontfix">Won't Fix</option>
+                                                <option value="duplicate">Duplicate</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="col-12 col-md-3">
+                                            <label class="form-label">Fixed date</label>
+                                            <input type="date" class="form-control form-control-sm"
+                                                   id="brLogFixedAt"
+                                                   value="<%= new Date().toISOString().slice(0,10) %>" />
+                                        </div>
+
+                                        <div class="col-12">
+                                            <label class="form-label">Solution / notes</label>
+                                            <textarea class="form-control form-control-sm"
+                                                      id="brLogSolution" rows="3"
+                                                      placeholder="What was done to fix it?"></textarea>
+                                        </div>
+
+                                        <div class="col-12">
+                                            <label class="form-label">Files touched</label>
+                                            <textarea class="form-control form-control-sm"
+                                                      id="brLogFiles" rows="2"
+                                                      placeholder="e.g. routes/oversightRoutes.js, lib/dbSync.js"></textarea>
+                                        </div>
+
+                                        <div class="col-12 d-flex align-items-center gap-3">
+                                            <button type="button" class="btn btn-primary btn-sm"
+                                                    id="brLogSubmitBtn">
+                                                <i class="fa-solid fa-floppy-disk me-1"></i>Save report
+                                            </button>
+                                            <span id="brLogFeedback"></span>
+                                        </div>
+
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <%# ── Empty state ─────────────────────────────────── %>
+                        <% if (reports.length === 0) { %>
+                            <div class="br-empty-state text-center py-5 text-muted">
+                                <i class="fa-solid fa-bug fa-2x mb-3 d-block opacity-25"></i>
+                                <p class="mb-0">No bug reports yet.</p>
+                            </div>
+                        <% } else { %>
+
+                        <%# ── Reports table ───────────────────────────────── %>
+                        <div class="table-responsive">
+                            <table class="table br-table align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Submitted</th>
+                                        <th>Reporter</th>
+                                        <th>Description</th>
+                                        <th>Page</th>
+                                        <th>Status</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                <% reports.forEach(r => {
+                                    const isHidden = activeStatus !== 'all' && r.status !== activeStatus;
+                                    const reporterName = r.firstName
+                                        ? `${r.lastName}, ${r.firstName}`
+                                        : `Volunteer #${r.volunteer_id}`;
+                                    const createdDate = new Date(r.created_at).toLocaleDateString('en-US', {
+                                        month: 'short', day: 'numeric', year: 'numeric'
+                                    });
+                                    const fixedDate = r.fixed_at
+                                        ? new Date(r.fixed_at).toISOString().slice(0,10)
+                                        : '';
+                                %>
+                                <tr class="br-report-row <%= isHidden ? 'd-none' : '' %>"
+                                    data-id="<%= r.id %>"
+                                    data-status="<%= r.status %>">
+
+                                    <%# ID %>
+                                    <td class="br-meta">#<%= r.id %></td>
+
+                                    <%# Submitted date %>
+                                    <td class="br-meta text-nowrap"><%= createdDate %></td>
+
+                                    <%# Reporter %>
+                                    <td class="br-meta text-nowrap"><%= reporterName %></td>
+
+                                    <%# Description + steps %>
+                                    <td>
+                                        <div class="br-description"><%= r.description %></div>
+                                        <% if (r.steps) { %>
+                                            <details class="mt-1">
+                                                <summary class="br-meta" style="cursor:pointer">Steps to reproduce</summary>
+                                                <pre class="br-meta mt-1 mb-0" style="white-space:pre-wrap"><%= r.steps %></pre>
+                                            </details>
+                                        <% } %>
+                                        <% if (r.solution) { %>
+                                            <details class="mt-1">
+                                                <summary class="br-meta text-success" style="cursor:pointer">Solution</summary>
+                                                <pre class="br-meta mt-1 mb-0" style="white-space:pre-wrap"><%= r.solution %></pre>
+                                            </details>
+                                        <% } %>
+                                        <% if (r.files_touched) { %>
+                                            <details class="mt-1">
+                                                <summary class="br-meta text-info" style="cursor:pointer">Files touched</summary>
+                                                <pre class="br-meta mt-1 mb-0" style="white-space:pre-wrap"><%= r.files_touched %></pre>
+                                            </details>
+                                        <% } %>
+                                    </td>
+
+                                    <%# Page URL %>
+                                    <td>
+                                        <% if (r.page_url) { %>
+                                            <span class="br-url"><%= r.page_url %></span>
+                                        <% } else { %>
+                                            <span class="br-meta">—</span>
+                                        <% } %>
+                                    </td>
+
+                                    <%# Status badge %>
+                                    <td class="br-status-cell">
+                                        <%
+                                            const badgeClass = {
+                                                open:      'br-badge--open',
+                                                fixed:     'br-badge--fixed',
+                                                wontfix:   'br-badge--wontfix',
+                                                duplicate: 'br-badge--duplicate',
+                                            }[r.status] || 'br-badge--open';
+                                            const badgeLabel = {
+                                                open:      'Open',
+                                                fixed:     'Fixed',
+                                                wontfix:   "Won't Fix",
+                                                duplicate: 'Duplicate',
+                                            }[r.status] || r.status;
+                                        %>
+                                        <span class="br-badge <%= badgeClass %>"><%= badgeLabel %></span>
+                                        <% if (r.resolved_by) { %>
+                                            <div class="br-meta mt-1">by <%= r.resolved_by %></div>
+                                        <% } %>
+                                        <% if (r.fixed_at) { %>
+                                            <div class="br-meta">
+                                                <%= new Date(r.fixed_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) %>
+                                            </div>
+                                        <% } %>
+                                    </td>
+
+                                    <%# Resolve button %>
+                                    <td class="text-nowrap">
+                                        <button type="button"
+                                                class="btn btn-outline-secondary btn-sm br-resolve-toggle"
+                                                data-id="<%= r.id %>">
+                                            Resolve / Edit
+                                        </button>
+                                    </td>
+                                </tr>
+
+                                <%# Inline resolution panel (spans all columns) %>
+                                <tr class="br-report-row <%= isHidden ? 'd-none' : '' %>"
+                                    data-id="<%= r.id %>"
+                                    data-status="<%= r.status %>">
+                                    <td colspan="7" class="p-0 border-0">
+                                        <div class="br-resolve-panel d-none mx-3 mb-3" data-id="<%= r.id %>">
+                                            <div class="row g-3">
+
+                                                <div class="col-12 col-md-3">
+                                                    <label class="form-label">Status</label>
+                                                    <select class="form-select form-select-sm br-status-select">
+                                                        <option value="open"      <%= r.status === 'open'      ? 'selected' : '' %>>Open</option>
+                                                        <option value="fixed"     <%= r.status === 'fixed'     ? 'selected' : '' %>>Fixed</option>
+                                                        <option value="wontfix"   <%= r.status === 'wontfix'   ? 'selected' : '' %>>Won't Fix</option>
+                                                        <option value="duplicate" <%= r.status === 'duplicate' ? 'selected' : '' %>>Duplicate</option>
+                                                    </select>
+                                                </div>
+
+                                                <div class="col-12 col-md-3">
+                                                    <label class="form-label">Fixed date</label>
+                                                    <input type="date"
+                                                           class="form-control form-control-sm br-fixed-at-input"
+                                                           value="<%= fixedDate %>" />
+                                                </div>
+
+                                                <div class="col-12">
+                                                    <label class="form-label">Solution / notes</label>
+                                                    <textarea class="form-control form-control-sm br-solution-input"
+                                                              rows="3"
+                                                              placeholder="Describe what was done to fix this…"><%= r.solution || '' %></textarea>
+                                                </div>
+
+                                                <div class="col-12">
+                                                    <label class="form-label">Files touched</label>
+                                                    <textarea class="form-control form-control-sm br-files-input"
+                                                              rows="2"
+                                                              placeholder="e.g. routes/oversightRoutes.js, lib/dbSync.js"><%= r.files_touched || '' %></textarea>
+                                                </div>
+
+                                                <div class="col-12 d-flex align-items-center gap-3">
+                                                    <button type="button"
+                                                            class="btn btn-primary btn-sm br-save-btn"
+                                                            data-id="<%= r.id %>">
+                                                        <i class="fa-solid fa-floppy-disk me-1"></i>Save
+                                                    </button>
+                                                    <span class="br-save-feedback"></span>
+                                                </div>
+
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                <% }); %>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <% } %>
+                    </div>
+                </section>
+
+            </div>
+        </div>
+    </main>
+
+    <%- include('../partials/footer') %>
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/bugReports.js"></script>
+</body>
+</html>

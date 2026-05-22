@@ -227,15 +227,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const show = matchStatus && matchActive && matchSearch;
       li.hidden = !show;
 
-      if (!show) {
-        const chk = li.querySelector(".mc-checkbox");
-        if (chk?.checked) {
-          chk.checked = false;
-          const id = Number(li.dataset.id);
-          selectedIds.delete(id);
-          removeChip(id);
-        }
-      }
+      // Filtering only affects visibility — selections persist across filter
+      // changes so typing in the search box doesn't drop already-chosen recipients.
       if (show) visible++;
     });
 

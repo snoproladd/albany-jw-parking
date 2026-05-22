@@ -1,0 +1,155 @@
+/* =============================================================
+   bugReport.css
+   Styles for the Report a Bug modal (all pages via footer)
+   and the Bug Reports admin view.
+
+   Sections:
+     1. Footer trigger link
+     2. Report modal
+     3. Admin bug reports table
+     4. Status badges
+     5. Resolution panel
+   ============================================================= */
+
+
+/* ─────────────────────────────────────────────────────────────
+   1. Footer trigger link
+   ───────────────────────────────────────────────────────────── */
+
+.bug-report-trigger {
+    opacity: 0.6;
+    font-size: 0.8rem;
+    transition: opacity 0.15s ease;
+}
+
+.bug-report-trigger:hover {
+    opacity: 1;
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   2. Report modal
+   ───────────────────────────────────────────────────────────── */
+
+#bugReportModal .modal-header {
+    border-bottom: 2px solid var(--bs-border-color);
+}
+
+#bugReportModal .modal-footer {
+    border-top: 1px solid var(--bs-border-color);
+}
+
+#bugReportPageUrl {
+    font-size: 0.8rem;
+    color: var(--bs-secondary-color);
+    word-break: break-all;
+}
+
+#bugReportSuccess {
+    text-align: center;
+    padding: 1.5rem 0;
+}
+
+#bugReportSuccess .bug-success-icon {
+    font-size: 2.5rem;
+    color: var(--bs-success);
+    margin-bottom: 0.75rem;
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   3. Admin bug reports table
+   ───────────────────────────────────────────────────────────── */
+
+.br-table th {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+
+.br-table td {
+    vertical-align: top;
+    font-size: 0.875rem;
+}
+
+.br-description {
+    max-width: 320px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.br-meta {
+    font-size: 0.75rem;
+    color: var(--bs-secondary-color);
+}
+
+.br-url {
+    font-size: 0.75rem;
+    color: var(--bs-secondary-color);
+    word-break: break-all;
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   4. Status badges
+   ───────────────────────────────────────────────────────────── */
+
+.br-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 0.25em 0.6em;
+    border-radius: 4px;
+}
+
+.br-badge--open {
+    background: var(--bs-warning-bg-subtle);
+    color: var(--bs-warning-text-emphasis);
+    border: 1px solid var(--bs-warning-border-subtle);
+}
+
+.br-badge--fixed {
+    background: var(--bs-success-bg-subtle);
+    color: var(--bs-success-text-emphasis);
+    border: 1px solid var(--bs-success-border-subtle);
+}
+
+.br-badge--wontfix {
+    background: var(--bs-secondary-bg-subtle);
+    color: var(--bs-secondary-text-emphasis);
+    border: 1px solid var(--bs-secondary-border-subtle);
+}
+
+.br-badge--duplicate {
+    background: var(--bs-info-bg-subtle);
+    color: var(--bs-info-text-emphasis);
+    border: 1px solid var(--bs-info-border-subtle);
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   5. Resolution panel
+   ───────────────────────────────────────────────────────────── */
+
+.br-resolve-panel {
+    background: var(--bs-tertiary-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 6px;
+    padding: 1rem;
+    margin-top: 0.5rem;
+}
+
+.br-resolve-panel textarea {
+    font-size: 0.875rem;
+    min-height: 80px;
+    resize: vertical;
+}
+
+.br-resolve-panel label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}

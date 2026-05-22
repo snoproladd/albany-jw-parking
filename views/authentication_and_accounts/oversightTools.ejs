@@ -36,6 +36,7 @@
             <option value="">Jump to section…</option>
             <% if (can('accessAdminConsole')) { %>
               <option value="communications">📣 Communications</option>
+              <option value="" disabled style="padding-left:1rem">↳ Bug Reports (separate page)</option>
             <% } %>
             <% if (can('manageRoles') || can('editVolunteerInfo') || can('createVolunteerAccounts') || isAtLeast('OVERSEER')) { %>
               <option value="volunteer-management">👥 Volunteer Management</option>
@@ -67,6 +68,9 @@
             <% if (can('accessAdminConsole')) { %>
               <a class="ot-sidebar-link" href="#communications">
                 <i class="fa-solid fa-paper-plane"></i> Communications
+              </a>
+              <a class="ot-sidebar-link ot-sidebar-link--sub" href="/oversight/tools/bug-reports">
+                <i class="fa-solid fa-bug"></i> Bug Reports
               </a>
             <% } %>
             <% if (can('manageRoles') || can('editVolunteerInfo') || can('createVolunteerAccounts') || isAtLeast('OVERSEER')) { %>
@@ -158,6 +162,19 @@
                     <h3 class="admin-tool-title">Send Reset Link</h3>
                     <p class="admin-tool-desc">Send password reset or account completion links to volunteers with incomplete registrations.</p>
                     <a href="/oversight/tools/send-reset" class="btn btn-warning admin-tool-btn">
+                      Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                    </a>
+                  </div>
+                </div>
+
+              <div class="col-12 col-sm-6 col-lg-4">
+                  <div class="admin-tool-card h-100">
+                    <div class="admin-tool-icon text-danger">
+                      <i class="fa-solid fa-bug"></i>
+                    </div>
+                    <h3 class="admin-tool-title">Bug Reports</h3>
+                    <p class="admin-tool-desc">Review bugs submitted by volunteers. Update status, log the solution, and record which files were touched.</p>
+                    <a href="/oversight/tools/bug-reports" class="btn btn-danger admin-tool-btn">
                       Open <i class="fa-solid fa-arrow-right ms-1"></i>
                     </a>
                   </div>

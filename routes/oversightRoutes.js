@@ -111,6 +111,9 @@ import {
   batchUpdateVolunteerCrew,
   getAlertSchedules,
   getAlertSchedule,
+  createBugReport,
+  getBugReports,
+  updateBugReport,
   createAlertSchedule,
   updateAlertSchedule,
   deleteAlertSchedule,
@@ -3126,6 +3129,14 @@ export function oversightRouter({
           }
         }
 
+        // Reminder path requires an existing invitation row.
+        // If none is found (e.g. revoked, already responded, or missing),
+        // skip this volunteer rather than creating a new invitation record.
+        if (isReminder && !existingInvitation) {
+            skipped.push({ name: shortName, reason: "No open invitation found to remind." });
+            continue;
+        }
+
         const token = existingInvitation
           ? existingInvitation.token
           : crypto.randomUUID();
@@ -5599,6 +5610,170 @@ export function oversightRouter({
         return res.json({ success: true, log });
       } catch (err) {
         (logError || console.error)("shift-alerts/log GET error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  // ============================================================
+  // BUG REPORTS
+  // ============================================================
+
+  /**
+   * POST /api/bug-report
+   * Submit a bug report from any logged-in volunteer.
+   *
+   * Body (JSON): { description: string, steps?: string, pageUrl?: string }
+   * Response:    { success: boolean }
+   */
+  router.post(
+    "/api/bug-report",
+    requireAuth,
+    async (req, res) => {
+      const { description, steps, pageUrl } = req.body || {};
+
+      if (!description?.trim()) {
+        return res
+          .status(400)
+          .json({ success: false, error: "Description is required." });
+      }
+
+      try {
+        await createBugReport({
+          volunteerId: req.session.userId,
+          description: description.trim(),
+          steps:       steps?.trim()   || null,
+          pageUrl:     pageUrl?.trim() || null,
+          userAgent:   req.headers["user-agent"]?.slice(0, 500) || null,
+        });
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("api/bug-report POST error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * POST /oversight/tools/bug-reports/log
+   * Admin-only: manually insert a bug report with full resolution fields.
+   * Useful for logging bugs that were fixed without a user submission.
+   * Requires ASSISTANT_ADMIN+ (accessAdminConsole permission).
+   *
+   * Body (JSON): { description, steps?, pageUrl?, status, solution?, filesTouched?, fixedAt? }
+   * Response:    { success: boolean, id: number }
+   */
+  router.post(
+    "/oversight/tools/bug-reports/log",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    csrfProtection,
+    async (req, res) => {
+      const { description, steps, pageUrl, status, solution, filesTouched, fixedAt } = req.body || {};
+      const validStatuses = ["open", "fixed", "wontfix", "duplicate"];
+
+      if (!description?.trim()) {
+        return res.status(400).json({ success: false, error: "Description is required." });
+      }
+      if (status && !validStatuses.includes(status)) {
+        return res.status(400).json({ success: false, error: "Invalid status." });
+      }
+
+      try {
+        const id = await createBugReport({
+          volunteerId: req.session.userId,
+          description: description.trim(),
+          steps:       steps?.trim()   || null,
+          pageUrl:     pageUrl?.trim() || null,
+          userAgent:   "admin-manual",
+        });
+
+        // If resolution fields were provided, apply them immediately
+        if (status && status !== "open") {
+          await updateBugReport(
+            id,
+            { status, solution, filesTouched, fixedAt },
+            req.session.userEmail || "admin",
+          );
+        }
+
+        return res.json({ success: true, id });
+      } catch (err) {
+        (logError || console.error)("bug-reports/log POST error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * GET /oversight/tools/bug-reports
+   * Admin view — list all bug reports.
+   * Requires ASSISTANT_ADMIN+ (accessAdminConsole permission).
+   *
+   * Optional query param: ?status=open|fixed|wontfix|duplicate
+   */
+  router.get(
+    "/oversight/tools/bug-reports",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    csrfProtection,
+    async (req, res) => {
+      const status = ["open", "fixed", "wontfix", "duplicate"].includes(req.query.status)
+        ? req.query.status
+        : null;
+
+      try {
+        const reports = await getBugReports({ status });
+        return res.render("authentication_and_accounts/bugReports", {
+          csrfToken: req.csrfToken(),
+          reports,
+          activeStatus: status || "all",
+        });
+      } catch (err) {
+        (logError || console.error)("bug-reports GET error:", err);
+        return res.status(500).send("Server error");
+      }
+    },
+  );
+
+  /**
+   * PUT /oversight/tools/bug-reports/:id
+   * Update status + resolution fields on a bug report.
+   * Requires ASSISTANT_ADMIN+ (accessAdminConsole permission).
+   *
+   * Body (JSON): { status, solution?, filesTouched?, fixedAt? }
+   * Response:    { success: boolean }
+   */
+  router.put(
+    "/oversight/tools/bug-reports/:id",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    csrfProtection,
+    async (req, res) => {
+      const id = Number(req.params.id);
+      if (!id) {
+        return res.status(400).json({ success: false, error: "Invalid id." });
+      }
+
+      const { status, solution, filesTouched, fixedAt } = req.body || {};
+      const validStatuses = ["open", "fixed", "wontfix", "duplicate"];
+
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ success: false, error: "Invalid status." });
+      }
+
+      try {
+        const ok = await updateBugReport(
+          id,
+          { status, solution, filesTouched, fixedAt },
+          req.session.userEmail || "admin",
+        );
+        if (!ok) {
+          return res.status(404).json({ success: false, error: "Report not found." });
+        }
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("bug-reports PUT error:", err);
         return res.status(500).json({ success: false, error: "Server error." });
       }
     },

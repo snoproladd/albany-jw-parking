@@ -3,6 +3,18 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+
+## [2.20.0] - 2026-05-22
+
+### Added
+- Report a Bug modal available on every authenticated page via footer link (Ctrl+Shift+B shortcut)
+- Bug Reports admin page (/oversight/tools/bug-reports, ASSISTANT_ADMIN+) with status filtering and inline resolution editing
+- Manual bug log panel on admin page for logging bugs that were caught and fixed without a user submission
+- bug_reports DB table tracking full lifecycle: description, steps, page URL, status, solution, files touched, fixed date, resolved by
+
+### Fixed
+- Reminder flow: isReminder=true no longer falls through to createInvitation when no existing invitation row is found for a volunteer — skips with a reason instead
+- Campaign center: name/search filter no longer clears already-selected recipients from the send list
 ---
 ## [2.19.0] — 2026-05-22
 ### Added

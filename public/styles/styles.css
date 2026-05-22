@@ -1799,6 +1799,11 @@ b {
   transition: background 0.1s, color 0.1s;
   white-space: nowrap;
 }
+.ot-sidebar-link--sub {
+  padding-left: 1.75rem;
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
 
 .ot-sidebar-link:hover {
   background: rgba(30, 58, 138, 0.1);

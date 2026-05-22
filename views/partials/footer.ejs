@@ -29,10 +29,93 @@
     <a class="footer-text" href="/privacy">Privacy Policy</a>
     &middot;
     <a class="footer-text" href="/terms">Terms of Service</a>
+    <% if (typeof nav !== 'undefined' && nav && nav.isLoggedIn) { %>
+      &middot;
+      <button type="button"
+              class="btn btn-link footer-text bug-report-trigger p-0"
+              data-bs-toggle="modal"
+              data-bs-target="#bugReportModal">
+        <i class="fa-solid fa-bug me-1"></i>Report a Bug
+      </button>
+    <% } %>
   </p>
 
   <p class="footer-text">v<%= typeof appVersion !== 'undefined' ? appVersion : '—' %></p>
 </footer>
+
+<% if (typeof nav !== 'undefined' && nav && nav.isLoggedIn) { %>
+<%# ── Report a Bug modal ──────────────────────────────────── %>
+<div class="modal fade" id="bugReportModal" tabindex="-1"
+     aria-labelledby="bugReportModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h2 class="modal-title h5 mb-0" id="bugReportModalLabel">
+          <i class="fa-solid fa-bug me-2"></i>Report a Bug
+        </h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body" id="bugReportFormPanel">
+        <p class="text-muted small mb-3">
+          Found something broken? Let us know and we'll look into it.
+          <br>
+          <span class="text-muted" style="font-size:0.75rem">
+            Page: <span id="bugReportPageUrl"></span>
+          </span>
+        </p>
+
+        <div id="bugReportError" class="alert alert-danger d-none" role="alert"></div>
+
+        <div id="bugReportForm">
+          <div class="mb-3">
+            <label for="bugReportDesc" class="form-label fw-semibold">
+              What happened? <span class="text-danger">*</span>
+            </label>
+            <textarea id="bugReportDesc"
+                      class="form-control"
+                      rows="4"
+                      placeholder="Describe the bug clearly — what you saw, what you expected…"
+                      maxlength="4000"></textarea>
+            <div class="invalid-feedback">Please describe the bug.</div>
+          </div>
+
+          <div class="mb-1">
+            <label for="bugReportSteps" class="form-label fw-semibold">
+              Steps to reproduce <span class="text-muted fw-normal">(optional)</span>
+            </label>
+            <textarea id="bugReportSteps"
+                      class="form-control"
+                      rows="3"
+                      placeholder="1. Go to…&#10;2. Click…&#10;3. See error"
+                      maxlength="4000"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <%# Success state — hidden until submission %>
+      <div class="modal-body d-none" id="bugReportSuccess">
+        <div class="text-center py-2">
+          <i class="fa-solid fa-circle-check bug-success-icon"></i>
+          <h3 class="h5 mb-1">Report submitted</h3>
+          <p class="text-muted small mb-0">Thanks — we'll look into it.</p>
+        </div>
+      </div>
+
+      <div class="modal-footer" id="bugReportFooter">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="bugReportSubmitBtn">
+          <i class="fa-solid fa-paper-plane me-2"></i>Submit report
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+<link rel="stylesheet" href="/styles/bugReport.css" />
+<script src="/js/bugReport.js"></script>
+<% } %>
 
 <script src="/js/scrollToTop.js"></script>
 <script src="/js/navDropdown.js"></script>
