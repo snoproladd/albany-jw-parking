@@ -297,6 +297,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const addDayBtn = document.getElementById("addDayBtn");
 
     /** Reset day form. */
+    const daySchedulable = document.getElementById("daySchedulable");
+
     function resetDayForm() {
       dayEditId.value = "";
       dayLabel.value = "";
@@ -304,6 +306,7 @@ document.addEventListener("DOMContentLoaded", () => {
       dayStart.value = "";
       dayEnd.value = "";
       dayNotes.value = "";
+      if (daySchedulable) daySchedulable.checked = true;
       dayDeleteBtn.classList.add("d-none");
       dayFormTitle.textContent = "Add Convention Day";
       dayFormStatus.innerHTML = "";
@@ -326,6 +329,7 @@ document.addEventListener("DOMContentLoaded", () => {
         dayStart.value = btn.dataset.start || "";
         dayEnd.value = btn.dataset.end || "";
         dayNotes.value = btn.dataset.notes || "";
+        if (daySchedulable) daySchedulable.checked = btn.dataset.schedulable !== "false";
         dayFormTitle.textContent = `Edit — ${btn.dataset.label || "Convention Day"}`;
         dayDeleteBtn.classList.remove("d-none");
         dayFormStatus.innerHTML = "";
@@ -388,6 +392,7 @@ document.addEventListener("DOMContentLoaded", () => {
             program_start: parsedDayStart,
             program_end: parsedDayEnd,
             notes: dayNotes.value.trim() || null,
+            schedulable: daySchedulable ? daySchedulable.checked : true,
           });
           window.location.reload();
         } catch (err) {

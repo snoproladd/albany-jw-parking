@@ -2256,6 +2256,7 @@ export function oversightRouter({
         program_start,
         program_end,
         notes,
+        schedulable,
       } = req.body || {};
       const yearNum = Number(year);
       const conventionDateObj = convention_date
@@ -2289,6 +2290,7 @@ export function oversightRouter({
           program_start,
           program_end,
           notes,
+          schedulable: schedulable !== false && schedulable !== "false",
         });
         return res.json({ success: true, id });
       } catch (err) {
@@ -2305,7 +2307,7 @@ export function oversightRouter({
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
-      const { label, convention_date, program_start, program_end, notes } =
+      const { label, convention_date, program_start, program_end, notes, schedulable } =
         req.body || {};
 
       const conventionDateObj = convention_date
@@ -2335,6 +2337,7 @@ export function oversightRouter({
           program_start,
           program_end,
           notes,
+          schedulable: schedulable !== false && schedulable !== "false",
         });
         if (!ok)
           return res.status(404).json({ success: false, error: "Not found." });
@@ -2387,6 +2390,7 @@ export function oversightRouter({
         program_start,
         program_end,
         notes,
+        schedulable,
       } = req.body || {};
       const yearNum = Number(year);
       const conventionDateObj = convention_date
@@ -4490,10 +4494,11 @@ export function oversightRouter({
       const dayId = Number(req.query.dayId);
       if (!dayId) return res.redirect("/oversight/tools/scheduler");
       try {
-        const [reportData, conventionDays] = await Promise.all([
+        const [reportData, allDays] = await Promise.all([
           getSchedulerReportData(dayId),
           getConventionDays(new Date().getFullYear()),
         ]);
+        const conventionDays = allDays.filter((d) => d.schedulable !== false && d.schedulable !== 0);
         return res.render("authentication_and_accounts/schedulerReport", {
           csrfToken: req.csrfToken(),
           reportData,
@@ -4523,7 +4528,8 @@ export function oversightRouter({
     async (req, res) => {
       try {
         const year = new Date().getFullYear();
-        const conventionDays = await getConventionDays(year);
+        const allDays = await getConventionDays(year);
+        const conventionDays = allDays.filter((d) => d.schedulable !== false && d.schedulable !== 0);
         return res.render("authentication_and_accounts/scheduler", {
           csrfToken: req.csrfToken(),
           conventionDays,

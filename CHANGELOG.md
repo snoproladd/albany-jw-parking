@@ -4,6 +4,15 @@ All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 
+## [2.21.0] - 2026-05-22
+
+### Added
+- Schedulable flag on convention days — unschedulable days (e.g. meeting-only
+  days) are hidden from the Scheduler and Scheduler Report day pickers while
+  remaining fully available for invitations, timelines, and attendance
+- "Meeting only" badge on day cards in Timelines when schedulable is off
+- schedulable column added to dbo.convention_days (DEFAULT 1, non-breaking)
+
 ## [2.20.0] - 2026-05-22
 
 ### Added

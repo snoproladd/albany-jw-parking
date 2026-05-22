@@ -201,6 +201,15 @@
                       <label for="dayNotes" class="form-label small">Notes</label>
                       <input type="text" id="dayNotes" class="form-control" maxlength="500" />
                     </div>
+                    <div class="col-12 col-md-auto d-flex align-items-end pb-1">
+                      <div class="form-check form-switch mb-1">
+                        <input class="form-check-input" type="checkbox" id="daySchedulable" checked />
+                        <label class="form-check-label small" for="daySchedulable">
+                          Schedulable
+                          <small class="text-muted d-block">Uncheck for meeting days</small>
+                        </label>
+                      </div>
+                    </div>
                   </div>
                   <div id="dayFormStatus" class="mt-3"></div>
                   <div class="d-flex gap-2 mt-3">
@@ -281,6 +290,13 @@
                               <% if (day.notes) { %>
                                 <div class="text-muted small mt-1"><%= day.notes %></div>
                               <% } %>
+                              <% if (!day.schedulable) { %>
+                                <div class="mt-1">
+                                  <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle" style="font-size:0.7rem">
+                                    <i class="fa-solid fa-calendar-xmark me-1"></i>Meeting only
+                                  </span>
+                                </div>
+                              <% } %>
                             </div>
                             <div class="d-flex gap-1">
                               <button type="button" class="btn btn-outline-secondary btn-sm day-edit-btn"
@@ -289,7 +305,8 @@
                                 data-date="<%= day.convention_date instanceof Date ? day.convention_date.toISOString().slice(0,10) : String(day.convention_date).slice(0,10) %>"
                                 data-start="<%= day.program_start instanceof Date ? day.program_start.toISOString() : day.program_start %>"
                                 data-end="<%= day.program_end instanceof Date ? day.program_end.toISOString() : day.program_end %>"
-                                data-notes="<%= day.notes || '' %>">
+                                data-notes="<%= day.notes || '' %>"
+                                data-schedulable="<%= day.schedulable ? 'true' : 'false' %>">
                                 <i class="fa-solid fa-pen"></i>
                               </button>
                               <button type="button" class="btn btn-outline-secondary btn-sm day-copy-btn"
