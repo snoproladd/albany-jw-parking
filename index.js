@@ -1079,6 +1079,22 @@ const server = http.createServer(app);
       }
     });
     
+    /**
+     * GET /privacy
+     * Renders the Privacy Policy page (public, no auth required).
+     */
+    app.get("/privacy", (req, res) => {
+        res.render("privacy");
+    });
+
+    /**
+     * GET /terms
+     * Renders the Terms of Service page (public, no auth required).
+     */
+    app.get("/terms", (req, res) => {
+        res.render("terms");
+    });
+
     app.get("/health", (req, res) => res.send("OK"));
 
     app.use((req, res) => {
