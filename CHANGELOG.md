@@ -6,6 +6,12 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [2.23.0] - 2026-05-22
 
+### Fixed
+- Added 'DESK' _navRole to oversight dropdown in header to gain access
+  to Create Volunteer, Checkin, and Attendance Report
+
+## [2.23.0] - 2026-05-22
+
 ### Changed
 - Invitation Tracker now collapses to one row per volunteer per campaign
   family. A "family" is a parent batch plus all direct follow-up children.

@@ -78,7 +78,7 @@
 
             
 
-            <% if (isAtLeast('KEYMAN')) { %>
+            <% if (isAtLeast('KEYMAN') || _navRole === 'DESK'){ %>
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" id="oversightDropdown"
                  role="button" data-bs-toggle="dropdown" aria-expanded="false"
@@ -116,9 +116,6 @@
                       </a></li>
                       <li><a class="ot-nav-item" href="/oversight/tools/send-reset">
                         <i class="fa-solid fa-link"></i>Send Reset Link
-                      </a></li>
-                      <li><a class="ot-nav-item" href="/oversight/tools/bug-reports">
-                        <i class="fa-solid fa-bug"></i>Bug Reports
                       </a></li>
                     </ul>
                   </div>
@@ -292,7 +289,7 @@
                         <i class="fa-solid fa-sliders"></i>Permission Matrix
                       </a></li>
                       <li><a class="ot-nav-item" href="/oversight/tools/hierarchy">
-                        <i class="fa-solid fa-diagram-project"></i>Layers of Oversight
+                        <i class="fa-solid fa-sitemap"></i>Chain of Command
                       </a></li>
                     </ul>
                   </div>
