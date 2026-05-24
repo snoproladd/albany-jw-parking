@@ -21,11 +21,12 @@
     "start": "node index.js",
     "dev": "nodemon --require ./set-local-env.js index.js"
   },
+  "overrides": {
+    "@azure/msal-common": "15.13.3"
+  },
   "dependencies": {
     "@azure/identity": "^4.13.0",
     "@azure/keyvault-secrets": "^4.10.0",
-    "@azure/msal-common": "^15.13.3",
-    "@azure/msal-node": "^2.16.3",
     "body-parser": "^2.2.1",
     "bootstrap": "^5.3.8",
     "connect-redis": "^9.0.0",

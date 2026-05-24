@@ -58,7 +58,7 @@
                 <div class="d-flex flex-wrap gap-3 align-items-end">
                     <div>
                         <label class="form-label form-label-sm mb-1" for="arDaySelect">Convention Day</label>
-                        <select class="form-select form-select-sm" id="arDaySelect" style="min-width:220px">
+                        <select class="form-select form-select-sm ar-day-select" id="arDaySelect">
                             <option value="">— Select a day —</option>
                             <% conventionDays.forEach(function(day) { %>
                                 <option value="<%= day.id %>">
@@ -87,7 +87,7 @@
 
                     <div>
                         <label class="form-label form-label-sm mb-1" for="arFilterType">Type</label>
-                        <select class="form-select form-select-sm" id="arFilterType" style="min-width:120px">
+                        <select class="form-select form-select-sm ar-filter-type" id="arFilterType">
                             <option value="">All</option>
                             <option value="invited">Invited</option>
                             <option value="walkin">Walk-In</option>
@@ -96,7 +96,7 @@
 
                     <div>
                         <label class="form-label form-label-sm mb-1" for="arFilterRsvp">RSVP</label>
-                        <select class="form-select form-select-sm" id="arFilterRsvp" style="min-width:120px">
+                        <select class="form-select form-select-sm ar-filter-rsvp" id="arFilterRsvp">
                             <option value="">All</option>
                             <option value="yes">Yes</option>
                             <option value="maybe">Maybe</option>
@@ -107,7 +107,7 @@
 
                     <div>
                         <label class="form-label form-label-sm mb-1" for="arFilterAttended">Attended</label>
-                        <select class="form-select form-select-sm" id="arFilterAttended" style="min-width:130px">
+                        <select class="form-select form-select-sm ar-filter-attended" id="arFilterAttended">
                             <option value="">All</option>
                             <option value="yes">Attended</option>
                             <option value="no">Not Recorded</option>
@@ -116,8 +116,8 @@
 
                     <div class="ms-auto">
                         <label class="form-label form-label-sm mb-1" for="arFilterName">Search name</label>
-                        <input type="text" class="form-control form-control-sm" id="arFilterName"
-                               placeholder="Last, First…" autocomplete="off" style="min-width:160px" />
+                        <input type="text" class="form-control form-control-sm ar-filter-name" id="arFilterName"
+                               placeholder="Last, First…" autocomplete="off" />
                     </div>
 
                     <div class="align-self-end">

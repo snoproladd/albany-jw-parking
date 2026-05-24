@@ -697,7 +697,7 @@
                                                         class="btn btn-sm rsvp-btn <%= !inv.response ? 'btn-secondary' : 'btn-outline-secondary' %>"
                                                         data-response="">Pending</button>
                                                     </div>
-                                                    <div class="rsvp-status mt-1" style="font-size:0.72rem; min-height:1em"></div>
+                                                    <div class="rsvp-status mt-1"></div>
                                                   <% } %>
                                                 </td>
                                               </tr>
@@ -730,7 +730,7 @@
                                       <%# Day picker %>
                                       <div class="mb-3">
                                         <label class="form-label small fw-semibold" for="bkDaySelect">Convention Day</label>
-                                        <select class="form-select form-select-sm" id="bkDaySelect" style="max-width:320px">
+                                        <select class="form-select form-select-sm bk-day-select" id="bkDaySelect">
                                           <option value="">— Select a day —</option>
                                           <% conventionDays.forEach(function(day) { %>
                                             <option value="<%= day.id %>">
@@ -749,11 +749,11 @@
                                         <div class="d-flex align-items-center gap-2 flex-wrap mb-2">
                                           <div>
                                             <label class="form-label small mb-1" for="bkStart">Start</label>
-                                            <input type="time" class="form-control form-control-sm" id="bkStart" style="width:130px" />
+                                            <input type="time" class="form-control form-control-sm bk-time-input" id="bkStart" />
                                           </div>
                                           <div>
                                             <label class="form-label small mb-1" for="bkEnd">End</label>
-                                            <input type="time" class="form-control form-control-sm" id="bkEnd" style="width:130px" />
+                                            <input type="time" class="form-control form-control-sm bk-time-input" id="bkEnd" />
                                           </div>
                                           <div class="flex-grow-1">
                                             <label class="form-label small mb-1" for="bkReason">Reason <span class="text-muted fw-normal">(optional)</span></label>

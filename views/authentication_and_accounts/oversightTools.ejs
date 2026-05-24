@@ -36,7 +36,7 @@
             <option value="">Jump to section…</option>
             <% if (can('accessAdminConsole')) { %>
               <option value="communications">📣 Communications</option>
-              <option value="" disabled style="padding-left:1rem">↳ Bug Reports (separate page)</option>
+              <option value="" disabled>&nbsp;&nbsp;↳ Bug Reports (separate page)</option>
             <% } %>
             <% if (can('manageRoles') || can('editVolunteerInfo') || can('createVolunteerAccounts') || isAtLeast('OVERSEER')) { %>
               <option value="volunteer-management">👥 Volunteer Management</option>

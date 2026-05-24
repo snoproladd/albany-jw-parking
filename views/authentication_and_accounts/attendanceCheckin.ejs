@@ -59,7 +59,7 @@
 
                     <div>
                         <label class="form-label form-label-sm mb-1" for="atDaySelect">Convention Day</label>
-                        <select class="form-select form-select-sm" id="atDaySelect" style="min-width:200px">
+                        <select class="form-select form-select-sm at-day-select" id="atDaySelect">
                             <option value="">— Select a day —</option>
                             <% days.forEach(function(day) { %>
                                 <option value="<%= day.id %>">
@@ -74,8 +74,8 @@
 
                     <div>
                         <label class="form-label form-label-sm mb-1" for="atShiftSelect">Shift</label>
-                        <select class="form-select form-select-sm" id="atShiftSelect"
-                                style="min-width:260px" disabled>
+                        <select class="form-select form-select-sm at-shift-select" id="atShiftSelect"
+                                disabled>
                             <option value="">— Select a shift —</option>
                         </select>
                     </div>
@@ -120,9 +120,9 @@
                 <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
                     <span class="fw-semibold small" id="atTableTitle">Volunteers</span>
                     <div class="d-flex gap-2 align-items-center flex-wrap">
-                        <input type="text" class="form-control form-control-sm"
+                        <input type="text" class="form-control form-control-sm at-search-input"
                                id="atSearch" placeholder="Find volunteer…"
-                               autocomplete="off" style="min-width:180px" />
+                               autocomplete="off" />
                         <span class="text-muted small" id="atRowCount"></span>
                         <button type="button" class="btn btn-outline-info btn-sm" id="atWalkInBtn">
                             <i class="fa-solid fa-person-walking-arrow-right me-1"></i>Walk-In
@@ -175,7 +175,7 @@
                 <div class="modal-body">
                     <input type="text" class="form-control mb-3" id="atWalkInSearch"
                            placeholder="Search by last or first name…" autocomplete="off" />
-                    <div id="atWalkInList" style="max-height:300px; overflow-y:auto;">
+                    <div id="atWalkInList" class="at-walkin-list">
                         <p class="text-muted small mb-0">Start typing to search volunteers.</p>
                     </div>
                     <div id="atWalkInError" class="alert alert-danger mt-2 d-none"></div>
@@ -188,7 +188,7 @@
     </div>
 
     <%# ── Error toast ───────────────────────────────────────────────────── %>
-    <div class="position-fixed bottom-0 end-0 p-3" style="z-index:1100">
+    <div class="position-fixed bottom-0 end-0 p-3 at-toast-container">
         <div id="atErrorToast" class="toast align-items-center text-bg-danger border-0"
              role="alert" aria-live="assertive" aria-atomic="true">
             <div class="d-flex">

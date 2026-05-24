@@ -255,3 +255,25 @@
     padding-top: 0.75rem;
     border-top: 1px solid var(--bs-border-color-translucent);
 }
+
+/* =============================================================
+   CSP-safe utility classes — replace inline style attributes
+   ============================================================= */
+
+/** Replaces style="z-index:1100" on #saToastContainer */
+.sa-toast-container { z-index: 1100; }
+
+/** Replaces style="font-size:.875rem" on the schedules tab description */
+.sa-schedules-desc  { font-size: 0.875rem; }
+
+/** Replaces style="width:120px" on #saLogStatusFilter */
+.sa-log-filter-status  { width: 120px; }
+
+/** Replaces style="min-width:180px" on #saLogScheduleFilter */
+.sa-log-filter-sched   { min-width: 180px; }
+
+/** Replaces style="width:min(500px,100vw)" on #saOffcanvas */
+.sa-offcanvas          { width: min(500px, 100vw); }
+
+/** Replaces style="font-size:.72rem" on EDT label and style="font-size:.75rem" on optional label */
+.sa-label-sm           { font-size: 0.72rem; }

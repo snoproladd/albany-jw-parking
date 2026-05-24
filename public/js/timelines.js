@@ -278,6 +278,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const yearPicker = document.getElementById("yearPicker");
 
+  // Submit the year-picker form on change so no inline onchange is needed.
+  yearPicker?.addEventListener("change", () => yearPicker.closest("form").submit());
+
   // ── Convention Days ───────────────────────────────────────────────────
 
   const dayFormPanel = document.getElementById("dayFormPanel");

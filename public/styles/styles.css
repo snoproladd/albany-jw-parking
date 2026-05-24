@@ -2222,3 +2222,43 @@ footer p:not(.footer-text) {
     padding: 1.5rem 1.25rem;
   }
 }
+
+/* =============================================================
+   CSP-safe utility classes — replace inline style attributes
+   ============================================================= */
+
+/** Replaces style="font-size:0.7rem" on the Meeting Only badge in timelines.ejs */
+.badge-meeting-only {
+    font-size: 0.7rem;
+}
+
+/** Replaces style="max-width:none" on the Locations card in locationsAndTasks.ejs */
+.loc-card-full {
+    max-width: none;
+}
+
+/** Replaces style="width:auto" on the year-picker select in locationsAndTasks.ejs */
+.loc-year-picker-select {
+    width: auto;
+}
+
+/** Replaces style="font-size:0.75rem" on the lat/lng label in locationsAndTasks.ejs */
+.loc-latlng-label {
+    font-size: 0.75rem;
+}
+
+/** Replaces style="font-size:0.72rem; min-height:1em" on .rsvp-status in volunteerAccountOversight.ejs */
+.rsvp-status {
+    font-size: 0.72rem;
+    min-height: 1em;
+}
+
+/** Replaces style="max-width:320px" on the blackout day select in volunteerAccountOversight.ejs */
+.bk-day-select {
+    max-width: 320px;
+}
+
+/** Replaces style="width:130px" on the blackout time inputs in volunteerAccountOversight.ejs */
+.bk-time-input {
+    width: 130px;
+}

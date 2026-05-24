@@ -314,13 +314,6 @@
     <%- include('../partials/footer') %>
 
     <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
-    <script nonce="<%= nonce %>">
-      document.getElementById('tableSearch').addEventListener('input', function () {
-        const term = this.value.toLowerCase();
-        document.querySelectorAll('.searchable-row').forEach(row => {
-          row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
-        });
-      });
-    </script>
+    <script src="/js/adminSendReset.js"></script>
   </body>
 </html>

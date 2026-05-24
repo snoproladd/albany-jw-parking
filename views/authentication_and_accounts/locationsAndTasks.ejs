@@ -22,7 +22,7 @@
       <div class="row justify-content-center">
         <div class="col-12 col-xl-11">
 
-          <section class="card shadow-lg admin-console-card" style="max-width:none;">
+          <section class="card shadow-lg admin-console-card loc-card-full">
             <header class="card-header text-center">
               <h1 class="h2 my-2">
                 <i class="fa-solid fa-map-pin me-2"></i>Locations
@@ -42,8 +42,7 @@
                 <form method="GET" action="/oversight/tools/locationsAndTasks"
                   class="d-flex align-items-center gap-2">
                   <label for="yearPicker" class="form-label mb-0 small fw-semibold">Year</label>
-                  <select id="yearPicker" name="year" class="form-select form-select-sm" style="width:auto;"
-                    onchange="this.form.submit()">
+                  <select id="yearPicker" name="year" class="form-select form-select-sm loc-year-picker-select">
                     <% for (let y = currentYear + 1; y >= currentYear - 2; y--) { %>
                       <option value="<%= y %>" <%= y === year ? 'selected' : '' %>><%= y %></option>
                     <% } %>
@@ -202,7 +201,7 @@
                           <td class="small text-muted">
                             <%= r.address || '—' %>
                             <% if (r.lat && r.lng) { %>
-                              <div class="text-muted" style="font-size:0.75rem;">
+                              <div class="text-muted loc-latlng-label">
                                 <%= r.lat %>, <%= r.lng %>
                               </div>
                             <% } %>

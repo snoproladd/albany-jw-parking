@@ -263,6 +263,38 @@
 }
 
 /* ─────────────────────────────────────────────────────────────
+   CSP-safe utility classes — replace inline style attributes
+   ───────────────────────────────────────────────────────────── */
+
+/** Replaces style="min-width:200px" on #atDaySelect (attendanceCheckin.ejs) */
+.at-day-select   { min-width: 200px; }
+
+/** Replaces style="min-width:260px" on #atShiftSelect (attendanceCheckin.ejs) */
+.at-shift-select { min-width: 260px; }
+
+/** Replaces style="min-width:180px" on #atSearch (attendanceCheckin.ejs) */
+.at-search-input { min-width: 180px; }
+
+/** Replaces style="max-height:300px;overflow-y:auto" on #atWalkInList (attendanceCheckin.ejs) */
+.at-walkin-list  { max-height: 300px; overflow-y: auto; }
+
+/** Replaces style="z-index:1100" on the error toast container (attendanceCheckin.ejs) */
+.at-toast-container { z-index: 1100; }
+
+/** Replaces style="min-width:220px" on #arDaySelect (attendanceReport.ejs) */
+.ar-day-select      { min-width: 220px; }
+
+/** Replaces style="min-width:120px" on #arFilterType and #arFilterRsvp (attendanceReport.ejs) */
+.ar-filter-type,
+.ar-filter-rsvp  { min-width: 120px; }
+
+/** Replaces style="min-width:130px" on #arFilterAttended (attendanceReport.ejs) */
+.ar-filter-attended { min-width: 130px; }
+
+/** Replaces style="min-width:160px" on #arFilterName (attendanceReport.ejs) */
+.ar-filter-name  { min-width: 160px; }
+
+/* ─────────────────────────────────────────────────────────────
    8. Empty state legibility
    ───────────────────────────────────────────────────────────── */
 

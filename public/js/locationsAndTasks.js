@@ -13,6 +13,10 @@
  */
 
 document.addEventListener("DOMContentLoaded", () => {
+  // Submit the year-picker form on change so no inline onchange is needed.
+  const yearPicker = document.getElementById("yearPicker");
+  yearPicker?.addEventListener("change", () => yearPicker.closest("form").submit());
+
   // ── DOM refs ────────────────────────────────────────────────────────
   const csrfToken =
     document.querySelector('meta[name="csrf-token"]')?.content || "";

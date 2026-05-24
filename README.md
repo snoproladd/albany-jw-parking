@@ -201,7 +201,9 @@ The first ADMIN must be granted directly in the database.
 - **JSDoc** on all functions
 - **No inline scripts or styles** — all JS in `public/js/`, all CSS in `public/styles/`
 - **No EJS logic** — formatting and data shaping done in routes before render
-- **CSP compliant** — no `unsafe-inline`; scripts use nonce, data via `type="application/json"` blocks
+- **CSP compliant** — strictly no `unsafe-inline`; no inline `<script>` blocks,
+  no inline `style=` attributes, no inline event handlers (`onclick`, `onchange`, etc.).
+  All JS lives in `public/js/`, all CSS in `public/styles/`. Scripts load via `<script src>`.
 - **MSSQL TIME columns** return as epoch-anchored `Date` objects — always use `getUTCHours()`/`getUTCMinutes()`
 
 ---

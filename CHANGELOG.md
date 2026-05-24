@@ -4,6 +4,27 @@ All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 
+
+## [2.23.2] - 2026-05-24
+
+### Changed
+- Eliminated all CSP `unsafe-inline` violations across 9 EJS templates
+  - Moved 2 inline `<script nonce>` blocks to external JS files:
+    `adminCreateVolunteer.js` (new), `adminSendReset.js` (new)
+  - Replaced 2 inline `onchange` event handlers with `addEventListener`
+    calls in `timelines.js` and `locationsAndTasks.js`
+  - Replaced 24 inline `style=` attributes across 7 templates with
+    named CSS utility classes in `styles.css`, `attendance.css`,
+    and `shiftAlerts.css`
+  - Replaced unrenderable `style=` on `<option>` in `oversightTools.ejs`
+    with a text-based indent (`&nbsp;&nbsp;↳`)
+- Removed phantom direct dependencies `@azure/msal-common` and
+  `@azure/msal-node` from `package.json` (neither is imported directly)
+- Added `overrides: { "@azure/msal-common": "15.13.3" }` to pin away from
+  the broken v15.15.0 npm publish (missing dist `.mjs` files) that caused
+  `ERR_MODULE_NOT_FOUND` on startup
+
+  
 ## [2.23.0] - 2026-05-22
 
 ### Fixed
