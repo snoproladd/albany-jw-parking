@@ -353,6 +353,9 @@ if (isProd) {
 
 const server = http.createServer(app);
 
+/** @type {ReturnType<typeof startAlertScheduler> | null} */
+let alertScheduler = null;
+
 (async () => {
   try {
     await getSqlPool();
@@ -1210,12 +1213,11 @@ const server = http.createServer(app);
 // Graceful shutdown
 process.on("SIGINT", () => {
   stopDbUpdate();
-  alertScheduler.stop();
-
+  if (alertScheduler) alertScheduler.stop();
   server.close(() => process.exit(0));
 });
 process.on("SIGTERM", () => {
   stopDbUpdate();
-  alertScheduler.stop();
+  if (alertScheduler) alertScheduler.stop();
   server.close(() => process.exit(0));
 });

@@ -34,10 +34,6 @@
         <div class="d-lg-none mb-3">
           <select class="form-select" id="otMobileNav" aria-label="Jump to section">
             <option value="">Jump to section…</option>
-            <% if (can('accessAdminConsole')) { %>
-              <option value="communications">📣 Communications</option>
-              <option value="" disabled>&nbsp;&nbsp;↳ Bug Reports (separate page)</option>
-            <% } %>
             <% if (can('manageRoles') || can('editVolunteerInfo') || can('createVolunteerAccounts') || isAtLeast('OVERSEER')) { %>
               <option value="volunteer-management">👥 Volunteer Management</option>
             <% } %>
@@ -65,15 +61,7 @@
           <%# ── Desktop sidebar ─────────────────────────────────────── %>
           <nav class="d-none d-lg-flex flex-column gap-1 ot-sidebar flex-shrink-0" aria-label="Section navigation">
             <div class="ot-sidebar-label">Sections</div>
-            <% if (can('accessAdminConsole')) { %>
-              <a class="ot-sidebar-link" href="#communications">
-                <i class="fa-solid fa-paper-plane"></i> Communications
-              </a>
-              <a class="ot-sidebar-link ot-sidebar-link--sub" href="/oversight/tools/bug-reports">
-                <i class="fa-solid fa-bug"></i> Bug Reports
-              </a>
-            <% } %>
-            <% if (can('manageRoles') || can('editVolunteerInfo') || can('createVolunteerAccounts') || isAtLeast('OVERSEER')) { %>
+             <% if (can('manageRoles') || can('editVolunteerInfo') || can('createVolunteerAccounts') || isAtLeast('OVERSEER')) { %>
               <a class="ot-sidebar-link" href="#volunteer-management">
                 <i class="fa-solid fa-users"></i> Volunteer Management
               </a>

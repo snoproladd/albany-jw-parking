@@ -3,12 +3,16 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.24.1] - 2026-05-27
 
-
-# Changelog
-
-All notable changes to this project will be documented here.
-Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
+### Fixed
+- `alertScheduler` hoisted to module scope with `let alertScheduler = null`
+  so SIGINT/SIGTERM handlers no longer throw `ReferenceError` if startup
+  fails before `startAlertScheduler()` is called (e.g. during rolling
+  App Service restarts triggered by config changes).
+- Added null guard (`if (alertScheduler)`) in both shutdown handlers.
+- Added `GraphTenantId`, `GraphClientId`, `GraphClientSecret` to Azure
+  Key Vault — eliminates missing-secret errors on every startup.
 
 ## [2.24.0] - 2026-05-27
 
