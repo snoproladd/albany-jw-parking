@@ -16,6 +16,7 @@ import { createClient } from "redis";
 import { createRequire } from "module";
 import { getConfig, getSqlPool } from "./src/config/azureConfig.js";
 import { touchSqlActivity } from "./lib/sql.js";
+import { demoContextMiddleware } from "./middleware/demoContext.js";
 import { INCOMPATIBILITIES } from "./src/config/privilegeRules.js";
 
 const require = createRequire(import.meta.url);
@@ -305,11 +306,20 @@ app.use((req, res, next) => {
   next();
 });
 
+// Demo context — detects demo.albanyjwparking.org and wraps the request
+// in an AsyncLocalStorage context so lib/sql.js routes all queries to
+// the demo pool automatically. Must sit before session and routes.
+app.use(demoContextMiddleware);
+
 // Helmet CSP setup
 app.use(
   helmet.contentSecurityPolicy({
     useDefaults: true,
     directives: {
+      // Disable upgrade-insecure-requests in dev so local HTTP works.
+      // In production Azure terminates TLS before requests reach Express,
+      // so the directive isn't needed there either.
+      upgradeInsecureRequests: null,
       "default-src": ["'self'"],
       "frame-src":   ["'self'"],
       "script-src": [

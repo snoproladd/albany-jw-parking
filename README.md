@@ -9,10 +9,10 @@ and attendance for the Albany JW Regional Convention parking team.
 
 | Layer | Technology |
 |---|---|
-| Runtime | Node.js 24, ES Modules |
+| Runtime | Node.js 22+, ES Modules |
 | Framework | Express 5 |
 | Templating | EJS |
-| Database | Azure SQL (MSSQL) |
+| Database | Azure SQL (MSSQL) — `dbo` schema (prod), `demo` schema (demo) |
 | Sessions | Redis / Azure Cache for Redis (Valkey) |
 | Auth | Session-based with PBKDF2 password hashing |
 | Email | IONOS SMTP via Nodemailer |
@@ -29,7 +29,7 @@ and attendance for the Albany JW Regional Convention parking team.
 
 ### Prerequisites
 
-- Node.js 24+
+- Node.js 22+
 - Access to the Azure SQL database (or a local SQL Server instance)
 - A `.env` file (see below)
 
@@ -58,6 +58,37 @@ The app starts at `http://localhost:3000`.
 
 `set-local-env.js` sets `AZURE_KEY_VAULT_URL` for the local environment.
 In dev, secrets fall back to `.env` values when Key Vault is unreachable.
+
+---
+
+## Demo Environment
+
+A demo instance runs at `https://demo.albanyjwparking.org` on the same App
+Service and database server as production. All data is isolated in a separate
+`demo` SQL schema via a contained SQL user (`parking_demo`) whose
+`DEFAULT_SCHEMA = demo`.
+
+The routing is transparent — no changes to `dbSync.js` or route handlers.
+`AsyncLocalStorage` propagates the demo flag through the request pipeline;
+`getSqlPool()` and `query()` route automatically based on the hostname.
+
+To run the demo locally, add `127.0.0.1 parking-demo.local` to your hosts
+file and set `DEMO_HOSTNAME=parking-demo.local` in `.env`, then access the
+app at `http://parking-demo.local:3000`.
+
+### Demo login credentials
+
+| Email | Role | Password |
+|---|---|---|
+| `admin@demo.com` | ADMIN | `Demo@2026!` |
+| `asstadmin@demo.com` | ASSISTANT_ADMIN | `Demo@2026!` |
+| `overseer@demo.com` | OVERSEER | `Demo@2026!` |
+| `keyman@demo.com` | KEYMAN | `Demo@2026!` |
+| `desk@demo.com` | DESK | `Demo@2026!` |
+| `volunteer@demo.com` | REGISTERED | `Demo@2026!` |
+
+To re-seed demo data: `node scripts/seedDemo.js`
+To anonymize names/places in the demo DB: run `scripts/anonymizeDemo.sql`
 
 ---
 
@@ -91,6 +122,11 @@ KICKBOX_API_KEY=your-kickbox-api-key
 
 # Redis (local dev — optional, sessions use memory store if absent)
 # REDIS_URL=redis://localhost:6379
+
+# Demo environment
+DEMO_DB_USER=parking_demo
+DEMO_DB_PASSWORD=your-demo-db-password
+DEMO_HOSTNAME=parking-demo.local   # or demo.albanyjwparking.org in production
 
 # Azure Key Vault (set automatically by set-local-env.js)
 # AZURE_KEY_VAULT_URL=https://ApiStorage.vault.azure.net/
@@ -128,6 +164,9 @@ in the container or environment variables in production.
 
 Key Vault secret names map to env vars via `SECRET_MAP` in `src/config/azureConfig.js`.
 
+Demo DB credentials (`DEMO_DB_USER`, `DEMO_DB_PASSWORD`) should also be added
+as Key Vault secrets and referenced via App Service Key Vault references.
+
 ---
 
 ## Project Structure
@@ -137,10 +176,12 @@ parking/
 ├── index.js                  # Server entry point, middleware, top-level routes
 ├── lib/
 │   ├── dbSync.js             # All database query functions
-│   ├── messaging.js          # Email + SMS delivery helpers
+│   ├── messaging.js          # Email + SMS delivery helpers (suppressed in demo context)
 │   ├── passwordVer.js        # PBKDF2 hashing + verification
-│   ├── sql.js                # SQL connection pool management
+│   ├── sql.js                # SQL connection pool management + demo pool routing
 │   └── volunteerStatus.js    # Profile completeness checks
+├── middleware/
+│   └── demoContext.js        # Demo hostname detection + AsyncLocalStorage context wrap
 ├── routes/
 │   ├── accountRoutes.js      # Login, My Account, password change
 │   ├── apiRoutes.js          # Internal API endpoints
@@ -170,6 +211,11 @@ parking/
 │   │   ├── commandHierarchy.css      # Chain of command admin styles
 │   │   └── sitemap.css               # Sitemap page card grid and layout
 │   └── vendor/               # Third-party UMD bundles (agnostic-draggable, Bootstrap)
+├── scripts/
+│   ├── seedDemo.js           # Populates the demo schema with realistic fake data
+│   ├── anonymizeDemo.sql     # UPDATE statements to replace real names/places in demo
+│   ├── setupDemoSchema.sql   # One-time: create demo schema, tables, and DB user
+│   └── setupDemoSchema_fix.sql # Patch for tables with string DEFAULT values
 ├── docs/
 │   └── OVERSIGHT_GUIDE.md    # End-user guide for oversight staff
 ├── CHANGELOG.md
@@ -204,7 +250,8 @@ The first ADMIN must be granted directly in the database.
 - **CSP compliant** — strictly no `unsafe-inline`; no inline `<script>` blocks,
   no inline `style=` attributes, no inline event handlers (`onclick`, `onchange`, etc.).
   All JS lives in `public/js/`, all CSS in `public/styles/`. Scripts load via `<script src>`.
-- **MSSQL TIME columns** return as epoch-anchored `Date` objects — always use `getUTCHours()`/`getUTCMinutes()`
+- **MSSQL TIME columns** return as epoch-anchored `Date` objects — always use
+  `getUTCHours()`/`getUTCMinutes()`
 
 ---
 
@@ -214,6 +261,9 @@ Azure SQL. Connection pool managed in `lib/sql.js` with:
 - Stale-pool detection (error handler nulls `_pool` to force reconnect)
 - Keep-alive ping every 3 minutes (prevents Azure's ~4 min idle TCP kill)
 - Retry with exponential backoff on transient errors
+- **Demo pool** — lazily initialized on first demo request using SQL auth
+  (`parking_demo` user). `AsyncLocalStorage` routes all queries automatically;
+  `dbo.` prefixes in SQL strings are rewritten to `demo.` at runtime.
 
 Schema highlights:
 - `volunteer_in` — core volunteer table (registration, contact, role, crews)
@@ -221,19 +271,19 @@ Schema highlights:
 - `invitation_batches` — campaign metadata
 - `convention_days → sessions → shifts` — scheduling hierarchy
   - `shifts.department` — department key for scheduler grid grouping
-  - `schedule_assignments.vol_min / vol_max` — flanking `volunteer_need` (vol_ideal) for slot sizing and colour-coding
-  - `shift_slot_assignments` — live scheduler assignments (volunteer → slot); one row per slot, cascades on schedule_assignment delete
-- `public/js/schedulerConflicts.js` — per-volunteer time-conflict tracker; tracks shift assignments and blackout windows
-- `public/js/schedulerContextMenu.js` — right-click context menu; includes Manage Blackouts panel and conflict display
-- `public/js/schedulerContextMenu.js` — right-click context menu for scheduler pills
-- `public/styles/schedulerReport.css`, `views/authentication_and_accounts/schedulerReport.ejs` — printable schedule report
-- `command_hierarchy` — chain of command tree (`volunteer_id`, `parent_id`, `role_title`, `sort_order`)
+  - `schedule_assignments.vol_min / vol_max` — flanking `volunteer_need`
+    (vol_ideal) for slot sizing and colour-coding
+  - `shift_slot_assignments` — live scheduler assignments (volunteer → slot);
+    one row per slot, cascades on schedule_assignment delete
+- `command_hierarchy` — chain of command tree (`volunteer_id`, `parent_id`,
+  `role_title`, `sort_order`)
 - `attendance` — check-in records (walk-ins + invited volunteers)
-- `volunteer_blackouts` — per-volunteer unavailable time windows for scheduler conflict detection (`volunteer_id`, `convention_day_id`, `start_mins`, `end_mins`, `reason`, `created_by`)
-- `invitations.response` — updated directly by `setInvitationResponseById`
-  for verbal RSVPs logged via the Edit Volunteer oversight panel
+- `volunteer_blackouts` — per-volunteer unavailable time windows for scheduler
+  conflict detection
 - `role_permissions` — runtime permission overrides (delta from defaults)
 - `sms_opt_out_log` — Twilio webhook opt-out events
+- `bug_reports` — full lifecycle bug tracking with resolution fields
+- `schedule_publishes` — audit log for schedule PDF publish events
 
 ---
 

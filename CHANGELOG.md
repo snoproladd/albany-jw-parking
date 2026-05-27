@@ -5,6 +5,72 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 
 
+# Changelog
+
+All notable changes to this project will be documented here.
+Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
+
+## [2.24.0] - 2026-05-27
+
+### Added
+- **Demo environment** — full parallel instance of the app at
+  `demo.albanyjwparking.org` sharing the same Azure App Service, codebase,
+  and database server, with complete data isolation via a separate SQL schema.
+- **`demo` SQL schema** — all 23 production tables mirrored into `demo.*`
+  using a dynamic T-SQL script that reads `sys.columns`, `sys.identity_columns`,
+  `sys.default_constraints`, and `sys.indexes` to reproduce column types,
+  IDENTITY, NOT NULL, DEFAULT constraints, and primary keys exactly.
+- **`parking_demo` contained database user** — SQL auth user with
+  `DEFAULT_SCHEMA = demo` and `SELECT/INSERT/UPDATE/DELETE` on `schema::demo`.
+  No server-level login required (Azure SQL contained user pattern).
+- **`AsyncLocalStorage`-based pool routing** (`lib/sql.js`) — `demoStorage`
+  ALS instance propagates `{ isDemo: boolean }` through the entire async
+  request chain. `getSqlPool()` and `query()` read the store automatically,
+  routing all DB calls to the demo pool with zero changes to `dbSync.js` or
+  any route handler.
+- **`dbo.` → `demo.` SQL rewrite** in `query()` — all explicit `dbo.*`
+  references in query strings are rewritten to `demo.*` at runtime when
+  `isDemo` is true, handling every `FROM`, `JOIN`, `UPDATE`, `INSERT INTO`,
+  and `DELETE` pattern in `dbSync.js` without modifying those queries.
+- **`middleware/demoContext.js`** — detects `demo.albanyjwparking.org`
+  hostname (configurable via `DEMO_HOSTNAME` env var), stamps `req.isDemo`,
+  and wraps the request pipeline in the ALS context. Placed before session
+  middleware and all routes so every downstream operation inherits the context.
+- **Demo messaging suppression** — `demoStorage` guard added to
+  `lib/messaging.js` `sendResetSms()` and `sendResetEmail()`. All Twilio
+  and SMTP sends are silently suppressed (logged only) in demo context.
+- **`scripts/seedDemo.js`** — full demo data seed script. Connects as
+  `parking_demo` and populates all 23 demo tables with:
+  - 70 volunteers (real roster structure, anonymized emails, 6 named login
+    accounts with working PBKDF2 password hashes)
+  - 7 event types, 8 locations/tasks (real MVP Arena / OGS Garage structure
+    with addresses and coordinates)
+  - 5 convention days, 28 sessions, 51 shifts, 82 schedule assignments
+    matching the real scheduling architecture
+  - Command hierarchy (5-node tree)
+  - 7 congregations, 7 roles, 3 message templates, 1 invitation batch with
+    8 invitations
+  - Safe to re-run — clears all tables in FK-safe order before inserting
+- **`scripts/anonymizeDemo.sql`** — direct SQL `UPDATE` statements replacing
+  real volunteer first names, last names, congregation city names, location
+  names, addresses, and command hierarchy titles with fictional alternatives
+  in the `demo` schema. Safe to re-run.
+- **`upgradeInsecureRequests: null`** in Helmet CSP — disables the
+  `upgrade-insecure-requests` directive that was forcing HTTPS on all asset
+  requests in local HTTP development. No effect in production (Azure terminates
+  TLS before Express).
+- **New env vars:** `DEMO_DB_USER`, `DEMO_DB_PASSWORD`, `DEMO_HOSTNAME`
+
+### Demo login credentials
+| Email | Role | Password |
+|---|---|---|
+| `admin@demo.com` | ADMIN | `Demo@2026!` |
+| `asstadmin@demo.com` | ASSISTANT_ADMIN | `Demo@2026!` |
+| `overseer@demo.com` | OVERSEER | `Demo@2026!` |
+| `keyman@demo.com` | KEYMAN | `Demo@2026!` |
+| `desk@demo.com` | DESK | `Demo@2026!` |
+| `volunteer@demo.com` | REGISTERED | `Demo@2026!` |
+
 ## [2.23.2] - 2026-05-24
 
 ### Changed
