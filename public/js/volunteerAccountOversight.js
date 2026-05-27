@@ -1301,4 +1301,224 @@ document.addEventListener("DOMContentLoaded", () => {
   initRsvpPanel();
   initBlackoutsPanel();
   initCollapseGuard();
+  initSmsTab();
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SMS Management tab
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * @file volunteerAccountOversight.js (SMS section)
+ * @description SMS opt-in/out management tab.
+ *
+ * Fetches all volunteers with SMS status via GET /oversight/tools/sms-management,
+ * renders them in a filterable table, and allows manual opt-in/opt-out toggling
+ * via POST /oversight/tools/sms-management/toggle.
+ */
+
+/**
+ * Initialise the SMS management tab.
+ * Loads data when the tab is first shown, wires filter/search/toggle handlers.
+ * @returns {void}
+ */
+function initSmsTab() {
+  const smsTab      = document.getElementById("vao-sms-tab");
+  const tableBody   = document.getElementById("smsTableBody");
+  const table       = document.getElementById("smsTable");
+  const loading     = document.getElementById("smsLoading");
+  const noResults   = document.getElementById("smsNoResults");
+  const searchInput = document.getElementById("smsSearch");
+
+  if (!smsTab || !tableBody) return;
+
+  /** @type {Array<object>} Full volunteer list from server */
+  let allVolunteers = [];
+  /** @type {string} Current SMS filter value */
+  let activeFilter = "all";
+  /** @type {boolean} Whether data has been loaded yet */
+  let loaded = false;
+
+  /**
+   * Get the CSRF token from the hidden input.
+   * @returns {string}
+   */
+  function getCsrf() {
+    return document.querySelector('input[name="_csrf"]')?.value || "";
+  }
+
+  /**
+   * Derive the SMS status label for a volunteer row.
+   * @param {{ sms_opted_in: boolean, sms_opted_out: boolean, smsCapable: boolean }} v
+   * @returns {'opted_in'|'opted_out'|'never'}
+   */
+  function smsStatus(v) {
+    if (v.sms_opted_out) return "opted_out";
+    if (v.sms_opted_in)  return "opted_in";
+    return "never";
+  }
+
+  /**
+   * Format a date value as a short locale string, or return '—'.
+   * @param {string|null} val
+   * @returns {string}
+   */
+  function fmtDate(val) {
+    if (!val) return "—";
+    return new Date(val).toLocaleDateString("en-US", {
+      month: "short", day: "numeric", year: "numeric",
+    });
+  }
+
+  /**
+   * Render the table based on current filter + search text.
+   * @returns {void}
+   */
+  function renderTable() {
+    const search = (searchInput?.value || "").toLowerCase().trim();
+    const filtered = allVolunteers.filter((v) => {
+      const status = smsStatus(v);
+      const matchesFilter = activeFilter === "all" || status === activeFilter;
+      const fullName = `${v.lastName} ${v.firstName}`.toLowerCase();
+      const matchesSearch = !search || fullName.includes(search);
+      return matchesFilter && matchesSearch;
+    });
+
+    tableBody.innerHTML = "";
+
+    if (filtered.length === 0) {
+      table?.classList.add("d-none");
+      noResults?.classList.remove("d-none");
+      return;
+    }
+
+    table?.classList.remove("d-none");
+    noResults?.classList.add("d-none");
+
+    filtered.forEach((v) => {
+      const status  = smsStatus(v);
+      const isOut   = status === "opted_out";
+      const isIn    = status === "opted_in";
+
+      const statusBadge = isOut
+        ? `<span class="badge bg-danger">Opted Out</span>`
+        : isIn
+          ? `<span class="badge bg-success">Opted In</span>`
+          : `<span class="badge bg-secondary">Never</span>`;
+
+      const actionBtn = isOut
+        ? `<button class="btn btn-sm btn-outline-success sms-toggle-btn"
+              data-vol-id="${v.id}" data-opt-out="false">
+              <i class="fa-solid fa-rotate-left me-1"></i>Re-opt In
+           </button>`
+        : `<button class="btn btn-sm btn-outline-danger sms-toggle-btn"
+              data-vol-id="${v.id}" data-opt-out="true">
+              <i class="fa-solid fa-ban me-1"></i>Opt Out
+           </button>`;
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="fw-semibold">${v.lastName}, ${v.firstName}${v.suffix ? " " + v.suffix : ""}</td>
+        <td class="text-muted small">${v.phone || "—"}</td>
+        <td>${v.smsCapable ? '<i class="fa-solid fa-check text-success"></i>' : '<span class="text-muted">—</span>'}</td>
+        <td>${statusBadge}</td>
+        <td class="text-muted small">${fmtDate(v.sms_opted_in_at)}${v.sms_opted_in_source ? " <span class='text-muted'>(" + v.sms_opted_in_source + ")</span>" : ""}</td>
+        <td class="text-muted small">${fmtDate(v.sms_opted_out_at)}</td>
+        <td class="text-end">${actionBtn}</td>
+      `;
+      tableBody.appendChild(tr);
+    });
+
+    // Wire toggle buttons
+    tableBody.querySelectorAll(".sms-toggle-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const volId  = Number(btn.dataset.volId);
+        const optOut = btn.dataset.optOut === "true";
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span>`;
+
+        try {
+          const res = await fetch("/oversight/tools/sms-management/toggle", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRF-Token": getCsrf(),
+            },
+            body: JSON.stringify({ volunteerId: volId, optOut }),
+          });
+          const data = await res.json();
+          if (!data.success) throw new Error(data.error || "Failed");
+
+          // Update local data and re-render
+          const vol = allVolunteers.find((v) => v.id === volId);
+          if (vol) {
+            if (optOut) {
+              vol.sms_opted_out    = true;
+              vol.sms_opted_out_at = new Date().toISOString();
+              vol.sms_opted_in     = false;
+            } else {
+              vol.sms_opted_out    = false;
+              vol.sms_opted_out_at = null;
+              vol.sms_opted_in     = true;
+              vol.sms_opted_in_at  = new Date().toISOString();
+              vol.sms_opted_in_source = "admin";
+            }
+          }
+          renderTable();
+        } catch (err) {
+          console.error("[smsTab] toggle error:", err);
+          btn.disabled = false;
+          btn.textContent = "Error — retry";
+        }
+      });
+    });
+  }
+
+  /**
+   * Fetch volunteer SMS data from the server.
+   * Called once when the tab is first activated.
+   * @returns {Promise<void>}
+   */
+  async function loadData() {
+    try {
+      const res  = await fetch("/oversight/tools/sms-management");
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Load failed");
+      allVolunteers = data.volunteers;
+      loading?.classList.add("d-none");
+      renderTable();
+    } catch (err) {
+      console.error("[smsTab] load error:", err);
+      if (loading) {
+        loading.textContent = "Failed to load SMS data.";
+        loading.classList.add("text-danger");
+      }
+    }
+  }
+
+  // Load on first tab show
+  smsTab.addEventListener("shown.bs.tab", () => {
+    if (!loaded) {
+      loaded = true;
+      loadData();
+    }
+  });
+
+  // Filter buttons
+  document.querySelectorAll(".sms-filter-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".sms-filter-btn").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      activeFilter = btn.dataset.smsFilter;
+      renderTable();
+    });
+  });
+
+  // Search
+  searchInput?.addEventListener("input", () => renderTable());
+
+  // Auto-activate SMS tab if ?tab=sms in URL
+  if (new URLSearchParams(window.location.search).get("tab") === "sms") {
+    smsTab.click();
+  }
+}

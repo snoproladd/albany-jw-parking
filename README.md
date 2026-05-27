@@ -273,8 +273,10 @@ Azure SQL. Connection pool managed in `lib/sql.js` with:
 
 Schema highlights:
 - `volunteer_in` — core volunteer table (registration, contact, role, crews)
-- `invitations` — per-volunteer invite records with token, RSVP, batch link
-- `invitation_batches` — campaign metadata
+- `invitations` — per-volunteer invite records with token, RSVP, batch link,
+  and `response_other` (free-text "Other" input for dynamic RSVP)
+- `invitation_batches` — campaign metadata; `response_config` (JSON, nullable)
+  stores dynamic RSVP configuration (type, options, allowOther, question)
 - `convention_days → sessions → shifts` — scheduling hierarchy
   - `shifts.department` — department key for scheduler grid grouping
   - `schedule_assignments.vol_min / vol_max` — flanking `volunteer_need`
@@ -288,6 +290,7 @@ Schema highlights:
   conflict detection
 - `role_permissions` — runtime permission overrides (delta from defaults)
 - `sms_opt_out_log` — Twilio webhook opt-out events
+- `departments` — lookup table for future multi-department support (id=1 seeded as Albany Parking)
 - `bug_reports` — full lifecycle bug tracking with resolution fields
 - `schedule_publishes` — audit log for schedule PDF publish events
 

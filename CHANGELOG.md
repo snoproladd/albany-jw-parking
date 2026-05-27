@@ -3,6 +3,33 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.26.0] - 2026-05-27
+
+### Added
+- **SMS opt-in/out management** — new SMS Management tab on the Volunteer
+  Account Oversight page (`/editVolunteer?tab=sms`), visible to ASSISTANT_ADMIN+.
+  - Filterable table of all volunteers with SMS status (Opted In / Opted Out / Never),
+    opt-in timestamp and source, opt-out timestamp.
+  - Manual toggle buttons — opt a volunteer out or re-opt them in without going
+    through the Twilio STOP/UNSTOP flow. Mirrors the Twilio webhook behavior:
+    opt-out sets `sms_opted_in = 0`, re-opt-in sets `sms_opted_in = 1` with
+    `source = 'admin'`.
+  - Search by name + filter by status. Tab loads data lazily on first activation.
+  - Auto-activates when navigated to via `?tab=sms` query param.
+- **SMS Management card** on Oversight Tools hub (Volunteer Management section,
+  ASSISTANT_ADMIN+) linking directly to `/editVolunteer?tab=sms`.
+- **Campaign Center soft warning** — when SMS channel is selected and one or
+  more recipients have opted out, a confirmation dialog shows the count before
+  sending. Does not block the send — just informs.
+- **`getVolunteersForSmsManagement()`** — new `dbSync.js` function returning
+  all active volunteers with full SMS status columns.
+- **`setVolunteerSmsOptOutManual()`** — new `dbSync.js` function for oversight
+  manual opt-in/out toggle.
+- **`sms_opted_out`** added to `getVolunteersForMessaging()` return and
+  `data-sms-opted-out` attribute on Campaign Center volunteer list items.
+- New routes: `GET /oversight/tools/sms-management`,
+  `POST /oversight/tools/sms-management/toggle`.
+  
 ## [2.25.0] - 2026-05-27
 
 ### Added

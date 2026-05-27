@@ -35,6 +35,29 @@
               <p class="mb-0">Select a volunteer to view or edit their information.</p>
             </header>
 
+            <%# ── Page tabs ──────────────────────────────────────────────── %>
+            <ul class="nav nav-tabs px-3 pt-2" id="vaoTabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="vao-edit-tab"
+                  data-bs-toggle="tab" data-bs-target="#vaoEditPane"
+                  type="button" role="tab">
+                  <i class="fa-solid fa-user-pen me-1"></i>Edit Volunteer
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="vao-sms-tab"
+                  data-bs-toggle="tab" data-bs-target="#vaoSmsPane"
+                  type="button" role="tab">
+                  <i class="fa-solid fa-comment-sms me-1"></i>SMS Management
+                </button>
+              </li>
+            </ul>
+
+            <div class="tab-content">
+
+            <%# ── Edit Volunteer tab ─────────────────────────────────────── %>
+            <div class="tab-pane fade show active p-3" id="vaoEditPane" role="tabpanel">
+
             <div class="card-body">
 
               <% if (!editor) { %>
@@ -787,13 +810,57 @@
                       </div>
 
                       <% } %> <!-- editor -->
-            <div class="mt-3">
-            <a href="/oversight/tools" class="btn btn-outline-secondary btn-sm">
-              <i class="fa-solid fa-arrow-left me-1"></i>Back to Oversight Tools
-            </a>
-          </div>
-        </div>
-      </div>
+            </div><%# /card-body %>
+            <div class="mt-3 p-3">
+              <a href="/oversight/tools" class="btn btn-outline-secondary btn-sm">
+                <i class="fa-solid fa-arrow-left me-1"></i>Back to Oversight Tools
+              </a>
+            </div>
+            </div><%# /vaoEditPane %>
+
+            <%# ── SMS Management tab ─────────────────────────────────────── %>
+            <div class="tab-pane fade p-3" id="vaoSmsPane" role="tabpanel">
+              <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                <h2 class="h5 mb-0">
+                  <i class="fa-solid fa-comment-sms me-2 text-primary"></i>SMS Opt-in / Opt-out
+                </h2>
+                <div class="d-flex gap-2 flex-wrap align-items-center">
+                  <%# Filter buttons %>
+                  <div class="btn-group btn-group-sm" id="smsFilterGroup">
+                    <button type="button" class="btn btn-outline-secondary active sms-filter-btn" data-sms-filter="all">All</button>
+                    <button type="button" class="btn btn-outline-success sms-filter-btn" data-sms-filter="opted_in">Opted In</button>
+                    <button type="button" class="btn btn-outline-danger sms-filter-btn" data-sms-filter="opted_out">Opted Out</button>
+                    <button type="button" class="btn btn-outline-secondary sms-filter-btn" data-sms-filter="never">Never</button>
+                  </div>
+                  <input type="text" class="form-control form-control-sm" id="smsSearch"
+                    placeholder="Search name..." />
+                </div>
+              </div>
+
+              <div id="smsTableWrap">
+                <div class="text-center text-muted py-4" id="smsLoading">
+                  <span class="spinner-border spinner-border-sm me-2"></span>Loading…
+                </div>
+                <table class="table table-sm table-hover d-none" id="smsTable">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Name</th>
+                      <th>Phone</th>
+                      <th>SMS Capable</th>
+                      <th>Status</th>
+                      <th>Opted In</th>
+                      <th>Opted Out</th>
+                      <th class="text-end">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="smsTableBody"></tbody>
+                </table>
+                <p class="text-muted small d-none" id="smsNoResults">No volunteers match the current filter.</p>
+              </div>
+            </div><%# /vaoSmsPane %>
+
+            </div><%# /tab-content %>
+
     </main>
 
     <%# ── Delete confirmation modal ──────────────────────────────────── %>

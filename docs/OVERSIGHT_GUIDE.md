@@ -12,6 +12,7 @@ send invitations, track RSVPs, log attendance, and administer the platform.
    - [Site Map](#site-map)
 2. [My Account](#2-my-account)
 3. [Volunteer Management](#3-volunteer-management)
+   - [SMS Management](#sms-management-assistant_admin)
 4. [Communications](#4-communications)
 5. [Scheduling](#5-scheduling)
 6. [Attendance](#6-attendance)
@@ -119,6 +120,29 @@ Filter volunteers by status: **Active**, **Inactive**, or **Deleted**.
 - **Deactivate** — marks a volunteer as inactive for the current year
 - **Delete** — soft-deletes the account (preserves data, removes from active lists)
 - **Reinstate** — restores a deleted volunteer to their previous status
+
+### SMS Management *(ASSISTANT_ADMIN+)*
+
+**Path:** Oversight Tools → SMS Management, or Oversight Tools → Edit Volunteer → SMS tab
+
+View and manage volunteer SMS opt-in and opt-out status. The tab loads lazily
+when first activated and can also be reached directly via `/editVolunteer?tab=sms`.
+
+#### Status values
+- **Opted In** — volunteer has consented to receive SMS (via RSVP, admin toggle, or UNSTOP reply)
+- **Opted Out** — volunteer replied STOP to a Twilio message, or was manually opted out
+- **Never** — volunteer has never opted in
+
+#### Filters
+Use the **All / Opted In / Opted Out / Never** buttons to narrow the list.
+The search box filters by name in real time.
+
+#### Manual toggle
+- **Opt Out** — immediately stops SMS delivery to this volunteer (mirrors Twilio STOP)
+- **Re-opt In** — restores SMS delivery with source recorded as `admin`
+
+> **Note:** The alert scheduler hard-blocks SMS sends to opted-out volunteers
+> regardless of this setting — opt-out is always respected at send time.
 
 ---
 

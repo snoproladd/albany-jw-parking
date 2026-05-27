@@ -210,7 +210,7 @@
                   </div>
                 <% } %>
 
-                <% if (can('manageRoles') || isAtLeast('OVERSEER')) { %>
+               <% if (can('manageRoles') || isAtLeast('OVERSEER')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-primary">
@@ -219,6 +219,21 @@
                       <h3 class="admin-tool-title">Role Management</h3>
                       <p class="admin-tool-desc">Assign and update volunteer roles. Roles control what each user can see and do across the site.</p>
                       <a href="/oversight/roles" class="btn btn-primary admin-tool-btn">
+                        Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                      </a>
+                    </div>
+                  </div>
+                <% } %>
+
+                <% if (can('deleteVolunteer')) { %>
+                  <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="admin-tool-card h-100">
+                      <div class="admin-tool-icon text-primary">
+                        <i class="fa-solid fa-comment-sms"></i>
+                      </div>
+                      <h3 class="admin-tool-title">SMS Management</h3>
+                      <p class="admin-tool-desc">View and manage volunteer SMS opt-in and opt-out status. Manually toggle opt-in for volunteers who request it verbally.</p>
+                      <a href="/editVolunteer?tab=sms" class="btn btn-primary admin-tool-btn">
                         Open <i class="fa-solid fa-arrow-right ms-1"></i>
                       </a>
                     </div>

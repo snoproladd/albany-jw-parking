@@ -2262,3 +2262,6 @@ footer p:not(.footer-text) {
 .bk-time-input {
     width: 130px;
 }
+#smsSearch {
+  max-width: 180px;
+}

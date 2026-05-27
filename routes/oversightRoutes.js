@@ -83,6 +83,8 @@ import {
   getInvitableDaysWithShifts,
   setVolunteerSmsOptIn,
   handleSmsOptOutWebhook,
+  setVolunteerSmsOptOutManual,
+  getVolunteersForSmsManagement,
   promoteIfComplete,
   getVolunteerReportRows,
   getConventionDaysWithShifts,
@@ -500,6 +502,60 @@ export function oversightRouter({
         return res
           .status(500)
           .json({ success: false, message: "Server error." });
+      }
+    },
+  );
+
+  // ── SMS Management ────────────────────────────────────────────────────────
+
+  /**
+   * GET /oversight/tools/sms-management
+   * Returns all volunteers with their SMS opt-in/out status as JSON.
+   * Used by the volunteer roster SMS tab.
+   * Requires ASSISTANT_ADMIN+ (deleteVolunteer permission).
+   *
+   * Response: { success: boolean, volunteers: Array }
+   */
+  router.get(
+    "/oversight/tools/sms-management",
+    requireAuth,
+    requirePermission("deleteVolunteer"),
+    async (req, res) => {
+      try {
+        const volunteers = await getVolunteersForSmsManagement();
+        return res.json({ success: true, volunteers });
+      } catch (err) {
+        (logError || console.error)("sms-management GET error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * POST /oversight/tools/sms-management/toggle
+   * Manually opt a volunteer in or out of SMS.
+   * Requires ASSISTANT_ADMIN+ (deleteVolunteer permission).
+   *
+   * Body (JSON): { volunteerId: number, optOut: boolean }
+   * Response: { success: boolean, error?: string }
+   */
+  router.post(
+    "/oversight/tools/sms-management/toggle",
+    requireAuth,
+    requirePermission("deleteVolunteer"),
+    csrfProtection,
+    async (req, res) => {
+      const { volunteerId, optOut } = req.body || {};
+      const id = Number(volunteerId);
+      if (!id)
+        return res.status(400).json({ success: false, error: "Invalid volunteer ID." });
+
+      try {
+        await setVolunteerSmsOptOutManual(id, !!optOut);
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("sms-management/toggle POST error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
       }
     },
   );

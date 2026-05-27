@@ -1151,6 +1151,25 @@ function updateSubjectVisibility() {
     /** Whether this send is a reminder — reuse existing tokens rather than INSERT. */
     const isReminder = campaignMode === "add_to" && (pendingVolIds?.length ?? 0) > 0;
 
+    // Warn if SMS channel selected but some recipients have opted out
+    if (sendSms) {
+      const optedOutCount = recipientIds.filter((id) => {
+        const li = document.querySelector(`.mc-volunteer-item[data-id="${id}"]`);
+        return li?.dataset.smsOptedOut === "1";
+      }).length;
+      if (optedOutCount > 0) {
+        const ok = await confirmAction(
+          "SMS opted-out recipients",
+          `${optedOutCount} selected volunteer${optedOutCount === 1 ? " has" : "s have"} opted out of SMS. They will still receive the message via any other selected channel. Continue?`,
+        );
+        if (!ok) {
+          sendBtn.disabled = false;
+          sendBtn.innerHTML = `<i class="fa-solid fa-paper-plane me-2"></i>Send to <span id="mcSendBtnCount">${selectedIds.size}</span> recipient<span id="mcSendBtnPlural">${selectedIds.size === 1 ? "" : "s"}</span>`;
+          return;
+        }
+      }
+    }
+
     // Warn if {link} appears in an alert body
     if (messageType === "alert" && (bodyInput?.value || "").includes("{link}")) {
       const ok = await confirmAction(
