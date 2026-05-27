@@ -2895,6 +2895,7 @@ export function oversightRouter({
         force = false,
         isReminder = false,
         messageType = 'invitation',
+        responseConfig = null,
       } = req.body || {};
 
       const sentBy = req.session.userEmail || "admin";
@@ -3063,6 +3064,7 @@ export function oversightRouter({
             messageType: ['invitation','alert','followup'].includes(messageType)
               ? messageType
               : 'invitation',
+            responseConfig: responseConfig || null,
           });
         }
       } catch (err) {
@@ -3651,7 +3653,8 @@ export function oversightRouter({
    *   messageBody:    string,
    *   parentBatchId:  number|null,
    *   responseNeeded: boolean,
-   *   active:         boolean
+   *   active:         boolean,
+   *   responseConfig: object|null
    * }
    * Response: { success: boolean, error?: string }
    *
@@ -3675,6 +3678,7 @@ export function oversightRouter({
         responseNeeded,
         active,
         messageType,
+        responseConfig = null,
       } = req.body || {};
 
       if (!name?.trim())
@@ -3707,6 +3711,7 @@ export function oversightRouter({
           messageType: ['invitation','alert','followup'].includes(messageType)
             ? messageType
             : 'invitation',
+          responseConfig: responseConfig || null,
         });
 
         if (!ok)

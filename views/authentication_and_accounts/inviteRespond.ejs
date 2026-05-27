@@ -203,8 +203,34 @@
 
                             <hr class="my-3" />
 
+                            <%
+                                // Parse response_config — fall back to standard yes/no/maybe
+                                let rsvpConfig = null;
+                                try {
+                                    rsvpConfig = invitation.response_config
+                                        ? JSON.parse(invitation.response_config)
+                                        : null;
+                                } catch(e) { rsvpConfig = null; }
+
+                                const rsvpType      = rsvpConfig?.type    || 'standard';
+                                const rsvpOptions   = rsvpConfig?.options  || ['yes', 'no', 'maybe'];
+                                const rsvpAllowOther = rsvpConfig?.allowOther || false;
+                                const rsvpQuestion  = rsvpConfig?.question || null;
+
+                                // Standard option display config
+                                const standardDisplay = {
+                                    yes:   { btn: 'btn-success',        icon: 'fa-circle-check',    label: "Yes, I'll be there" },
+                                    no:    { btn: 'btn-outline-danger',  icon: 'fa-circle-xmark',    label: "No, I can't make it" },
+                                    maybe: { btn: 'btn-warning',         icon: 'fa-circle-question', label: "Maybe — not sure yet" },
+                                };
+                            %>
+
                             <p class="fw-semibold mb-3">
-                                Will you be volunteering<% if (hasShift) { %> for this shift<% } %> this year?
+                                <% if (rsvpType === 'poll' && rsvpQuestion) { %>
+                                    <%= rsvpQuestion %>
+                                <% } else { %>
+                                    Will you be volunteering<% if (hasShift) { %> for this shift<% } %> this year?
+                                <% } %>
                             </p>
 
                             <form
@@ -213,32 +239,56 @@
                                 method="POST"
                             >
                                 <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
-                                <%# Carry the channel so the JS can decide whether to stamp opt-in %>
-                                <input type="hidden" id="rsvpChannel"    value="<%= invitation.channel %>" />
-                                <input type="hidden" id="rsvpToken"      value="<%= invitation.token %>" />
-                                <input type="hidden" id="rsvpCsrf"       value="<%= csrfToken %>" />
-                                <input type="hidden" id="rsvpResponse"   name="response" value="" />
+                                <input type="hidden" id="rsvpChannel"  value="<%= invitation.channel %>" />
+                                <input type="hidden" id="rsvpToken"    value="<%= invitation.token %>" />
+                                <input type="hidden" id="rsvpCsrf"     value="<%= csrfToken %>" />
+                                <input type="hidden" id="rsvpResponse" name="response" value="" />
 
                                 <div class="d-grid gap-2">
 
-                                    <button type="button" class="btn btn-success btn-lg rsvp-btn"
-                                            data-response="yes">
-                                        <i class="fa-solid fa-circle-check me-2"></i>Yes, I'll be there
-                                    </button>
+                                    <% rsvpOptions.forEach(function(opt) {
+                                        const display = standardDisplay[opt];
+                                    %>
+                                        <% if (display) { %>
+                                            <button type="button"
+                                                class="btn <%= display.btn %> btn-lg rsvp-btn"
+                                                data-response="<%= opt %>">
+                                                <i class="fa-solid <%= display.icon %> me-2"></i><%= display.label %>
+                                            </button>
+                                        <% } else { %>
+                                            <button type="button"
+                                                class="btn btn-outline-primary btn-lg rsvp-btn"
+                                                data-response="<%= opt %>">
+                                                <%= opt %>
+                                            </button>
+                                        <% } %>
+                                    <% }); %>
 
-                                    <button type="button" class="btn btn-warning btn-lg rsvp-btn"
-                                            data-response="maybe">
-                                        <i class="fa-solid fa-circle-question me-2"></i>Maybe — not sure yet
-                                    </button>
-
-                                    <button type="button" class="btn btn-outline-danger btn-lg rsvp-btn"
-                                            data-response="no">
-                                        <i class="fa-solid fa-circle-xmark me-2"></i>No, I can't make it
-                                    </button>
+                                    <% if (rsvpAllowOther) { %>
+                                        <button type="button"
+                                            class="btn btn-outline-secondary btn-lg rsvp-btn"
+                                            id="rsvpOtherBtn"
+                                            data-response="other">
+                                            <i class="fa-solid fa-pen me-2"></i>Other
+                                        </button>
+                                        <div id="rsvpOtherWrap" class="d-none mt-1">
+                                            <input
+                                                type="text"
+                                                id="rsvpOtherInput"
+                                                name="response_other"
+                                                class="form-control"
+                                                placeholder="Please specify..."
+                                                maxlength="500"
+                                            />
+                                            <button type="submit" class="btn btn-primary mt-2 w-100">
+                                                Submit
+                                            </button>
+                                        </div>
+                                    <% } %>
 
                                 </div>
 
-                                <%# SMS opt-in consent notice (shown only when invite was SMS or both) %>
+                                <%# SMS opt-in consent notice %>
                                 <% if (isSms) { %>
                                     <p class="text-muted mt-3 mb-0 ir-sms-consent">
                                         <i class="fa-solid fa-shield-halved me-1"></i>

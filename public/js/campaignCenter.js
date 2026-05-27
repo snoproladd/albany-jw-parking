@@ -74,8 +74,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const batchTrackerLink = document.getElementById("mcBatchTrackerLink");
   const parentBatchWrap = document.getElementById("mcParentBatchWrap");
   const parentBatchSelect = document.getElementById("mcParentBatch");
-  const responseNeededWrap = document.getElementById("mcResponseNeededWrap");
-  const responseNeededChk = document.getElementById("mcResponseNeeded");
+  const responseNeededWrap    = document.getElementById("mcResponseNeededWrap");
+  const responseNeededChk     = document.getElementById("mcResponseNeeded");
+  const responseConfigWrap    = document.getElementById("mcResponseConfigWrap");
+  const responseTypeSelect    = document.getElementById("mcResponseType");
+  const responseStandardWrap  = document.getElementById("mcResponseStandardWrap");
+  const responsePollWrap      = document.getElementById("mcResponsePollWrap");
+  const responseOptionsWrap   = document.getElementById("mcResponseOptionsWrap");
   const eventPickerWrap = document.getElementById("mcEventPickerWrap");
 
   // Event picker
@@ -970,6 +975,7 @@ function updateSubjectVisibility() {
   // ── Response needed manual override warning ─────────────────────────────
   responseNeededChk?.addEventListener("change", async () => {
     const checked = responseNeededChk.checked;
+    responseConfigWrap?.classList.toggle("d-none", !checked);
 
     if (checked && messageType === "alert") {
       const ok = await confirmAction(
@@ -1006,6 +1012,22 @@ function updateSubjectVisibility() {
 
     if (sendBtn)
       sendBtn.disabled = !(hasRecipients && hasChannel && hasBody && hasName);
+
+  // ── Response config type selector ─────────────────────────────
+
+  /**
+   * Show/hide response config sub-sections based on selected type.
+   * @returns {void}
+   */
+  function syncResponseTypeUI() {
+    const type = responseTypeSelect?.value || "standard";
+    responseStandardWrap?.classList.toggle("d-none", type !== "standard");
+    responsePollWrap?.classList.toggle("d-none",     type !== "poll");
+    responseOptionsWrap?.classList.toggle("d-none",  type === "standard");
+  }
+
+  responseTypeSelect?.addEventListener("change", syncResponseTypeUI);
+  syncResponseTypeUI();
 
     if (sendBtnCount) sendBtnCount.textContent = String(selectedIds.size);
     if (sendBtnPlural)
@@ -1091,6 +1113,41 @@ function updateSubjectVisibility() {
         : null;
     const responseNeeded = responseNeededChk?.checked ?? true;
 
+    /**
+     * Build the response_config object from the UI state.
+     * Returns null when response is not needed or type is default standard.
+     * @returns {object|null}
+     */
+    function buildResponseConfig() {
+      if (!responseNeeded) return null;
+      const type       = responseTypeSelect?.value || "standard";
+      const allowOther = document.getElementById("mcAllowOther")?.checked ?? false;
+
+      if (type === "standard") {
+        const options = [];
+        if (document.getElementById("mcOptYes")?.checked)   options.push("yes");
+        if (document.getElementById("mcOptNo")?.checked)    options.push("no");
+        if (document.getElementById("mcOptMaybe")?.checked) options.push("maybe");
+        // If all three checked and no allowOther, no need to store config — use default
+        if (options.length === 3 && !allowOther) return null;
+        return { type: "standard", options, allowOther };
+      }
+
+      if (type === "poll") {
+        const question = document.getElementById("mcPollQuestion")?.value.trim() || "";
+        const raw      = document.getElementById("mcResponseOptions")?.value || "";
+        const options  = raw.split("\n").map(s => s.trim()).filter(Boolean);
+        return { type: "poll", question, options, allowOther };
+      }
+
+      // custom
+      const raw     = document.getElementById("mcResponseOptions")?.value || "";
+      const options = raw.split("\n").map(s => s.trim()).filter(Boolean);
+      return { type: "custom", options, allowOther };
+    }
+
+    const responseConfig = buildResponseConfig();
+
     /** Whether this send is a reminder — reuse existing tokens rather than INSERT. */
     const isReminder = campaignMode === "add_to" && (pendingVolIds?.length ?? 0) > 0;
 
@@ -1134,6 +1191,7 @@ function updateSubjectVisibility() {
           force,
           isReminder,
           messageType,
+          responseConfig,
         }),
       });
       return res.json().catch(() => ({}));

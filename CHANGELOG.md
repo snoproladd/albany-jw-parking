@@ -3,6 +3,51 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.25.0] - 2026-05-27
+
+### Added
+- **Dynamic RSVP configuration** — campaign batches now support configurable
+  response options instead of the hardcoded yes/no/maybe set.
+  - **Response types:** Standard (yes/no/maybe, any subset), Custom (admin-defined
+    labels), Poll (question + options).
+  - **Free-text "Other"** — any response type can enable an "Other" button that
+    reveals a text input; the volunteer's typed answer is stored in
+    `invitations.response_other`.
+  - **Campaign Center UI** — new response config builder appears below the
+    "Response needed" checkbox when creating a campaign. Standard mode shows
+    checkboxes to include/exclude yes/no/maybe; Custom and Poll show a textarea
+    for options (one per line); Poll adds a question field.
+  - **RSVP page** (`/invite/respond/:token`) — buttons rendered dynamically from
+    `response_config`. Standard options get their existing icon+color treatment;
+    custom/poll options use a generic outlined style. Poll prompt replaces the
+    default "Will you be volunteering..." question.
+  - **Invitation Tracker** — response column handles custom/poll/other responses.
+    "Other" shows a truncated badge with the full text on hover.
+  - **`invitation_batches.response_config`** `NVARCHAR(MAX)` — stores JSON config.
+    `NULL` = default standard, fully backward-compatible.
+  - **`invitations.response_other`** `NVARCHAR(500)` — stores free-text "Other"
+    input. `NULL` when not applicable.
+- **DB migrations** — `scripts/migrations/` folder established as the canonical
+  home for all schema migration scripts. Every migration ships as two paired
+  files: `migration_name.sql` (dbo) + `migration_name_demo.sql` (demo).
+  `scripts/migrations/README.md` documents the convention and logs all migrations.
+  - `addDepartmentId` — adds `department_id INT NULL DEFAULT(1)` to 9 core tables
+    and creates a `departments` lookup table. Placeholder for future
+    multi-department support. All existing rows and INSERTs unaffected.
+  - `addResponseConfig` — adds `response_config` to `invitation_batches` and
+    `response_other` to `invitations`.
+- **CSP fix** — `db-hierarchy-node` `--depth` CSS custom property moved from
+  inline `style=` attribute in `index.ejs` to `data-depth` attribute applied
+  via `el.style.setProperty()` in `dashboardShifts.js`.
+
+### Fixed
+- `alertScheduler` hoisted to module scope (`let alertScheduler = null`) so
+  SIGINT/SIGTERM handlers don't throw `ReferenceError` during rolling App Service
+  restarts when the old container receives SIGTERM before `startAlertScheduler()`
+  was called. Null guard added to both shutdown handlers.
+- `GraphTenantId`, `GraphClientId`, `GraphClientSecret` added to Azure Key Vault
+  — eliminates missing-secret startup errors on every container boot.
+
 ## [2.24.1] - 2026-05-27
 
 ### Fixed

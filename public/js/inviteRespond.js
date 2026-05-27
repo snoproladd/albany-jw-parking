@@ -65,14 +65,27 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  const otherBtn   = document.getElementById("rsvpOtherBtn");
+  const otherWrap  = document.getElementById("rsvpOtherWrap");
+  const otherInput = document.getElementById("rsvpOtherInput");
+
   /**
    * Wire each RSVP button to set the hidden response value,
    * optionally stamp SMS opt-in, then submit the form.
+   * The "other" button is handled separately — it reveals a text
+   * input instead of submitting immediately.
    */
   document.querySelectorAll(".rsvp-btn").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const response = btn.dataset.response;
       if (!response) return;
+
+      // "Other" — show the text input, don't submit yet
+      if (response === "other") {
+        otherWrap?.classList.remove("d-none");
+        otherInput?.focus();
+        return;
+      }
 
       // Disable all buttons to prevent double-submit
       document.querySelectorAll(".rsvp-btn").forEach((b) => {
@@ -87,5 +100,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
       form.submit();
     });
+  });
+
+  // "Other" submit button — validate text input then submit
+  form.addEventListener("submit", async (e) => {
+    // Only intercept when the other panel is visible
+    if (!otherWrap || otherWrap.classList.contains("d-none")) return;
+
+    e.preventDefault();
+
+    const text = otherInput?.value?.trim();
+    if (!text) {
+      otherInput?.classList.add("is-invalid");
+      otherInput?.focus();
+      return;
+    }
+
+    otherInput?.classList.remove("is-invalid");
+    responseInput.value = "other";
+
+    if (isSms) await stampSmsOptIn();
+    form.submit();
   });
 });

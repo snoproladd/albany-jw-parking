@@ -243,6 +243,7 @@
                                         data-family-root-id="<%= inv.family_root_id || inv.batch_id || '' %>"
                                         data-day-id="<%= inv.convention_day_id || '' %>"
                                         data-response="<%= inv.response || (inv.revoked ? 'revoked' : 'pending') %>"
+                                        data-response-other="<%= inv.response_other || '' %>"
                                         data-reminder-count="<%= inv.reminder_count || 0 %>"
                                         data-last-reminded-channel="<%= inv.last_reminded_channel || '' %>"
                                         data-vol-status="<%= inv.volunteer_status || '' %>"
@@ -340,6 +341,15 @@
                                             <% } else if (inv.response === 'maybe') { %>
                                                 <span class="badge it-badge-maybe">
                                                     <i class="fa-solid fa-circle-question me-1"></i>Maybe
+                                                </span>
+                                            <% } else if (inv.response === 'other' && inv.response_other) { %>
+                                                <span class="badge bg-secondary" title="<%= inv.response_other %>">
+                                                    <i class="fa-solid fa-pen me-1"></i><%= inv.response_other.length > 20 ? inv.response_other.slice(0, 20) + '…' : inv.response_other %>
+                                                </span>
+                                            <% } else if (inv.response) { %>
+                                                <%# Custom / poll response %>
+                                                <span class="badge bg-info text-dark">
+                                                    <%= inv.response %>
                                                 </span>
                                             <% } %>
                                         </td>

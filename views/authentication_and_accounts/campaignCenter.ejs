@@ -386,9 +386,66 @@
                         <input class="form-check-input" type="checkbox" id="mcResponseNeeded" checked />
                         <label class="form-check-label" for="mcResponseNeeded">
                             Response needed
-                            <span class="text-muted small fw-normal ms-1">— volunteers will be prompted to RSVP yes / no / maybe</span>
+                            <span class="text-muted small fw-normal ms-1">— volunteers will be prompted to RSVP</span>
                         </label>
                     </div>
+                </div>
+
+                <%# ── Response config builder (shown when response needed is checked) ── %>
+                <div class="mb-3 ms-3 ps-2 border-start border-2" id="mcResponseConfigWrap">
+
+                    <%# Response type selector %>
+                    <div class="mb-2">
+                        <label class="mc-filter-label mb-1">Response type</label>
+                        <select class="form-select form-select-sm" id="mcResponseType">
+                            <option value="standard">Standard — Yes / No / Maybe</option>
+                            <option value="custom">Custom choices</option>
+                            <option value="poll">Poll</option>
+                        </select>
+                    </div>
+
+                    <%# Standard options — checkboxes to include/exclude %>
+                    <div id="mcResponseStandardWrap" class="mb-2">
+                        <label class="mc-filter-label mb-1 small text-muted">Include options</label>
+                        <div class="d-flex gap-3 flex-wrap">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="mcOptYes" checked />
+                                <label class="form-check-label" for="mcOptYes">Yes</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="mcOptNo" checked />
+                                <label class="form-check-label" for="mcOptNo">No</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="mcOptMaybe" checked />
+                                <label class="form-check-label" for="mcOptMaybe">Maybe</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <%# Poll question (shown for poll type only) %>
+                    <div id="mcResponsePollWrap" class="mb-2 d-none">
+                        <label class="mc-filter-label mb-1 small text-muted" for="mcPollQuestion">Poll question</label>
+                        <input type="text" class="form-control form-control-sm" id="mcPollQuestion"
+                               placeholder="e.g. Which shirt size?" maxlength="200" />
+                    </div>
+
+                    <%# Custom options (shown for custom + poll types) %>
+                    <div id="mcResponseOptionsWrap" class="mb-2 d-none">
+                        <label class="mc-filter-label mb-1 small text-muted">Options <span class="fw-normal">(one per line)</span></label>
+                        <textarea class="form-control form-control-sm" id="mcResponseOptions"
+                                  rows="3" placeholder="Friday Only&#10;Saturday Only&#10;All Three Days"
+                                  maxlength="500"></textarea>
+                    </div>
+
+                    <%# Allow other — shown for all types %>
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="mcAllowOther" />
+                        <label class="form-check-label small" for="mcAllowOther">
+                            Allow "Other" with free-text input
+                        </label>
+                    </div>
+
                 </div>
 
                 <%# ── Channel toggles ───────────────────────────────────────── %>

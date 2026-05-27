@@ -212,6 +212,12 @@ parking/
 │   │   └── sitemap.css               # Sitemap page card grid and layout
 │   └── vendor/               # Third-party UMD bundles (agnostic-draggable, Bootstrap)
 ├── scripts/
+│   ├── migrations/           # SQL schema migrations (always paired: .sql + _demo.sql)
+│   │   ├── README.md         # Migration convention docs + migration log
+│   │   ├── addDepartmentId.sql
+│   │   ├── addDepartmentId_demo.sql
+│   │   ├── addResponseConfig.sql
+│   │   └── addResponseConfig_demo.sql
 │   ├── seedDemo.js           # Populates the demo schema with realistic fake data
 │   ├── anonymizeDemo.sql     # UPDATE statements to replace real names/places in demo
 │   ├── setupDemoSchema.sql   # One-time: create demo schema, tables, and DB user

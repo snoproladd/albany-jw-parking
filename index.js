@@ -799,14 +799,7 @@ let alertScheduler = null;
      */
     app.post("/invite/respond/:token", csrfProtection, async (req, res) => {
       const { token } = req.params;
-      const { response } = req.body || {};
-
-      const valid = ["yes", "no", "maybe"];
-      if (!valid.includes(response)) {
-        return res.redirect(
-          `/invite/respond/${encodeURIComponent(token)}?error=invalid`,
-        );
-      }
+      const { response, response_other } = req.body || {};
 
       try {
         const invitation = await db.getInvitationByToken(token);
@@ -821,7 +814,41 @@ let alertScheduler = null;
             `/invite/respond/${encodeURIComponent(token)}?responded=1`,
           );
         }
-        await db.markInvitationResponded(token, response);
+
+        // Build valid options from response_config, fall back to standard
+        const config = invitation.response_config
+          ? JSON.parse(invitation.response_config)
+          : null;
+        const validOptions = config?.options ?? ['yes', 'no', 'maybe'];
+        const allowOther   = config?.allowOther ?? false;
+
+        // Accept 'other' as a valid choice if allowOther is enabled
+        const isOther  = allowOther && response === 'other';
+        const isValid  = validOptions.includes(response) || isOther;
+
+        if (!isValid) {
+          return res.redirect(
+            `/invite/respond/${encodeURIComponent(token)}?error=invalid`,
+          );
+        }
+
+        // For 'other' responses, store the label as the response value
+        // and the free-text input in response_other
+        const responseValue = isOther
+          ? (response_other?.trim() ? 'other' : null)
+          : response;
+
+        if (!responseValue) {
+          return res.redirect(
+            `/invite/respond/${encodeURIComponent(token)}?error=invalid`,
+          );
+        }
+
+        await db.markInvitationResponded(
+          token,
+          responseValue,
+          isOther ? (response_other?.trim() || null) : null,
+        );
         return res.redirect(
           `/invite/respond/${encodeURIComponent(token)}?responded=1`,
         );

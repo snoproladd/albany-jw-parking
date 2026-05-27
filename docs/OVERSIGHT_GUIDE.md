@@ -162,6 +162,26 @@ responded to a previous campaign. Select the parent campaign and the system
 pre-filters to pending/unanswered recipients. When opened from the Invitation
 Tracker's **Remind** button, the pending volunteers are also auto-selected.
 
+#### Response Configuration
+
+When **Response needed** is checked, a response config builder appears below it.
+Choose one of three types:
+
+- **Standard** — use any combination of Yes, No, and Maybe. All three are
+  checked by default. Uncheck any you don't want to offer.
+- **Custom** — enter your own response labels, one per line (e.g. "Friday Only",
+  "Saturday Only", "All Three Days"). Volunteers see buttons for each option.
+- **Poll** — enter a question and options (one per line). The question replaces
+  the default "Will you be volunteering..." prompt on the RSVP page.
+
+Any type can also enable **Allow "Other" with free-text input** — adds an
+"Other" button that, when clicked, reveals a text field. The volunteer's typed
+answer is stored and visible in the Invitation Tracker response column.
+
+If you leave response config at its default (all three standard options, no
+Other), no config is stored — existing RSVP links and tracker display are
+fully unaffected.
+
 #### Templates
 
 Save and reuse message templates via the Templates panel. Templates can
@@ -176,7 +196,7 @@ include merge fields and are available across all campaigns.
 View all sent invitations for the current year. Filter by:
 - **Campaign** — see all invitations from a specific batch
 - **Convention Day** — filter to a specific day
-- **Response** — Yes, No, Maybe, Pending
+- **Response** — Yes, No, Maybe, Pending (custom/poll responses display as badges in the response column)
 - **Show Revoked** — toggle to include/exclude revoked invitations
 
 #### Stat Cards

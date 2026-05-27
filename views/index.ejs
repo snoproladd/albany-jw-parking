@@ -179,7 +179,7 @@
                   <% } else { %>
                     <div class="db-hierarchy">
                       <% hierarchy.forEach(function(node) { %>
-                        <div class="db-hierarchy-node" style="--depth: <%= node.depth %>;">
+                        <div class="db-hierarchy-node" data-depth="<%= node.depth %>">
                           <div class="db-hierarchy-connector"></div>
                           <div class="db-hierarchy-content">
                             <div class="db-hierarchy-role"><%= node.role_title %></div>
