@@ -3,6 +3,54 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.27.0] - 2026-05-28
+
+### Added
+- **Guided tour system** — Shepherd.js v15.2.2 mini-tours added to all 13
+  oversight tool pages. Each page has a **Take a tour** button (top-right
+  of the page header) that launches a step-by-step walkthrough tailored to
+  that page's content and state.
+  - Tours are context-aware: steps are conditionally included based on
+    what is present on the page (e.g. the Timelines sessions tour skips
+    shift and assignment steps when no shifts exist yet).
+  - **Modal-integrated tour steps** — form modals on the Timelines page
+    open programmatically during the tour so overseers can see every field.
+    Modal save/delete buttons are neutralized during tour preview via the
+    `.tour-preview` class (Cancel remains active).
+  - **Three-tier z-index stack** ensures tours work correctly alongside
+    Bootstrap modals: Shepherd overlay (9999), tour-preview modal (10000),
+    Shepherd tooltip (10001).
+  - `tourBase.js` — shared factory for `createTour()` and standard button
+    sets (`startButtons`, `navButtons`, `finishButtons`).
+  - Tour files: `volunteersTour.js`, `rolesTour.js`, `timelinesTour.js`
+    (three sub-paths: event types, days, sessions+shifts), `schedulerTour.js`,
+    `schedulerReportTour.js`, `oversightToolsTour.js`, `campaignTour.js`,
+    `invitationTrackerTour.js`, `attendanceCheckinTour.js`,
+    `attendanceReportTour.js`, `locationsTour.js`, `crewMatrixTour.js`,
+    `reportsTour.js`.
+- **Timelines — modal forms** — all six inline card panels on the Timelines
+  page converted to Bootstrap modals:
+  - Event Type (`#etFormPanel`) — `modal-lg`, secondary header
+  - Convention Day (`#dayFormPanel`) — `modal-xl`, warning header
+  - Copy Day (`#copyDayFormPanel`) — `modal-xl`, info header
+  - Session (`#sessionFormPanel`) — `modal-lg`, secondary header
+  - Shift (`#shiftFormPanel`) — `modal-xl`, primary header
+  - Assign Location (`#assignFormPanel`) — `modal-lg`, success header
+  - All modals position Delete on the far left of the footer (`me-auto`),
+    separated from Save/Cancel. Cancel closes via `data-bs-dismiss`.
+- **`public/css/tours.css`** — all tour and modal z-index rules:
+  - `.shepherd-element.ajwp-tour-step` — step container at z-index 10001
+  - `body.shepherd-has-active-tour .modal` — tour-active modals at 10000
+  - `body.shepherd-has-active-tour .modal-backdrop` — suppressed during tours
+  - `.modal.tour-preview .modal-footer .btn:not([data-bs-dismiss])` —
+    disables Save/Delete buttons in tour-preview modals
+
+### Changed
+- `timelines.js` — all eight `openPanel()` callers updated to pass a focus
+  element as the second argument; focus fires via `shown.bs.modal` event
+  instead of immediately after the call.
+- Shepherd CSS and `tours.css` added to all 13 tour-enabled pages.
+
 ## [2.26.0] - 2026-05-27
 
 ### Added

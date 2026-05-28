@@ -8,6 +8,9 @@
     <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
     <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
     <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+
+    <!-- Shepherd tour -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@15.2.2/dist/css/shepherd.css" />    <link rel="stylesheet" href="/css/tours.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
@@ -22,11 +25,18 @@
         <div class="col-12 col-lg-11 col-xl-10">
 
           <section class="card shadow-lg admin-console-card">
-            <header class="card-header text-center">
-              <h1 class="h2 my-2">
-                <i class="fa-solid fa-user-shield me-2"></i>Role Management
-              </h1>
-              <p class="mb-0">Assign roles to volunteers. You can only assign roles below your own level.</p>
+            <header class="card-header">
+              <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <div class="text-center flex-grow-1">
+                  <h1 class="h2 my-2">
+                    <i class="fa-solid fa-user-shield me-2"></i>Role Management
+                  </h1>
+                  <p class="mb-0">Assign roles to volunteers. You can only assign roles below your own level.</p>
+                </div>
+                <button type="button" class="btn btn-outline-secondary btn-sm ajwp-tour-trigger" id="tourTriggerBtn">
+                  <i class="fa-solid fa-circle-question me-1"></i>Take a tour
+                </button>
+              </div>
             </header>
 
             <div class="card-body">
@@ -225,5 +235,6 @@
 
     <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
     <script src="/js/adminRoles.js"></script>
+    <script type="module" src="/js/tours/rolesTour.js"></script>
   </body>
 </html>

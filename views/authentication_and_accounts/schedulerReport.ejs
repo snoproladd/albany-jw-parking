@@ -9,6 +9,8 @@
   <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
   <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
   <link rel="stylesheet" type="text/css" href="/styles/schedulerReport.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@15.2.2/dist/css/shepherd.css" />
+  <link rel="stylesheet" href="/css/tours.css" />
   <meta name="csrf-token" content="<%= csrfToken %>" />
 </head>
 
@@ -66,6 +68,9 @@
       <% }) %>
     </div>
 
+    <button type="button" id="tourTriggerBtn" class="btn btn-sm btn-outline-secondary ajwp-tour-trigger">
+      <i class="fa-solid fa-circle-question me-1"></i>Tour
+    </button>
     <button type="button" id="report-print-btn" class="btn btn-sm btn-primary">
       <i class="fa-solid fa-print me-1"></i>Print / Save PDF
     </button>
@@ -239,5 +244,6 @@
 
   <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
   <script type="module" src="/js/schedulerReport.js"></script>
+  <script type="module" src="/js/tours/schedulerReportTour.js"></script>
 </body>
 </html>

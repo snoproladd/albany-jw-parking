@@ -9,6 +9,8 @@
     <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
     <link rel="stylesheet" href="/styles/styles.css" />
     <link rel="stylesheet" href="/styles/campaignCenter.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@15.2.2/dist/css/shepherd.css" />
+    <link rel="stylesheet" href="/css/tours.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
@@ -149,6 +151,9 @@
                     <i class="fa-solid fa-paper-plane me-2"></i>Campaign Center
                 </h1>
                 <div class="d-flex gap-2 align-items-center">
+                    <button type="button" class="btn btn-outline-secondary btn-sm ajwp-tour-trigger" id="tourTriggerBtn">
+                      <i class="fa-solid fa-circle-question me-1"></i>Tour
+                    </button>
                     <a href="/oversight/tools/campaigns/tracker" class="btn btn-success btn-sm">
                         <i class="fa-solid fa-chart-gantt me-1"></i>Invitation Tracker
                     </a>
@@ -608,6 +613,7 @@
 
     <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
     <script src="/js/campaignCenter.js"></script>
+    <script type="module" src="/js/tours/campaignTour.js"></script>
 
 </body>
 </html>

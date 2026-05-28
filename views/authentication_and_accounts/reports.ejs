@@ -9,6 +9,8 @@
   <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
   <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
   <link rel="stylesheet" type="text/css" href="/styles/reports.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@15.2.2/dist/css/shepherd.css" />
+  <link rel="stylesheet" href="/css/tours.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
@@ -30,6 +32,9 @@
           <h1 class="h3 mb-0">
             <i class="fa-solid fa-chart-bar me-2 text-info"></i>Reports
           </h1>
+          <button type="button" class="btn btn-outline-secondary btn-sm ajwp-tour-trigger ms-auto" id="tourTriggerBtn">
+            <i class="fa-solid fa-circle-question me-1"></i>Take a tour
+          </button>
         </div>
 
         <!-- Report nav tabs -->
@@ -136,5 +141,6 @@
 
   <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
   <script src="/js/reports.js" type="module"></script>
+  <script type="module" src="/js/tours/reportsTour.js"></script>
 </body>
 </html>

@@ -9,6 +9,8 @@
     <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
     <link rel="stylesheet" href="/styles/styles.css" />
     <link rel="stylesheet" href="/styles/invitationTracker.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@15.2.2/dist/css/shepherd.css" />
+    <link rel="stylesheet" href="/css/tours.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
@@ -49,6 +51,9 @@
                   <i class="fa-solid fa-chart-gantt me-2"></i>Invitation Tracker
                 </h1>
                 <div class="d-flex gap-2 flex-wrap">
+                  <button type="button" class="btn btn-outline-secondary btn-sm ajwp-tour-trigger" id="tourTriggerBtn">
+                    <i class="fa-solid fa-circle-question me-1"></i>Tour
+                  </button>
                   <div id="itRemindWrap" data-pending-count="<%= totalPending %>"></div>
                   <a href="/oversight/tools/campaigns" class="btn btn-primary btn-sm">
                     <i class="fa-solid fa-paper-plane me-1"></i>Campaign Center
@@ -508,6 +513,7 @@
 
     <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
     <script src="/js/invitationTracker.js"></script>
+    <script type="module" src="/js/tours/invitationTrackerTour.js"></script>
 
 </body>
 </html>

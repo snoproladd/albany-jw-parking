@@ -9,6 +9,8 @@
     <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
     <link rel="stylesheet" href="/styles/styles.css" />
     <link rel="stylesheet" href="/styles/attendance.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@15.2.2/dist/css/shepherd.css" />
+    <link rel="stylesheet" href="/css/tours.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
@@ -39,6 +41,9 @@
                   <i class="fa-solid fa-chart-bar me-2"></i>Attendance Report
                 </h1>
                 <div class="d-flex gap-2 flex-wrap">
+                  <button type="button" class="btn btn-outline-secondary btn-sm ajwp-tour-trigger" id="tourTriggerBtn">
+                    <i class="fa-solid fa-circle-question me-1"></i>Tour
+                  </button>
                   <% if (can('logAttendance')) { %>
                     <a href="/oversight/tools/attendance/checkin" class="btn btn-info btn-sm">
                       <i class="fa-solid fa-clipboard-check me-1"></i>Check-In Tool
@@ -165,6 +170,7 @@
 
     <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
     <script src="/js/attendanceReport.js"></script>
+    <script type="module" src="/js/tours/attendanceReportTour.js"></script>
 
 </body>
 </html>

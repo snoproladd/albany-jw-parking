@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
     <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
     <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@15.2.2/dist/css/shepherd.css" />
+    <link rel="stylesheet" href="/css/tours.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
@@ -33,49 +35,58 @@
                 <h1 class="h4 mb-0">
                   <i class="fa-solid fa-tags me-2"></i>Event Types
                 </h1>
-                <a href="/oversight/tools" class="btn btn-secondary btn-sm">
-                  <i class="fa-solid fa-arrow-left me-1"></i>Oversight Tools
-                </a>
+                <div class="d-flex gap-2 align-items-center">
+                  <button type="button" class="btn btn-outline-secondary btn-sm ajwp-tour-trigger" id="tourTriggerBtn">
+                    <i class="fa-solid fa-circle-question me-1"></i>Take a tour
+                  </button>
+                  <a href="/oversight/tools" class="btn btn-secondary btn-sm">
+                    <i class="fa-solid fa-arrow-left me-1"></i>Oversight Tools
+                  </a>
+                </div>
               </div>
               <p class="mb-0 mt-1 text-muted small">Manage the event categories used across all shift scheduling.</p>
             </header>
 
             <div class="card-body py-4">
 
-              <%# Add form %>
-              <div id="etFormPanel" class="card border-secondary mb-4 d-none">
-                <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
-                  <span id="etFormTitle" class="fw-semibold">Add Event Type</span>
-                  <button type="button" class="btn-close btn-close-white btn-sm" id="etFormClose"></button>
-                </div>
-                <div class="card-body">
-                  <input type="hidden" id="etEditId" />
-                  <div class="row g-3">
-                    <div class="col-12 col-md-4">
-                      <label for="etName" class="form-label small">Name <span class="text-danger">*</span></label>
-                      <input type="text" id="etName" class="form-control" maxlength="100" placeholder="e.g. Ingress" />
+              <%# Add / Edit Event Type modal %>
+              <div class="modal fade" id="etFormPanel" tabindex="-1" aria-labelledby="etFormTitle" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                  <div class="modal-content">
+                    <div class="modal-header bg-secondary text-white">
+                      <h5 class="modal-title fw-semibold" id="etFormTitle">Add Event Type</h5>
+                      <button type="button" class="btn-close btn-close-white" id="etFormClose" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
-                    <div class="col-12 col-md-5">
-                      <label for="etDescription" class="form-label small">Description</label>
-                      <input type="text" id="etDescription" class="form-control" maxlength="500" />
-                    </div>
-                    <div class="col-12 col-md-1">
-                      <label for="etColor" class="form-label small">Color</label>
-                      <input type="color" id="etColor" class="form-control form-control-color w-100" value="#6c757d" />
-                    </div>
-                    <div class="col-12 col-md-2 d-flex align-items-end" id="etActiveWrap">
-                      <div class="form-check form-switch mb-2">
-                        <input class="form-check-input" type="checkbox" id="etActive" checked />
-                        <label class="form-check-label small" for="etActive">Active</label>
+                    <div class="modal-body">
+                      <input type="hidden" id="etEditId" />
+                      <div class="row g-3">
+                        <div class="col-12 col-md-4">
+                          <label for="etName" class="form-label small">Name <span class="text-danger">*</span></label>
+                          <input type="text" id="etName" class="form-control" maxlength="100" placeholder="e.g. Ingress" />
+                        </div>
+                        <div class="col-12 col-md-5">
+                          <label for="etDescription" class="form-label small">Description</label>
+                          <input type="text" id="etDescription" class="form-control" maxlength="500" />
+                        </div>
+                        <div class="col-12 col-md-1">
+                          <label for="etColor" class="form-label small">Color</label>
+                          <input type="color" id="etColor" class="form-control form-control-color w-100" value="#6c757d" />
+                        </div>
+                        <div class="col-12 col-md-2 d-flex align-items-end d-none" id="etActiveWrap">
+                          <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="etActive" checked />
+                            <label class="form-check-label small" for="etActive">Active</label>
+                          </div>
+                        </div>
                       </div>
+                      <div id="etFormStatus" class="mt-3"></div>
                     </div>
-                  </div>
-                  <div id="etFormStatus" class="mt-3"></div>
-                  <div class="d-flex gap-2 mt-3">
-                    <button type="button" class="btn btn-secondary" id="etSaveBtn">
-                      <i class="fa-solid fa-floppy-disk me-1"></i>Save
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary" id="etCancelBtn">Cancel</button>
+                    <div class="modal-footer">
+                      <button type="button" class="btn btn-outline-secondary" id="etCancelBtn" data-bs-dismiss="modal">Cancel</button>
+                      <button type="button" class="btn btn-secondary" id="etSaveBtn">
+                        <i class="fa-solid fa-floppy-disk me-1"></i>Save
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -145,9 +156,14 @@
                 <h1 class="h4 mb-0">
                   <i class="fa-regular fa-clock me-2"></i>Timelines
                 </h1>
-                <a href="/oversight/tools" class="btn btn-secondary btn-sm">
-                  <i class="fa-solid fa-arrow-left me-1"></i>Oversight Tools
-                </a>
+                <div class="d-flex gap-2 align-items-center">
+                  <button type="button" class="btn btn-outline-secondary btn-sm ajwp-tour-trigger" id="tourTriggerBtn">
+                    <i class="fa-solid fa-circle-question me-1"></i>Take a tour
+                  </button>
+                  <a href="/oversight/tools" class="btn btn-secondary btn-sm">
+                    <i class="fa-solid fa-arrow-left me-1"></i>Oversight Tools
+                  </a>
+                </div>
               </div>
               <p class="mb-0 mt-1 text-muted small">Define convention days, sessions, and event shifts for <strong><%= year %></strong>.</p>
             </header>
@@ -169,101 +185,109 @@
                 </button>
               </div>
 
-              <%# ── Add/Edit Day form ── %>
-              <div id="dayFormPanel" class="card border-warning mb-4 d-none">
-                <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
-                  <span id="dayFormTitle" class="fw-semibold">Add Convention Day</span>
-                  <button type="button" class="btn-close btn-sm" id="dayFormClose"></button>
-                </div>
-                <div class="card-body">
-                  <input type="hidden" id="dayEditId" />
-                  <div class="row g-3">
-                    <div class="col-12 col-md-3">
-                      <label for="dayLabel" class="form-label small">Label <span class="text-danger">*</span></label>
-                      <input type="text" id="dayLabel" class="form-control" maxlength="50" placeholder="Friday" />
+              <%# Add / Edit Convention Day modal %>
+              <div class="modal fade" id="dayFormPanel" tabindex="-1" aria-labelledby="dayFormTitle" aria-hidden="true">
+                <div class="modal-dialog modal-xl">
+                  <div class="modal-content">
+                    <div class="modal-header bg-warning">
+                      <h5 class="modal-title fw-semibold" id="dayFormTitle">Add Convention Day</h5>
+                      <button type="button" class="btn-close" id="dayFormClose" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
-                    <div class="col-12 col-md-3">
-                      <label for="dayDate" class="form-label small">Date <span class="text-danger">*</span></label>
-                      <input type="date" id="dayDate" class="form-control" />
-                    </div>
-                    <div class="col-12 col-md-2">
-                      <label for="dayStart" class="form-label small">Program Start <span class="text-danger">*</span></label>
-                      <input type="text" id="dayStart" class="form-control" placeholder="e.g. 7:30 AM" />
-                      <div class="invalid-feedback">Enter a valid time, e.g. "7:30 AM".</div>
-                    </div>
-                    <div class="col-12 col-md-2">
-                      <label for="dayEnd" class="form-label small">Program End <span class="text-danger">*</span></label>
-                      <input type="text" id="dayEnd" class="form-control" placeholder="e.g. 5:00 PM" />
-                      <div class="invalid-feedback">Enter a valid time, e.g. "5:00 PM".</div>
-                    </div>
-                    <div class="col-12 col-md-2">
-                      <label for="dayNotes" class="form-label small">Notes</label>
-                      <input type="text" id="dayNotes" class="form-control" maxlength="500" />
-                    </div>
-                    <div class="col-12 col-md-auto d-flex align-items-end pb-1">
-                      <div class="form-check form-switch mb-1">
-                        <input class="form-check-input" type="checkbox" id="daySchedulable" checked />
-                        <label class="form-check-label small" for="daySchedulable">
-                          Schedulable
-                          <small class="text-muted d-block">Uncheck for meeting days</small>
-                        </label>
+                    <div class="modal-body">
+                      <input type="hidden" id="dayEditId" />
+                      <div class="row g-3">
+                        <div class="col-12 col-md-3">
+                          <label for="dayLabel" class="form-label small">Label <span class="text-danger">*</span></label>
+                          <input type="text" id="dayLabel" class="form-control" maxlength="50" placeholder="Friday" />
+                        </div>
+                        <div class="col-12 col-md-3">
+                          <label for="dayDate" class="form-label small">Date <span class="text-danger">*</span></label>
+                          <input type="date" id="dayDate" class="form-control" />
+                        </div>
+                        <div class="col-12 col-md-2">
+                          <label for="dayStart" class="form-label small">Program Start <span class="text-danger">*</span></label>
+                          <input type="text" id="dayStart" class="form-control" placeholder="e.g. 7:30 AM" />
+                          <div class="invalid-feedback">Enter a valid time, e.g. "7:30 AM".</div>
+                        </div>
+                        <div class="col-12 col-md-2">
+                          <label for="dayEnd" class="form-label small">Program End <span class="text-danger">*</span></label>
+                          <input type="text" id="dayEnd" class="form-control" placeholder="e.g. 5:00 PM" />
+                          <div class="invalid-feedback">Enter a valid time, e.g. "5:00 PM".</div>
+                        </div>
+                        <div class="col-12 col-md-2">
+                          <label for="dayNotes" class="form-label small">Notes</label>
+                          <input type="text" id="dayNotes" class="form-control" maxlength="500" />
+                        </div>
+                        <div class="col-12 col-md-auto d-flex align-items-end pb-1">
+                          <div class="form-check form-switch mb-1">
+                            <input class="form-check-input" type="checkbox" id="daySchedulable" checked />
+                            <label class="form-check-label small" for="daySchedulable">
+                              Schedulable
+                              <small class="text-muted d-block">Uncheck for meeting days</small>
+                            </label>
+                          </div>
+                        </div>
                       </div>
+                      <div id="dayFormStatus" class="mt-3"></div>
                     </div>
-                  </div>
-                  <div id="dayFormStatus" class="mt-3"></div>
-                  <div class="d-flex gap-2 mt-3">
-                    <button type="button" class="btn btn-warning" id="daySaveBtn">
-                      <i class="fa-solid fa-floppy-disk me-1"></i>Save
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary" id="dayCancelBtn">Cancel</button>
-                    <button type="button" class="btn btn-outline-danger ms-auto d-none" id="dayDeleteBtn">
-                      <i class="fa-solid fa-trash me-1"></i>Delete Day
-                    </button>
+                    <div class="modal-footer">
+                      <button type="button" class="btn btn-outline-danger me-auto d-none" id="dayDeleteBtn">
+                        <i class="fa-solid fa-trash me-1"></i>Delete Day
+                      </button>
+                      <button type="button" class="btn btn-outline-secondary" id="dayCancelBtn" data-bs-dismiss="modal">Cancel</button>
+                      <button type="button" class="btn btn-warning" id="daySaveBtn">
+                        <i class="fa-solid fa-floppy-disk me-1"></i>Save
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <%# ── Copy Day form ── %>
-              <div id="copyDayFormPanel" class="card border-info mb-4 d-none">
-                <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
-                  <span id="copyDayFormTitle" class="fw-semibold">Copy Convention Day</span>
-                  <button type="button" class="btn-close btn-close-white btn-sm" id="copyDayFormClose"></button>
-                </div>
-                <div class="card-body">
-                  <input type="hidden" id="copySourceDayId" />
-                  <p class="text-muted small mb-3">
-                    All sessions, shifts, and location assignments will be copied to the new day.
-                  </p>
-                  <div class="row g-3">
-                    <div class="col-12 col-md-3">
-                      <label for="copyDayLabel" class="form-label small">Label <span class="text-danger">*</span></label>
-                      <input type="text" id="copyDayLabel" class="form-control" maxlength="50" placeholder="Saturday" />
+              <%# Copy Convention Day modal %>
+              <div class="modal fade" id="copyDayFormPanel" tabindex="-1" aria-labelledby="copyDayFormTitle" aria-hidden="true">
+                <div class="modal-dialog modal-xl">
+                  <div class="modal-content">
+                    <div class="modal-header bg-info text-white">
+                      <h5 class="modal-title fw-semibold" id="copyDayFormTitle">Copy Convention Day</h5>
+                      <button type="button" class="btn-close btn-close-white" id="copyDayFormClose" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
-                    <div class="col-12 col-md-3">
-                      <label for="copyDayDate" class="form-label small">Date <span class="text-danger">*</span></label>
-                      <input type="date" id="copyDayDate" class="form-control" />
+                    <div class="modal-body">
+                      <input type="hidden" id="copySourceDayId" />
+                      <p class="text-muted small mb-3">
+                        All sessions, shifts, and location assignments will be copied to the new day.
+                      </p>
+                      <div class="row g-3">
+                        <div class="col-12 col-md-3">
+                          <label for="copyDayLabel" class="form-label small">Label <span class="text-danger">*</span></label>
+                          <input type="text" id="copyDayLabel" class="form-control" maxlength="50" placeholder="Saturday" />
+                        </div>
+                        <div class="col-12 col-md-3">
+                          <label for="copyDayDate" class="form-label small">Date <span class="text-danger">*</span></label>
+                          <input type="date" id="copyDayDate" class="form-control" />
+                        </div>
+                        <div class="col-12 col-md-2">
+                          <label for="copyDayStart" class="form-label small">Program Start <span class="text-danger">*</span></label>
+                          <input type="text" id="copyDayStart" class="form-control" placeholder="e.g. 7:30 AM" />
+                          <div class="invalid-feedback">Enter a valid time, e.g. "7:30 AM".</div>
+                        </div>
+                        <div class="col-12 col-md-2">
+                          <label for="copyDayEnd" class="form-label small">Program End <span class="text-danger">*</span></label>
+                          <input type="text" id="copyDayEnd" class="form-control" placeholder="e.g. 5:00 PM" />
+                          <div class="invalid-feedback">Enter a valid time, e.g. "5:00 PM".</div>
+                        </div>
+                        <div class="col-12 col-md-2">
+                          <label for="copyDayNotes" class="form-label small">Notes</label>
+                          <input type="text" id="copyDayNotes" class="form-control" maxlength="500" />
+                        </div>
+                      </div>
+                      <div id="copyDayFormStatus" class="mt-3"></div>
                     </div>
-                    <div class="col-12 col-md-2">
-                      <label for="copyDayStart" class="form-label small">Program Start <span class="text-danger">*</span></label>
-                      <input type="text" id="copyDayStart" class="form-control" placeholder="e.g. 7:30 AM" />
-                      <div class="invalid-feedback">Enter a valid time, e.g. "7:30 AM".</div>
+                    <div class="modal-footer">
+                      <button type="button" class="btn btn-outline-secondary" id="copyDayCancelBtn" data-bs-dismiss="modal">Cancel</button>
+                      <button type="button" class="btn btn-info text-white" id="copyDaySaveBtn">
+                        <i class="fa-solid fa-copy me-1"></i>Copy Day
+                      </button>
                     </div>
-                    <div class="col-12 col-md-2">
-                      <label for="copyDayEnd" class="form-label small">Program End <span class="text-danger">*</span></label>
-                      <input type="text" id="copyDayEnd" class="form-control" placeholder="e.g. 5:00 PM" />
-                      <div class="invalid-feedback">Enter a valid time, e.g. "5:00 PM".</div>
-                    </div>
-                    <div class="col-12 col-md-2">
-                      <label for="copyDayNotes" class="form-label small">Notes</label>
-                      <input type="text" id="copyDayNotes" class="form-control" maxlength="500" />
-                    </div>
-                  </div>
-                  <div id="copyDayFormStatus" class="mt-3"></div>
-                  <div class="d-flex gap-2 mt-3">
-                    <button type="button" class="btn btn-info text-white" id="copyDaySaveBtn">
-                      <i class="fa-solid fa-copy me-1"></i>Copy Day
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary" id="copyDayCancelBtn">Cancel</button>
                   </div>
                 </div>
               </div>
@@ -344,195 +368,206 @@
                   </button>
                 </div>
 
-                <%# Add/Edit Session form %>
-                <div id="sessionFormPanel" class="card border-secondary mb-4 d-none">
-                  <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
-                    <span id="sessionFormTitle" class="fw-semibold">Add Session</span>
-                    <button type="button" class="btn-close btn-close-white btn-sm" id="sessionFormClose"></button>
-                  </div>
-                  <div class="card-body">
-                    <input type="hidden" id="sessionEditId" />
-                    <input type="hidden" id="sessionDayId" value="<%= selectedDay.id %>" />
-                    <div class="row g-3">
-                      <div class="col-12 col-md-3">
-                        <label for="sessionLabel" class="form-label small">Label <span class="text-danger">*</span></label>
-                        <input type="text" id="sessionLabel" class="form-control" maxlength="50"
-                          placeholder="Morning A" list="sessionLabelSuggestions" />
-                        <datalist id="sessionLabelSuggestions">
-                          <option value="Pre-Session"/>
-                          <option value="Morning A" />
-                          <option value="Morning B" />
-                          <option value="Lunch" />
-                          <option value="Afternoon A" />
-                          <option value="Afternoon B" />
-                          <option value="Post-Session" />
-                        </datalist>
+                <%# Add / Edit Session modal %>
+                <div class="modal fade" id="sessionFormPanel" tabindex="-1" aria-labelledby="sessionFormTitle" aria-hidden="true">
+                  <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                      <div class="modal-header bg-secondary text-white">
+                        <h5 class="modal-title fw-semibold" id="sessionFormTitle">Add Session</h5>
+                        <button type="button" class="btn-close btn-close-white" id="sessionFormClose" data-bs-dismiss="modal" aria-label="Close"></button>
                       </div>
-                      <div class="col-12 col-md-2">
-                        <label for="sessionOrder" class="form-label small">Order</label>
-                        <input type="number" id="sessionOrder" class="form-control" min="1" max="99" placeholder="1" />
-                      </div>
-                      <div class="col-12 col-md-2">
-                        <label for="sessionStart" class="form-label small">Start <span class="text-danger">*</span></label>
-                        <input type="text" id="sessionStart" class="form-control" placeholder="e.g. 7:30 AM" />
-                        <div class="invalid-feedback">Enter a valid time, e.g. "7:30 AM".</div>
-                      </div>
-                      <div class="col-12 col-md-2">
-                        <label for="sessionEnd" class="form-label small">End <span class="text-danger">*</span></label>
-                        <input type="text" id="sessionEnd" class="form-control" placeholder="e.g. 5:00 PM" />
-                        <div class="invalid-feedback">Enter a valid time, e.g. "5:00 PM".</div>
-                      </div>
-                      <div class="col-12 col-md-3">
-                        <label for="sessionNotes" class="form-label small">Notes</label>
-                        <input type="text" id="sessionNotes" class="form-control" maxlength="500" />
-                      </div>
-                    </div>
-                    <div id="sessionFormStatus" class="mt-3"></div>
-                    <div class="d-flex gap-2 mt-3">
-                      <button type="button" class="btn btn-secondary" id="sessionSaveBtn">
-                        <i class="fa-solid fa-floppy-disk me-1"></i>Save
-                      </button>
-                      <button type="button" class="btn btn-outline-secondary" id="sessionCancelBtn">Cancel</button>
-                      <button type="button" class="btn btn-outline-danger ms-auto d-none" id="sessionDeleteBtn">
-                        <i class="fa-solid fa-trash me-1"></i>Delete Session
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <%# Add/Edit Shift form %>
-                <div id="shiftFormPanel" class="card border-primary mb-4 d-none">
-                  <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                    <span id="shiftFormTitle" class="fw-semibold">Add Shift</span>
-                    <button type="button" class="btn-close btn-close-white btn-sm" id="shiftFormClose"></button>
-                  </div>
-                  <div class="card-body">
-                    <input type="hidden" id="shiftEditId" />
-                    <input type="hidden" id="shiftSessionId" />
-                    <div class="row g-3">
-                      <div class="col-12 col-md-3">
-                        <label for="shiftEventType" class="form-label small">Event Type <span class="text-danger">*</span></label>
-                        <select id="shiftEventType" class="form-select">
-                          <option value="">Select…</option>
-                          <% eventTypes.filter(et => et.active).forEach(et => { %>
-                            <option value="<%= et.id %>"
-                              data-color="<%= et.color || '#6c757d' %>">
-                              <%= et.name %>
-                            </option>
-                          <% }) %>
-                        </select>
-                      </div>
-                      <div class="col-12 col-md-2">
-                        <label for="shiftLabel" class="form-label small">Label <span class="text-danger">*</span></label>
-                        <input type="text" id="shiftLabel" class="form-control" maxlength="50"
-                          placeholder="Shift A" list="shiftLabelSuggestions" />
-                        <datalist id="shiftLabelSuggestions">
-                          <option value="Shift A" />
-                          <option value="Shift B" />
-                          <option value="Full Session" />
-                          <option value="Pre-Session" />
-                        </datalist>
-                      </div>
-                      <div class="col-12 col-md-2">
-                        <label for="shiftStart" class="form-label small">Start <span class="text-danger">*</span></label>
-                        <input type="text" id="shiftStart" class="form-control" placeholder="e.g. 7:30 AM" />
-                      <div class="invalid-feedback">Enter a valid time, e.g. "7:30 AM".</div>
-                      </div>
-                      <div class="col-12 col-md-2">
-                        <label for="shiftEnd" class="form-label small">End <span class="text-danger">*</span></label>
-                        <input type="text" id="shiftEnd" class="form-control" placeholder="e.g. 5:00 PM" />
-                      <div class="invalid-feedback">Enter a valid time, e.g. "5:00 PM".</div>
-                      </div>
-                      <div class="col-12 col-md-2"><label for="shiftDepartment" class="form-label small">Scheduler Dept <span class="text-danger">*</span></label>
-                        <select id="shiftDepartment" class="form-select">
-                          <option value="">Select…</option>
-                          <option value="lots_and_garages">Lots & Garages</option>
-                          <option value="signs">Signs</option>
-                          <option value="security">Security</option>
-                          <option value="dropoff_pickup">Drop-off / Pickup</option>
-                          <option value="mobile_support">Mobile Support</option>
-                        </select>
-                      </div>
-                      <div class="col-12 col-md-2">
-                        <label for="shiftSmsCode" class="form-label small">SMS Code</label>
-                        <input type="text" id="shiftSmsCode" class="form-control font-monospace text-uppercase"
-                          maxlength="8" placeholder="FRIN" title="Volunteer reply code (max 8 chars)" />
-                      </div>
-                    </div>
-                    <div class="row g-3 mt-1">
-                      <div class="col-12 col-md-6">
-                        <label for="shiftNotes" class="form-label small">Notes</label>
-                        <input type="text" id="shiftNotes" class="form-control" maxlength="500" />
-                      </div>
-                      <div class="col-12 col-md-auto d-flex align-items-end pb-1">
-                        <div class="form-check form-switch mb-1">
-                          <input class="form-check-input" type="checkbox" id="shiftInvitable" />
-                          <label class="form-check-label small" for="shiftInvitable">
-                            Invitable
-                            <small class="text-muted"> — include in Campaign Center</small>
-                          </label>
+                      <div class="modal-body">
+                        <input type="hidden" id="sessionEditId" />
+                        <input type="hidden" id="sessionDayId" value="<%= selectedDay.id %>" />
+                        <div class="row g-3">
+                          <div class="col-12 col-md-3">
+                            <label for="sessionLabel" class="form-label small">Label <span class="text-danger">*</span></label>
+                            <input type="text" id="sessionLabel" class="form-control" maxlength="50"
+                              placeholder="Morning A" list="sessionLabelSuggestions" />
+                            <datalist id="sessionLabelSuggestions">
+                              <option value="Pre-Session"/>
+                              <option value="Morning A" />
+                              <option value="Morning B" />
+                              <option value="Lunch" />
+                              <option value="Afternoon A" />
+                              <option value="Afternoon B" />
+                              <option value="Post-Session" />
+                            </datalist>
+                          </div>
+                          <div class="col-12 col-md-2">
+                            <label for="sessionOrder" class="form-label small">Order</label>
+                            <input type="number" id="sessionOrder" class="form-control" min="1" max="99" placeholder="1" />
+                          </div>
+                          <div class="col-12 col-md-2">
+                            <label for="sessionStart" class="form-label small">Start <span class="text-danger">*</span></label>
+                            <input type="text" id="sessionStart" class="form-control" placeholder="e.g. 7:30 AM" />
+                            <div class="invalid-feedback">Enter a valid time, e.g. "7:30 AM".</div>
+                          </div>
+                          <div class="col-12 col-md-2">
+                            <label for="sessionEnd" class="form-label small">End <span class="text-danger">*</span></label>
+                            <input type="text" id="sessionEnd" class="form-control" placeholder="e.g. 5:00 PM" />
+                            <div class="invalid-feedback">Enter a valid time, e.g. "5:00 PM".</div>
+                          </div>
+                          <div class="col-12 col-md-3">
+                            <label for="sessionNotes" class="form-label small">Notes</label>
+                            <input type="text" id="sessionNotes" class="form-control" maxlength="500" />
+                          </div>
                         </div>
+                        <div id="sessionFormStatus" class="mt-3"></div>
                       </div>
-                    </div>
-                    <div id="shiftFormStatus" class="mt-3"></div>
-                    <div class="d-flex gap-2 mt-3">
-                      <button type="button" class="btn btn-primary" id="shiftSaveBtn">
-                        <i class="fa-solid fa-floppy-disk me-1"></i>Save
-                      </button>
-                      <button type="button" class="btn btn-outline-secondary" id="shiftCancelBtn">Cancel</button>
-                      <button type="button" class="btn btn-outline-danger ms-auto d-none" id="shiftDeleteBtn">
-                        <i class="fa-solid fa-trash me-1"></i>Delete Shift
-                      </button>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-danger me-auto d-none" id="sessionDeleteBtn">
+                          <i class="fa-solid fa-trash me-1"></i>Delete Session
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="sessionCancelBtn" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-secondary" id="sessionSaveBtn">
+                          <i class="fa-solid fa-floppy-disk me-1"></i>Save
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <%# Assign location/task to shift form %>
-                <div id="assignFormPanel" class="card border-success mb-4 d-none">
-                  <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
-                    <span id="assignFormTitle" class="fw-semibold">Assign Location</span>
-                    <button type="button" class="btn-close btn-close-white btn-sm" id="assignFormClose"></button>
-                  </div>
-                  <div class="card-body">
-                    <input type="hidden" id="assignShiftId" />
-                    <input type="hidden" id="assignEditId" />
-                    <div class="row g-3">
-                      <div class="col-12 col-md-6">
-                        <label for="assignLocationTask" class="form-label small">
-                          Location <span id="assignLocationNote" class="text-muted fw-normal d-none">(not editable)</span>
-                        </label>
-                        <select id="assignLocationTask" class="form-select">
-                          <option value="">Select…</option>
-                          <optgroup label="Locations">
-                            <% locationsTasks.filter(l => l.type === 'location' && l.active).forEach(l => { %>
-                              <option value="<%= l.id %>"><%= l.name %></option>
-                            <% }) %>
-                          </optgroup>
-                        </select>
+                <%# Add / Edit Shift modal %>
+                <div class="modal fade" id="shiftFormPanel" tabindex="-1" aria-labelledby="shiftFormTitle" aria-hidden="true">
+                  <div class="modal-dialog modal-xl">
+                    <div class="modal-content">
+                      <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title fw-semibold" id="shiftFormTitle">Add Shift</h5>
+                        <button type="button" class="btn-close btn-close-white" id="shiftFormClose" data-bs-dismiss="modal" aria-label="Close"></button>
                       </div>
-                      <div class="col-6 col-md-2">
-                        <label for="assignVolMin" class="form-label small">Min</label>
-                        <input type="number" id="assignVolMin" class="form-control" min="0" max="999" placeholder="—" />
+                      <div class="modal-body">
+                        <input type="hidden" id="shiftEditId" />
+                        <input type="hidden" id="shiftSessionId" />
+                        <div class="row g-3">
+                          <div class="col-12 col-md-3">
+                            <label for="shiftEventType" class="form-label small">Event Type <span class="text-danger">*</span></label>
+                            <select id="shiftEventType" class="form-select">
+                              <option value="">Select…</option>
+                              <% eventTypes.filter(et => et.active).forEach(et => { %>
+                                <option value="<%= et.id %>"
+                                  data-color="<%= et.color || '#6c757d' %>">
+                                  <%= et.name %>
+                                </option>
+                              <% }) %>
+                            </select>
+                          </div>
+                          <div class="col-12 col-md-2">
+                            <label for="shiftLabel" class="form-label small">Label <span class="text-danger">*</span></label>
+                            <input type="text" id="shiftLabel" class="form-control" maxlength="50"
+                              placeholder="Shift A" list="shiftLabelSuggestions" />
+                            <datalist id="shiftLabelSuggestions">
+                              <option value="Shift A" />
+                              <option value="Shift B" />
+                              <option value="Full Session" />
+                              <option value="Pre-Session" />
+                            </datalist>
+                          </div>
+                          <div class="col-12 col-md-2">
+                            <label for="shiftStart" class="form-label small">Start <span class="text-danger">*</span></label>
+                            <input type="text" id="shiftStart" class="form-control" placeholder="e.g. 7:30 AM" />
+                            <div class="invalid-feedback">Enter a valid time, e.g. "7:30 AM".</div>
+                          </div>
+                          <div class="col-12 col-md-2">
+                            <label for="shiftEnd" class="form-label small">End <span class="text-danger">*</span></label>
+                            <input type="text" id="shiftEnd" class="form-control" placeholder="e.g. 5:00 PM" />
+                            <div class="invalid-feedback">Enter a valid time, e.g. "5:00 PM".</div>
+                          </div>
+                          <div class="col-12 col-md-3">
+                            <label for="shiftDepartment" class="form-label small">Scheduler Dept <span class="text-danger">*</span></label>
+                            <select id="shiftDepartment" class="form-select">
+                              <option value="">Select…</option>
+                              <option value="lots_and_garages">Lots &amp; Garages</option>
+                              <option value="signs">Signs</option>
+                              <option value="security">Security</option>
+                              <option value="dropoff_pickup">Drop-off / Pickup</option>
+                              <option value="mobile_support">Mobile Support</option>
+                            </select>
+                          </div>
+                          <div class="col-12 col-md-2">
+                            <label for="shiftSmsCode" class="form-label small">SMS Code</label>
+                            <input type="text" id="shiftSmsCode" class="form-control font-monospace text-uppercase"
+                              maxlength="8" placeholder="FRIN" title="Volunteer reply code (max 8 chars)" />
+                          </div>
+                          <div class="col-12 col-md-7">
+                            <label for="shiftNotes" class="form-label small">Notes</label>
+                            <input type="text" id="shiftNotes" class="form-control" maxlength="500" />
+                          </div>
+                          <div class="col-12 col-md-3 d-flex align-items-end pb-1">
+                            <div class="form-check form-switch mb-1">
+                              <input class="form-check-input" type="checkbox" id="shiftInvitable" />
+                              <label class="form-check-label small" for="shiftInvitable">
+                                Invitable
+                                <small class="text-muted"> — include in Campaign Center</small>
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                        <div id="shiftFormStatus" class="mt-3"></div>
                       </div>
-                      <div class="col-6 col-md-2">
-                        <label for="assignVolNeed" class="form-label small">Target</label>
-                        <input type="number" id="assignVolNeed" class="form-control" min="1" max="999" placeholder="—" />
-                      </div>
-                      <div class="col-6 col-md-2">
-                        <label for="assignVolMax" class="form-label small">Max</label>
-                        <input type="number" id="assignVolMax" class="form-control" min="1" max="999" placeholder="—" />
-                      </div>
-                      <div class="col-12 col-md-3">
-                        <label for="assignNotes" class="form-label small">Notes</label>
-                        <input type="text" id="assignNotes" class="form-control" maxlength="500" />
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-danger me-auto d-none" id="shiftDeleteBtn">
+                          <i class="fa-solid fa-trash me-1"></i>Delete Shift
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="shiftCancelBtn" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="shiftSaveBtn">
+                          <i class="fa-solid fa-floppy-disk me-1"></i>Save
+                        </button>
                       </div>
                     </div>
-                    <div id="assignFormStatus" class="mt-3"></div>
-                    <div class="d-flex gap-2 mt-3">
-                      <button type="button" class="btn btn-success" id="assignSaveBtn">
-                        <i class="fa-solid fa-floppy-disk me-1"></i><span id="assignSaveBtnLabel">Assign</span>
-                      </button>
-                      <button type="button" class="btn btn-outline-secondary" id="assignCancelBtn">Cancel</button>
+                  </div>
+                </div>
+
+                <%# Assign Location modal %>
+                <div class="modal fade" id="assignFormPanel" tabindex="-1" aria-labelledby="assignFormTitle" aria-hidden="true">
+                  <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                      <div class="modal-header bg-success text-white">
+                        <h5 class="modal-title fw-semibold" id="assignFormTitle">Assign Location</h5>
+                        <button type="button" class="btn-close btn-close-white" id="assignFormClose" data-bs-dismiss="modal" aria-label="Close"></button>
+                      </div>
+                      <div class="modal-body">
+                        <input type="hidden" id="assignShiftId" />
+                        <input type="hidden" id="assignEditId" />
+                        <div class="row g-3">
+                          <div class="col-12 col-md-6">
+                            <label for="assignLocationTask" class="form-label small">
+                              Location <span id="assignLocationNote" class="text-muted fw-normal d-none">(not editable)</span>
+                            </label>
+                            <select id="assignLocationTask" class="form-select">
+                              <option value="">Select…</option>
+                              <optgroup label="Locations">
+                                <% locationsTasks.filter(l => l.type === 'location' && l.active).forEach(l => { %>
+                                  <option value="<%= l.id %>"><%= l.name %></option>
+                                <% }) %>
+                              </optgroup>
+                            </select>
+                          </div>
+                          <div class="col-6 col-md-2">
+                            <label for="assignVolMin" class="form-label small">Min</label>
+                            <input type="number" id="assignVolMin" class="form-control" min="0" max="999" placeholder="—" />
+                          </div>
+                          <div class="col-6 col-md-2">
+                            <label for="assignVolNeed" class="form-label small">Target</label>
+                            <input type="number" id="assignVolNeed" class="form-control" min="1" max="999" placeholder="—" />
+                          </div>
+                          <div class="col-6 col-md-2">
+                            <label for="assignVolMax" class="form-label small">Max</label>
+                            <input type="number" id="assignVolMax" class="form-control" min="1" max="999" placeholder="—" />
+                          </div>
+                          <div class="col-12 col-md-6">
+                            <label for="assignNotes" class="form-label small">Notes</label>
+                            <input type="text" id="assignNotes" class="form-control" maxlength="500" />
+                          </div>
+                        </div>
+                        <div id="assignFormStatus" class="mt-3"></div>
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" id="assignCancelBtn" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-success" id="assignSaveBtn">
+                          <i class="fa-solid fa-floppy-disk me-1"></i><span id="assignSaveBtnLabel">Assign</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -722,5 +757,6 @@
 
     <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
     <script type="module" src="/js/timelines.js"></script>
+    <script type="module" src="/js/tours/timelinesTour.js"></script>
   </body>
 </html>

@@ -9,6 +9,8 @@
   <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
   <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
   <link rel="stylesheet" type="text/css" href="/styles/scheduler.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@15.2.2/dist/css/shepherd.css" />
+  <link rel="stylesheet" href="/css/tours.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
@@ -30,7 +32,12 @@
         <h1 class="h5 mb-0">
           <i class="fa-regular fa-calendar-days me-2 text-warning"></i>Scheduler
         </h1>
-        <span class="text-muted small"><%= year %></span>
+        <div class="d-flex align-items-center gap-2">
+          <button type="button" class="btn btn-outline-secondary btn-sm ajwp-tour-trigger" id="tourTriggerBtn">
+            <i class="fa-solid fa-circle-question me-1"></i>Tour
+          </button>
+          <span class="text-muted small"><%= year %></span>
+        </div>
       </div>
 
       <%#-- Day picker --%>
@@ -161,5 +168,6 @@
   <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
   <script src="/vendor/agnostic-draggable.js"></script>
   <script type="module" src="/js/scheduler.js"></script>
+  <script type="module" src="/js/tours/schedulerTour.js"></script>
 </body>
 </html>

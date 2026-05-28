@@ -329,6 +329,7 @@ app.use(
       ],
       "style-src": [
         "'self'",
+        "'unsafe-inline'",
         "https://cdn.jsdelivr.net",
         "https://fonts.googleapis.com",
         (req, res) => `'nonce-${res.locals.nonce}'`,

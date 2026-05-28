@@ -172,17 +172,23 @@ document.addEventListener("DOMContentLoaded", () => {
   // ── Panel helpers ─────────────────────────────────────────────────────
 
   /**
-   * Open a form panel and scroll it into view.
+   * Open a form modal. Focuses an optional element after animation completes.
    * @param {HTMLElement} panel
+   * @param {HTMLElement|null} [focusEl]
    */
-  function openPanel(panel) {
-    panel.classList.remove("d-none");
-    panel.scrollIntoView({ behavior: "smooth", block: "start" });
+  function openPanel(panel, focusEl = null) {
+    if (focusEl) {
+      panel.addEventListener('shown.bs.modal', () => focusEl.focus(), { once: true });
+    }
+    bootstrap.Modal.getOrCreateInstance(panel).show();
   }
 
-  /** Close a form panel. @param {HTMLElement} panel */
+  /**
+   * Close a form modal.
+   * @param {HTMLElement} panel
+   */
   function closePanel(panel) {
-    panel.classList.add("d-none");
+    bootstrap.Modal.getOrCreateInstance(panel).hide();
   }
 
   // ══════════════════════════════════════════════════════════════════════
@@ -218,8 +224,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     etAddBtn.addEventListener("click", () => {
       resetEtForm();
-      openPanel(etFormPanel);
-      etName.focus();
+      openPanel(etFormPanel, etName);
     });
 
     document.querySelectorAll(".et-edit-btn").forEach((btn) => {
@@ -317,8 +322,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     addDayBtn.addEventListener("click", () => {
       resetDayForm();
-      openPanel(dayFormPanel);
-      dayLabel.focus();
+      openPanel(dayFormPanel, dayLabel);
     });
 
     bindTimeInput("dayStart");
@@ -336,8 +340,7 @@ document.addEventListener("DOMContentLoaded", () => {
         dayFormTitle.textContent = `Edit — ${btn.dataset.label || "Convention Day"}`;
         dayDeleteBtn.classList.remove("d-none");
         dayFormStatus.innerHTML = "";
-        openPanel(dayFormPanel);
-        dayLabel.focus();
+        openPanel(dayFormPanel, dayLabel);
       });
     });
 
@@ -446,8 +449,7 @@ document.addEventListener("DOMContentLoaded", () => {
         copyDayNotes.value = "";
         copyDayFormStatus.innerHTML = "";
         copyDayFormTitle.textContent = `Copy — ${btn.dataset.label}`;
-        openPanel(copyDayFormPanel);
-        copyDayDate.focus();
+        openPanel(copyDayFormPanel, copyDayDate);
       });
     });
 
@@ -541,8 +543,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     document.getElementById("addSessionBtn")?.addEventListener("click", () => {
       resetSessionForm();
-      openPanel(sessionFormPanel);
-      sessionLabel.focus();
+      openPanel(sessionFormPanel, sessionLabel);
     });
 
     document.querySelectorAll(".session-edit-btn").forEach((btn) => {
@@ -661,8 +662,7 @@ document.addEventListener("DOMContentLoaded", () => {
       btn.addEventListener("click", () => {
         resetShiftForm();
         shiftSessionId.value = btn.dataset.sessionId;
-        openPanel(shiftFormPanel);
-        shiftEventType.focus();
+        openPanel(shiftFormPanel, shiftEventType);
       });
     });
 
@@ -795,8 +795,7 @@ document.addEventListener("DOMContentLoaded", () => {
         assignFormStatus.innerHTML = "";
         assignFormTitle.textContent = `Assign to: ${btn.dataset.shiftLabel}`;
         assignSaveBtnLabel.textContent = "Assign";
-        openPanel(assignFormPanel);
-        assignLocTask.focus();
+        openPanel(assignFormPanel, assignLocTask);
       });
     });
 
@@ -817,9 +816,7 @@ document.addEventListener("DOMContentLoaded", () => {
         assignFormStatus.innerHTML = "";
         assignFormTitle.textContent = `Edit — ${btn.dataset.locationName}${btn.dataset.shiftLabel ? ` (${btn.dataset.shiftLabel})` : ""}`;
         assignSaveBtnLabel.textContent = "Save";
-        openPanel(assignFormPanel);
-        if (assignVolNeed) assignVolNeed.focus();
-        else assignNotes.focus();
+        openPanel(assignFormPanel, assignVolNeed || assignNotes);
       });
     });
 

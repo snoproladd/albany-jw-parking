@@ -18,7 +18,7 @@ and attendance for the Albany JW Regional Convention parking team.
 | Email | IONOS SMTP via Nodemailer |
 | SMS | Twilio Messaging Services |
 | Email Validation | Kickbox REST API (native fetch, no SDK) |
-| Frontend | Bootstrap 5, vanilla JS (no bundler), agnostic-draggable (UMD) |
+| Frontend | Bootstrap 5, vanilla JS (no bundler), agnostic-draggable (UMD), Shepherd.js (CDN, tours) |
 | Hosting | Azure App Service (Linux container) |
 | CI/CD | GitHub Actions → Azure Container Registry |
 | Secrets (prod) | Azure Key Vault via Managed Identity |
@@ -203,11 +203,17 @@ parking/
 │   └── upgrade/              # Account upgrade flow views
 ├── public/
 │   ├── js/                   # Frontend JS modules (one file per page)
+│   │   ├── tours/                    # Shepherd.js guided tour modules (one per page)
+│   │   │   ├── tourBase.js           # Shared tour factory and button helpers
+│   │   │   ├── timelinesTour.js      # Three-path tour: event types, days, sessions
+│   │   │   └── …                     # One file per oversight tool page
 │   │   ├── dashboardWeather.js       # Open-Meteo 3-day weather widget
 │   │   ├── dashboardShifts.js        # Home page day-navigator for shifts
 │   │   ├── commandHierarchy.js       # Chain of command admin tree JS
 │   │   └── sitemapSearch.js          # Live search/filter for the sitemap page
 │   ├── styles/               # CSS files
+│   ├── css/                  # Additional CSS (tours, etc.)
+│   │   └── tours.css                 # Shepherd.js tour styling and z-index rules
 │   │   ├── commandHierarchy.css      # Chain of command admin styles
 │   │   └── sitemap.css               # Sitemap page card grid and layout
 │   └── vendor/               # Third-party UMD bundles (agnostic-draggable, Bootstrap)

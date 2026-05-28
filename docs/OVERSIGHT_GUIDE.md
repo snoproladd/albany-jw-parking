@@ -39,6 +39,22 @@ at the top to go to the full hub page, which groups every available tool by
 category with descriptions. Which tools appear depends on your role — higher
 roles see more options.
 
+### Guided Tours
+
+Every oversight tool page has a **Take a tour** button in the top-right corner
+of the page header. Clicking it launches a step-by-step walkthrough of that
+page's layout and features.
+
+Tours are context-aware — steps that require data to be present (e.g. shift
+cards, assignment badges) are skipped automatically when the page is empty,
+so the tour is useful whether you're setting things up for the first time or
+reviewing a fully built-out schedule.
+
+On the Timelines page, the tour opens each form modal automatically so you
+can see every field. The Save and Delete buttons are disabled while a modal
+is open in tour mode — Cancel remains active so you can close the form
+manually if needed. Nothing is saved during a tour.
+
 ### Site Map
 
 A full index of every page on the platform is available at `/sitemap` (also
@@ -329,6 +345,11 @@ Expand a session to manage its shifts. Each shift has:
   faded = up to max).
 - **Invitable toggle** — the envelope button marks a shift as available for
   invitations in the Messaging Center. Yellow = invitable.
+
+All six forms (Event Type, Convention Day, Copy Day, Session, Shift, Assign
+Location) open as Bootstrap modals. The Delete button sits on the far left
+of the modal footer, separated from Save and Cancel, to prevent accidental
+deletion.
 
 ---
 

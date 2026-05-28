@@ -16,6 +16,10 @@
   <!-- Site styles -->
   <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
 
+  <!-- Shepherd tour -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@15.2.2/dist/css/shepherd.css" />
+  <link rel="stylesheet" href="/css/tours.css" />
+
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -30,9 +34,16 @@
         <div class="col-12 col-xl-10">
 
           <section class="card shadow-lg mx-auto">
-            <header class="card-header text-center">
-              <h1 class="h2 my-2">Volunteer Account Oversight</h1>
-              <p class="mb-0">Select a volunteer to view or edit their information.</p>
+            <header class="card-header">
+              <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <div class="text-center flex-grow-1">
+                  <h1 class="h2 my-2">Volunteer Account Oversight</h1>
+                  <p class="mb-0">Select a volunteer to view or edit their information.</p>
+                </div>
+                <button type="button" class="btn btn-outline-secondary btn-sm ajwp-tour-trigger" id="tourTriggerBtn">
+                  <i class="fa-solid fa-circle-question me-1"></i>Take a tour
+                </button>
+              </div>
             </header>
 
             <%# ── Page tabs ──────────────────────────────────────────────── %>
@@ -897,6 +908,7 @@
     <script src="/js/privilegeEnforcer.js"></script>
     <script src="/js/email-validation.js"></script>
     <script src="/js/phoneVer.js"></script>
+   <script type="module" src="/js/tours/volunteersTour.js"></script>
     <%- include('../partials/footer') %>
 </body>
 
