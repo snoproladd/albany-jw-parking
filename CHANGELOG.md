@@ -3,6 +3,39 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.28.0] - 2026-05-29
+
+### Added
+- **Maps page** — new authenticated page at `/maps` (REGISTERED+, `viewMaps` permission).
+  - Fetches subfolder structure from OneDrive via Microsoft Graph API and renders
+    each subfolder as a section heading with file tiles beneath it.
+  - Each tile shows the filename, OneDrive file description, last-modified date,
+    and file size. View/Download button links to the OneDrive file.
+  - **ScribbleMaps integration** — each subfolder can contain a `_meta.json` sidecar
+    file mapping filenames to `scribbleUrl` and `embedUrl` entries. Files with a
+    `scribbleUrl` get an Interactive Map button. Files with an `embedUrl` render a
+    live map preview panel on the left side of the tile (iframe scaled to 120px
+    via `position: absolute` + `transform: scale(0.333)`); clicking the preview
+    opens the ScribbleMaps link in a new tab.
+  - `_meta.json` content fetched via Graph `/drive/items/{id}/content` endpoint
+    (bearer token auth — works correctly with service principal app-only tokens).
+  - Empty subfolders are silently hidden (no heading rendered).
+  - Graceful error state if OneDrive is unreachable.
+- **`listOneDriveFolder()`** added to `lib/graphClient.js` — lists immediate
+  subfolders of a given drive path and returns them as `DriveFolderSection[]`,
+  each containing `DriveFileItem[]` with `scribbleUrl` and `embedUrl` merged
+  from `_meta.json`.
+- **`routes/mapsRoutes.js`** — new router factory wired into `index.js`.
+- **`views/maps.ejs`**, **`public/styles/maps.css`**, **`public/js/maps.js`** — new files.
+- **Maps entry in `sitemap.json`** — Resources group, `minRole: REGISTERED`,
+  `permission: viewMaps`.
+- **CSP `frame-src`** updated to allow `https://www.scribblemaps.com` and
+  `https://widgets.scribblemaps.com`.
+
+### Changed
+- Tile grid column breakpoints changed from `col-sm-6` to `col-lg-6` so tiles
+  with embed previews stay full-width on narrow viewports.
+
 ## [2.27.1] - 2026-05-29
 
 ### Fixed

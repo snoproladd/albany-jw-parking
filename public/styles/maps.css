@@ -45,6 +45,7 @@
 /* When an embed is present the tile switches to a row layout */
 .maps-tile--has-embed {
     flex-direction: row;
+    min-width: 0;
 }
 
 /* ── Embed preview (left column) ───────────────────────────────────────────────────── */

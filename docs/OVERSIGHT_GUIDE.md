@@ -65,6 +65,31 @@ name, description, or path. The sitemap is useful for orientation and as a
 quick-jump reference when you know the name of a tool but can't remember where
 it sits in the navigation.
 
+### Maps
+
+**Path:** Resources → Maps (navigation bar), or `/maps`
+
+Available to all registered volunteers (REGISTERED and above). The Maps page
+lists convention-related map files sourced directly from OneDrive, grouped by
+category (e.g. Parking Maps, Pedestrian Maps, Sign Placement Maps).
+
+Each tile shows the map name, description, and last-modified date. Two actions
+may be available per tile depending on what has been configured:
+
+- **View / Download** — opens the file in OneDrive (PDF viewer or download).
+- **Interactive Map** — opens the live ScribbleMaps version in a new tab for
+  a zoomable, pannable view of the same map.
+
+If a ScribbleMaps embed has been configured for a file, a small live map
+preview appears on the left side of the tile. Clicking the preview also opens
+the interactive map in a new tab.
+
+To add or update maps, place files in the appropriate subfolder under
+`Documents for Distribution/Maps/` in OneDrive. To link a file to its
+ScribbleMaps counterpart, add or update the `_meta.json` sidecar file in
+the same subfolder. See the developer notes in `lib/graphClient.js` for the
+JSON format.
+
 ---
 
 ## 2. My Account

@@ -187,6 +187,7 @@ parking/
 │   ├── apiRoutes.js          # Internal API endpoints
 │   ├── oversightRoutes.js    # All Oversight Tools routes
 │   ├── registrationRoutes.js # Registration flow (multi-step draft)
+│   ├── mapsRoutes.js         # Maps page — OneDrive file listing with ScribbleMaps integration
 │   ├── sitemapRoutes.js      # Public role-filtered sitemap page
 │   ├── upgradeRoutes.js      # Account upgrade (email/phone → password)
 │   └── validationRoutes.js   # Phone (Twilio) + email (Kickbox) validation
