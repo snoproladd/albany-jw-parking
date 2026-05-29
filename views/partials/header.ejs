@@ -67,6 +67,14 @@
                     Maps
                   </a>
                 </li>
+                <% if (can('viewSigns')) { %>
+                <li>
+                  <a class="dropdown-item" href="/signs">
+                    <i class="fa-solid fa-signs-post me-1"></i>
+                    Sign Library
+                  </a>
+                </li>
+                <% } %>
                 <li>
                   <a class="dropdown-item" href="/schedules">
                     <i class="fa-regular fa-calendar-days me-1"></i>
@@ -171,6 +179,34 @@
                       <li><a class="ot-nav-item" href="/oversight/tools/reports">
                         <i class="fa-solid fa-clipboard-list"></i>Application Status
                       </a></li>
+                    </ul>
+                  </div>
+                </li>
+                <% } %>
+
+                <% if (can('viewSigns') || can('manageSigns')) { %>
+                <%# ── Signs %>
+                <li>
+                  <button class="ot-nav-category" type="button"
+                          data-bs-toggle="collapse"
+                          data-bs-target="#otNavSigns">
+                    <span><i class="fa-solid fa-signs-post me-2"></i>Signs</span>
+                    <i class="fa-solid fa-chevron-down ot-nav-chevron"></i>
+                  </button>
+                </li>
+                <li>
+                  <div class="collapse show" id="otNavSigns">
+                    <ul class="ot-nav-items">
+                      <% if (can('viewSigns')) { %>
+                        <li><a class="ot-nav-item" href="/signs">
+                          <i class="fa-solid fa-table-list"></i>Sign Library
+                        </a></li>
+                      <% } %>
+                      <% if (can('manageSigns')) { %>
+                        <li><a class="ot-nav-item" href="/signs/builder">
+                          <i class="fa-solid fa-pen-to-square"></i>Sign Builder
+                        </a></li>
+                      <% } %>
                     </ul>
                   </div>
                 </li>

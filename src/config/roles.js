@@ -53,6 +53,8 @@ export const PERMISSIONS = {
     deleteVolunteer: false,
     logAttendance: false,
     viewAttendance: false,
+    viewSigns: false,
+    manageSigns: false,
   },
   REGISTERED: {
     submitInfo: true,
@@ -76,11 +78,13 @@ export const PERMISSIONS = {
     deleteVolunteer: false,
     logAttendance: false,
     viewAttendance: false,
+    viewSigns: true,
+    manageSigns: false,
   },
   DESK: {
     submitInfo: true,
-    viewSchedules: false,
-    viewMaps: false,
+    viewSchedules: true,
+    viewMaps: true,
     printMaps: false,
     printSchedules: false,
     viewVolunteerInfo: false,
@@ -99,6 +103,8 @@ export const PERMISSIONS = {
     deleteVolunteer: false,
     logAttendance: true,
     viewAttendance: true,
+    viewSigns: true,
+    manageSigns: false,
   },
   KEYMAN: {
     submitInfo: true,
@@ -122,6 +128,8 @@ export const PERMISSIONS = {
     deleteVolunteer: false,
     logAttendance: true,
     viewAttendance: true,
+    viewSigns: true,
+    manageSigns: false,
   },
   OVERSEER: {
     submitInfo: true,
@@ -145,6 +153,8 @@ export const PERMISSIONS = {
     deleteVolunteer: false,
     logAttendance: true,
     viewAttendance: true,
+    viewSigns: true,
+    manageSigns: true,
   },
   ASSISTANT_ADMIN: {
     submitInfo: true,
@@ -168,6 +178,8 @@ export const PERMISSIONS = {
     deleteVolunteer: true,
     logAttendance: true,
     viewAttendance: true,
+    viewSigns: true,
+    manageSigns: true,
   },
   ADMIN: {
     submitInfo: true,
@@ -191,6 +203,8 @@ export const PERMISSIONS = {
     deleteVolunteer: true,
     logAttendance: true,
     viewAttendance: true,
+    viewSigns: true,
+    manageSigns: true,
   },
 };
 

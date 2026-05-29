@@ -10,6 +10,8 @@ send invitations, track RSVPs, log attendance, and administer the platform.
 
 1. [Getting Started](#1-getting-started)
    - [Site Map](#site-map)
+   - [Maps](#maps)
+   - [Signs](#signs)
 2. [My Account](#2-my-account)
 3. [Volunteer Management](#3-volunteer-management)
    - [SMS Management](#sms-management-assistant_admin)
@@ -89,6 +91,64 @@ To add or update maps, place files in the appropriate subfolder under
 ScribbleMaps counterpart, add or update the `_meta.json` sidecar file in
 the same subfolder. See the developer notes in `lib/graphClient.js` for the
 JSON format.
+
+### Signs
+
+**Path:** Signs → Sign Library, or `/signs`
+
+The Sign Library tracks the placards placed around the convention area —
+things like **PARKING →**, **LOT FULL**, and **OVERFLOW ↗**. Signs are
+managed as reusable **templates**, and each template can be **placed** in
+multiple geographic locations (Phase 2). This page covers Phase 1: creating
+and managing the templates themselves.
+
+#### Who can do what
+
+| Role | Sign Library | Sign Builder | Place signs on map |
+|---|---|---|---|
+| REGISTERED | View only | — | — |
+| KEYMAN | View only | — | — |
+| OVERSEER+ | View + Archive | Create + Edit | (Phase 2) |
+
+DESK does not see signs at all — they're scoped to attendance and account
+creation.
+
+#### Sign Library *(REGISTERED+)*
+
+The library shows a card for each active sign template with a live preview
+of the text and arrow, a short description (if one was set), and a count of
+how many placements use this template.
+
+- **Search box** — narrows the grid live by matching sign text or description.
+- **New sign** button (top-right) — OVERSEER+ only; opens the Sign Builder.
+- **Edit** — OVERSEER+ only; opens the Sign Builder pre-loaded with this sign.
+- **Archive** — OVERSEER+ only; soft-deletes the template after confirmation.
+  Existing placements survive archival and remain in the database; the
+  template just stops appearing in the library and in the future map picker.
+
+#### Sign Builder *(OVERSEER+)*
+
+**Path:** Signs → Sign Builder, or `/signs/builder` (new) / `/signs/builder/:id` (edit)
+
+A single form for creating or editing a sign template.
+
+- **Live preview** at the top shows exactly what the sign will look like
+  as you type. Updates instantly as you change the text or pick an arrow.
+- **Sign text** — up to 100 characters. Required.
+- **Arrow direction** — a 3×3 picker with the 8 compass directions plus a
+  center ⊘ button for "no arrow". Clicking an arrow selects it; clicking
+  the same arrow again deselects it back to no arrow.
+- **Description** — optional notes about when or where this sign is used,
+  up to 500 characters. Visible on the library card and useful for future
+  reference.
+- **Create sign / Save changes** — saves and redirects back to the library.
+
+> **Note on placements:** Phase 1 covers templates only. In Phase 2 the
+> Sign Library will gain a Map page where you can click a satellite map to
+> drop a placement of a chosen template at an exact location, optionally
+> with a compass heading for the direction the sign faces. Placements in
+> the database now have status (`planned`/`installed`/`removed`), photo
+> upload, and audit fields ready for that phase.
 
 ---
 
@@ -677,10 +737,10 @@ mobile. The tree is visible to all authenticated users regardless of role.
 | Role | Key Capabilities |
 |---|---|
 | **NON_REGISTERED** | Submit registration info only |
-| **REGISTERED** | View schedules and maps; edit own account |
+| **REGISTERED** | View schedules, maps, and the Sign Library; edit own account |
 | **DESK** | Log attendance; create volunteer accounts |
-| **KEYMAN** | View volunteer info; log and view attendance |
-| **OVERSEER** | Edit volunteers; manage shifts and locations; send messages; create campaigns |
+| **KEYMAN** | View volunteer info; log and view attendance; view Sign Library |
+| **OVERSEER** | Edit volunteers; manage shifts and locations; send messages; create campaigns; create and edit sign templates |
 | **ASSISTANT_ADMIN** | All OVERSEER capabilities + role management + delete volunteers + access admin console |
 | **ADMIN** | Full access including Permission Matrix, Decently Sync, and campaign management |
 

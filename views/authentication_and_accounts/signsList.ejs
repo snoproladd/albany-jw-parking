@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Sign Library — Albany JW Parking</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content="<%= csrfToken %>" />
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" href="/styles/styles.css" />
+    <link rel="stylesheet" href="/styles/signs.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+</head>
+
+<body class="min-vh-100 bg-body-tertiary" data-authed="true">
+    <%- include('../partials/header') %>
+
+    <%
+        // Role helpers must be inlined per template — variables inside
+        // include() partials are not in scope here.
+        const _ROLE_ORDER = ['NON_REGISTERED','REGISTERED','DESK','KEYMAN','OVERSEER','ASSISTANT_ADMIN','ADMIN'];
+        const _role       = typeof userRole        !== 'undefined' ? userRole        : 'NON_REGISTERED';
+        const _perms      = typeof userPermissions !== 'undefined' ? userPermissions : {};
+        const can         = (permission) => !!(_perms[_role] && _perms[_role][permission]);
+        const canManage   = can('manageSigns');
+    %>
+
+    <main class="container py-4">
+        <div class="row justify-content-center">
+            <div class="col-12 col-xxl-11" id="signsListRoot">
+
+                <section class="card shadow-lg admin-console-card mb-4">
+                    <header class="card-header">
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                            <h1 class="h4 mb-0">
+                                <i class="fa-solid fa-signs-post me-2"></i>Sign Library
+                            </h1>
+                            <% if (canManage) { %>
+                                <a href="/signs/builder" class="btn btn-primary btn-sm">
+                                    <i class="fa-solid fa-plus me-1"></i>New sign
+                                </a>
+                            <% } %>
+                        </div>
+                    </header>
+
+                    <div class="card-body">
+
+                        <%# ── Search bar ─────────────────────────────────── %>
+                        <% if (signs.length > 0) { %>
+                            <div class="mb-4">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">
+                                        <i class="fa-solid fa-magnifying-glass"></i>
+                                    </span>
+                                    <input
+                                        type="search"
+                                        class="form-control"
+                                        id="signsSearchInput"
+                                        placeholder="Search signs by text or description…"
+                                        autocomplete="off" />
+                                </div>
+                            </div>
+                        <% } %>
+
+                        <%# ── Empty state ────────────────────────────────── %>
+                        <% if (signs.length === 0) { %>
+                            <div class="signs-empty-state text-center py-5 text-muted">
+                                <i class="fa-solid fa-signs-post fa-2x mb-3 d-block opacity-25"></i>
+                                <p class="mb-2">No sign templates yet.</p>
+                                <% if (canManage) { %>
+                                    <a href="/signs/builder" class="btn btn-primary btn-sm">
+                                        <i class="fa-solid fa-plus me-1"></i>Create your first sign
+                                    </a>
+                                <% } else { %>
+                                    <p class="small mb-0">Sign creation requires Overseer access or above.</p>
+                                <% } %>
+                            </div>
+                        <% } else { %>
+
+                        <%# ── Sign grid ─────────────────────────────────── %>
+                        <div class="row g-3" id="signsGrid">
+                            <% signs.forEach(s => {
+                                const arrowChar = {
+                                    'up':            '↑',
+                                    'down':          '↓',
+                                    'left':          '←',
+                                    'right':         '→',
+                                    'up-left':       '↖',
+                                    'up-right':      '↗',
+                                    'down-left':     '↙',
+                                    'down-right':    '↘',
+                                    'up-then-left':  '↰',
+                                    'up-then-right': '↱',
+                                }[s.arrow_direction] || '';
+                                const isDestination = s.arrow_direction === 'destination';
+                            %>
+                            <div class="col-12 col-sm-6 col-lg-4 sign-card-col"
+                                 data-search="<%= (s.sign_text + ' ' + (s.description || '')).toLowerCase() %>">
+                                <article class="sign-card h-100" data-sign-id="<%= s.sign_id %>">
+
+                                    <%# Preview %>
+                                    <div class="sign-preview-block">
+                                        <div class="sign-preview">
+                                            <span class="sign-preview-text"><%= s.sign_text %></span>
+                                            <% if (isDestination) { %>
+                                                <span class="sign-preview-arrow"><i class="fa-solid fa-location-dot" aria-hidden="true"></i></span>
+                                            <% } else if (arrowChar) { %>
+                                                <span class="sign-preview-arrow"><%= arrowChar %></span>
+                                            <% } %>
+                                        </div>
+                                    </div>
+
+                                    <%# Body %>
+                                    <div class="sign-card-body">
+                                        <% if (s.description) { %>
+                                            <p class="sign-description mb-2">
+                                                <%= s.description %>
+                                            </p>
+                                        <% } %>
+                                        <div class="sign-meta">
+                                            <span class="badge bg-secondary-subtle text-secondary-emphasis">
+                                                <i class="fa-solid fa-map-pin me-1"></i>
+                                                <%= s.placement_count %> placement<%= s.placement_count === 1 ? '' : 's' %>
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <%# Actions %>
+                                    <% if (canManage) { %>
+                                    <footer class="sign-card-footer">
+                                        <a href="/signs/builder/<%= s.sign_id %>"
+                                           class="btn btn-outline-secondary btn-sm">
+                                            <i class="fa-solid fa-pen me-1"></i>Edit
+                                        </a>
+                                        <button type="button"
+                                                class="btn btn-outline-danger btn-sm sign-archive-btn"
+                                                data-sign-id="<%= s.sign_id %>"
+                                                data-sign-text="<%= s.sign_text %>">
+                                            <i class="fa-solid fa-box-archive me-1"></i>Archive
+                                        </button>
+                                    </footer>
+                                    <% } %>
+
+                                </article>
+                            </div>
+                            <% }); %>
+                        </div>
+
+                        <%# Hidden state for "no results" filter %>
+                        <div id="signsNoResults" class="text-center py-4 text-muted d-none">
+                            <i class="fa-solid fa-magnifying-glass mb-2 d-block opacity-50"></i>
+                            <p class="mb-0">No signs match your search.</p>
+                        </div>
+
+                        <% } %>
+
+                    </div>
+                </section>
+
+            </div>
+        </div>
+    </main>
+
+    <%- include('../partials/footer') %>
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/signsList.js"></script>
+</body>
+</html>

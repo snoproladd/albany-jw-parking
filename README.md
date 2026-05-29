@@ -188,6 +188,7 @@ parking/
 │   ├── oversightRoutes.js    # All Oversight Tools routes
 │   ├── registrationRoutes.js # Registration flow (multi-step draft)
 │   ├── mapsRoutes.js         # Maps page — OneDrive file listing with ScribbleMaps integration
+│   ├── signsRoutes.js        # Sign Library + Sign Builder pages and CRUD (templates and placements)
 │   ├── sitemapRoutes.js      # Public role-filtered sitemap page
 │   ├── upgradeRoutes.js      # Account upgrade (email/phone → password)
 │   └── validationRoutes.js   # Phone (Twilio) + email (Kickbox) validation
@@ -300,6 +301,10 @@ Schema highlights:
 - `departments` — lookup table for future multi-department support (id=1 seeded as Albany Parking)
 - `bug_reports` — full lifecycle bug tracking with resolution fields
 - `schedule_publishes` — audit log for schedule PDF publish events
+- `signs` — reusable sign templates (text + arrow direction); soft-deleted via `is_archived`
+- `sign_placements` — geographic instances of a sign template (lat/lng, optional heading,
+  status: planned/installed/removed, install/remove audit trail). FK to `signs` survives
+  template archival.
 
 ---
 

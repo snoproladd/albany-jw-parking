@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title><%= sign ? 'Edit Sign' : 'New Sign' %> — Albany JW Parking</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content="<%= csrfToken %>" />
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" href="/styles/styles.css" />
+    <link rel="stylesheet" href="/styles/signs.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+</head>
+
+<body class="min-vh-100 bg-body-tertiary" data-authed="true">
+    <%- include('../partials/header') %>
+
+    <main class="container py-4">
+        <div class="row justify-content-center">
+            <div class="col-12 col-lg-9 col-xl-8" id="signsBuilderRoot"
+                 data-sign-id="<%= sign ? sign.sign_id : '' %>">
+
+                <section class="card shadow-lg admin-console-card mb-4">
+                    <header class="card-header">
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                            <h1 class="h4 mb-0">
+                                <i class="fa-solid fa-<%= sign ? 'pen' : 'plus' %> me-2"></i>
+                                <%= sign ? 'Edit Sign' : 'New Sign' %>
+                            </h1>
+                            <a href="/signs" class="btn btn-secondary btn-sm">
+                                <i class="fa-solid fa-arrow-left me-1"></i>Back to library
+                            </a>
+                        </div>
+                    </header>
+
+                    <div class="card-body">
+
+                        <%# ── Live preview ──────────────────────────────── %>
+                        <div class="mb-4 text-center">
+                            <p class="text-muted small mb-2">Preview</p>
+                            <div class="sign-preview sign-preview-lg mx-auto" id="signBuilderPreview">
+                                <span class="sign-preview-text" id="previewText">
+                                    <%= sign ? sign.sign_text : 'YOUR TEXT' %>
+                                </span>
+                                <span class="sign-preview-arrow" id="previewArrow"></span>
+                            </div>
+                        </div>
+
+                        <div class="row g-3">
+
+                            <%# Sign text ── %>
+                            <div class="col-12">
+                                <label for="signTextInput" class="form-label">
+                                    Sign text <span class="text-danger">*</span>
+                                </label>
+                                <input type="text"
+                                       class="form-control"
+                                       id="signTextInput"
+                                       maxlength="100"
+                                       value="<%= sign ? sign.sign_text : '' %>"
+                                       placeholder="e.g. PARKING, LOT FULL, OVERFLOW" />
+                                <div class="form-text">Up to 100 characters.</div>
+                            </div>
+
+                            <%# Arrow direction ── %>
+                            <div class="col-12">
+                                <label class="form-label">Arrow direction</label>
+                                <div class="arrow-picker" role="radiogroup" aria-label="Arrow direction">
+
+                                    <button type="button" class="arrow-btn"
+                                            data-arrow="up-left"
+                                            aria-label="Up-left">↖</button>
+                                    <button type="button" class="arrow-btn"
+                                            data-arrow="up"
+                                            aria-label="Up">↑</button>
+                                    <button type="button" class="arrow-btn"
+                                            data-arrow="up-right"
+                                            aria-label="Up-right">↗</button>
+
+                                    <button type="button" class="arrow-btn"
+                                            data-arrow="left"
+                                            aria-label="Left">←</button>
+                                    <button type="button" class="arrow-btn arrow-btn-none"
+                                            data-arrow=""
+                                            aria-label="No arrow">
+                                        <i class="fa-solid fa-ban"></i>
+                                    </button>
+                                    <button type="button" class="arrow-btn"
+                                            data-arrow="right"
+                                            aria-label="Right">→</button>
+
+                                    <button type="button" class="arrow-btn"
+                                            data-arrow="down-left"
+                                            aria-label="Down-left">↙</button>
+                                    <button type="button" class="arrow-btn"
+                                            data-arrow="down"
+                                            aria-label="Down">↓</button>
+                                    <button type="button" class="arrow-btn"
+                                            data-arrow="down-right"
+                                            aria-label="Down-right">↘</button>
+
+                                    <button type="button" class="arrow-btn"
+                                            data-arrow="up-then-left"
+                                            aria-label="Up then left">↰</button>
+                                    <button type="button" class="arrow-btn"
+                                            data-arrow="up-then-right"
+                                            aria-label="Up then right">↱</button>
+                                    <button type="button" class="arrow-btn"
+                                            data-arrow="destination"
+                                            aria-label="Destination pin">
+                                        <i class="fa-solid fa-location-dot"></i>
+                                    </button>
+
+                                </div>
+                                <input type="hidden"
+                                       id="arrowDirectionInput"
+                                       value="<%= sign && sign.arrow_direction ? sign.arrow_direction : '' %>" />
+                                <div class="form-text">
+                                    Click an arrow to set the direction, or the ⊘ button for no arrow.
+                                    The bottom row covers 90° turn arrows and a destination pin.
+                                </div>
+                            </div>
+
+                            <%# Description ── %>
+                            <div class="col-12">
+                                <label for="signDescriptionInput" class="form-label">
+                                    Description (optional)
+                                </label>
+                                <textarea class="form-control"
+                                          id="signDescriptionInput"
+                                          rows="3"
+                                          maxlength="500"
+                                          placeholder="Notes about when or where this sign is used…"><%= sign && sign.description ? sign.description : '' %></textarea>
+                                <div class="form-text">Up to 500 characters.</div>
+                            </div>
+
+                            <%# Buttons ── %>
+                            <div class="col-12 d-flex align-items-center gap-3 pt-2 border-top">
+                                <button type="button" class="btn btn-primary"
+                                        id="signSaveBtn">
+                                    <i class="fa-solid fa-floppy-disk me-1"></i>
+                                    <%= sign ? 'Save changes' : 'Create sign' %>
+                                </button>
+                                <a href="/signs" class="btn btn-link">Cancel</a>
+                                <span id="signSaveFeedback" class="ms-auto"></span>
+                            </div>
+
+                        </div>
+
+                    </div>
+                </section>
+
+            </div>
+        </div>
+    </main>
+
+    <%- include('../partials/footer') %>
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/signsBuilder.js"></script>
+</body>
+</html>

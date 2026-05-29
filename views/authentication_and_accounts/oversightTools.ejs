@@ -276,6 +276,48 @@
               </div>
             <% } %>
             <%# ══════════════════════════════════════════════
+                3.5 SIGNS
+            ══════════════════════════════════════════════ %>
+            <% if (can('viewSigns') || can('manageSigns')) { %>
+              <h2 class="tools-group-heading" id="signs">
+                <i class="fa-solid fa-signs-post me-2"></i>Signs
+              </h2>
+              <div class="row g-4 mb-5">
+
+                <% if (can('viewSigns')) { %>
+                  <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="admin-tool-card h-100">
+                      <div class="admin-tool-icon text-primary">
+                        <i class="fa-solid fa-table-list"></i>
+                      </div>
+                      <h3 class="admin-tool-title">Sign Library</h3>
+                      <p class="admin-tool-desc">Browse sign templates and the places they are deployed. Search by sign text or description.</p>
+                      <a href="/signs" class="btn btn-primary admin-tool-btn">
+                        Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                      </a>
+                    </div>
+                  </div>
+                <% } %>
+
+                <% if (can('manageSigns')) { %>
+                  <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="admin-tool-card h-100">
+                      <div class="admin-tool-icon text-success">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                      </div>
+                      <h3 class="admin-tool-title">Sign Builder</h3>
+                      <p class="admin-tool-desc">Create reusable sign templates with text and arrow direction. Place each template in multiple locations.</p>
+                      <a href="/signs/builder" class="btn btn-success admin-tool-btn">
+                        Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                      </a>
+                    </div>
+                  </div>
+                <% } %>
+
+              </div>
+            <% } %>
+
+            <%# ══════════════════════════════════════════════
                 4. SCHEDULING
             ══════════════════════════════════════════════ %>
             <% if (can('manageShifts') || can('accessAdminConsole')) { %>

@@ -3,6 +3,77 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.29.0] - 2026-05-29
+
+### Added
+- **Sign placement system — Phase 1 (templates + CRUD).** New feature for
+  managing the placards placed around the convention area (directional signs
+  for parking, lot status, overflow routing, etc.). Phase 1 establishes the
+  data model, RBAC, and the template builder UI. Map-based placement,
+  Street View overlay, photo upload, and live proximity alerts are scheduled
+  for follow-on phases.
+  - **New DB tables:**
+    - `signs` — reusable sign templates with `sign_text`, `arrow_direction`
+      (one of `up`, `down`, `left`, `right`, `up-left`, `up-right`,
+      `down-left`, `down-right`, or null), optional `description`, and
+      audit columns. `is_archived` BIT for soft delete.
+    - `sign_placements` — geographic instances of a sign template with
+      `latitude`/`longitude` (`DECIMAL(10,7)`, ~1cm precision), nullable
+      `heading` (compass bearing the sign faces, for Phase 3's Street View
+      overlay), `location_notes`, `status` (`planned`/`installed`/`removed`),
+      optional `photo_url`, and full install/remove audit trail.
+    - FK from `sign_placements.sign_id` to `signs.sign_id` so archived
+      templates retain their historical placements.
+- **New permissions** added to the RBAC matrix in `src/config/roles.js`:
+  - `viewSigns` — REGISTERED, KEYMAN, OVERSEER, ASSISTANT_ADMIN, ADMIN
+  - `manageSigns` — OVERSEER, ASSISTANT_ADMIN, ADMIN
+- **Sign Library page** at `/signs` (REGISTERED+, `viewSigns`).
+  - Card grid showing each template's preview (text + arrow), description,
+    and placement count.
+  - Live search/filter across sign text and description.
+  - Edit and Archive buttons surface only for users with `manageSigns`.
+- **Sign Builder page** at `/signs/builder` and `/signs/builder/:id`
+  (OVERSEER+, `manageSigns`).
+  - Live preview that updates as the user types text and clicks arrow buttons.
+  - 3×3 arrow picker grid covering all 8 directions plus a center "no arrow"
+    option. Selecting the active arrow a second time toggles it off.
+  - AJAX save to POST `/signs` (new) or PUT `/signs/:id` (edit), then
+    redirects to the library on success.
+- **`routes/signsRoutes.js`** — new router factory wired into `index.js`.
+  Routes:
+  - GET `/signs`, GET `/signs/builder`, GET `/signs/builder/:id` — render pages
+  - POST `/signs`, PUT `/signs/:id`, DELETE `/signs/:id` — template CRUD (JSON)
+  - GET `/signs/:id/placements`, POST `/signs/:id/placements`,
+    PUT `/signs/placements/:id`, PATCH `/signs/placements/:id/status`,
+    DELETE `/signs/placements/:id` — placement CRUD (JSON, used in Phase 2)
+- **`lib/dbSync.js`** — new SIGNS section with `getSigns`, `getSignById`,
+  `createSign`, `updateSign`, `archiveSign`, `getSignPlacements`,
+  `getSignPlacementById`, `createSignPlacement`, `updateSignPlacement`,
+  `updateSignPlacementStatus` (auto-syncs install/remove audit columns),
+  and `deleteSignPlacement`.
+- **Sitemap entries** — new "Signs" group with Sign Library
+  (`permission: viewSigns`) and Sign Builder (`permission: manageSigns`)
+  entries.
+- **New files:**
+  - `views/authentication_and_accounts/signsList.ejs`
+  - `views/authentication_and_accounts/signsBuilder.ejs`
+  - `public/js/signsList.js`
+  - `public/js/signsBuilder.js`
+  - `public/styles/signs.css`
+
+### Changed
+- **CSP loosened** in `index.js` to allow Google Maps + Street View in Phase 2:
+  - `script-src` now includes `https://maps.googleapis.com` and
+    `https://maps.gstatic.com`.
+  - `img-src` adds `blob:`, `https://maps.googleapis.com`,
+    `https://maps.gstatic.com`, `https://*.googleapis.com`,
+    `https://*.gstatic.com`, and `https://streetviewpixels-pa.googleapis.com`.
+  - `connect-src` (dev) adds `https://maps.googleapis.com`,
+    `https://maps.gstatic.com`, and `https://*.googleapis.com`. Prod already
+    permits `https:` broadly so no production change is required there.
+  - New `worker-src: 'self' blob:` directive added — Google Maps uses
+    blob-URL Web Workers internally.
+
 ## [2.28.0] - 2026-05-29
 
 ### Added

@@ -34,6 +34,7 @@ import * as db from "./lib/dbSync.js";
 import { oversightRouter } from "./routes/oversightRoutes.js";
 import { sitemapRouter }   from "./routes/sitemapRoutes.js";
 import { mapsRouter } from "./routes/mapsRoutes.js";
+import { signsRouter } from "./routes/signsRoutes.js";
 import { getBaseUrl, resetSmsClient } from "./lib/messaging.js";
 import { startAlertScheduler } from "./lib/alertScheduler.js";
 
@@ -326,6 +327,8 @@ app.use(
       "script-src": [
         "'self'",
         "https://cdn.jsdelivr.net",
+        "https://maps.googleapis.com",
+        "https://maps.gstatic.com",
         (req, res) => `'nonce-${res.locals.nonce}'`,
       ],
       "style-src": [
@@ -335,11 +338,29 @@ app.use(
         "https://fonts.googleapis.com",
         (req, res) => `'nonce-${res.locals.nonce}'`,
       ],
-      "img-src": ["'self'", "data:"],
+      "img-src": [
+        "'self'",
+        "data:",
+        "blob:",
+        "https://maps.googleapis.com",
+        "https://maps.gstatic.com",
+        "https://*.googleapis.com",
+        "https://*.gstatic.com",
+        "https://streetviewpixels-pa.googleapis.com",
+      ],
       "font-src": ["'self'", "https://fonts.gstatic.com"],
       "connect-src": isProd
         ? ["'self'", "https:", "https://api.kickbox.com", "https://api.open-meteo.com"]
-        : ["'self'", "http://localhost:3000", "https://api.kickbox.com", "https://api.open-meteo.com"],
+        : [
+            "'self'",
+            "http://localhost:3000",
+            "https://api.kickbox.com",
+            "https://api.open-meteo.com",
+            "https://maps.googleapis.com",
+            "https://maps.gstatic.com",
+            "https://*.googleapis.com",
+          ],
+      "worker-src": ["'self'", "blob:"],
     },
   }),
 );
@@ -659,6 +680,7 @@ let alertScheduler = null;
     );
 
 app.use("/", sitemapRouter());
+app.use("/", signsRouter({ csrfProtection, logError }));
 app.use(
   "/",
   mapsRouter({

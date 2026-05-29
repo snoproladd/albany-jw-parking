@@ -71,6 +71,29 @@
       ]
     },
     {
+      "id": "signs",
+      "label": "Signs",
+      "icon": "fa-solid fa-signs-post",
+      "pages": [
+        {
+          "title": "Sign Library",
+          "path": "/signs",
+          "description": "Browse sign templates and their placements around the convention area.",
+          "icon": "fa-solid fa-table-list",
+          "minRole": null,
+          "permission": "viewSigns"
+        },
+        {
+          "title": "Sign Builder",
+          "path": "/signs/builder",
+          "description": "Create and edit reusable sign templates with text and arrow direction.",
+          "icon": "fa-solid fa-pen-to-square",
+          "minRole": null,
+          "permission": "manageSigns"
+        }
+      ]
+    },
+    {
       "id": "my-account",
       "label": "My Account",
       "icon": "fa-solid fa-user",
