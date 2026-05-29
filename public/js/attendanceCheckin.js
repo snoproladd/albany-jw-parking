@@ -30,7 +30,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  /** @type {Array<object>} Full day/session/shift hierarchy. */
+  /** @type {Array<object>} Full day/session/shift oversightstructure. */
   const daysData = parseJson("at-days-data") || [];
 
   /** @type {Array<{id:number, firstName:string, lastName:string}>} */

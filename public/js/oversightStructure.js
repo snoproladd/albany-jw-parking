@@ -1,9 +1,9 @@
 /**
- * @file commandHierarchy.js
- * @description Admin tree editor for the chain-of-command hierarchy.
+ * @file oversightStructure.js
+ * @description Admin tree editor for the oversight structure.
  *
  * Reads a flat node list from embedded JSON, renders a draggable
- * indent-based tree, and persists changes via the hierarchy API.
+ * indent-based tree, and persists changes via the oversight structure API.
  *
  * Node shape:
  *   { id, parent_id, role_title, sort_order, volunteer_id, firstName, lastName }
@@ -23,7 +23,7 @@ const _volunteers = JSON.parse(
 
 /** @type {Array<{id:number,parent_id:number|null,role_title:string,sort_order:number,volunteer_id:number|null,firstName:string,lastName:string}>} */
 let _nodes = JSON.parse(
-  document.getElementById("ch-hierarchy-data")?.textContent || "[]",
+  document.getElementById("ch-oversightstructure-data")?.textContent || "[]",
 );
 
 let _nextTempId = -1; // negative IDs for unsaved nodes
@@ -414,7 +414,7 @@ async function _save() {
             ? n.parent_id
             : null;
 
-      const res = await fetch("/oversight/tools/hierarchy/add", {
+      const res = await fetch("/oversight/tools/oversightstructure/add", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -442,7 +442,7 @@ async function _save() {
     }
 
     // Bulk-save order
-    const res = await fetch("/oversight/tools/hierarchy/save", {
+    const res = await fetch("/oversight/tools/oversightstructure/save", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-CSRF-Token": _csrf() },
       body: JSON.stringify({ nodes: _nodes }),
@@ -461,7 +461,7 @@ async function _save() {
       throw new Error(data.error || "Save failed");
     }
   } catch (err) {
-    console.error("[hierarchy] save error:", err);
+    console.error("[oversightstructure] save error:", err);
     if (_saveStatus) {
       _saveStatus.textContent = "Save failed — please try again.";
       _saveStatus.className = "text-danger small";

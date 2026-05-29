@@ -521,7 +521,7 @@ let alertScheduler = null;
         volunteer: null,
         conventionDay: null,
         shifts: [],
-        hierarchy: [],
+        oversightStructure: [],
         allDays: [],
         currentDayIndex: 0,
       };
@@ -532,11 +532,11 @@ let alertScheduler = null;
 
       try {
         const year = new Date().getFullYear();
-        const [volunteer, conventionDay, rawHierarchy, allDays] =
+        const [volunteer, conventionDay, rawOversightStructure, allDays] =
           await Promise.all([
             db.getVolunteerById(req.session.userId),
             db.getVolunteerDashboardDay(year),
-            db.getCommandHierarchy(),
+            db.getOversightStructure(),
             db.getConventionDays(year),
           ]);
 
@@ -576,7 +576,7 @@ let alertScheduler = null;
           volunteer,
           conventionDay,
           shifts,
-          hierarchy: flattenTree(rawHierarchy),
+          oversightStructure: flattenTree(rawOversightStructure),
           allDays,
           currentDayIndex: currentDayIndex >= 0 ? currentDayIndex : 0,
         });

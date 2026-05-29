@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Chain of Command — Albany JW Parking</title>
+  <title>Oversight Structure — Albany JW Parking</title>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
   <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
   <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
-  <link rel="stylesheet" type="text/css" href="/styles/commandHierarchy.css" />
+  <link rel="stylesheet" type="text/css" href="/styles/oversightStructure.css" />
 </head>
 <body class="min-vh-100 bg-body-tertiary" data-authed="true">
   <%- include('../partials/header') %>
@@ -21,15 +21,15 @@
           <header class="card-header">
             <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
               <h1 class="h4 mb-0">
-                <i class="fa-solid fa-sitemap me-2"></i>Chain of Command
+                <i class="fa-solid fa-sitemap me-2"></i>Oversight Structure
               </h1>
               <a href="/oversight/tools" class="btn btn-secondary btn-sm">
                 <i class="fa-solid fa-arrow-left me-1"></i>Oversight Tools
               </a>
             </div>
             <p class="text-muted small mb-0 mt-1">
-              Define the reporting structure shown on volunteers' home pages.
-              Drag rows to reorder. Use ← → to change hierarchy level.
+              Define the oversight structure shown on volunteers' home pages.
+              Drag rows to reorder. Use ← → to change the oversight structure level.
             </p>
           </header>
 
@@ -42,8 +42,8 @@
                 name: v.lastName + ', ' + v.firstName + (v.suffix ? ' ' + v.suffix : '')
               }))) %>
             </script>
-            <script id="ch-hierarchy-data" type="application/json">
-              <%- JSON.stringify(rawHierarchy) %>
+            <script id="ch-oversightstructure-data" type="application/json">
+              <%- JSON.stringify(rawOversightStructure) %>
             </script>
             <input type="hidden" id="ch-csrf" value="<%= csrfToken %>" />
 
@@ -70,6 +70,6 @@
 
   <%- include('../partials/footer') %>
   <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
-  <script type="module" src="/js/commandHierarchy.js"></script>
+  <script type="module" src="/js/oversightStructure.js"></script>
 </body>
 </html>

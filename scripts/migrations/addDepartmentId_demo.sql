@@ -62,9 +62,9 @@ BEGIN ALTER TABLE demo.invitation_batches ADD department_id INT NULL CONSTRAINT 
 ELSE PRINT 'demo.invitation_batches.department_id already exists — skipped.';
 GO
 
-IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('demo.command_hierarchy') AND name = 'department_id')
-BEGIN ALTER TABLE demo.command_hierarchy ADD department_id INT NULL CONSTRAINT df_demo_command_hierarchy_department_id DEFAULT (1); PRINT 'Added department_id to demo.command_hierarchy.'; END
-ELSE PRINT 'demo.command_hierarchy.department_id already exists — skipped.';
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('demo.oversightstructure') AND name = 'department_id')
+BEGIN ALTER TABLE demo.oversight structureADD department_id INT NULL CONSTRAINT df_demo_oversightstructure_department_id DEFAULT (1); PRINT 'Added department_id to demo.oversightstructure.'; END
+ELSE PRINT 'demo.oversightstructure.department_id already exists — skipped.';
 GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('demo.message_templates') AND name = 'department_id')

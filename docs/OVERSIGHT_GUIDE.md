@@ -614,11 +614,11 @@ on any override to restore the factory default.
 
 ---
 
-### Chain of Command *(ADMIN)*
+### Oversight Structure *(ADMIN)*
 
-**Path:** Oversight Tools → Chain of Command
+**Path:** Oversight Tools → Oversight Structure
 
-Define the reporting hierarchy shown on every volunteer's home page dashboard.
+Define the reporting structure shown on every volunteer's home page dashboard.
 
 #### Building the tree
 
@@ -641,7 +641,7 @@ Define the reporting hierarchy shown on every volunteer's home page dashboard.
 
 #### What volunteers see
 
-The hierarchy appears as a read-only indented tree in the **Chain of Command**
+The oversight structure appears as a read-only indented tree in the **Oversight Structure**
 card on the home page dashboard. Phone numbers render as tap-to-call links on
 mobile. The tree is visible to all authenticated users regardless of role.
 

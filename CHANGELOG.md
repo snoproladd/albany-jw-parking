@@ -3,6 +3,76 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.27.1] - 2026-05-29
+
+### Fixed
+- **Oversight structure rename refactor — completed.** Cleans up the
+  collateral damage from the prior global find/replace of "hierarchy" /
+  "command hierarchy" / "chain of command" → "oversight structure".
+  - **SQL table name** in every oversight structure query was mangled as
+    `dbo.oversight structure` (literal space, broken syntax). Every CRUD
+    operation against the oversight structure tree was failing at the DB
+    layer. Fixed 5 query call sites in `dbSync.js` to use the new
+    snake_case `dbo.oversight_structure` (also covered for the `demo.`
+    schema via the automatic `dbo.` → `demo.` rewrite in `lib/sql.js`).
+  - **Broken CSS rule** `.db-oversight structure {` (literal space in the
+    selector — invalid CSS) silently never applied. The dashboard oversight
+    tree was missing its parent container styles entirely. Fixed to
+    `.db-oversightstructure {` in `index.css`.
+  - **Two runtime bugs in `views/index.ejs`** in the dashboard oversight
+    card: `typeof oversight_structure` checked a variable that doesn't exist
+    (the actual variable was `oversightstructure`, so the empty-state check
+    always evaluated as defined and fell through), and `oversightructure.forEach`
+    was a typo (missing `s`) that threw `ReferenceError` for every logged-in
+    user viewing the dashboard. Both fixed.
+  - **Numerous missing spaces** from the original find/replace concatenating
+    "oversight structure" against the next word (`oversight structurenode`,
+    `oversight structureAPI`, `oversight structureGET error:`,
+    `oversight structuredelete error:`, `No oversight structureconfigured yet.`,
+    etc.). Fixed across `oversightRoutes.js`, `oversightStructure.js`,
+    `oversightStructure.ejs`, `oversightTools.ejs`, `index.ejs`,
+    `sitemap.json`, `README.md`, `OVERSIGHT_GUIDE.md`.
+  - **Stale "chain of command" comments** in `oversightStructure.css`,
+    `index.css`, `oversightStructure.js`, `views/index.ejs`, and `README.md`
+    (3 places in the project-structure tree) all updated to refer to oversight
+    structure.
+  - **RBAC concept un-polluted.** The original global rename wrongly caught
+    `RBAC role hierarchy` (a separate concept from the parking-team org
+    structure) in six places. Reverted in `roles.js` (file-header JSDoc +
+    `ROLE_HIERARCHY` JSDoc), `oversightRoutes.js` (one comment in the
+    role-assignment handler), `README.md` (database section: scheduling
+    hierarchy), `OVERSIGHT_GUIDE.md` (Timelines section: schedule hierarchy,
+    plus two missing-space lines under the Oversight Structure section), and
+    `CHANGELOG.md` (the Pre-2.1.0 RBAC entry). The `ROLE_HIERARCHY` constant
+    itself and the `roleHierarchy` template variable in `adminRoles.ejs` were
+    already correctly preserved.
+
+### Changed
+- **Renamed three `dbSync.js` functions** to drop the legacy "Hierarchy" naming:
+  - `addHierarchyNode` → `addOversightStructureNode`
+  - `saveHierarchyOrder` → `saveOversightStructureOrder`
+  - `deleteHierarchyNode` → `deleteOversightStructureNode`
+  - All import and call sites in `oversightRoutes.js` updated accordingly.
+- **Renamed variable `rawHierarchy`** → `rawOversightStructure` in
+  `index.js`, `oversightRoutes.js`, and
+  `views/authentication_and_accounts/oversightStructure.ejs`.
+- **Renamed template variable `oversightstructure`** → `oversightStructure`
+  (proper camelCase) in `index.js` and `views/index.ejs` (3 use sites).
+- Added missing JSDoc to `deleteOversightStructureNode` per project convention.
+
+### Removed
+- **Duplicate oversight structure route block** in `oversightRoutes.js`.
+  The file contained two complete sets of identical routes
+  (`GET /oversight/tools/oversightstructure`, `POST /add`, `POST /save`,
+  `DELETE /:id`) around line 4329 and again around line 5530. Express matches
+  in registration order, so the first set was active and the second was dead
+  code. The first set had materially worse code: no temp-id filtering in `/save`,
+  no type coercion, mangled error labels, and was additionally broken by the
+  rename (still called the removed `saveHierarchyOrder`). The second block was
+  kept — it has proper `Array.isArray` validation, filters to positive IDs
+  before saving (so unsaved temp nodes are correctly skipped), coerces all
+  values via `Number()`, and ships full `@requires` JSDoc tags.
+
 ## [2.27.0] - 2026-05-28
 
 ### Added
@@ -111,7 +181,7 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
     multi-department support. All existing rows and INSERTs unaffected.
   - `addResponseConfig` — adds `response_config` to `invitation_batches` and
     `response_other` to `invitations`.
-- **CSP fix** — `db-hierarchy-node` `--depth` CSS custom property moved from
+- **CSP fix** — `db-oversightstructure-node` `--depth` CSS custom property moved from
   inline `style=` attribute in `index.ejs` to `data-depth` attribute applied
   via `el.style.setProperty()` in `dashboardShifts.js`.
 
@@ -171,13 +241,13 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
     with addresses and coordinates)
   - 5 convention days, 28 sessions, 51 shifts, 82 schedule assignments
     matching the real scheduling architecture
-  - Command hierarchy (5-node tree)
+  - Oversight structure (5-node tree)
   - 7 congregations, 7 roles, 3 message templates, 1 invitation batch with
     8 invitations
   - Safe to re-run — clears all tables in FK-safe order before inserting
 - **`scripts/anonymizeDemo.sql`** — direct SQL `UPDATE` statements replacing
   real volunteer first names, last names, congregation city names, location
-  names, addresses, and command hierarchy titles with fictional alternatives
+  names, addresses, and oversight structure titles with fictional alternatives
   in the `demo` schema. Safe to re-run.
 - **`upgradeInsecureRequests: null`** in Helmet CSP — disables the
   `upgrade-insecure-requests` directive that was forcing HTTPS on all asset
@@ -390,29 +460,29 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
     the Shifts card header let volunteers browse all convention days. Fetches
     via `GET /api/dashboard/shifts?dayId=N` without a page reload. Day label
     updates inline; buttons disable at the first/last day boundary.
-  - **Chain of Command card** — read-only indented tree showing the reporting
-    hierarchy configured by admins. Phone numbers are tap-to-call links.
-- **Chain of Command admin page** — new page at `/oversight/tools/hierarchy`
+  - **Oversight Structure card** — read-only indented tree showing the reporting
+    oversight structureconfigured by admins. Phone numbers are tap-to-call links.
+- **Oversight Structure admin page** — new page at `/oversight/tools/oversightstructure`
   (ADMIN only, `manageCampaigns` permission).
   - Visual tree editor: add root nodes, add children, edit role title and
     assigned volunteer inline, delete nodes (children promoted to parent level).
   - Up / Down buttons reorder within siblings; Indent (→) / Outdent (←)
     buttons change the parent relationship.
-  - **Save order** bulk-saves all changes via `POST /oversight/tools/hierarchy/save`.
+  - **Save order** bulk-saves all changes via `POST /oversight/tools/oversightstructure/save`.
   - New nodes get temporary negative IDs; a sequential add-then-save flow
     resolves real IDs before the bulk update.
-  - New files: `views/authentication_and_accounts/commandHierarchy.ejs`,
-    `public/js/commandHierarchy.js`, `public/styles/commandHierarchy.css`.
-- **New DB table:** `dbo.command_hierarchy` (`id`, `volunteer_id`, `parent_id`,
-  `role_title`, `sort_order`) — stores the chain of command tree.
+  - New files: `views/authentication_and_accounts/oversightStructure.ejs`,
+    `public/js/oversightStructure.js`, `public/styles/oversightStructure.css`.
+- **New DB table:** `dbo.oversightstructure` (`id`, `volunteer_id`, `parent_id`,
+  `role_title`, `sort_order`) — stores the oversight structure tree.
 - **New `dbSync.js` functions:** `getVolunteerDashboardDay`, `getVolunteerShiftsForDay`,
-  `getCommandHierarchy`, `addHierarchyNode`, `saveHierarchyOrder`, `deleteHierarchyNode`.
+  `getOversightStructure`, `addHierarchyNode`, `saveHierarchyOrder`, `deleteHierarchyNode`.
 - **New API endpoints:**
   - `GET /api/dashboard/shifts?dayId=N` — volunteer's slot assignments for one day
-  - `POST /oversight/tools/hierarchy/save` — bulk save hierarchy order
-  - `POST /oversight/tools/hierarchy/add` — add a single hierarchy node
-  - `DELETE /oversight/tools/hierarchy/:id` — delete a node
-- **Chain of Command** added to Oversight Tools hub (Administration section)
+  - `POST /oversight/tools/oversightstructure/save` — bulk save oversight structureorder
+  - `POST /oversight/tools/oversightstructure/add` — add a single oversight structurenode
+  - `DELETE /oversight/tools/oversightstructure/:id` — delete a node
+- **Oversight Structure** added to Oversight Tools hub (Administration section)
   and the Oversight nav dropdown Administration collapse.
 - **CSP** updated to allow `https://api.open-meteo.com` in `connect-src`.
 
@@ -547,7 +617,7 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
   only auto-selected when the page is opened from the Invitation Tracker reminder
   flow (`?batchId=`). Manually selecting a campaign in Add to Existing mode shows
   invitation-status badges on the volunteer list without auto-selecting anyone.
-- **Campaign Center — campaign dropdown hierarchy**: Both the "Add to Existing"
+- **Campaign Center — campaign dropdown oversightstructure**: Both the "Add to Existing"
   and "Follow-up to" `<select>` elements now prefix child/follow-up campaigns
   with `↳`, matching the formatting already used in the Invitation Tracker
   campaign filter.

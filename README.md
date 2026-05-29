@@ -197,7 +197,7 @@ parking/
 │   └── sitemap.json          # Page metadata for the role-filtered sitemap
 ├── views/
 │   ├── authentication_and_accounts/  # Login, My Account, oversight tools
-│   │   └── commandHierarchy.ejs      # Chain of command admin tree editor
+│   │   └── oversightStructure.ejs      # Oversight structure admin tree editor
 │   ├── partials/             # header.ejs, footer.ejs
 │   ├── registration/         # Multi-step registration EJS views
 │   └── upgrade/              # Account upgrade flow views
@@ -209,12 +209,12 @@ parking/
 │   │   │   └── …                     # One file per oversight tool page
 │   │   ├── dashboardWeather.js       # Open-Meteo 3-day weather widget
 │   │   ├── dashboardShifts.js        # Home page day-navigator for shifts
-│   │   ├── commandHierarchy.js       # Chain of command admin tree JS
+│   │   ├── oversightStructure.js       # Oversight structure admin tree JS
 │   │   └── sitemapSearch.js          # Live search/filter for the sitemap page
 │   ├── styles/               # CSS files
 │   ├── css/                  # Additional CSS (tours, etc.)
 │   │   └── tours.css                 # Shepherd.js tour styling and z-index rules
-│   │   ├── commandHierarchy.css      # Chain of command admin styles
+│   │   ├── oversightStructure.css      # Oversight structure admin styles
 │   │   └── sitemap.css               # Sitemap page card grid and layout
 │   └── vendor/               # Third-party UMD bundles (agnostic-draggable, Bootstrap)
 ├── scripts/
@@ -289,7 +289,7 @@ Schema highlights:
     (vol_ideal) for slot sizing and colour-coding
   - `shift_slot_assignments` — live scheduler assignments (volunteer → slot);
     one row per slot, cascades on schedule_assignment delete
-- `command_hierarchy` — chain of command tree (`volunteer_id`, `parent_id`,
+- `oversight_structure` — oversight structure tree (`volunteer_id`, `parent_id`,
   `role_title`, `sort_order`)
 - `attendance` — check-in records (walk-ins + invited volunteers)
 - `volunteer_blackouts` — per-volunteer unavailable time windows for scheduler

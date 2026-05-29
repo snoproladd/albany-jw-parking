@@ -85,9 +85,9 @@ BEGIN ALTER TABLE dbo.invitation_batches ADD department_id INT NULL CONSTRAINT d
 ELSE PRINT 'dbo.invitation_batches.department_id already exists — skipped.';
 GO
 
-IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.command_hierarchy') AND name = 'department_id')
-BEGIN ALTER TABLE dbo.command_hierarchy ADD department_id INT NULL CONSTRAINT df_command_hierarchy_department_id DEFAULT (1); PRINT 'Added department_id to dbo.command_hierarchy.'; END
-ELSE PRINT 'dbo.command_hierarchy.department_id already exists — skipped.';
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.oversightstructure') AND name = 'department_id')
+BEGIN ALTER TABLE dbo.oversight structureADD department_id INT NULL CONSTRAINT df_oversightstructure_department_id DEFAULT (1); PRINT 'Added department_id to dbo.oversightstructure.'; END
+ELSE PRINT 'dbo.oversightstructure.department_id already exists — skipped.';
 GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.message_templates') AND name = 'department_id')

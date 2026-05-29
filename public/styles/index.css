@@ -613,32 +613,32 @@
     text-decoration: underline;
 }
 
-/* Chain of command tree */
-.db-hierarchy {
+/* Oversight structure tree */
+.db-oversightstructure {
     display: flex;
     flex-direction: column;
     gap: 0.15rem;
 }
 
-.db-hierarchy-node {
+.db-oversightstructure-node {
     display: flex;
     align-items: flex-start;
     gap: 0.5rem;
     padding-left: calc(var(--depth, 0) * 1.4rem);
 }
 
-.db-hierarchy-connector {
+.db-oversightstructure-connector {
     flex-shrink: 0;
     width: 1rem;
     height: 1.5rem;
     position: relative;
 }
 
-.db-hierarchy-node[style*="--depth: 0"] .db-hierarchy-connector {
+.db-oversightstructure-node[style*="--depth: 0"] .db-oversightstructure-connector {
     display: none;
 }
 
-.db-hierarchy-node:not([style*="--depth: 0"]) .db-hierarchy-connector::before {
+.db-oversightstructure-node:not([style*="--depth: 0"]) .db-oversightstructure-connector::before {
     content: '';
     position: absolute;
     left: 0.4rem;
@@ -647,7 +647,7 @@
     border-left: 1px solid var(--bs-border-color);
 }
 
-.db-hierarchy-node:not([style*="--depth: 0"]) .db-hierarchy-connector::after {
+.db-oversightstructure-node:not([style*="--depth: 0"]) .db-oversightstructure-connector::after {
     content: '';
     position: absolute;
     left: 0.4rem;
@@ -656,7 +656,7 @@
     border-top: 1px solid var(--bs-border-color);
 }
 
-.db-hierarchy-content {
+.db-oversightstructure-content {
     padding: 0.25rem 0.5rem;
     background: var(--bs-tertiary-bg);
     border: 1px solid var(--bs-border-color-translucent);
@@ -665,7 +665,7 @@
     min-width: 0;
 }
 
-.db-hierarchy-role {
+.db-oversightstructure-role {
     font-size: 0.7rem;
     font-weight: 700;
     text-transform: uppercase;
@@ -674,7 +674,7 @@
     line-height: 1.2;
 }
 
-.db-hierarchy-name {
+.db-oversightstructure-name {
     font-size: 0.88rem;
     font-weight: 500;
     display: flex;
@@ -683,24 +683,24 @@
     flex-wrap: wrap;
 }
 
-.db-hierarchy-phone {
+.db-oversightstructure-phone {
     font-size: 0.78rem;
     color: var(--bs-secondary-color);
     text-decoration: none;
 }
 
-.db-hierarchy-phone:hover {
+.db-oversightstructure-phone:hover {
     color: var(--bs-primary);
     text-decoration: underline;
 }
 
-.db-hierarchy-email {
+.db-oversightstructure-email {
     font-size: 0.78rem;
     color: var(--bs-secondary-color);
     text-decoration: none;
 }
 
-.db-hierarchy-email:hover {
+.db-oversightstructure-email:hover {
     color: var(--bs-primary);
     text-decoration: underline;
 }

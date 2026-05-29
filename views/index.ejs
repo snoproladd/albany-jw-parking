@@ -165,7 +165,7 @@
               </section>
             </div>
 
-            <%# ── Chain of command card ── %>
+            <%# ── Oversight Structure card ── %>
             <div class="col-12 col-lg-5">
               <section class="card shadow-sm h-100">
                 <header class="card-header">
@@ -174,24 +174,24 @@
                   </h2>
                 </header>
                 <div class="card-body">
-                  <% if (typeof hierarchy === 'undefined' || hierarchy.length === 0) { %>
-                    <p class="text-muted small mb-0">No hierarchy configured yet.</p>
+                  <% if (typeof oversightStructure === 'undefined' || oversightStructure.length === 0) { %>
+                    <p class="text-muted small mb-0">No oversight structure configured yet.</p>
                   <% } else { %>
-                    <div class="db-hierarchy">
-                      <% hierarchy.forEach(function(node) { %>
-                        <div class="db-hierarchy-node" data-depth="<%= node.depth %>">
-                          <div class="db-hierarchy-connector"></div>
-                          <div class="db-hierarchy-content">
-                            <div class="db-hierarchy-role"><%= node.role_title %></div>
+                    <div class="db-oversightstructure">
+                      <% oversightStructure.forEach(function(node) { %>
+                        <div class="db-oversightstructure-node" data-depth="<%= node.depth %>">
+                          <div class="db-oversightstructure-connector"></div>
+                          <div class="db-oversightstructure-content">
+                            <div class="db-oversightstructure-role"><%= node.role_title %></div>
                             <% if (node.firstName) { %>
-                              <div class="db-hierarchy-name">
+                              <div class="db-oversightstructure-name">
                                 <%= node.firstName %> <%= node.lastName %>
                                 <% if (node.phone) { %>
-                                  <a href="tel:<%= node.phone %>" class="db-hierarchy-phone">
+                                  <a href="tel:<%= node.phone %>" class="db-oversightstructure-phone">
                                     <i class="fa-solid fa-phone fa-xs"></i> <%= node.phone %>
                                   </a>
                                   <% if (node.email) { %>
-                                    <a href="mailto:<%= node.email %>" class="db-hierarchy-email">
+                                    <a href="mailto:<%= node.email %>" class="db-oversightstructure-email">
                                       <i class="fa-solid fa-envelope fa-xs"></i> <%= node.email %>
                                     </a>
                                     <% } %>

@@ -4,7 +4,7 @@
  *   Seeds the demo schema with data mirroring the real dbo structure:
  *   real event types, real Riverdale Arena / OGS Garage locations, real
  *   session / shift layout, full volunteer roster (anonymized emails),
- *   and correct command hierarchy.
+ *   and correct oversight structure.
  *
  *   Safe to re-run — clears all demo tables before inserting.
  *
@@ -1232,7 +1232,7 @@ const ASSIGNMENTS = [
   [122, 2, 4, 2, 4],
 ];
 
-// Command hierarchy: [oldVolId, oldParentVolId (or null for root), title, order]
+// Oversight structure: [oldVolId, oldParentVolId (or null for root), title, order]
 // oldParentVolId refers to the volunteer's old dbo ID for the parent node
 const HIERARCHY = [
   { oldVolId: 80, parentOldVolId: null, title: "Parking Overseer", order: 0 },
@@ -3209,7 +3209,7 @@ async function seed() {
       "shifts",
       "sessions",
       "volunteer_blackouts",
-      "command_hierarchy",
+      "oversightstructure",
       "sms_opt_out_log",
       "attendance",
       "bug_reports",
@@ -3280,7 +3280,7 @@ async function seed() {
         .input("level", sql.Int, r.level)
         .input("desc", sql.NVarChar(500), r.desc)
         .query(
-          `INSERT INTO roles (role_name, hierarchy_level, description) VALUES (@name, @level, @desc);`,
+          `INSERT INTO roles (role_name, oversightstructure_level, description) VALUES (@name, @level, @desc);`,
         );
     }
     log(`  ${roleRows.length} roles.`);
@@ -3515,17 +3515,17 @@ async function seed() {
     log(`  ${VOLUNTEERS.length} volunteers. Named accounts mapped.`);
 
     // -------------------------------------------------------------------
-    // 10. Command hierarchy
+    // 10. Oversight structure
     // -------------------------------------------------------------------
-    log("Seeding command hierarchy...");
+    log("Seeding oversight structure...");
     // Insert root first, then children. Build nodeVolId → nodeId map.
-    const hierarchyNodeMap = {}; // oldVolId → new hierarchy node id (for parent lookup)
+    const oversightstructureNodeMap = {}; // oldVolId → new oversight structurenode id (for parent lookup)
     for (const h of HIERARCHY) {
       const newVolId =
         h.oldVolId != null ? (oldIdToNewId[h.oldVolId] ?? null) : null;
       const newParentId =
         h.parentOldVolId != null
-          ? (hierarchyNodeMap[h.parentOldVolId] ?? null)
+          ? (oversightstructureNodeMap[h.parentOldVolId] ?? null)
           : null;
       const r = await pool
         .request()
@@ -3534,12 +3534,12 @@ async function seed() {
         .input("title", sql.NVarChar(100), h.title)
         .input("order", sql.Int, h.order)
         .query(
-          `INSERT INTO command_hierarchy (volunteer_id, parent_id, role_title, sort_order) OUTPUT INSERTED.id VALUES (@volId, @parentId, @title, @order);`,
+          `INSERT INTO oversight structure(volunteer_id, parent_id, role_title, sort_order) OUTPUT INSERTED.id VALUES (@volId, @parentId, @title, @order);`,
         );
-      if (h.oldVolId != null) hierarchyNodeMap[h.oldVolId] = r.recordset[0].id;
-      else hierarchyNodeMap[`null_${h.order}`] = r.recordset[0].id; // null-vol node
+      if (h.oldVolId != null) oversightstructureNodeMap[h.oldVolId] = r.recordset[0].id;
+      else oversightstructureNodeMap[`null_${h.order}`] = r.recordset[0].id; // null-vol node
     }
-    log("  Command hierarchy (5 nodes) seeded.");
+    log("  Oversight structure (5 nodes) seeded.");
 
     // -------------------------------------------------------------------
     // 11. Message templates

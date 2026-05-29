@@ -205,15 +205,15 @@ if (!_nav || !_prevBtn || !_nextBtn || !_body || _days.length === 0) {
   _syncNav();
 }
 // ─────────────────────────────────────────────────────────────
-// Command hierarchy — apply --depth CSS custom property
+// Oversight structure — apply --depth CSS custom property
 // Converts data-depth attributes to inline CSS vars (CSP-safe).
 // ─────────────────────────────────────────────────────────────
 
 /**
  * Apply data-depth attributes as --depth CSS custom properties
- * on hierarchy nodes. Must run after DOM is ready.
+ * on oversight structurenodes. Must run after DOM is ready.
  * @returns {void}
  */
-document.querySelectorAll(".db-hierarchy-node[data-depth]").forEach((el) => {
+document.querySelectorAll(".db-oversightstructure-node[data-depth]").forEach((el) => {
   el.style.setProperty("--depth", el.dataset.depth);
 });

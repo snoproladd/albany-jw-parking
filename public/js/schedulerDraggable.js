@@ -33,7 +33,7 @@ const boundDroppables = new WeakSet();
 let volunteers = [];
 
 // ─────────────────────────────────────────────
-//  Role hierarchy (mirrors src/config/roles.js)
+//  Role oversight structure(mirrors src/config/roles.js)
 // ─────────────────────────────────────────────
 
 /** @type {Record<string, number>} */
