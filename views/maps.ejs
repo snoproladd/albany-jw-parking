@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Maps — Albany JW Parking</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/maps.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+</head>
+<body data-authed="true" class="bg-body-tertiary min-vh-100">
+
+    <%- include('partials/header') %>
+
+    <main class="container py-4 px-3 px-md-4">
+        <div class="row justify-content-center">
+            <div class="col-12 col-lg-10 col-xl-9">
+
+                <%# ── Page header ──────────────────────────────── %>
+                <div class="maps-page-header mb-4">
+                    <h1 class="maps-page-title">
+                        <i class="fa-solid fa-map me-2"></i>Maps
+                    </h1>
+                    <p class="maps-page-subtitle mb-0">
+                        Convention parking maps and reference materials.
+                    </p>
+                </div>
+
+                <%# ── Error state ──────────────────────────────── %>
+                <% if (loadError) { %>
+                <div class="alert maps-load-error d-flex align-items-center gap-2" role="alert">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span><%= loadError %></span>
+                </div>
+                <% } %>
+
+                <%# ── Empty state ───────────────────────────────── %>
+                <% if (!loadError && sections.length === 0) { %>
+                <div class="maps-empty-state text-center py-5">
+                    <i class="fa-solid fa-map-location-dot fa-3x mb-3 text-secondary"></i>
+                    <p class="maps-empty-text mb-0">No maps have been uploaded yet.</p>
+                </div>
+                <% } %>
+
+                <%# ── Sections ──────────────────────────────────── %>
+                <% sections.forEach(function(section) { %>
+                <% if (section.files.length === 0) { return; } %>
+
+                <section class="maps-section mb-5">
+                    <h2 class="maps-section-heading">
+                        <i class="fa-solid fa-folder-open me-2"></i><%= section.folderName %>
+                    </h2>
+
+                    <div class="row g-3">
+                        <% section.files.forEach(function(file) { %>
+                        <%
+                            let iconClass = 'fa-solid fa-file';
+                            if (file.mimeType) {
+                                if (file.mimeType === 'application/pdf') {
+                                    iconClass = 'fa-solid fa-file-pdf';
+                                } else if (file.mimeType.startsWith('image/')) {
+                                    iconClass = 'fa-solid fa-file-image';
+                                } else if (file.mimeType.includes('word') || file.mimeType.includes('document')) {
+                                    iconClass = 'fa-solid fa-file-word';
+                                }
+                            }
+                            const hasEmbed = !!file.embedUrl;
+                        %>
+                        <div class="col-12 col-sm-6 col-xl-4">
+                            <div class="maps-tile h-100 <%= hasEmbed ? 'maps-tile--has-embed' : '' %>">
+
+                                <%# ── Embed preview (left side when present) ── %>
+                                <% if (hasEmbed) { %>
+                                <a href="<%= file.scribbleUrl || file.webUrl %>"
+                                   target="_blank"
+                                   rel="noopener noreferrer"
+                                   class="maps-tile-embed-wrap"
+                                   aria-label="Open interactive map in new window">
+                                    <iframe src="<%= file.embedUrl %>"
+                                            class="maps-tile-embed"
+                                            tabindex="-1"
+                                            aria-hidden="true"
+                                            scrolling="no"
+                                            loading="lazy"></iframe>
+                                    <div class="maps-tile-embed-overlay">
+                                        <i class="fa-solid fa-up-right-from-square"></i>
+                                    </div>
+                                </a>
+                                <% } %>
+
+                                <%# ── Right side: icon/name/desc/buttons ────── %>
+                                <div class="maps-tile-content">
+                                    <% if (!hasEmbed) { %>
+                                    <div class="maps-tile-icon-wrap">
+                                        <i class="<%= iconClass %> maps-tile-icon"></i>
+                                    </div>
+                                    <% } %>
+
+                                    <div class="maps-tile-body">
+                                        <div class="maps-tile-name"><%= file.name %></div>
+                                        <% if (file.description) { %>
+                                        <p class="maps-tile-description"><%= file.description %></p>
+                                        <% } %>
+                                        <div class="maps-tile-meta">
+                                            <% if (file.lastModified) { %>
+                                            <span class="maps-tile-date" data-raw="<%= file.lastModified %>"></span>
+                                            <% } %>
+                                            <span class="maps-tile-size" data-bytes="<%= file.size %>"></span>
+                                        </div>
+                                    </div>
+
+                                    <div class="maps-tile-actions">
+                                        <a href="<%= file.webUrl %>"
+                                           target="_blank"
+                                           rel="noopener noreferrer"
+                                           class="maps-tile-btn maps-tile-btn--download">
+                                            <i class="fa-solid fa-arrow-down me-1"></i>View / Download
+                                        </a>
+                                        <% if (file.scribbleUrl) { %>
+                                        <a href="<%= file.scribbleUrl %>"
+                                           target="_blank"
+                                           rel="noopener noreferrer"
+                                           class="maps-tile-btn maps-tile-btn--scribble">
+                                            <i class="fa-solid fa-map-location-dot me-1"></i>Interactive Map
+                                        </a>
+                                        <% } %>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                        <% }); %>
+                    </div>
+                </section>
+
+                <% }); %>
+
+            </div>
+        </div>
+    </main>
+
+    <%- include('partials/footer') %>
+
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="/js/maps.js"></script>
+</body>
+</html>

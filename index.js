@@ -33,6 +33,7 @@ import * as db from "./lib/dbSync.js";
 
 import { oversightRouter } from "./routes/oversightRoutes.js";
 import { sitemapRouter }   from "./routes/sitemapRoutes.js";
+import { mapsRouter } from "./routes/mapsRoutes.js";
 import { getBaseUrl, resetSmsClient } from "./lib/messaging.js";
 import { startAlertScheduler } from "./lib/alertScheduler.js";
 
@@ -321,7 +322,7 @@ app.use(
       // so the directive isn't needed there either.
       upgradeInsecureRequests: null,
       "default-src": ["'self'"],
-      "frame-src":   ["'self'"],
+      "frame-src":   ["'self'", "https://www.scribblemaps.com", "https://widgets.scribblemaps.com"],
       "script-src": [
         "'self'",
         "https://cdn.jsdelivr.net",
@@ -657,8 +658,25 @@ let alertScheduler = null;
       }),
     );
 
-    app.use("/", sitemapRouter());
-
+app.use("/", sitemapRouter());
+app.use(
+  "/",
+  mapsRouter({
+    csrfProtection,
+    logError,
+    graphConfig: {
+      tenantId: config.GRAPH_TENANT_ID,
+      clientId: config.GRAPH_CLIENT_ID,
+      clientSecret: config.GRAPH_CLIENT_SECRET,
+      driveUser:
+        config.GRAPH_DRIVE_USER ||
+        "jladd@jakeofalltradespropertyserv.onmicrosoft.com",
+      folderPath:
+        config.GRAPH_FOLDER_PATH ||
+        "2026 Convention Parking/Documents for Distribution",
+    },
+  }),
+);
     app.use(
       "/",
       oversightRouter({

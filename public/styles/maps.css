@@ -1,0 +1,208 @@
+/* ==========================================================================
+   maps.css
+   Styles for the /maps page — section headings, file tiles, embed previews.
+   ========================================================================== */
+
+/* ── Page header ──────────────────────────────────────────────────────────────────── */
+.maps-page-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--bs-emphasis-color);
+    margin-bottom: 0.25rem;
+}
+
+.maps-page-subtitle {
+    color: var(--bs-secondary-color);
+    font-size: 0.9rem;
+}
+
+/* ── Section headings ──────────────────────────────────────────────────────────────── */
+.maps-section-heading {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--bs-emphasis-color);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+    border-bottom: 2px solid var(--bs-border-color);
+}
+
+/* ── Tile card ──────────────────────────────────────────────────────────────────── */
+.maps-tile {
+    display: flex;
+    flex-direction: column;
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.5rem;
+    overflow: hidden;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.maps-tile:hover {
+    border-color: var(--bs-primary);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+}
+
+/* When an embed is present the tile switches to a row layout */
+.maps-tile--has-embed {
+    flex-direction: row;
+}
+
+/* ── Embed preview (left column) ───────────────────────────────────────────────────── */
+.maps-tile-embed-wrap {
+    position: relative;
+    flex: 0 0 120px;
+    width: 120px;
+    overflow: hidden;
+    display: block;
+    background: var(--bs-tertiary-bg);
+    text-decoration: none;
+    /* height stretches to match the content column via the row flex parent */
+    min-height: 120px;
+}
+
+.maps-tile-embed {
+    position: absolute;
+    top: 0;
+    left: 0;
+    /* Render at 3× the container size, then scale down so the map fills nicely */
+    width: 360px;
+    height: 360px;
+    border: none;
+    pointer-events: none;  /* clicks go to the overlay anchor, not the iframe */
+    transform-origin: top left;
+    transform: scale(0.333); /* 120/360 */
+}
+
+/* Translucent overlay so the whole left panel is one clickable surface */
+.maps-tile-embed-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0);
+    transition: background 0.15s ease;
+    color: #fff;
+    font-size: 1.1rem;
+    opacity: 0;
+}
+
+.maps-tile-embed-wrap:hover .maps-tile-embed-overlay {
+    background: rgba(0, 0, 0, 0.35);
+    opacity: 1;
+}
+
+/* ── Right-side content column ────────────────────────────────────────────────────────── */
+.maps-tile-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    padding: 0.85rem;
+    min-width: 0; /* prevent flex overflow on long names */
+}
+
+/* ── Icon (shown only when no embed) ─────────────────────────────────────────────────── */
+.maps-tile-icon-wrap {
+    margin-bottom: 0.65rem;
+}
+
+.maps-tile-icon {
+    font-size: 1.75rem;
+    color: var(--bs-primary);
+}
+
+/* ── Tile body ──────────────────────────────────────────────────────────────────── */
+.maps-tile-body {
+    flex: 1;
+}
+
+.maps-tile-name {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--bs-emphasis-color);
+    margin-bottom: 0.2rem;
+    word-break: break-word;
+}
+
+.maps-tile-description {
+    font-size: 0.78rem;
+    color: var(--bs-secondary-color);
+    margin-bottom: 0.4rem;
+    line-height: 1.4;
+}
+
+/* ── Meta row (date + size) ─────────────────────────────────────────────────────────────── */
+.maps-tile-meta {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    padding-top: 0.35rem;
+}
+
+.maps-tile-date,
+.maps-tile-size {
+    font-size: 0.72rem;
+    color: var(--bs-tertiary-color);
+}
+
+/* ── Action buttons ─────────────────────────────────────────────────────────────────────── */
+.maps-tile-actions {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    margin-top: 0.65rem;
+    padding-top: 0.65rem;
+    border-top: 1px solid var(--bs-border-color);
+}
+
+.maps-tile-btn {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.25rem 0.55rem;
+    border-radius: 0.375rem;
+    text-decoration: none;
+    transition: background-color 0.15s ease, color 0.15s ease;
+    white-space: nowrap;
+}
+
+.maps-tile-btn--download {
+    background: var(--bs-secondary-bg);
+    color: var(--bs-secondary-color);
+    border: 1px solid var(--bs-border-color);
+}
+
+.maps-tile-btn--download:hover {
+    background: var(--bs-tertiary-bg);
+    color: var(--bs-emphasis-color);
+}
+
+.maps-tile-btn--scribble {
+    background: var(--bs-primary);
+    color: #fff;
+    border: 1px solid var(--bs-primary);
+}
+
+.maps-tile-btn--scribble:hover {
+    background: var(--bs-primary-text-emphasis);
+    border-color: var(--bs-primary-text-emphasis);
+    color: #fff;
+}
+
+/* ── Error alert ─────────────────────────────────────────────────────────────────────── */
+.maps-load-error {
+    border-left: 4px solid var(--bs-warning);
+    background: var(--bs-warning-bg-subtle);
+    color: var(--bs-warning-text-emphasis);
+    border-radius: 0.375rem;
+}
+
+/* ── Empty state ─────────────────────────────────────────────────────────────────────── */
+.maps-empty-state {
+    color: var(--bs-secondary-color);
+}
+
+.maps-empty-text {
+    font-size: 1rem;
+}

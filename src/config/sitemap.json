@@ -56,6 +56,21 @@
       ]
     },
     {
+      "id": "resources",
+      "label": "Resources",
+      "icon": "fa-solid fa-folder-open",
+      "pages": [
+        {
+          "title": "Maps",
+          "path": "/maps",
+          "description": "Convention parking maps, pedestrian routes, sign placement guides, and other reference materials.",
+          "icon": "fa-solid fa-map",
+          "minRole": "REGISTERED",
+          "permission": "viewMaps"
+        }
+      ]
+    },
+    {
       "id": "my-account",
       "label": "My Account",
       "icon": "fa-solid fa-user",
