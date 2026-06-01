@@ -328,17 +328,28 @@
     // Remove the loading spinner now that we're ready to render.
     mapEl.replaceChildren();
 
-    mapRef = new google.maps.Map(mapEl, {
-      center: { lat: center.lat, lng: center.lng },
-      zoom: center.zoom,
-      mapTypeId: "hybrid", // satellite + labels
-      mapId: "DEMO_MAP_ID", // required for AdvancedMarkerElement
-      tilt: 0,
-      disableDefaultUI: false,
-      mapTypeControl: true,
-      streetViewControl: false, // Phase 3 wires this up properly
-      fullscreenControl: true,
-    });
+mapRef = new google.maps.Map(mapEl, {
+  center: { lat: center.lat, lng: center.lng },
+  zoom: center.zoom,
+  mapTypeId: "roadmap", // Default; satellite available via map type control
+  mapId: "6261df670165b61fc3ae73a4", // Custom Map ID — POIs hidden via Cloud Console style
+  tilt: 0,
+  disableDefaultUI: false,
+  // Explicit per-control toggles (vector maps default to more
+  // controls than raster, including a pan control we don't want).
+  mapTypeControl: true,
+  zoomControl: true,
+  streetViewControl: false, // Phase 3 wires this up properly
+  fullscreenControl: false, // Default control rendered poorly against satellite tiles
+  rotateControl: false, // Not useful at tilt: 0
+  scaleControl: false,
+  cameraControl: false,
+  // The pan control is a vector-maps-only diamond of arrows shown
+  // by default in the lower-right; we don't want it duplicating
+  // the zoom stack. Setting panControl explicitly to false
+  // suppresses it across all map renderers.
+  panControl: false,
+});
 
     // Render each placement
     placements.forEach((p) => addMarkerForPlacement(p));

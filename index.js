@@ -329,6 +329,10 @@ app.use(
         "https://cdn.jsdelivr.net",
         "https://maps.googleapis.com",
         "https://maps.gstatic.com",
+        // 'wasm-unsafe-eval' is needed for the Google Maps vector renderer
+        // (which uses WebAssembly for tile rendering when a mapId is set).
+        // It does NOT allow general eval()/new Function() — only WebAssembly.
+        "'wasm-unsafe-eval'",
         (req, res) => `'nonce-${res.locals.nonce}'`,
       ],
       "style-src": [
@@ -336,7 +340,6 @@ app.use(
         "'unsafe-inline'",
         "https://cdn.jsdelivr.net",
         "https://fonts.googleapis.com",
-        (req, res) => `'nonce-${res.locals.nonce}'`,
       ],
       "img-src": [
         "'self'",
@@ -350,9 +353,10 @@ app.use(
       ],
       "font-src": ["'self'", "https://fonts.gstatic.com"],
       "connect-src": isProd
-        ? ["'self'", "https:", "https://api.kickbox.com", "https://api.open-meteo.com"]
+        ? ["'self'", "https:", "data:", "https://api.kickbox.com", "https://api.open-meteo.com"]
         : [
             "'self'",
+            "data:",
             "http://localhost:3000",
             "https://api.kickbox.com",
             "https://api.open-meteo.com",
@@ -687,7 +691,7 @@ app.use(
     logError,
     googleMapsApiKey: config.GOOGLE_MAPS_API_KEY,
     // Adjust the default center / zoom here if MVP Arena isn't the right anchor.
-    defaultMapCenter: { lat: 42.6485, lng: -73.7490, zoom: 17 },
+    defaultMapCenter: { lat: 42.648638511758264, lng: -73.75487925266984, zoom: 17 },
   }),
 );
 app.use(

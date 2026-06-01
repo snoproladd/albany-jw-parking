@@ -226,7 +226,14 @@
     justify-content: center;
 }
 
-.signs-map-placing {
+/*
+ * Google Maps sets inline cursor styles on its internal .gm-style div,
+ * which overrides class-level rules. We have to target the inner div
+ * explicitly to win the specificity battle.
+ */
+.signs-map-placing,
+.signs-map-placing .gm-style,
+.signs-map-placing .gm-style > div {
     cursor: crosshair !important;
 }
 
@@ -357,6 +364,16 @@
 
 .signs-placement-offcanvas {
     --bs-offcanvas-width: 420px;
+    z-index: 1080;
+}
+
+/*
+ * Bootstrap's offcanvas backdrop defaults to z-index 1040 — the navbar
+ * is also around 1030-1050 depending on sticky state, so it can bleed
+ * through. Bump the backdrop one step below the offcanvas itself.
+ */
+.offcanvas-backdrop.show {
+    z-index: 1075;
 }
 
 .signs-editor-meta {
@@ -379,4 +396,55 @@
     .signs-map-row {
         min-height: 0;
     }
+}
+
+/*
+ * Google Maps renders its own buttons, icons, and labels inside .gm-style
+ * and the parent .gm-control-active. Global rules in styles.css (button
+ * padding, box-shadow, border-radius, box-sizing: border-box) leak in
+ * and corrupt the controls — pill-shaped zoom buttons, doubled icons,
+ * miscalculated sizes. Reset everything inside the map container so
+ * Google's own CSS is the only thing styling its controls.
+ *
+ * Selector starts with #googleMap to win specificity over global
+ * `button { ... }` rules without resorting to !important.
+ */
+#googleMap button,
+#googleMap button:hover,
+#googleMap button:focus,
+#googleMap button:active,
+#googleMap [role="button"],
+#googleMap .gm-control-active {
+    all: revert;
+    background: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    outline: none;
+    padding: 0;
+    margin: 0;
+    color: inherit;
+    font: inherit;
+    line-height: normal;
+    text-transform: none;
+    cursor: pointer;
+    box-sizing: content-box;
+}
+
+#googleMap img {
+    max-width: none;
+    max-height: none;
+    width: auto;
+    height: auto;
+    vertical-align: baseline;
+}
+
+#googleMap a {
+    text-decoration: none;
+}
+
+#googleMap *,
+#googleMap *::before,
+#googleMap *::after {
+    box-sizing: content-box;
 }

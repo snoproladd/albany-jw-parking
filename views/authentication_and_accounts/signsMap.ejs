@@ -79,8 +79,36 @@
                             </label>
                             <select class="form-select form-select-sm" id="signTemplateFilter">
                                 <option value="">All templates</option>
+                                <%
+                                    // Arrow direction → Unicode glyph for <option> display.
+                                    // <select> elements can't render HTML, so we use Unicode
+                                    // characters here even though the destination pin is a
+                                    // FontAwesome icon everywhere else on the page.
+                                    const arrowGlyphForOption = (dir) => {
+                                        switch (dir) {
+                                            case 'up':            return '↑';
+                                            case 'down':          return '↓';
+                                            case 'left':          return '←';
+                                            case 'right':         return '→';
+                                            case 'up-left':       return '↖';
+                                            case 'up-right':      return '↗';
+                                            case 'down-left':     return '↙';
+                                            case 'down-right':    return '↘';
+                                            case 'up-then-left':  return '↰';
+                                            case 'up-then-right': return '↱';
+                                            case 'destination':   return '📍';
+                                            default:              return '';
+                                        }
+                                    };
+                                    const optionLabel = (s) => {
+                                        const glyph = arrowGlyphForOption(s.arrow_direction);
+                                        const arrowPart = glyph ? ` ${glyph}` : '';
+                                        const descPart  = s.description ? ` — ${s.description}` : '';
+                                        return `${s.sign_text}${arrowPart}${descPart} (#${s.sign_id})`;
+                                    };
+                                %>
                                 <% signs.forEach(s => { %>
-                                    <option value="<%= s.sign_id %>"><%= s.sign_text %></option>
+                                    <option value="<%= s.sign_id %>"><%= optionLabel(s) %></option>
                                 <% }); %>
                             </select>
                         </div>
@@ -161,7 +189,7 @@
                         <option value="<%= s.sign_id %>"
                                 data-text="<%= s.sign_text %>"
                                 data-arrow="<%= s.arrow_direction || '' %>">
-                            <%= s.sign_text %>
+                            <%= optionLabel(s) %>
                         </option>
                     <% }); %>
                 </select>
