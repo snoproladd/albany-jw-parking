@@ -90,6 +90,14 @@
           "icon": "fa-solid fa-pen-to-square",
           "minRole": null,
           "permission": "manageSigns"
+        },
+        {
+          "title": "Sign Map",
+          "path": "/signs/map",
+          "description": "Place sign templates on a satellite map. Drag to reposition, edit status and mount type.",
+          "icon": "fa-solid fa-map-location-dot",
+          "minRole": null,
+          "permission": "viewSigns"
         }
       ]
     },

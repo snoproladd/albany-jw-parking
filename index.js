@@ -680,7 +680,16 @@ let alertScheduler = null;
     );
 
 app.use("/", sitemapRouter());
-app.use("/", signsRouter({ csrfProtection, logError }));
+app.use(
+  "/",
+  signsRouter({
+    csrfProtection,
+    logError,
+    googleMapsApiKey: config.GOOGLE_MAPS_API_KEY,
+    // Adjust the default center / zoom here if MVP Arena isn't the right anchor.
+    defaultMapCenter: { lat: 42.6485, lng: -73.7490, zoom: 17 },
+  }),
+);
 app.use(
   "/",
   mapsRouter({

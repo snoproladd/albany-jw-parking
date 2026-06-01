@@ -12,6 +12,9 @@ send invitations, track RSVPs, log attendance, and administer the platform.
    - [Site Map](#site-map)
    - [Maps](#maps)
    - [Signs](#signs)
+     - [Sign Library](#sign-library-registered)
+     - [Sign Builder](#sign-builder-overseer)
+     - [Sign Map](#sign-map-registered--to-view-overseer-to-edit)
 2. [My Account](#2-my-account)
 3. [Volunteer Management](#3-volunteer-management)
    - [SMS Management](#sms-management-assistant_admin)
@@ -94,26 +97,36 @@ JSON format.
 
 ### Signs
 
-**Path:** Signs → Sign Library, or `/signs`
+**Path:** Signs → Sign Library (`/signs`), Sign Builder (`/signs/builder`),
+or Sign Map (`/signs/map`); also linked from the Resources dropdown, the
+Oversight dropdown, and the Oversight Tools hub.
 
-The Sign Library tracks the placards placed around the convention area —
+The Sign system tracks the placards placed around the convention area —
 things like **PARKING →**, **LOT FULL**, and **OVERFLOW ↗**. Signs are
-managed as reusable **templates**, and each template can be **placed** in
-multiple geographic locations (Phase 2). This page covers Phase 1: creating
-and managing the templates themselves.
+managed in two layers:
+
+- **Templates** — the reusable sign design (text + arrow direction).
+- **Placements** — specific spots on a map where one of those templates
+  is going to be (or has been) physically installed.
+
+A single template can be placed at many locations — e.g. one "PARKING →"
+template might be placed at five different street corners as five separate
+placements, each with its own GPS coordinates, status, and notes.
 
 #### Who can do what
 
-| Role | Sign Library | Sign Builder | Place signs on map |
-|---|---|---|---|
-| REGISTERED | View only | — | — |
-| KEYMAN | View only | — | — |
-| OVERSEER+ | View + Archive | Create + Edit | (Phase 2) |
+| Role             | Sign Library  | Sign Builder    | Sign Map                |
+|------------------|---------------|-----------------|-------------------------|
+| REGISTERED       | View only     | —               | View only               |
+| KEYMAN           | View only     | —               | View only               |
+| OVERSEER+        | View + Archive| Create + Edit   | Place / drag / edit / delete |
 
-DESK does not see signs at all — they're scoped to attendance and account
-creation.
+DESK does not see signs at all — the role is scoped to attendance and
+account creation.
 
 #### Sign Library *(REGISTERED+)*
+
+**Path:** Signs → Sign Library, or `/signs`
 
 The library shows a card for each active sign template with a live preview
 of the text and arrow, a short description (if one was set), and a count of
@@ -124,7 +137,8 @@ how many placements use this template.
 - **Edit** — OVERSEER+ only; opens the Sign Builder pre-loaded with this sign.
 - **Archive** — OVERSEER+ only; soft-deletes the template after confirmation.
   Existing placements survive archival and remain in the database; the
-  template just stops appearing in the library and in the future map picker.
+  template just stops appearing in the library and in the Sign Map's
+  template picker.
 
 #### Sign Builder *(OVERSEER+)*
 
@@ -135,20 +149,101 @@ A single form for creating or editing a sign template.
 - **Live preview** at the top shows exactly what the sign will look like
   as you type. Updates instantly as you change the text or pick an arrow.
 - **Sign text** — up to 100 characters. Required.
-- **Arrow direction** — a 3×3 picker with the 8 compass directions plus a
-  center ⊘ button for "no arrow". Clicking an arrow selects it; clicking
-  the same arrow again deselects it back to no arrow.
+- **Arrow direction** — a 4-row picker:
+  - Row 1: ↖ ↑ ↗ (up-left, up, up-right)
+  - Row 2: ← ⊘ → (left, no-arrow, right)
+  - Row 3: ↙ ↓ ↘ (down-left, down, down-right)
+  - Row 4: ↰ ↱ 📍 (90° up-then-left, 90° up-then-right, destination pin)
+  Clicking an arrow selects it; clicking the same arrow again deselects it
+  back to no arrow. The destination pin renders as a FontAwesome icon for
+  consistent appearance across browsers.
 - **Description** — optional notes about when or where this sign is used,
-  up to 500 characters. Visible on the library card and useful for future
-  reference.
+  up to 500 characters. Visible on the library card.
 - **Create sign / Save changes** — saves and redirects back to the library.
 
-> **Note on placements:** Phase 1 covers templates only. In Phase 2 the
-> Sign Library will gain a Map page where you can click a satellite map to
-> drop a placement of a chosen template at an exact location, optionally
-> with a compass heading for the direction the sign faces. Placements in
-> the database now have status (`planned`/`installed`/`removed`), photo
-> upload, and audit fields ready for that phase.
+#### Sign Map *(REGISTERED+ to view, OVERSEER+ to edit)*
+
+**Path:** Signs → Sign Map, or `/signs/map`
+
+A satellite-view Google Map of every non-archived sign placement. Each
+placement shows up as a small white sign-preview block at its GPS
+coordinates, color-coded by status:
+
+- **Gray border** — planned (not yet installed)
+- **Green border** — installed
+- **Red border, faded** — removed
+
+**Layout:** sidebar on the left with filters and the placement list;
+Google Maps on the right. The map starts centered on MVP Arena at
+street-level zoom.
+
+##### Filters
+
+Two filter controls in the sidebar narrow both the markers on the map
+*and* the placement list at the same time:
+
+- **Status chips** — All / Planned / Installed / Removed
+- **Sign template** — dropdown to see only placements of one specific
+  template
+
+##### Adding a placement *(OVERSEER+)*
+
+1. Click **Add placement** in the sidebar.
+2. The cursor turns into a crosshair and a hint appears: "Click anywhere
+   on the map to drop a placement."
+3. Click the spot on the map where the sign should go.
+4. A blue dashed **NEW** marker appears and the editor slides in from
+   the right.
+5. Pick the sign template from the dropdown, set the status, mount type
+   (Cone / A-frame / Existing structure), heading, and location notes,
+   then click **Save**.
+
+You can fine-tune the location at any point during this process by
+dragging the blue **NEW** marker around on the map — the lat/lng in the
+editor updates automatically.
+
+##### Editing an existing placement *(OVERSEER+)*
+
+- **Click any marker** on the map (or any row in the sidebar list) to
+  open the editor offcanvas.
+- Edit any field: status (planned/installed/removed), mount type, heading,
+  location notes.
+- **Drag a marker** to a new spot on the map — the new coordinates are
+  saved automatically when you let go. If the server rejects the change
+  (for any reason), the marker snaps back to its original spot.
+- **Delete** removes only the placement; the sign template itself remains.
+
+Status changes auto-sync the installation audit trail — marking a placement
+as "installed" stamps your email and the timestamp; marking it "removed"
+records the removal timestamp; reverting to "planned" clears both.
+
+##### View-only mode
+
+REGISTERED and KEYMAN users can open the page and see all placements, but:
+
+- The "Add placement" button is hidden.
+- Markers are not draggable.
+- The editor shows the same fields but no Save or Delete buttons.
+
+##### Heading and Phase 3 Street View overlay
+
+The **heading** field (0–360°, optional) records the compass bearing the
+sign physically faces. It's not used today, but Phase 3 of the Sign system
+will add a Street View pane that uses this value to render the sign
+superimposed on the actual street scene at the correct angle. Filling it
+in now is purely forward-looking — leave it blank if you don't know it.
+
+##### Coming soon: Phase 2b and Phase 3
+
+- **Photo upload** — attach a photo of the installed sign to its placement
+  (Phase 2b, stored in Azure Blob Storage).
+- **Bearing-tracked Street View overlay** — see what each placement will
+  look like from the street, with the sign rendered at the correct
+  position based on its heading (Phase 3).
+- **Live proximity alerts** — when the page is open on a phone, get an
+  in-app ping when you drive within ~50m of a placement (Phase 4,
+  web-only — true background geofencing requires the eventual native
+  mobile app).
 
 ---
 
@@ -737,10 +832,10 @@ mobile. The tree is visible to all authenticated users regardless of role.
 | Role | Key Capabilities |
 |---|---|
 | **NON_REGISTERED** | Submit registration info only |
-| **REGISTERED** | View schedules, maps, and the Sign Library; edit own account |
+| **REGISTERED** | View schedules, maps, the Sign Library, and the Sign Map (read-only); edit own account |
 | **DESK** | Log attendance; create volunteer accounts |
-| **KEYMAN** | View volunteer info; log and view attendance; view Sign Library |
-| **OVERSEER** | Edit volunteers; manage shifts and locations; send messages; create campaigns; create and edit sign templates |
+| **KEYMAN** | View volunteer info; log and view attendance; view Sign Library and Sign Map |
+| **OVERSEER** | Edit volunteers; manage shifts and locations; send messages; create campaigns; create and edit sign templates; place, drag, edit, and delete sign placements on the Sign Map |
 | **ASSISTANT_ADMIN** | All OVERSEER capabilities + role management + delete volunteers + access admin console |
 | **ADMIN** | Full access including Permission Matrix, Decently Sync, and campaign management |
 

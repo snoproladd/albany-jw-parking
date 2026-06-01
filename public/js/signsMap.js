@@ -1,0 +1,933 @@
+/**
+ * @file public/js/signsMap.js
+ * @description Sign Map page — Google Maps satellite view of all
+ *   non-archived sign placements, with click-to-place / drag-to-reposition
+ *   for OVERSEER+ users.
+ *
+ * Design notes:
+ *   - The Google Maps script is loaded dynamically at runtime so the API
+ *     key never appears in static HTML. The key is read from a data-* attr
+ *     on #signsMapRoot, which the server templates in.
+ *   - Placement markers use google.maps.marker.AdvancedMarkerElement so the
+ *     marker content is real DOM (the sign-preview block from signs.css)
+ *     and clicks/drags fire native events. AdvancedMarkerElement requires
+ *     the "marker" library plus a mapId — we use Google's default styled
+ *     map id "DEMO_MAP_ID" for now. Replace with a project-specific id if
+ *     you want custom styles.
+ *   - Mount type, status, and template filters are pure client-side; the
+ *     server returns every non-archived placement on page load and we
+ *     hide/show via marker.map = null / marker.map = mapRef.
+ *
+ * Public surface: none (the bootstrap script tag triggers everything).
+ */
+
+(() => {
+  "use strict";
+
+  // ============================================================
+  // CONSTANTS
+  // ============================================================
+
+  /** Unicode glyphs by direction token; matches signsBuilder.js. */
+  const ARROW_GLYPHS = {
+    up: "\u2191",
+    down: "\u2193",
+    left: "\u2190",
+    right: "\u2192",
+    "up-left": "\u2196",
+    "up-right": "\u2197",
+    "down-left": "\u2199",
+    "down-right": "\u2198",
+    "up-then-left": "\u21B0",
+    "up-then-right": "\u21B1",
+  };
+
+  /** Human-readable labels for mount types. */
+  const MOUNT_LABELS = {
+    cone: "Cone",
+    "a-frame": "A-frame",
+    "existing-structure": "Existing structure",
+  };
+
+  /** Status pill class mapping. */
+  const STATUS_CLASSES = {
+    planned: "signs-status-pill signs-status-planned",
+    installed: "signs-status-pill signs-status-installed",
+    removed: "signs-status-pill signs-status-removed",
+  };
+
+  // ============================================================
+  // MODULE STATE
+  // ============================================================
+
+  /** @type {google.maps.Map|null} */
+  let mapRef = null;
+
+  /** @type {Array<object>} all placements from the server, mutated in place. */
+  let placements = [];
+
+  /** @type {Array<object>} all sign templates from the server. */
+  let signs = [];
+
+  /** Map of placement_id -> AdvancedMarkerElement. */
+  const markers = new Map();
+
+  /** When true, the next map click drops a new placement marker. */
+  let placingMode = false;
+
+  /** Currently-edited placement_id, or null when editing a new placement. */
+  let editingId = null;
+
+  /** Coordinates of the pending new placement (only used while editingId === null). */
+  let pendingNewLatLng = null;
+
+  /** AdvancedMarkerElement for the pending new placement (cleared on save/cancel). */
+  let pendingNewMarker = null;
+
+  /** Bootstrap Offcanvas instance for the editor. */
+  let offcanvas = null;
+
+  /** Can the current user manage placements (drag/save/delete)? */
+  let canManage = false;
+
+  // ============================================================
+  // HELPERS
+  // ============================================================
+
+  /**
+   * Read the CSRF token from the meta tag.
+   * @returns {string}
+   */
+  function getCsrfToken() {
+    const el = document.querySelector('meta[name="csrf-token"]');
+    return el ? el.getAttribute("content") || "" : "";
+  }
+
+  /**
+   * Build the inner HTML for a sign-preview block used as a marker.
+   * The destination pin uses a FontAwesome icon; other arrows use Unicode.
+   *
+   * @param {{ sign_text: string, arrow_direction: string|null, status: string }} placement
+   * @returns {HTMLDivElement}
+   */
+  function buildMarkerContent(placement) {
+    const wrapper = document.createElement("div");
+    wrapper.className = `signs-map-marker signs-map-marker-${placement.status || "planned"}`;
+
+    const sign = document.createElement("div");
+    sign.className = "sign-preview signs-map-marker-sign";
+
+    const text = document.createElement("span");
+    text.className = "sign-preview-text";
+    text.textContent = placement.sign_text || "";
+    sign.appendChild(text);
+
+    const arrow = document.createElement("span");
+    arrow.className = "sign-preview-arrow";
+
+    if (placement.arrow_direction === "destination") {
+      const icon = document.createElement("i");
+      icon.className = "fa-solid fa-location-dot";
+      icon.setAttribute("aria-hidden", "true");
+      arrow.appendChild(icon);
+    } else if (
+      placement.arrow_direction &&
+      ARROW_GLYPHS[placement.arrow_direction]
+    ) {
+      arrow.textContent = ARROW_GLYPHS[placement.arrow_direction];
+    }
+    sign.appendChild(arrow);
+
+    wrapper.appendChild(sign);
+    return wrapper;
+  }
+
+  /**
+   * Refresh the preview block inside the offcanvas editor.
+   *
+   * @param {string} signText
+   * @param {string|null} arrowDirection
+   */
+  function updateEditorPreview(signText, arrowDirection) {
+    const textEl = document.getElementById("editorPreviewText");
+    const arrowEl = document.getElementById("editorPreviewArrow");
+    if (!textEl || !arrowEl) return;
+
+    textEl.textContent = signText || "—";
+    arrowEl.textContent = "";
+    arrowEl.replaceChildren();
+
+    if (arrowDirection === "destination") {
+      const icon = document.createElement("i");
+      icon.className = "fa-solid fa-location-dot";
+      icon.setAttribute("aria-hidden", "true");
+      arrowEl.appendChild(icon);
+    } else if (arrowDirection && ARROW_GLYPHS[arrowDirection]) {
+      arrowEl.textContent = ARROW_GLYPHS[arrowDirection];
+    }
+  }
+
+  /**
+   * Find the placement object in the in-memory array by id.
+   * @param {number} id
+   * @returns {object|null}
+   */
+  function findPlacement(id) {
+    return placements.find((p) => p.placement_id === id) || null;
+  }
+
+  /**
+   * Find the sign template in the in-memory array by id.
+   * @param {number} id
+   * @returns {object|null}
+   */
+  function findSign(id) {
+    return signs.find((s) => s.sign_id === id) || null;
+  }
+
+  /**
+   * Apply the current filter selections by toggling each marker's map.
+   * Also rebuilds the sidebar placement list.
+   */
+  function applyFilters() {
+    const statusEl = document.querySelector(
+      'input[name="statusFilter"]:checked',
+    );
+    const signEl = document.getElementById("signTemplateFilter");
+    const status = statusEl ? statusEl.value : "";
+    const signIdRaw = signEl ? signEl.value : "";
+    const signId = signIdRaw ? Number(signIdRaw) : null;
+
+    const visible = [];
+    placements.forEach((p) => {
+      const matchesStatus = !status || p.status === status;
+      const matchesSign = !signId || p.sign_id === signId;
+      const ok = matchesStatus && matchesSign;
+
+      const marker = markers.get(p.placement_id);
+      if (marker) marker.map = ok ? mapRef : null;
+      if (ok) visible.push(p);
+    });
+
+    renderPlacementList(visible);
+  }
+
+  /**
+   * Re-render the left-column placement list using the visible array.
+   * @param {Array<object>} visible
+   */
+  function renderPlacementList(visible) {
+    const container = document.getElementById("placementList");
+    if (!container) return;
+    container.replaceChildren();
+
+    if (visible.length === 0) {
+      const empty = document.createElement("p");
+      empty.className = "small text-muted text-center py-3 mb-0";
+      empty.textContent = "No placements match the current filters.";
+      container.appendChild(empty);
+      return;
+    }
+
+    visible.forEach((p) => {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "signs-placement-row";
+      row.setAttribute("data-placement-id", String(p.placement_id));
+
+      // Status dot
+      const dot = document.createElement("span");
+      dot.className = `signs-placement-dot signs-placement-dot-${p.status}`;
+      row.appendChild(dot);
+
+      // Body
+      const body = document.createElement("div");
+      body.className = "signs-placement-body";
+
+      const name = document.createElement("div");
+      name.className = "signs-placement-name";
+      name.textContent = p.sign_text;
+      if (
+        p.arrow_direction &&
+        p.arrow_direction !== "destination" &&
+        ARROW_GLYPHS[p.arrow_direction]
+      ) {
+        name.textContent += " " + ARROW_GLYPHS[p.arrow_direction];
+      }
+      body.appendChild(name);
+
+      const sub = document.createElement("div");
+      sub.className = "signs-placement-sub";
+      const subParts = [];
+      if (p.mount_type)
+        subParts.push(MOUNT_LABELS[p.mount_type] || p.mount_type);
+      if (p.location_notes) subParts.push(p.location_notes);
+      sub.textContent = subParts.length
+        ? subParts.join(" • ")
+        : `${Number(p.latitude).toFixed(5)}, ${Number(p.longitude).toFixed(5)}`;
+      body.appendChild(sub);
+
+      row.appendChild(body);
+      container.appendChild(row);
+    });
+  }
+
+  // ============================================================
+  // MAP LIFECYCLE
+  // ============================================================
+
+  /**
+   * Dynamically inject the Google Maps loader script. Resolves once
+   * the maps + marker libraries are available.
+   *
+   * @param {string} apiKey
+   * @returns {Promise<void>}
+   */
+  function loadGoogleMaps(apiKey) {
+    return new Promise((resolve, reject) => {
+      if (window.google && window.google.maps) {
+        resolve();
+        return;
+      }
+      // The async loader pattern recommended by Google. The "loading=async"
+      // param avoids the deprecation warning. We request the "marker"
+      // library for AdvancedMarkerElement.
+      const params = new URLSearchParams({
+        key: apiKey,
+        v: "weekly",
+        libraries: "marker",
+        loading: "async",
+        callback: "__signsMapInitialized",
+      });
+      const url = `https://maps.googleapis.com/maps/api/js?${params.toString()}`;
+
+      window.__signsMapInitialized = () => {
+        delete window.__signsMapInitialized;
+        resolve();
+      };
+
+      const script = document.createElement("script");
+      script.src = url;
+      script.async = true;
+      script.defer = true;
+      script.onerror = () =>
+        reject(new Error("Failed to load Google Maps JavaScript API."));
+      document.head.appendChild(script);
+    });
+  }
+
+  /**
+   * Create the map and the AdvancedMarkerElement for each placement.
+   *
+   * @param {{ lat: number, lng: number, zoom: number }} center
+   */
+  function initMap(center) {
+    const mapEl = document.getElementById("googleMap");
+    if (!mapEl) return;
+
+    // Remove the loading spinner now that we're ready to render.
+    mapEl.replaceChildren();
+
+    mapRef = new google.maps.Map(mapEl, {
+      center: { lat: center.lat, lng: center.lng },
+      zoom: center.zoom,
+      mapTypeId: "hybrid", // satellite + labels
+      mapId: "DEMO_MAP_ID", // required for AdvancedMarkerElement
+      tilt: 0,
+      disableDefaultUI: false,
+      mapTypeControl: true,
+      streetViewControl: false, // Phase 3 wires this up properly
+      fullscreenControl: true,
+    });
+
+    // Render each placement
+    placements.forEach((p) => addMarkerForPlacement(p));
+
+    // Click-to-place handler (only does anything when placingMode is on)
+    mapRef.addListener("click", (e) => {
+      if (!placingMode || !canManage) return;
+      const lat = e.latLng.lat();
+      const lng = e.latLng.lng();
+      beginNewPlacement(lat, lng);
+    });
+  }
+
+  /**
+   * Build and attach a marker for one placement, registering listeners.
+   *
+   * @param {object} placement
+   */
+  function addMarkerForPlacement(placement) {
+    if (!mapRef || !google.maps.marker) return;
+
+    const marker = new google.maps.marker.AdvancedMarkerElement({
+      map: mapRef,
+      position: {
+        lat: Number(placement.latitude),
+        lng: Number(placement.longitude),
+      },
+      content: buildMarkerContent(placement),
+      gmpDraggable: canManage,
+      title: placement.sign_text,
+    });
+
+    marker.addListener("click", () => {
+      openEditor(placement.placement_id);
+    });
+
+    if (canManage) {
+      // gmp-dragend fires after a user finishes dragging the marker
+      marker.addListener("dragend", async () => {
+        const pos = marker.position;
+        const newLat = typeof pos.lat === "function" ? pos.lat() : pos.lat;
+        const newLng = typeof pos.lng === "function" ? pos.lng() : pos.lng;
+        await persistDrag(placement.placement_id, newLat, newLng);
+      });
+    }
+
+    markers.set(placement.placement_id, marker);
+  }
+
+  /**
+   * Persist a drag-end coordinate change to the server, keeping all other
+   * fields the same as the in-memory placement.
+   *
+   * @param {number} placementId
+   * @param {number} lat
+   * @param {number} lng
+   */
+  async function persistDrag(placementId, lat, lng) {
+    const p = findPlacement(placementId);
+    if (!p) return;
+
+    try {
+      const res = await fetch(`/signs/placements/${placementId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "CSRF-Token": getCsrfToken(),
+        },
+        body: JSON.stringify({
+          latitude: lat,
+          longitude: lng,
+          heading: p.heading,
+          locationNotes: p.location_notes,
+          mountType: p.mount_type,
+        }),
+      });
+      const data = await res.json();
+      if (data && data.success) {
+        p.latitude = lat;
+        p.longitude = lng;
+        renderPlacementListFromFilters();
+      } else {
+        window.alert(data?.error || "Failed to save new position.");
+        // Snap back if the server rejected it
+        const marker = markers.get(placementId);
+        if (marker) {
+          marker.position = {
+            lat: Number(p.latitude),
+            lng: Number(p.longitude),
+          };
+        }
+      }
+    } catch (err) {
+      console.error("persistDrag error:", err);
+      window.alert("Network error — could not save new position.");
+    }
+  }
+
+  /**
+   * Convenience: re-render the placement list against the current filters.
+   */
+  function renderPlacementListFromFilters() {
+    applyFilters();
+  }
+
+  // ============================================================
+  // EDITOR (OFFCANVAS)
+  // ============================================================
+
+  /**
+   * Open the editor offcanvas for an existing placement.
+   * @param {number} placementId
+   */
+  function openEditor(placementId) {
+    const p = findPlacement(placementId);
+    if (!p) return;
+
+    editingId = placementId;
+    pendingNewLatLng = null;
+    clearPendingMarker();
+
+    document.getElementById("placementEditorTitle").textContent =
+      `${p.sign_text}${p.arrow_direction && p.arrow_direction !== "destination" && ARROW_GLYPHS[p.arrow_direction] ? " " + ARROW_GLYPHS[p.arrow_direction] : ""}`;
+
+    document.getElementById("editorSignTemplateRow").hidden = true;
+
+    updateEditorPreview(p.sign_text, p.arrow_direction);
+
+    document.getElementById("editorLat").value = Number(p.latitude).toFixed(7);
+    document.getElementById("editorLng").value = Number(p.longitude).toFixed(7);
+    document.getElementById("editorMountType").value = p.mount_type || "";
+    document.getElementById("editorHeading").value =
+      p.heading != null ? Number(p.heading) : "";
+    document.getElementById("editorNotes").value = p.location_notes || "";
+
+    const statusInput = document.querySelector(
+      `input[name="editorStatus"][value="${p.status}"]`,
+    );
+    if (statusInput) statusInput.checked = true;
+
+    // Meta block
+    const meta = document.getElementById("editorMeta");
+    if (meta) {
+      const parts = [`Created by ${p.created_by || "unknown"}`];
+      if (p.installed_by) parts.push(`installed by ${p.installed_by}`);
+      meta.textContent = parts.join(" • ");
+      meta.hidden = false;
+    }
+
+    // Delete button visible for existing placements only
+    const delBtn = document.getElementById("editorDeleteBtn");
+    if (delBtn) delBtn.hidden = false;
+
+    const feedback = document.getElementById("editorFeedback");
+    if (feedback) feedback.textContent = "";
+
+    offcanvas?.show();
+  }
+
+  /**
+   * Open the editor offcanvas for a brand-new placement at the given coords.
+   * @param {number} lat
+   * @param {number} lng
+   */
+  function beginNewPlacement(lat, lng) {
+    editingId = null;
+    pendingNewLatLng = { lat, lng };
+
+    document.getElementById("placementEditorTitle").textContent =
+      "New placement";
+    document.getElementById("editorSignTemplateRow").hidden = false;
+    document.getElementById("editorSignTemplate").value = "";
+
+    updateEditorPreview("—", null);
+
+    document.getElementById("editorLat").value = lat.toFixed(7);
+    document.getElementById("editorLng").value = lng.toFixed(7);
+    document.getElementById("editorMountType").value = "";
+    document.getElementById("editorHeading").value = "";
+    document.getElementById("editorNotes").value = "";
+
+    const planned = document.getElementById("editorStatusPlanned");
+    if (planned) planned.checked = true;
+
+    const meta = document.getElementById("editorMeta");
+    if (meta) {
+      meta.textContent = "";
+      meta.hidden = true;
+    }
+
+    const delBtn = document.getElementById("editorDeleteBtn");
+    if (delBtn) delBtn.hidden = true;
+
+    const feedback = document.getElementById("editorFeedback");
+    if (feedback) feedback.textContent = "";
+
+    // Drop a temporary marker so the user can see where the click landed
+    clearPendingMarker();
+    if (google.maps.marker) {
+      const ghost = document.createElement("div");
+      ghost.className = "signs-map-marker signs-map-marker-pending";
+      const sign = document.createElement("div");
+      sign.className = "sign-preview signs-map-marker-sign";
+      const text = document.createElement("span");
+      text.className = "sign-preview-text";
+      text.textContent = "NEW";
+      sign.appendChild(text);
+      ghost.appendChild(sign);
+
+      pendingNewMarker = new google.maps.marker.AdvancedMarkerElement({
+        map: mapRef,
+        position: { lat, lng },
+        content: ghost,
+        gmpDraggable: true,
+      });
+
+      pendingNewMarker.addListener("dragend", () => {
+        const pos = pendingNewMarker.position;
+        pendingNewLatLng = {
+          lat: typeof pos.lat === "function" ? pos.lat() : pos.lat,
+          lng: typeof pos.lng === "function" ? pos.lng() : pos.lng,
+        };
+        document.getElementById("editorLat").value =
+          pendingNewLatLng.lat.toFixed(7);
+        document.getElementById("editorLng").value =
+          pendingNewLatLng.lng.toFixed(7);
+      });
+    }
+
+    exitPlacingMode();
+    offcanvas?.show();
+  }
+
+  /**
+   * Remove the temporary "new" marker if one exists.
+   */
+  function clearPendingMarker() {
+    if (pendingNewMarker) {
+      pendingNewMarker.map = null;
+      pendingNewMarker = null;
+    }
+  }
+
+  /**
+   * Toggle on placing-mode: next map click drops a new placement.
+   */
+  function enterPlacingMode() {
+    placingMode = true;
+    const help = document.getElementById("addPlacementHelp");
+    if (help) help.hidden = false;
+    if (mapRef && mapRef.getDiv) {
+      mapRef.getDiv().classList.add("signs-map-placing");
+    }
+  }
+
+  /**
+   * Turn placing-mode off.
+   */
+  function exitPlacingMode() {
+    placingMode = false;
+    const help = document.getElementById("addPlacementHelp");
+    if (help) help.hidden = true;
+    if (mapRef && mapRef.getDiv) {
+      mapRef.getDiv().classList.remove("signs-map-placing");
+    }
+  }
+
+  /**
+   * Save the editor — POST for a new placement, PUT + PATCH/status for existing.
+   */
+  async function saveFromEditor() {
+    const saveBtn = document.getElementById("editorSaveBtn");
+    const feedback = document.getElementById("editorFeedback");
+    if (!saveBtn) return;
+
+    const lat = Number(document.getElementById("editorLat").value);
+    const lng = Number(document.getElementById("editorLng").value);
+    const mountType = document.getElementById("editorMountType").value || null;
+    const headingV = document.getElementById("editorHeading").value;
+    const heading = headingV === "" ? null : Number(headingV);
+    const notes = document.getElementById("editorNotes").value.trim() || null;
+    const status =
+      document.querySelector('input[name="editorStatus"]:checked')?.value ||
+      "planned";
+
+    saveBtn.disabled = true;
+    const origLabel = saveBtn.innerHTML;
+    saveBtn.innerHTML =
+      '<i class="fa-solid fa-spinner fa-spin me-1"></i>Saving…';
+    if (feedback) {
+      feedback.className = "small text-muted";
+      feedback.textContent = "";
+    }
+
+    try {
+      if (editingId === null) {
+        // ---- New placement ----
+        const signIdRaw = document.getElementById("editorSignTemplate").value;
+        const signId = signIdRaw ? Number(signIdRaw) : null;
+        if (!signId) {
+          if (feedback) {
+            feedback.className = "small text-danger";
+            feedback.textContent = "Pick a sign template first.";
+          }
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = origLabel;
+          return;
+        }
+
+        const res = await fetch(`/signs/${signId}/placements`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "CSRF-Token": getCsrfToken(),
+          },
+          body: JSON.stringify({
+            latitude: lat,
+            longitude: lng,
+            heading,
+            locationNotes: notes,
+            status,
+            mountType,
+          }),
+        });
+        const data = await res.json();
+        if (!data?.success) throw new Error(data?.error || "Save failed.");
+
+        // Re-fetch the row from the server to get the joined sign_text /
+        // arrow_direction fields, since the POST only returns the id.
+        const sign = findSign(signId);
+        const newPlacement = {
+          placement_id: data.id,
+          sign_id: signId,
+          sign_text: sign?.sign_text || "",
+          arrow_direction: sign?.arrow_direction || null,
+          latitude: lat,
+          longitude: lng,
+          heading,
+          location_notes: notes,
+          status,
+          mount_type: mountType,
+          photo_url: null,
+          installed_by: status === "installed" ? "you" : null,
+          installed_at:
+            status === "installed" ? new Date().toISOString() : null,
+          removed_at: null,
+          created_by: "you",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        placements.push(newPlacement);
+        clearPendingMarker();
+        addMarkerForPlacement(newPlacement);
+      } else {
+        // ---- Existing placement: PUT for fields, PATCH for status ----
+        const p = findPlacement(editingId);
+        if (!p) throw new Error("Placement not found in memory.");
+
+        const putRes = await fetch(`/signs/placements/${editingId}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "CSRF-Token": getCsrfToken(),
+          },
+          body: JSON.stringify({
+            latitude: lat,
+            longitude: lng,
+            heading,
+            locationNotes: notes,
+            mountType,
+          }),
+        });
+        const putData = await putRes.json();
+        if (!putData?.success)
+          throw new Error(putData?.error || "Save failed.");
+
+        if (status !== p.status) {
+          const patchRes = await fetch(
+            `/signs/placements/${editingId}/status`,
+            {
+              method: "PATCH",
+              headers: {
+                "Content-Type": "application/json",
+                "CSRF-Token": getCsrfToken(),
+              },
+              body: JSON.stringify({ status }),
+            },
+          );
+          const patchData = await patchRes.json();
+          if (!patchData?.success)
+            throw new Error(patchData?.error || "Status update failed.");
+        }
+
+        // Update in-memory and the marker visual
+        p.latitude = lat;
+        p.longitude = lng;
+        p.heading = heading;
+        p.location_notes = notes;
+        p.status = status;
+        p.mount_type = mountType;
+
+        const marker = markers.get(editingId);
+        if (marker) {
+          marker.position = { lat, lng };
+          marker.content = buildMarkerContent(p);
+        }
+      }
+
+      applyFilters();
+      offcanvas?.hide();
+    } catch (err) {
+      console.error("saveFromEditor error:", err);
+      if (feedback) {
+        feedback.className = "small text-danger";
+        feedback.textContent = err.message || "Save failed.";
+      }
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = origLabel;
+    }
+  }
+
+  /**
+   * Delete the placement currently being edited.
+   */
+  async function deleteFromEditor() {
+    if (editingId === null) return;
+    const p = findPlacement(editingId);
+    if (!p) return;
+
+    const confirmed = window.confirm(
+      `Delete this placement of "${p.sign_text}"?\n\n` +
+        "The sign template remains intact and can be placed again later.",
+    );
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`/signs/placements/${editingId}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "CSRF-Token": getCsrfToken(),
+        },
+      });
+      const data = await res.json();
+      if (!data?.success) throw new Error(data?.error || "Delete failed.");
+
+      const marker = markers.get(editingId);
+      if (marker) {
+        marker.map = null;
+        markers.delete(editingId);
+      }
+      placements = placements.filter((x) => x.placement_id !== editingId);
+
+      applyFilters();
+      offcanvas?.hide();
+    } catch (err) {
+      console.error("deleteFromEditor error:", err);
+      window.alert(err.message || "Delete failed.");
+    }
+  }
+
+  // ============================================================
+  // WIRING
+  // ============================================================
+
+  /**
+   * Wire all DOM event listeners. Called after Maps has loaded.
+   */
+  function wireUi() {
+    // Filters
+    document.querySelectorAll('input[name="statusFilter"]').forEach((el) => {
+      el.addEventListener("change", applyFilters);
+    });
+    const tmplEl = document.getElementById("signTemplateFilter");
+    if (tmplEl) tmplEl.addEventListener("change", applyFilters);
+
+    // Add placement
+    const addBtn = document.getElementById("addPlacementBtn");
+    const cancelBtn = document.getElementById("cancelAddBtn");
+    if (addBtn) addBtn.addEventListener("click", enterPlacingMode);
+    if (cancelBtn) cancelBtn.addEventListener("click", exitPlacingMode);
+
+    // Editor: sign template picker -> live preview
+    const tmplSelect = document.getElementById("editorSignTemplate");
+    if (tmplSelect) {
+      tmplSelect.addEventListener("change", () => {
+        const opt = tmplSelect.options[tmplSelect.selectedIndex];
+        if (!opt || !opt.value) {
+          updateEditorPreview("—", null);
+          return;
+        }
+        updateEditorPreview(
+          opt.getAttribute("data-text") || "",
+          opt.getAttribute("data-arrow") || null,
+        );
+      });
+    }
+
+    // Editor buttons
+    const saveBtn = document.getElementById("editorSaveBtn");
+    const delBtn = document.getElementById("editorDeleteBtn");
+    if (saveBtn) saveBtn.addEventListener("click", saveFromEditor);
+    if (delBtn) delBtn.addEventListener("click", deleteFromEditor);
+
+    // Placement list row click -> open editor
+    const list = document.getElementById("placementList");
+    if (list) {
+      list.addEventListener("click", (e) => {
+        const row = e.target.closest(".signs-placement-row");
+        if (!row) return;
+        const id = Number(row.getAttribute("data-placement-id"));
+        if (id) openEditor(id);
+      });
+    }
+
+    // Reset pending-marker / editing state when the editor is dismissed
+    const editorEl = document.getElementById("placementEditor");
+    if (editorEl) {
+      editorEl.addEventListener("hidden.bs.offcanvas", () => {
+        clearPendingMarker();
+        editingId = null;
+        pendingNewLatLng = null;
+      });
+    }
+
+    // Offcanvas instance
+    if (window.bootstrap && editorEl) {
+      offcanvas = window.bootstrap.Offcanvas.getOrCreateInstance(editorEl);
+    }
+  }
+
+  // ============================================================
+  // BOOTSTRAP
+  // ============================================================
+
+  /**
+   * Read server-rendered JSON, then load and initialize the map.
+   */
+  function bootstrap() {
+    const root = document.getElementById("signsMapRoot");
+    if (!root) return;
+
+    const apiKey = root.getAttribute("data-api-key") || "";
+    const centerLat = Number(root.getAttribute("data-center-lat"));
+    const centerLng = Number(root.getAttribute("data-center-lng"));
+    const centerZoom = Number(root.getAttribute("data-center-zoom")) || 17;
+    canManage = root.getAttribute("data-can-manage") === "1";
+
+    const dataEl = document.getElementById("signsMapBootstrap");
+    if (dataEl) {
+      try {
+        const parsed = JSON.parse(dataEl.textContent || "{}");
+        signs = Array.isArray(parsed.signs) ? parsed.signs : [];
+        placements = Array.isArray(parsed.placements) ? parsed.placements : [];
+      } catch (err) {
+        console.error("Failed to parse signsMapBootstrap JSON:", err);
+      }
+    }
+
+    wireUi();
+    renderPlacementList(placements);
+
+    if (!apiKey) {
+      // The EJS shows the missing-key message; nothing else to do here.
+      return;
+    }
+
+    loadGoogleMaps(apiKey)
+      .then(() =>
+        initMap({
+          lat: Number.isFinite(centerLat) ? centerLat : 42.6485,
+          lng: Number.isFinite(centerLng) ? centerLng : -73.749,
+          zoom: centerZoom,
+        }),
+      )
+      .catch((err) => {
+        console.error(err);
+        const mapEl = document.getElementById("googleMap");
+        if (mapEl) {
+          mapEl.replaceChildren();
+          const msg = document.createElement("p");
+          msg.className = "text-center text-danger p-4 mb-0";
+          msg.textContent =
+            "Failed to load Google Maps. Check the API key and browser console.";
+          mapEl.appendChild(msg);
+        }
+      });
+  }
+
+  document.addEventListener("DOMContentLoaded", bootstrap);
+})();

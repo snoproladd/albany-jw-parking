@@ -51,6 +51,25 @@ const VALID_ARROWS = [
 /** Valid placement statuses. */
 const VALID_STATUSES = ["planned", "installed", "removed"];
 
+/** Valid mount types for a placement. Null means "not specified". */
+const VALID_MOUNT_TYPES = ["cone", "a-frame", "existing-structure"];
+
+/**
+ * Normalise a mount type from the client. Accepts null/empty for "not set".
+ * Throws if value is non-empty but not in the allowed set.
+ *
+ * @param {any} val
+ * @returns {string|null}
+ */
+function normaliseMountType(val) {
+    if (val === null || val === undefined || val === "") return null;
+    const v = String(val).trim().toLowerCase();
+    if (!VALID_MOUNT_TYPES.includes(v)) {
+        throw new Error(`Invalid mount type: ${v}`);
+    }
+    return v;
+}
+
 /**
  * Normalise an arrow direction value from the client.
  * Accepts null/empty string for "no arrow". Throws if value is non-empty
@@ -72,12 +91,19 @@ function normaliseArrow(val) {
  * Factory: build the signs router.
  *
  * @param {{
- *   csrfProtection: import('csurf').RequestHandler,
- *   logError?:      (...args: any[]) => void,
+ *   csrfProtection:    import('csurf').RequestHandler,
+ *   logError?:         (...args: any[]) => void,
+ *   googleMapsApiKey?: string,
+ *   defaultMapCenter?: { lat: number, lng: number, zoom: number },
  * }} deps
  * @returns {import('express').Router}
  */
-export function signsRouter({ csrfProtection, logError }) {
+export function signsRouter({
+    csrfProtection,
+    logError,
+    googleMapsApiKey,
+    defaultMapCenter = { lat: 42.6485, lng: -73.7490, zoom: 17 },
+}) {
   const router = express.Router();
   const log = logError || console.error;
 
@@ -115,6 +141,49 @@ export function signsRouter({ csrfProtection, logError }) {
         });
       } catch (err) {
         log("signs GET error:", err);
+        return res.status(500).send("Server error");
+      }
+    },
+  );
+
+  // ===========================
+  // SIGN MAP (place + view placements on a satellite map)
+  // ===========================
+
+  /**
+   * GET /signs/map
+   * Render the sign map page — Google Maps satellite view showing all
+   * non-archived placements as custom overlays. OVERSEER+ can click to
+   * place new signs, drag to reposition, and edit/delete via panel.
+   * Requires viewSigns permission to view; manage actions are gated
+   * client-side by manageSigns (server-side checks remain in the CRUD
+   * routes regardless).
+   */
+  router.get(
+    "/signs/map",
+    requireAuth,
+    requirePermission("viewSigns"),
+    csrfProtection,
+    async (req, res) => {
+      try {
+        const [signs, placements] = await Promise.all([
+          getSigns(),
+          getSignPlacements(),
+        ]);
+
+        if (!googleMapsApiKey) {
+          log("signs/map: GOOGLE_MAPS_API_KEY is not configured.");
+        }
+
+        return res.render("authentication_and_accounts/signsMap", {
+          csrfToken: req.csrfToken(),
+          signs,
+          placements,
+          googleMapsApiKey: googleMapsApiKey || "",
+          defaultMapCenter,
+        });
+      } catch (err) {
+        log("signs/map GET error:", err);
         return res.status(500).send("Server error");
       }
     },
@@ -391,81 +460,92 @@ export function signsRouter({ csrfProtection, logError }) {
    *
    * @requires manageSigns permission
    */
-  router.post(
-    "/signs/:id/placements",
-    requireAuth,
-    requirePermission("manageSigns"),
-    csrfProtection,
-    async (req, res) => {
-      const signId = Number(req.params.id);
-      const { latitude, longitude, heading, locationNotes, status } =
-        req.body || {};
+router.post(
+  "/signs/:id/placements",
+  requireAuth,
+  requirePermission("manageSigns"),
+  csrfProtection,
+  async (req, res) => {
+    const signId = Number(req.params.id);
+    const { latitude, longitude, heading, locationNotes, status, mountType } =
+      req.body || {};
 
-      if (!signId) {
+    if (!signId) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid sign id.",
+      });
+    }
+
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+    if (
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lng) ||
+      lat < -90 ||
+      lat > 90 ||
+      lng < -180 ||
+      lng > 180
+    ) {
+      return res.status(400).json({
+        success: false,
+        error:
+          "latitude and longitude are required and must be valid coordinates.",
+      });
+    }
+
+    let hd = null;
+    if (heading !== undefined && heading !== null && heading !== "") {
+      hd = Number(heading);
+      if (!Number.isFinite(hd) || hd < 0 || hd > 360) {
         return res.status(400).json({
           success: false,
-          error: "Invalid sign id.",
+          error: "heading must be between 0 and 360.",
         });
       }
+    }
 
-      const lat = Number(latitude);
-      const lng = Number(longitude);
-      if (
-        !Number.isFinite(lat) ||
-        !Number.isFinite(lng) ||
-        lat < -90 ||
-        lat > 90 ||
-        lng < -180 ||
-        lng > 180
-      ) {
-        return res.status(400).json({
-          success: false,
-          error:
-            "latitude and longitude are required and must be valid coordinates.",
-        });
-      }
+const statusValue = status || "planned";
+if (!VALID_STATUSES.includes(statusValue)) {
+  return res.status(400).json({
+    success: false,
+    error: "Invalid status.",
+  });
+}
 
-      let hd = null;
-      if (heading !== undefined && heading !== null && heading !== "") {
-        hd = Number(heading);
-        if (!Number.isFinite(hd) || hd < 0 || hd > 360) {
-          return res.status(400).json({
-            success: false,
-            error: "heading must be between 0 and 360.",
-          });
-        }
-      }
+let mountTypeValue;
+try {
+  mountTypeValue = normaliseMountType(mountType);
+} catch (e) {
+  return res.status(400).json({
+    success: false,
+    error: e.message,
+  });
+}
 
-      const statusValue = status || "planned";
-      if (!VALID_STATUSES.includes(statusValue)) {
-        return res.status(400).json({
-          success: false,
-          error: "Invalid status.",
-        });
-      }
-
-      try {
-        const id = await createSignPlacement(
-          {
-            signId,
-            latitude: lat,
-            longitude: lng,
-            heading: hd,
-            locationNotes: locationNotes?.trim() || null,
-            status: statusValue,
-          },
-          req.session.userEmail || "admin",
-        );
-        return res.json({ success: true, id });
-      } catch (err) {
-        log("signs/:id/placements POST error:", err);
-        return res.status(500).json({
-          success: false,
-          error: "Server error.",
-        });
-      }
+try {
+  const id = await createSignPlacement(
+    {
+      signId,
+      latitude: lat,
+      longitude: lng,
+      heading: hd,
+      locationNotes: locationNotes?.trim() || null,
+      status: statusValue,
+      mountType: mountTypeValue,
     },
+    req.session.userEmail || "admin",
   );
+  return res.json({ success: true, id });
+} catch (err) {
+  log("signs/:id/placements POST error:", err);
+  return res.status(500).json({
+    success: false,
+    error: "Server error.",
+  });
+}
+  },
+);
 
   /**
    * PUT /signs/placements/:placementId
@@ -477,65 +557,77 @@ export function signsRouter({ csrfProtection, logError }) {
    *
    * @requires manageSigns permission
    */
-  router.put(
-    "/signs/placements/:placementId",
-    requireAuth,
-    requirePermission("manageSigns"),
-    csrfProtection,
-    async (req, res) => {
-      const placementId = Number(req.params.placementId);
-      const { latitude, longitude, heading, locationNotes } = req.body || {};
+router.put(
+  "/signs/placements/:placementId",
+  requireAuth,
+  requirePermission("manageSigns"),
+  csrfProtection,
+  async (req, res) => {
+    const placementId = Number(req.params.placementId);
+    const { latitude, longitude, heading, locationNotes, mountType } =
+      req.body || {};
 
-      if (!placementId) {
+    if (!placementId) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid placement id.",
+      });
+    }
+
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      return res.status(400).json({
+        success: false,
+        error: "Valid latitude and longitude are required.",
+      });
+    }
+
+    let hd = null;
+    if (heading !== undefined && heading !== null && heading !== "") {
+      hd = Number(heading);
+      if (!Number.isFinite(hd) || hd < 0 || hd > 360) {
         return res.status(400).json({
           success: false,
-          error: "Invalid placement id.",
+          error: "heading must be between 0 and 360.",
         });
       }
+    }
 
-      const lat = Number(latitude);
-      const lng = Number(longitude);
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-        return res.status(400).json({
-          success: false,
-          error: "Valid latitude and longitude are required.",
-        });
-      }
+let mountTypeValue;
+try {
+  mountTypeValue = normaliseMountType(mountType);
+} catch (e) {
+  return res.status(400).json({
+    success: false,
+    error: e.message,
+  });
+}
 
-      let hd = null;
-      if (heading !== undefined && heading !== null && heading !== "") {
-        hd = Number(heading);
-        if (!Number.isFinite(hd) || hd < 0 || hd > 360) {
-          return res.status(400).json({
-            success: false,
-            error: "heading must be between 0 and 360.",
-          });
-        }
-      }
-
-      try {
-        const ok = await updateSignPlacement(placementId, {
-          latitude: lat,
-          longitude: lng,
-          heading: hd,
-          locationNotes: locationNotes?.trim() || null,
-        });
-        if (!ok) {
-          return res.status(404).json({
-            success: false,
-            error: "Placement not found.",
-          });
-        }
-        return res.json({ success: true });
-      } catch (err) {
-        log("signs/placements PUT error:", err);
-        return res.status(500).json({
-          success: false,
-          error: "Server error.",
-        });
-      }
-    },
-  );
+try {
+  const ok = await updateSignPlacement(placementId, {
+    latitude: lat,
+    longitude: lng,
+    heading: hd,
+    locationNotes: locationNotes?.trim() || null,
+    mountType: mountTypeValue,
+  });
+  if (!ok) {
+    return res.status(404).json({
+      success: false,
+      error: "Placement not found.",
+    });
+  }
+  return res.json({ success: true });
+} catch (err) {
+  log("signs/placements PUT error:", err);
+  return res.status(500).json({
+    success: false,
+    error: "Server error.",
+  });
+}
+  },
+);
 
   /**
    * PATCH /signs/placements/:placementId/status

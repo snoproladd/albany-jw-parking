@@ -68,6 +68,7 @@ const SECRET_MAP = Object.freeze({
   GRAPH_TENANT_ID:     "GraphTenantId",
   GRAPH_CLIENT_ID:     "GraphClientId",
   GRAPH_CLIENT_SECRET: "GraphClientSecret",
+  GOOGLE_MAPS_API_KEY: "GoogleMapsApiKey",
 });
 
 // ============================================================================
@@ -154,6 +155,9 @@ export async function getConfig() {
     GRAPH_DRIVE_USER:    process.env.GRAPH_DRIVE_USER    || 'jladd@jakeofalltradespropertyserv.onmicrosoft.com',
     GRAPH_FOLDER_PATH:   process.env.GRAPH_FOLDER_PATH   || '2026 Convention Parking/Documents for Distribution',
 
+    // Google Maps Platform (Maps JavaScript API)
+    GOOGLE_MAPS_API_KEY: secrets.GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY,
+
     // Sessions
     sessionSecret:
       secrets.SESSION_SECRET || process.env.SESSION_SECRET || "fallback-secret",
@@ -174,6 +178,7 @@ export async function getConfig() {
     twilioMsgConfigured: Boolean(CONFIG.TWILIO_MSG_SID),
     kickboxConfigured: Boolean(CONFIG.KICKBOX_API_KEY),
     ionosSmtpConfigured: Boolean(CONFIG.IONOS_SMTP_HOST && CONFIG.IONOS_SMTP_USER_INFO),
+    googleMapsConfigured: Boolean(CONFIG.GOOGLE_MAPS_API_KEY),
   });
 
   return CONFIG;

@@ -3,76 +3,147 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
-## [2.29.0] - 2026-05-29
+## [2.29.0] - 2026-06-01
 
-### Added
-- **Sign placement system — Phase 1 (templates + CRUD).** New feature for
-  managing the placards placed around the convention area (directional signs
-  for parking, lot status, overflow routing, etc.). Phase 1 establishes the
-  data model, RBAC, and the template builder UI. Map-based placement,
-  Street View overlay, photo upload, and live proximity alerts are scheduled
-  for follow-on phases.
-  - **New DB tables:**
-    - `signs` — reusable sign templates with `sign_text`, `arrow_direction`
-      (one of `up`, `down`, `left`, `right`, `up-left`, `up-right`,
-      `down-left`, `down-right`, or null), optional `description`, and
-      audit columns. `is_archived` BIT for soft delete.
-    - `sign_placements` — geographic instances of a sign template with
-      `latitude`/`longitude` (`DECIMAL(10,7)`, ~1cm precision), nullable
-      `heading` (compass bearing the sign faces, for Phase 3's Street View
-      overlay), `location_notes`, `status` (`planned`/`installed`/`removed`),
-      optional `photo_url`, and full install/remove audit trail.
-    - FK from `sign_placements.sign_id` to `signs.sign_id` so archived
-      templates retain their historical placements.
-- **New permissions** added to the RBAC matrix in `src/config/roles.js`:
-  - `viewSigns` — REGISTERED, KEYMAN, OVERSEER, ASSISTANT_ADMIN, ADMIN
-  - `manageSigns` — OVERSEER, ASSISTANT_ADMIN, ADMIN
-- **Sign Library page** at `/signs` (REGISTERED+, `viewSigns`).
-  - Card grid showing each template's preview (text + arrow), description,
-    and placement count.
-  - Live search/filter across sign text and description.
-  - Edit and Archive buttons surface only for users with `manageSigns`.
-- **Sign Builder page** at `/signs/builder` and `/signs/builder/:id`
-  (OVERSEER+, `manageSigns`).
-  - Live preview that updates as the user types text and clicks arrow buttons.
-  - 3×3 arrow picker grid covering all 8 directions plus a center "no arrow"
-    option. Selecting the active arrow a second time toggles it off.
-  - AJAX save to POST `/signs` (new) or PUT `/signs/:id` (edit), then
-    redirects to the library on success.
-- **`routes/signsRoutes.js`** — new router factory wired into `index.js`.
-  Routes:
-  - GET `/signs`, GET `/signs/builder`, GET `/signs/builder/:id` — render pages
-  - POST `/signs`, PUT `/signs/:id`, DELETE `/signs/:id` — template CRUD (JSON)
-  - GET `/signs/:id/placements`, POST `/signs/:id/placements`,
-    PUT `/signs/placements/:id`, PATCH `/signs/placements/:id/status`,
-    DELETE `/signs/placements/:id` — placement CRUD (JSON, used in Phase 2)
-- **`lib/dbSync.js`** — new SIGNS section with `getSigns`, `getSignById`,
-  `createSign`, `updateSign`, `archiveSign`, `getSignPlacements`,
-  `getSignPlacementById`, `createSignPlacement`, `updateSignPlacement`,
-  `updateSignPlacementStatus` (auto-syncs install/remove audit columns),
-  and `deleteSignPlacement`.
-- **Sitemap entries** — new "Signs" group with Sign Library
-  (`permission: viewSigns`) and Sign Builder (`permission: manageSigns`)
-  entries.
-- **New files:**
-  - `views/authentication_and_accounts/signsList.ejs`
-  - `views/authentication_and_accounts/signsBuilder.ejs`
-  - `public/js/signsList.js`
-  - `public/js/signsBuilder.js`
-  - `public/styles/signs.css`
+A major new feature area: the **Sign Placement System** for managing the
+directional placards placed around the convention area (parking, lot status,
+overflow routing, etc.). This release covers both Phase 1 (templates + library)
+and Phase 2 (satellite-map placement). Phase 3 will add a bearing-tracked
+Street View overlay; Phase 2b will add photo upload via Azure Blob Storage.
 
-### Changed
-- **CSP loosened** in `index.js` to allow Google Maps + Street View in Phase 2:
-  - `script-src` now includes `https://maps.googleapis.com` and
-    `https://maps.gstatic.com`.
-  - `img-src` adds `blob:`, `https://maps.googleapis.com`,
-    `https://maps.gstatic.com`, `https://*.googleapis.com`,
-    `https://*.gstatic.com`, and `https://streetviewpixels-pa.googleapis.com`.
-  - `connect-src` (dev) adds `https://maps.googleapis.com`,
-    `https://maps.gstatic.com`, and `https://*.googleapis.com`. Prod already
-    permits `https:` broadly so no production change is required there.
-  - New `worker-src: 'self' blob:` directive added — Google Maps uses
-    blob-URL Web Workers internally.
+### Added — Schema
+- **`signs` table** — reusable sign templates (`sign_text`, `arrow_direction`,
+  optional `description`, audit columns, `is_archived` BIT for soft delete).
+- **`sign_placements` table** — geographic instances of a template with
+  `latitude`/`longitude` (`DECIMAL(10,7)`, ~1cm precision), nullable `heading`
+  (compass bearing the sign faces — for the Phase 3 Street View overlay),
+  `location_notes`, `status` (`planned`/`installed`/`removed`),
+  `mount_type` (`cone`/`a-frame`/`existing-structure`, nullable), optional
+  `photo_url`, and full install/remove audit trail.
+- **`arrow_direction` allowed values** — `up`, `down`, `left`, `right`,
+  `up-left`, `up-right`, `down-left`, `down-right`, `up-then-left`,
+  `up-then-right`, `destination`, or null. Enforced via CHECK constraint.
+- **`mount_type` allowed values** — `cone`, `a-frame`, `existing-structure`,
+  or null. Enforced via CHECK constraint.
+- FK from `sign_placements.sign_id` to `signs.sign_id` survives template
+  archival so historical placements remain valid.
+
+### Added — RBAC
+- **`viewSigns`** — REGISTERED, KEYMAN, OVERSEER, ASSISTANT_ADMIN, ADMIN.
+- **`manageSigns`** — OVERSEER, ASSISTANT_ADMIN, ADMIN.
+- DESK explicitly does not see signs (scoped to attendance and account creation).
+
+### Added — Sign Library *(`/signs`, REGISTERED+)*
+- Card grid showing each template's preview (text + arrow + destination pin),
+  description, and placement count.
+- Live search/filter across sign text and description.
+- Edit and Archive buttons surface only for users with `manageSigns`.
+- Archiving a template is a soft delete — existing placements survive and the
+  template stops appearing in the library or the map's template picker.
+
+### Added — Sign Builder *(`/signs/builder` and `/signs/builder/:id`, OVERSEER+)*
+- Live preview that updates as the user types and clicks arrow buttons.
+- 4-row arrow picker grid:
+  - Row 1: ↖ ↑ ↗ (up-left, up, up-right)
+  - Row 2: ← ⊘ → (left, no-arrow, right)
+  - Row 3: ↙ ↓ ↘ (down-left, down, down-right)
+  - Row 4: ↰ ↱ 📍 (up-then-left, up-then-right, destination pin)
+- The destination pin is rendered as a FontAwesome `fa-location-dot` icon
+  (not Unicode) for consistent cross-platform appearance.
+- Clicking the active arrow a second time deselects it.
+- AJAX save to POST `/signs` (new) or PUT `/signs/:id` (edit); redirects to
+  the library on success.
+
+### Added — Sign Map *(`/signs/map`, REGISTERED+ view, OVERSEER+ edit)*
+- Google Maps satellite + hybrid view of all non-archived placements as
+  `AdvancedMarkerElement` DOM markers rendering the actual sign preview block.
+- Status-coded marker borders: gray (planned), green (installed), red (removed).
+- **Click-to-place** workflow — OVERSEER+ clicks "Add placement", clicks the
+  map to drop a pin, then picks a template in the offcanvas editor.
+- **Drag-to-reposition** — dragging a marker autosaves the new coords on
+  drag-end; rejected saves snap the marker back.
+- **Offcanvas editor** (slides in from the right) — edit status, mount type,
+  heading (0–360°, optional), location notes; or delete. Read-only audit line
+  showing `created_by` / `installed_by`.
+- **Filters** — status chips (All / Planned / Installed / Removed) and
+  template dropdown filter the markers and the sidebar list in tandem.
+- **Sidebar placement list** synced to current filters; clicking a row
+  opens the editor for that placement.
+- View-only mode for REGISTERED / KEYMAN — drag disabled, no edit/delete.
+- Graceful fallback when `GOOGLE_MAPS_API_KEY` is not configured — page
+  loads with a warning panel in place of the map.
+- Bootstrap JSON loaded via `<script type="application/json">` (CSP-safe;
+  no inline JS, no API key in static HTML).
+
+### Added — Routes (`routes/signsRoutes.js`)
+- GET `/signs`, GET `/signs/builder`, GET `/signs/builder/:id`,
+  GET `/signs/map` — render pages.
+- POST `/signs`, PUT `/signs/:id`, DELETE `/signs/:id` — template CRUD (JSON).
+- GET `/signs/:id/placements`, POST `/signs/:id/placements`,
+  PUT `/signs/placements/:id`, PATCH `/signs/placements/:id/status`,
+  DELETE `/signs/placements/:id` — placement CRUD (JSON).
+- The `signsRouter` factory accepts `googleMapsApiKey` and `defaultMapCenter`
+  dependencies from `index.js`.
+
+### Added — DB layer (`lib/dbSync.js`)
+- New SIGNS section: `getSigns`, `getSignById`, `createSign`, `updateSign`,
+  `archiveSign`, `getSignPlacements` (filters by signId / status; excludes
+  archived templates by default), `getSignPlacementById`,
+  `createSignPlacement`, `updateSignPlacement`,
+  `updateSignPlacementStatus` (auto-syncs `installed_by` / `installed_at` /
+  `removed_at` audit columns based on the destination status),
+  `deleteSignPlacement`.
+
+### Added — Config
+- **`src/config/azureConfig.js`** — `GOOGLE_MAPS_API_KEY` added to
+  `SECRET_MAP` (mapped from Key Vault secret `GoogleMapsApiKey`) and to
+  the `CONFIG` object with `.env` fallback. Boot log now reports
+  `googleMapsConfigured: boolean`.
+- **`index.js`** — passes `config.GOOGLE_MAPS_API_KEY` and a
+  `defaultMapCenter` (MVP Arena: lat 42.6485, lng -73.7490, zoom 17) to
+  the `signsRouter` factory.
+
+### Added — Navigation
+- **Sitemap** (`src/config/sitemap.json`) — new "Signs" group containing
+  Sign Library, Sign Builder, and Sign Map entries with appropriate
+  `permission` gates.
+- **Header — Resources dropdown** — Sign Library link added below Maps,
+  gated by `viewSigns`.
+- **Header — Oversight dropdown** — new "Signs" category between Reports
+  and Scheduling with Sign Library and Sign Builder links, conditional on
+  the appropriate permission.
+- **Oversight Tools page** — Signs section between Reports and Scheduling
+  with Sign Library and Sign Builder cards. Mobile section-jump dropdown
+  and desktop sidebar both updated.
+
+### Changed — CSP (`index.js`)
+- `script-src` adds `https://maps.googleapis.com` and `https://maps.gstatic.com`.
+- `img-src` adds `blob:`, `https://maps.googleapis.com`, `https://maps.gstatic.com`,
+  `https://*.googleapis.com`, `https://*.gstatic.com`, and
+  `https://streetviewpixels-pa.googleapis.com`.
+- `connect-src` (dev) adds the same Maps origins. Prod already permits
+  `https:` broadly so no production change is required.
+- New `worker-src: 'self' blob:` directive — Google Maps uses blob-URL
+  Web Workers internally.
+
+### Fixed
+- **`signsBuilder.ejs` content swap** — the file was initially created with
+  the contents of `signsList.ejs`, which caused
+  `ReferenceError: signs is not defined` on every visit to `/signs/builder`.
+  Replaced with the correct sign builder markup.
+- **`signsBuilder.js` IIFE typo** — final-line `};)();` was a syntax error
+  that prevented the entire script from running, leaving the live preview
+  and arrow picker non-functional. Fixed to `})();`.
+
+### New files
+- `routes/signsRoutes.js`
+- `views/authentication_and_accounts/signsList.ejs`
+- `views/authentication_and_accounts/signsBuilder.ejs`
+- `views/authentication_and_accounts/signsMap.ejs`
+- `public/js/signsList.js`
+- `public/js/signsBuilder.js`
+- `public/js/signsMap.js`
+- `public/styles/signs.css`
 
 ## [2.28.0] - 2026-05-29
 

@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Sign Map — Albany JW Parking</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content="<%= csrfToken %>" />
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" href="/styles/styles.css" />
+    <link rel="stylesheet" href="/styles/signs.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+</head>
+
+<body class="min-vh-100 bg-body-tertiary signs-map-body" data-authed="true">
+    <%- include('../partials/header') %>
+
+    <%
+        // Role helpers must be inlined per template — variables inside
+        // include() partials are not in scope here.
+        const _role     = typeof userRole        !== 'undefined' ? userRole        : 'NON_REGISTERED';
+        const _perms    = typeof userPermissions !== 'undefined' ? userPermissions : {};
+        const can       = (permission) => !!(_perms[_role] && _perms[_role][permission]);
+        const canManage = can('manageSigns');
+    %>
+
+    <main class="container-fluid py-3">
+        <div class="row g-3 signs-map-row"
+             id="signsMapRoot"
+             data-can-manage="<%= canManage ? '1' : '0' %>"
+             data-api-key="<%= googleMapsApiKey %>"
+             data-center-lat="<%= defaultMapCenter.lat %>"
+             data-center-lng="<%= defaultMapCenter.lng %>"
+             data-center-zoom="<%= defaultMapCenter.zoom %>">
+
+            <%# ──────────────────────────────────────────────────────────
+                LEFT COLUMN: filters + placement list
+            ────────────────────────────────────────────────────────── %>
+            <aside class="col-12 col-lg-4 col-xl-3">
+                <section class="card shadow-sm admin-console-card signs-map-side">
+                    <header class="card-header d-flex align-items-center justify-content-between">
+                        <h1 class="h5 mb-0">
+                            <i class="fa-solid fa-map-location-dot me-2"></i>Sign Map
+                        </h1>
+                        <a href="/signs" class="btn btn-link btn-sm p-0">
+                            <i class="fa-solid fa-arrow-left me-1"></i>Library
+                        </a>
+                    </header>
+
+                    <div class="card-body">
+
+                        <%# Filters %>
+                        <div class="mb-3">
+                            <label class="form-label small text-uppercase text-muted mb-1">
+                                Status
+                            </label>
+                            <div class="btn-group btn-group-sm w-100" role="group" aria-label="Status filter">
+                                <input type="radio" class="btn-check" name="statusFilter" id="statusAll" value="" checked />
+                                <label class="btn btn-outline-secondary" for="statusAll">All</label>
+
+                                <input type="radio" class="btn-check" name="statusFilter" id="statusPlanned" value="planned" />
+                                <label class="btn btn-outline-secondary" for="statusPlanned">Planned</label>
+
+                                <input type="radio" class="btn-check" name="statusFilter" id="statusInstalled" value="installed" />
+                                <label class="btn btn-outline-secondary" for="statusInstalled">Installed</label>
+
+                                <input type="radio" class="btn-check" name="statusFilter" id="statusRemoved" value="removed" />
+                                <label class="btn btn-outline-secondary" for="statusRemoved">Removed</label>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="signTemplateFilter" class="form-label small text-uppercase text-muted mb-1">
+                                Sign template
+                            </label>
+                            <select class="form-select form-select-sm" id="signTemplateFilter">
+                                <option value="">All templates</option>
+                                <% signs.forEach(s => { %>
+                                    <option value="<%= s.sign_id %>"><%= s.sign_text %></option>
+                                <% }); %>
+                            </select>
+                        </div>
+
+                        <% if (canManage) { %>
+                            <div class="d-grid mb-3">
+                                <button type="button" class="btn btn-primary btn-sm" id="addPlacementBtn">
+                                    <i class="fa-solid fa-plus me-1"></i>Add placement
+                                </button>
+                            </div>
+                            <p class="small text-muted mb-3" id="addPlacementHelp" hidden>
+                                <i class="fa-solid fa-circle-info me-1"></i>
+                                Click anywhere on the map to drop a placement.
+                                <button type="button" class="btn btn-link btn-sm p-0 ms-1" id="cancelAddBtn">Cancel</button>
+                            </p>
+                        <% } %>
+
+                        <div class="signs-placement-list" id="placementList">
+                            <%# Filled by JS so search/filter stays in one place. %>
+                        </div>
+
+                    </div>
+                </section>
+            </aside>
+
+            <%# ──────────────────────────────────────────────────────────
+                RIGHT COLUMN: the map
+            ────────────────────────────────────────────────────────── %>
+            <div class="col-12 col-lg-8 col-xl-9">
+                <section class="card shadow-sm admin-console-card signs-map-wrapper">
+
+                    <% if (!googleMapsApiKey) { %>
+                        <div class="signs-map-missing-key p-5 text-center">
+                            <i class="fa-solid fa-key fa-2x mb-3 text-warning"></i>
+                            <h2 class="h5">Google Maps API key not configured</h2>
+                            <p class="text-muted mb-0">
+                                Set <code>GOOGLE_MAPS_API_KEY</code> in the environment
+                                (or <code>GoogleMapsApiKey</code> in Key Vault) and restart the server.
+                            </p>
+                        </div>
+                    <% } else { %>
+                        <div id="googleMap" class="signs-map-canvas">
+                            <div class="signs-map-loading">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading…</span>
+                                </div>
+                            </div>
+                        </div>
+                    <% } %>
+
+                </section>
+            </div>
+
+        </div>
+    </main>
+
+    <%# ──────────────────────────────────────────────────────────
+        OFFCANVAS: placement editor (slides in from the right)
+    ────────────────────────────────────────────────────────── %>
+    <div class="offcanvas offcanvas-end signs-placement-offcanvas"
+         tabindex="-1"
+         id="placementEditor"
+         aria-labelledby="placementEditorTitle">
+        <div class="offcanvas-header">
+            <h2 class="offcanvas-title h5 mb-0" id="placementEditorTitle">Placement</h2>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+
+            <%# Sign template picker (only for new placements) %>
+            <div class="mb-3" id="editorSignTemplateRow" hidden>
+                <label for="editorSignTemplate" class="form-label">
+                    Sign template <span class="text-danger">*</span>
+                </label>
+                <select class="form-select" id="editorSignTemplate">
+                    <option value="">Pick a sign…</option>
+                    <% signs.forEach(s => { %>
+                        <option value="<%= s.sign_id %>"
+                                data-text="<%= s.sign_text %>"
+                                data-arrow="<%= s.arrow_direction || '' %>">
+                            <%= s.sign_text %>
+                        </option>
+                    <% }); %>
+                </select>
+            </div>
+
+            <%# Preview of selected sign %>
+            <div class="mb-3 text-center">
+                <p class="text-muted small mb-2">Sign preview</p>
+                <div class="sign-preview mx-auto" id="editorPreview">
+                    <span class="sign-preview-text" id="editorPreviewText">—</span>
+                    <span class="sign-preview-arrow" id="editorPreviewArrow"></span>
+                </div>
+            </div>
+
+            <%# Coordinates %>
+            <div class="row g-2 mb-3">
+                <div class="col-6">
+                    <label for="editorLat" class="form-label small">Latitude</label>
+                    <input type="number" step="0.0000001" class="form-control form-control-sm" id="editorLat" readonly />
+                </div>
+                <div class="col-6">
+                    <label for="editorLng" class="form-label small">Longitude</label>
+                    <input type="number" step="0.0000001" class="form-control form-control-sm" id="editorLng" readonly />
+                </div>
+                <div class="form-text small">Drag the marker on the map to reposition.</div>
+            </div>
+
+            <%# Mount type %>
+            <div class="mb-3">
+                <label for="editorMountType" class="form-label">Mounted on</label>
+                <select class="form-select" id="editorMountType">
+                    <option value="">Not specified</option>
+                    <option value="cone">Cone</option>
+                    <option value="a-frame">A-frame</option>
+                    <option value="existing-structure">Existing structure (pole, wall, etc.)</option>
+                </select>
+            </div>
+
+            <%# Status %>
+            <div class="mb-3">
+                <label class="form-label">Status</label>
+                <div class="btn-group w-100" role="group">
+                    <input type="radio" class="btn-check" name="editorStatus" id="editorStatusPlanned" value="planned" checked />
+                    <label class="btn btn-outline-secondary" for="editorStatusPlanned">Planned</label>
+
+                    <input type="radio" class="btn-check" name="editorStatus" id="editorStatusInstalled" value="installed" />
+                    <label class="btn btn-outline-success" for="editorStatusInstalled">Installed</label>
+
+                    <input type="radio" class="btn-check" name="editorStatus" id="editorStatusRemoved" value="removed" />
+                    <label class="btn btn-outline-danger" for="editorStatusRemoved">Removed</label>
+                </div>
+            </div>
+
+            <%# Heading (compass bearing, for Phase 3 Street View overlay) %>
+            <div class="mb-3">
+                <label for="editorHeading" class="form-label">
+                    Heading <span class="text-muted small">(facing direction, 0–360°, optional)</span>
+                </label>
+                <input type="number" min="0" max="360" step="1" class="form-control" id="editorHeading"
+                       placeholder="e.g. 90 for east" />
+                <div class="form-text">Used by Street View overlay (Phase 3). Leave blank if unknown.</div>
+            </div>
+
+            <%# Location notes %>
+            <div class="mb-3">
+                <label for="editorNotes" class="form-label">Location notes</label>
+                <textarea class="form-control" id="editorNotes" rows="3" maxlength="500"
+                          placeholder="e.g. On telephone pole, NE corner of Central & Madison"></textarea>
+            </div>
+
+            <%# Audit info (read-only) %>
+            <div class="signs-editor-meta small text-muted mb-3" id="editorMeta" hidden>
+                <%# JS populates created_by / installed_by etc. %>
+            </div>
+
+            <%# Actions %>
+            <% if (canManage) { %>
+                <div class="d-flex flex-wrap gap-2 pt-2 border-top">
+                    <button type="button" class="btn btn-primary" id="editorSaveBtn">
+                        <i class="fa-solid fa-floppy-disk me-1"></i>Save
+                    </button>
+                    <button type="button" class="btn btn-outline-danger ms-auto" id="editorDeleteBtn" hidden>
+                        <i class="fa-solid fa-trash me-1"></i>Delete
+                    </button>
+                </div>
+                <p class="small mt-2" id="editorFeedback"></p>
+            <% } else { %>
+                <p class="small text-muted mb-0">
+                    <i class="fa-solid fa-eye me-1"></i>View only. OVERSEER+ can edit placements.
+                </p>
+            <% } %>
+
+        </div>
+    </div>
+
+    <%# Inline JSON bootstrap — read by signsMap.js, no inline behavior. %>
+    <script id="signsMapBootstrap" type="application/json"><%-
+        JSON.stringify({ signs, placements })
+    %></script>
+
+    <%- include('../partials/footer') %>
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/signsMap.js"></script>
+</body>
+</html>

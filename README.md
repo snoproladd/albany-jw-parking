@@ -120,6 +120,10 @@ TWILIO_MSG_SID=MGxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 # Email Validation (Kickbox)
 KICKBOX_API_KEY=your-kickbox-api-key
 
+# Google Maps Platform (Maps JavaScript API)
+# Used by the Sign Map page at /signs/map
+GOOGLE_MAPS_API_KEY=your-google-maps-api-key
+
 # Redis (local dev — optional, sessions use memory store if absent)
 # REDIS_URL=redis://localhost:6379
 
@@ -302,9 +306,12 @@ Schema highlights:
 - `bug_reports` — full lifecycle bug tracking with resolution fields
 - `schedule_publishes` — audit log for schedule PDF publish events
 - `signs` — reusable sign templates (text + arrow direction); soft-deleted via `is_archived`
-- `sign_placements` — geographic instances of a sign template (lat/lng, optional heading,
-  status: planned/installed/removed, install/remove audit trail). FK to `signs` survives
-  template archival.
+- `sign_placements` — geographic instances of a sign template
+  - `latitude`/`longitude` `DECIMAL(10,7)` (≈1cm precision)
+  - `heading` nullable compass bearing (used by Phase 3 Street View overlay)
+  - `status` (`planned` / `installed` / `removed`) with install/remove audit trail
+  - `mount_type` (`cone` / `a-frame` / `existing-structure`, nullable)
+  - FK to `signs` survives template archival so historical placements remain valid
 
 ---
 
