@@ -994,6 +994,120 @@ export function signsRouter({
   );
 
   /**
+   * GET /signs/placements/:placementId/sv-snapshot
+   * Returns a Street View Static API JPEG for the placement's approach
+   * position + heading. Used by the visual placement composer to populate
+   * the background canvas without requiring html2canvas (which can't
+   * access cross-origin Street View tiles).
+   *
+   * The approach position and heading match the live Street View overlay:
+   * SV_APPROACH_DISTANCE_METERS (20) behind the sign along the reverse
+   * bearing, camera facing forward (travel bearing).
+   *
+   * Query params (all optional):
+   *   width  — image width in px  (default 800, max 640 for free tier)
+   *   height — image height in px (default 450, max 640 for free tier)
+   *
+   * Response: JPEG bytes proxied from the Street View Static API, or
+   *   404 JSON if no imagery is available at that location.
+   *
+   * @requires viewSigns permission
+   */
+  router.get(
+    "/signs/placements/:placementId/sv-snapshot",
+    requireAuth,
+    requirePermission("viewSigns"),
+    async (req, res) => {
+      if (!googleMapsApiKey) {
+        return res.status(503).json({
+          success: false,
+          error: "Google Maps API key is not configured.",
+        });
+      }
+
+      const placementId = Number(req.params.placementId);
+      if (!placementId) {
+        return res.status(400).json({ success: false, error: "Invalid placement id." });
+      }
+
+      try {
+        const p = await getSignPlacementById(placementId);
+        if (!p) {
+          return res.status(404).json({ success: false, error: "Placement not found." });
+        }
+
+        const lat = Number(p.latitude);
+        const lng = Number(p.longitude);
+
+        // Mirror the approach-position logic from signsMap.js:
+        // stand 20 m behind the sign along the reverse travel bearing.
+        const SV_APPROACH_M = 20;
+        const hasHeading =
+          p.heading !== null && p.heading !== undefined && p.heading !== "";
+        const travelBearing = hasHeading ? Number(p.heading) : 0;
+
+        let svLat = lat;
+        let svLng = lng;
+
+        if (hasHeading) {
+          const backBearing = (travelBearing + 180) % 360;
+          const metersN = SV_APPROACH_M * Math.cos((backBearing * Math.PI) / 180);
+          const metersE = SV_APPROACH_M * Math.sin((backBearing * Math.PI) / 180);
+          const cosLat = Math.cos((lat * Math.PI) / 180);
+          svLat += metersN / 111320;
+          svLng += metersE / (111320 * Math.max(cosLat, 1e-9));
+        }
+
+        // Clamp dimensions: Street View Static API max is 640x640 on the
+        // standard tier; we default to 800×450 which Google will cap at
+        // 640×450 automatically — acceptable for a planning background.
+        const width  = Math.min(Number(req.query.width)  || 800, 1200);
+        const height = Math.min(Number(req.query.height) || 450, 800);
+
+        const svUrl = new URL("https://maps.googleapis.com/maps/api/streetview");
+        svUrl.searchParams.set("size",     `${width}x${height}`);
+        svUrl.searchParams.set("location", `${svLat},${svLng}`);
+        svUrl.searchParams.set("heading",  String(Math.round(travelBearing)));
+        svUrl.searchParams.set("pitch",    "-5");
+        svUrl.searchParams.set("fov",      "90");
+        svUrl.searchParams.set("source",   "outdoor");
+        svUrl.searchParams.set("key",      googleMapsApiKey);
+
+        const svRes = await fetch(svUrl.toString());
+
+        // Street View Static API returns a 200 even for "no imagery" —
+        // we detect it by checking Content-Type (no-imagery returns a
+        // small image/gif placeholder) or by first fetching the metadata
+        // endpoint. Use the metadata check: it's free and explicit.
+        const metaUrl = new URL("https://maps.googleapis.com/maps/api/streetview/metadata");
+        metaUrl.searchParams.set("location", `${svLat},${svLng}`);
+        metaUrl.searchParams.set("key",      googleMapsApiKey);
+        const metaRes  = await fetch(metaUrl.toString());
+        const metaJson = await metaRes.json();
+
+        if (metaJson.status !== "OK") {
+          return res.status(404).json({
+            success: false,
+            error:   "No Street View imagery available for this location.",
+            status:  metaJson.status,
+          });
+        }
+
+        // Pipe the JPEG back to the client.
+        res.setHeader("Content-Type",  "image/jpeg");
+        res.setHeader("Cache-Control", "private, max-age=3600");
+
+        const buf = Buffer.from(await svRes.arrayBuffer());
+        return res.send(buf);
+
+      } catch (err) {
+        log("signs/placements/:id/sv-snapshot GET error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
    * DELETE /signs/placements/:placementId/photo
    * Removes the placement's photo (both the blob and the DB column).
    * Response: { success: boolean }

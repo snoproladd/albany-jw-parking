@@ -545,6 +545,9 @@
                     <button type="button" class="btn btn-outline-secondary" id="editorStreetViewBtn" hidden>
                         <i class="fa-solid fa-street-view me-1"></i>Street View
                     </button>
+                    <button type="button" class="btn btn-outline-secondary" id="editorComposerBtn" hidden>
+                        <i class="fa-solid fa-layer-group me-1"></i>Compose photo
+                    </button>
                     <button type="button" class="btn btn-outline-danger ms-auto" id="editorDeleteBtn" hidden>
                         <i class="fa-solid fa-trash me-1"></i>Delete
                     </button>
@@ -591,6 +594,103 @@
                 Open in Google Maps
             </a>
         </div>
+    </div>
+
+    <%# ──────────────────────────────────────────────────────────
+        PLACEMENT COMPOSER OVERLAY
+        Full-screen overlay for composing a planned placement photo.
+        The user sets a background (Street View snapshot or uploaded image),
+        drags a mount-framed sign to the correct position, resizes it with
+        corner handles, then flattens to JPEG and saves as the placement photo.
+        z-index 1097: above Street View (1095), below photo lightbox (1100).
+    ────────────────────────────────────────────────────────── %>
+    <div class="signs-composer d-none" id="signsComposer" aria-modal="true" role="dialog" aria-label="Placement composer">
+
+        <%# ── Toolbar ──────────────────────────────────────────── %>
+        <div class="signs-composer-toolbar" id="composerToolbar">
+            <div class="signs-composer-toolbar-group">
+                <span class="signs-composer-toolbar-label">Background</span>
+                <button type="button" class="btn btn-sm btn-outline-light" id="composerSvBtn">
+                    <i class="fa-solid fa-street-view me-1"></i>Street View
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-light" id="composerUploadBtn">
+                    <i class="fa-solid fa-image me-1"></i>Upload image
+                </button>
+                <input type="file" class="d-none" id="composerFileInput" accept="image/*" />
+            </div>
+
+            <div class="signs-composer-toolbar-group">
+                <span class="signs-composer-toolbar-label">Mount</span>
+                <div class="btn-group btn-group-sm" role="group" aria-label="Mount type">
+                    <input type="radio" class="btn-check" name="composerMount" id="composerMountCone"      value="cone"               />
+                    <label class="btn btn-outline-light" for="composerMountCone">Cone</label>
+
+                    <input type="radio" class="btn-check" name="composerMount" id="composerMountAframe"    value="a-frame"            />
+                    <label class="btn btn-outline-light" for="composerMountAframe">A-frame</label>
+
+                    <input type="radio" class="btn-check" name="composerMount" id="composerMountStructure" value="existing-structure" />
+                    <label class="btn btn-outline-light" for="composerMountStructure">Sign only</label>
+                </div>
+            </div>
+
+            <div class="signs-composer-toolbar-group signs-composer-toolbar-actions">
+                <button type="button" class="btn btn-sm btn-primary" id="composerSaveBtn" disabled>
+                    <i class="fa-solid fa-floppy-disk me-1"></i>Save as photo
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-light" id="composerCancelBtn">
+                    <i class="fa-solid fa-xmark me-1"></i>Cancel
+                </button>
+            </div>
+        </div>
+
+        <%# ── Canvas area ───────────────────────────────────────── %>
+        <div class="signs-composer-stage" id="composerStage">
+
+            <%# Empty state — shown before a background is set %>
+            <div class="signs-composer-empty" id="composerEmpty">
+                <i class="fa-solid fa-image fa-2x mb-3 text-secondary"></i>
+                <p class="mb-0 text-secondary">Choose a background above to begin</p>
+            </div>
+
+            <%# Background image (set via JS, hidden until loaded) %>
+            <img class="signs-composer-bg d-none" id="composerBg" alt="" aria-hidden="true" />
+
+            <%# Loading spinner — shown while SV snapshot is fetching %>
+            <div class="signs-composer-loading d-none" id="composerLoading">
+                <div class="spinner-border text-light" role="status">
+                    <span class="visually-hidden">Loading…</span>
+                </div>
+                <p class="text-light mt-2 mb-0 small">Fetching Street View…</p>
+            </div>
+
+            <%# The draggable sign overlay — populated and positioned by JS %>
+            <div class="signs-composer-sign d-none" id="composerSign" role="img" aria-label="Sign placement preview">
+
+                <%# Mount frame — swapped by JS based on mount type selection %>
+                <div class="signs-composer-mount" id="composerMount"></div>
+
+                <%# The actual sign preview block %>
+                <div class="sign-preview signs-composer-sign-preview" id="composerSignPreview">
+                    <span class="sign-preview-text"  id="composerSignText">SIGN</span>
+                    <span class="sign-preview-arrow" id="composerSignArrow"></span>
+                </div>
+
+                <%# Corner resize handles — one per corner %>
+                <div class="signs-composer-handle signs-composer-handle-nw" data-corner="nw" aria-hidden="true"></div>
+                <div class="signs-composer-handle signs-composer-handle-ne" data-corner="ne" aria-hidden="true"></div>
+                <div class="signs-composer-handle signs-composer-handle-sw" data-corner="sw" aria-hidden="true"></div>
+                <div class="signs-composer-handle signs-composer-handle-se" data-corner="se" aria-hidden="true"></div>
+            </div>
+
+            <%# Hidden canvas — only used during flatten-to-JPEG on save %>
+            <canvas class="d-none" id="composerCanvas" aria-hidden="true"></canvas>
+        </div>
+
+        <%# ── Status bar ─────────────────────────────────────────── %>
+        <div class="signs-composer-status" id="composerStatus">
+            <span id="composerStatusText">Choose a background above to begin.</span>
+        </div>
+
     </div>
 
     <%# Inline JSON bootstrap — read by signsMap.js, no inline behavior. %>

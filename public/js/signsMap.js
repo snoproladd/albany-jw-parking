@@ -1334,6 +1334,10 @@ mapRef = new google.maps.Map(mapEl, {
   // the zoom stack. Setting panControl explicitly to false
   // suppresses it across all map renderers.
   panControl: false,
+  // Double-click zoom is disabled because double-click is used to open
+  // the placement editor on marker elements. Without this, double-clicking
+  // a marker both opens the editor AND zooms the map.
+  disableDoubleClickZoom: true,
 });
 
     // Seed the detail level from the initial zoom so the first batch
@@ -1451,10 +1455,85 @@ mapRef = new google.maps.Map(mapEl, {
       title: placement.sign_text,
     });
 
-    marker.addListener("gmp-click", () => {
-      selectMarker(placement.placement_id);
-      showInfoSheet(placement.placement_id);
-    });
+    if (isTouchDevice) {
+      // Touch: single tap → select + info sheet.
+      //        double-tap  → open editor directly.
+      //
+      // Uses native touchend (not gmp-click) to avoid corrupting Google's
+      // internal touch-gesture state. Travel guard (10px) ignores scroll
+      // drags. Double-tap detected via a 350ms window between taps.
+      let touchStartX   = 0;
+      let touchStartY   = 0;
+      let lastTapAt     = 0;
+      let lastTapX      = 0;
+      let lastTapY      = 0;
+
+      marker.content.addEventListener("touchstart", (e) => {
+        touchStartX = e.touches[0]?.clientX ?? 0;
+        touchStartY = e.touches[0]?.clientY ?? 0;
+      }, { passive: true });
+
+      marker.content.addEventListener("touchend", (e) => {
+        // Suppress touchend fired immediately after a Shift+drag completes.
+        if (Date.now() - lastDragEndAt < 350) return;
+        const touch = e.changedTouches[0];
+        const endX  = touch?.clientX ?? touchStartX;
+        const endY  = touch?.clientY ?? touchStartY;
+        if (Math.abs(endX - touchStartX) > 10 || Math.abs(endY - touchStartY) > 10) return;
+        e.stopPropagation();
+
+        const now = Date.now();
+        const isDoubleTap =
+          now - lastTapAt < 350 &&
+          Math.abs(endX - lastTapX) < 30 &&
+          Math.abs(endY - lastTapY) < 30;
+
+        lastTapAt = now;
+        lastTapX  = endX;
+        lastTapY  = endY;
+
+        if (isDoubleTap) {
+          // Double-tap → open editor directly (same as right-click → Edit)
+          selectMarker(placement.placement_id);
+          openEditor(placement.placement_id);
+        } else {
+          // Single tap → select + info sheet only
+          selectMarker(placement.placement_id);
+          showInfoSheet(placement.placement_id);
+        }
+      }, { passive: true });
+
+    } else {
+      // Desktop: single click → select + info sheet.
+      //          double-click → open editor directly.
+      //          right-click  → context menu (handled in attachMarkerHoverListeners).
+      //
+      // The standard dblclick event fires after two clicks. We cancel the
+      // single-click action on the first click of a double so the info sheet
+      // doesn't flash open before the editor. A 220ms timer is long enough
+      // to distinguish intent without feeling sluggish.
+      let singleClickTimer = null;
+
+      marker.content.addEventListener("click", () => {
+        // Suppress synthetic click fired by the browser after a drag ends.
+        if (Date.now() - lastDragEndAt < 350) return;
+        clearTimeout(singleClickTimer);
+        singleClickTimer = setTimeout(() => {
+          selectMarker(placement.placement_id);
+          showInfoSheet(placement.placement_id);
+        }, 220);
+      });
+
+      marker.content.addEventListener("dblclick", (e) => {
+        // Cancel the pending single-click so the info sheet doesn't open
+        clearTimeout(singleClickTimer);
+        singleClickTimer = null;
+        e.stopPropagation(); // don't let Maps zoom on double-click
+        e.preventDefault();
+        selectMarker(placement.placement_id);
+        openEditor(placement.placement_id);
+      });
+    }
 
     attachMarkerHoverListeners(placement.placement_id, marker);
 
@@ -1462,9 +1541,8 @@ mapRef = new google.maps.Map(mapEl, {
       // gmp-dragend fires after a user finishes dragging the marker.
       // Keep keyboard selection on this marker so the user can continue
       // nudging with arrow keys without re-clicking it first. Mark the
-      // drag-end timestamp synchronously (before the await) so the
-      // 300ms guard in the map-click handler catches any synthetic click
-      // that fires immediately after dragend.
+      // drag-end timestamp synchronously (before the await) so both the
+      // map-background click guard and the marker click guard can use it.
       marker.addListener("dragend", async () => {
         lastDragEndAt = Date.now();
         // Touch guard — snap back and bail (belt-and-suspenders).
@@ -1912,7 +1990,12 @@ function onMapKeyDown(e) {
   if (e.key === "Escape") {
     e.preventDefault();
     // Dismiss overlays in reverse z-index order so the user can step
-    // out gracefully: Street View → info sheet → deselect marker.
+    // out gracefully: composer → Street View → info sheet → deselect marker.
+    const composerEl = document.getElementById("signsComposer");
+    if (composerEl && !composerEl.classList.contains("d-none")) {
+      closeComposer();
+      return;
+    }
     const svOverlay = document.getElementById("streetViewOverlay");
     if (svOverlay && !svOverlay.classList.contains("d-none")) {
       closeStreetView();
@@ -2241,6 +2324,9 @@ function onMapKeyDown(e) {
     const svBtn = document.getElementById("editorStreetViewBtn");
     if (svBtn) svBtn.hidden = false;
 
+    const composerBtn = document.getElementById("editorComposerBtn");
+    if (composerBtn) composerBtn.hidden = false;
+
     const feedback = document.getElementById("editorFeedback");
     if (feedback) feedback.textContent = "";
 
@@ -2286,6 +2372,9 @@ function onMapKeyDown(e) {
 
     const svBtn = document.getElementById("editorStreetViewBtn");
     if (svBtn) svBtn.hidden = true;
+
+    const composerBtn = document.getElementById("editorComposerBtn");
+    if (composerBtn) composerBtn.hidden = true;
 
     const feedback = document.getElementById("editorFeedback");
     if (feedback) feedback.textContent = "";
@@ -3401,6 +3490,17 @@ function onMapKeyDown(e) {
       svCloseBtn.addEventListener("click", closeStreetView);
     }
 
+    // Composer button in the offcanvas editor (canManage + saved placement only)
+    const composerBtn = document.getElementById("editorComposerBtn");
+    if (composerBtn) {
+      composerBtn.addEventListener("click", () => {
+        if (editingId !== null) openComposer(editingId);
+      });
+    }
+
+    // Wire all composer overlay events
+    wireComposerEvents();
+
     // Offcanvas instance
     if (window.bootstrap && editorEl) {
       offcanvas = window.bootstrap.Offcanvas.getOrCreateInstance(editorEl);
@@ -3429,6 +3529,955 @@ function onMapKeyDown(e) {
         legendToggle.querySelector(".signs-legend-chevron")?.classList.replace("fa-chevron-up", "fa-chevron-down");
       });
     }
+  }
+
+  // ============================================================
+  // PLACEMENT COMPOSER
+  // ============================================================
+
+  /**
+   * State for the visual placement composer overlay.
+   * Isolated here so none of the main map state needs to know about it.
+   */
+  const composer = {
+    /** placement_id this composer session is for. @type {number|null} */
+    placementId: null,
+    /** True once a background image has been set on the stage. */
+    hasBackground: false,
+    /** Current sign overlay position (top-left corner, px from stage origin). */
+    signX: 100,
+    signY: 100,
+    /** Current sign overlay width in px (height scales with it via CSS aspect-ratio). */
+    signW: 180,
+    /** True while a body-drag is in progress. */
+    dragging: false,
+    /** Pointer offset within the sign element at drag start. */
+    dragOffsetX: 0,
+    dragOffsetY: 0,
+    /** Which corner handle is being dragged, or null. @type {string|null} */
+    resizingCorner: null,
+    /** Anchor point (opposite corner) coordinates at resize start. */
+    resizeAnchorX: 0,
+    resizeAnchorY: 0,
+    /** Pointer X/Y at resize start. */
+    resizeStartX: 0,
+    resizeStartY: 0,
+    /** Sign width at resize start. */
+    resizeStartW: 0,
+    /** Touch tracking for pinch-to-scale. @type {Map<number, {x:number,y:number}>} */
+    touches: new Map(),
+    /** Initial pinch distance at gesture start. */
+    pinchStartDist: 0,
+    /** Sign width at pinch start. */
+    pinchStartW: 0,
+  };
+
+  /** Minimum sign overlay width in px — prevents shrinking to nothing. */
+  const COMPOSER_MIN_W = 60;
+  /** Maximum sign overlay width in px. */
+  const COMPOSER_MAX_W = 600;
+
+  /**
+   * Open the placement composer for the given placementId.
+   * Resets all state, pre-fills the sign text/arrow from the placement,
+   * pre-selects the mount type, and shows the overlay.
+   *
+   * @param {number} placementId
+   */
+  function openComposer(placementId) {
+    const p = findPlacement(placementId);
+    if (!p) return;
+
+    composer.placementId = placementId;
+    composer.hasBackground = false;
+    composer.dragging = false;
+    composer.resizingCorner = null;
+    composer.touches.clear();
+
+    // Default position — centered top-third of stage, will look reasonable
+    // on any background until the user repositions.
+    composer.signX = 0; // set properly once stage dimensions are known
+    composer.signY = 0;
+    composer.signW = 180;
+
+    // ── Populate sign text + arrow ───────────────────────────────────
+    const textEl  = document.getElementById("composerSignText");
+    const arrowEl = document.getElementById("composerSignArrow");
+    if (textEl)  textEl.textContent = p.sign_text || "";
+    if (arrowEl) {
+      arrowEl.replaceChildren();
+      if (p.arrow_direction === "destination") {
+        const icon = document.createElement("i");
+        icon.className = "fa-solid fa-location-dot";
+        icon.setAttribute("aria-hidden", "true");
+        arrowEl.appendChild(icon);
+      } else if (p.arrow_direction && ARROW_GLYPHS[p.arrow_direction]) {
+        arrowEl.textContent = ARROW_GLYPHS[p.arrow_direction];
+      }
+    }
+
+    // ── Pre-select mount type radio ──────────────────────────────────
+    const mountVal = p.mount_type || "existing-structure";
+    const mountRadio = document.querySelector(
+      `input[name="composerMount"][value="${mountVal}"]`,
+    );
+    if (mountRadio) mountRadio.checked = true;
+    renderComposerMount(mountVal);
+
+    // ── Reset UI state ───────────────────────────────────────────────
+    composerSetBackground(null);
+    composerSetStatus("Choose a background above to begin.");
+
+    const saveBtn = document.getElementById("composerSaveBtn");
+    if (saveBtn) saveBtn.disabled = true;
+
+    // ── Show overlay ─────────────────────────────────────────────────
+    const overlay = document.getElementById("signsComposer");
+    if (!overlay) return;
+    overlay.classList.remove("d-none");
+    requestAnimationFrame(() => overlay.classList.add("signs-composer-visible"));
+
+    // Defer sign centering until the stage has painted and has dimensions.
+    requestAnimationFrame(() => centerComposerSign());
+  }
+
+  /**
+   * Close the composer overlay without saving.
+   */
+  function closeComposer() {
+    const overlay = document.getElementById("signsComposer");
+    if (!overlay) return;
+    overlay.classList.remove("signs-composer-visible");
+    const onEnd = () => {
+      overlay.classList.add("d-none");
+      overlay.removeEventListener("transitionend", onEnd);
+    };
+    overlay.addEventListener("transitionend", onEnd);
+    composer.placementId = null;
+  }
+
+  /**
+   * Centre the sign overlay in the middle-lower-third of the stage.
+   * Called once after the overlay is visible so getBoundingClientRect works.
+   */
+  function centerComposerSign() {
+    const stage = document.getElementById("composerStage");
+    if (!stage) return;
+    const { width, height } = stage.getBoundingClientRect();
+    if (!width || !height) return;
+    composer.signX = (width  - composer.signW) / 2;
+    composer.signY = Math.round(height * 0.55);
+    applyComposerSignPosition();
+  }
+
+  /**
+   * Set or clear the composer background image.
+   * Pass null to return to the empty state.
+   *
+   * @param {string|null} src  Data URL or object URL for the background.
+   */
+  function composerSetBackground(src) {
+    const bgImg   = document.getElementById("composerBg");
+    const emptyEl = document.getElementById("composerEmpty");
+    const signEl  = document.getElementById("composerSign");
+    const saveBtn = document.getElementById("composerSaveBtn");
+
+    if (!src) {
+      composer.hasBackground = false;
+      if (bgImg)   { bgImg.src = ""; bgImg.classList.add("d-none"); }
+      if (emptyEl) emptyEl.classList.remove("d-none");
+      if (signEl)  signEl.classList.add("d-none");
+      if (saveBtn) saveBtn.disabled = true;
+      return;
+    }
+
+    if (bgImg) {
+      bgImg.onload = () => {
+        composer.hasBackground = true;
+        bgImg.classList.remove("d-none");
+        if (emptyEl) emptyEl.classList.add("d-none");
+        if (signEl)  signEl.classList.remove("d-none");
+        if (saveBtn) saveBtn.disabled = false;
+        composerSetStatus("Drag the sign to position it. Corner handles to resize.");
+        centerComposerSign();
+      };
+      bgImg.onerror = () => {
+        composerSetBackground(null);
+        composerSetStatus("Could not load background image.");
+      };
+      bgImg.src = src;
+    }
+  }
+
+  /**
+   * Update the status-bar text.
+   * @param {string} msg
+   */
+  function composerSetStatus(msg) {
+    const el = document.getElementById("composerStatusText");
+    if (el) el.textContent = msg;
+  }
+
+  /**
+   * Apply the current composer.signX/Y/W values to the sign overlay element.
+   */
+  function applyComposerSignPosition() {
+    const signEl = document.getElementById("composerSign");
+    if (!signEl) return;
+    signEl.style.setProperty("--composer-x", `${Math.round(composer.signX)}px`);
+    signEl.style.setProperty("--composer-y", `${Math.round(composer.signY)}px`);
+    signEl.style.setProperty("--composer-w", `${Math.round(composer.signW)}px`);
+  }
+
+  /**
+   * Render the mount-frame SVG inside #composerMount based on type.
+   * Cone and A-frame add an SVG below the sign board; existing-structure
+   * renders nothing (the sign preview stands alone).
+   *
+   * @param {string} mountType  "cone" | "a-frame" | "existing-structure" | ""
+   */
+  function renderComposerMount(mountType) {
+    const mountEl = document.getElementById("composerMount");
+    if (!mountEl) return;
+    mountEl.replaceChildren();
+    mountEl.className = `signs-composer-mount signs-composer-mount-${mountType || "existing-structure"}`;
+
+    if (mountType === "cone") {
+      mountEl.appendChild(buildConeSvg());
+    } else if (mountType === "a-frame") {
+      mountEl.appendChild(buildAframeSvg());
+    }
+    // existing-structure / empty: no mount element, sign board only.
+  }
+
+  /**
+   * Build an orange traffic cone SVG.
+   * The cone is rendered below the sign board via flex column in the
+   * composer sign wrapper. Width is 100% of --composer-w; height is auto.
+   *
+   * @returns {SVGSVGElement}
+   */
+  function buildConeSvg() {
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", "0 0 100 110");
+    svg.setAttribute("aria-hidden", "true");
+    svg.className.baseVal = "signs-composer-cone-svg";
+
+    // White base stripe on the cone body
+    const defs = document.createElementNS(ns, "defs");
+    const clip = document.createElementNS(ns, "clipPath");
+    clip.setAttribute("id", "composer-cone-clip");
+    const clipRect = document.createElementNS(ns, "polygon");
+    clipRect.setAttribute("points", "10,20 90,20 80,90 20,90");
+    clip.appendChild(clipRect);
+    defs.appendChild(clip);
+    svg.appendChild(defs);
+
+    // Cone body — orange trapezoid
+    const body = document.createElementNS(ns, "polygon");
+    body.setAttribute("points", "50,5 90,95 10,95");
+    body.setAttribute("fill", "#f97316");
+    body.setAttribute("stroke", "#c2410c");
+    body.setAttribute("stroke-width", "2");
+    svg.appendChild(body);
+
+    // White reflective stripe
+    const stripe = document.createElementNS(ns, "rect");
+    stripe.setAttribute("x", "20");
+    stripe.setAttribute("y", "55");
+    stripe.setAttribute("width", "60");
+    stripe.setAttribute("height", "12");
+    stripe.setAttribute("fill", "white");
+    stripe.setAttribute("opacity", "0.85");
+    stripe.setAttribute("clip-path", "url(#composer-cone-clip)");
+    svg.appendChild(stripe);
+
+    // Base rectangle
+    const base = document.createElementNS(ns, "rect");
+    base.setAttribute("x", "5");
+    base.setAttribute("y", "93");
+    base.setAttribute("width", "90");
+    base.setAttribute("height", "12");
+    base.setAttribute("rx", "3");
+    base.setAttribute("fill", "#1e293b");
+    svg.appendChild(base);
+
+    return svg;
+  }
+
+  /**
+   * Build an A-frame / sandwich-board SVG.
+   * Two legs extend downward from the lower corners of the sign board.
+   * Rendered below the sign board via flex column.
+   *
+   * @returns {SVGSVGElement}
+   */
+  function buildAframeSvg() {
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", "0 0 100 70");
+    svg.setAttribute("aria-hidden", "true");
+    svg.className.baseVal = "signs-composer-aframe-svg";
+
+    // Left leg
+    const leftLeg = document.createElementNS(ns, "rect");
+    leftLeg.setAttribute("x", "8");
+    leftLeg.setAttribute("y", "0");
+    leftLeg.setAttribute("width", "12");
+    leftLeg.setAttribute("height", "65");
+    leftLeg.setAttribute("rx", "4");
+    leftLeg.setAttribute("fill", "#64748b");
+    leftLeg.setAttribute("transform", "rotate(12, 14, 0)");
+    svg.appendChild(leftLeg);
+
+    // Right leg
+    const rightLeg = document.createElementNS(ns, "rect");
+    rightLeg.setAttribute("x", "80");
+    rightLeg.setAttribute("y", "0");
+    rightLeg.setAttribute("width", "12");
+    rightLeg.setAttribute("height", "65");
+    rightLeg.setAttribute("rx", "4");
+    rightLeg.setAttribute("fill", "#64748b");
+    rightLeg.setAttribute("transform", "rotate(-12, 86, 0)");
+    svg.appendChild(rightLeg);
+
+    // Cross brace
+    const brace = document.createElementNS(ns, "rect");
+    brace.setAttribute("x", "20");
+    brace.setAttribute("y", "28");
+    brace.setAttribute("width", "60");
+    brace.setAttribute("height", "6");
+    brace.setAttribute("rx", "3");
+    brace.setAttribute("fill", "#94a3b8");
+    svg.appendChild(brace);
+
+    return svg;
+  }
+
+  /**
+   * Fetch a Street View snapshot for the current placement from the
+   * server proxy route, then set it as the composer background.
+   */
+  async function composerLoadStreetView() {
+    if (composer.placementId === null) return;
+
+    const loadingEl = document.getElementById("composerLoading");
+    const svBtn     = document.getElementById("composerSvBtn");
+    if (loadingEl) loadingEl.classList.remove("d-none");
+    if (svBtn) svBtn.disabled = true;
+    composerSetStatus("Fetching Street View…");
+
+    try {
+      const stage = document.getElementById("composerStage");
+      const stageW = stage ? Math.round(stage.getBoundingClientRect().width)  || 800 : 800;
+      const stageH = stage ? Math.round(stage.getBoundingClientRect().height) || 450 : 450;
+
+      const url = `/signs/placements/${composer.placementId}/sv-snapshot`
+        + `?width=${stageW}&height=${stageH}`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || `HTTP ${res.status}`);
+      }
+
+      const blob    = await res.blob();
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload  = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+
+      composerSetBackground(dataUrl);
+    } catch (err) {
+      composerSetStatus(`Street View unavailable: ${err.message}`);
+      composerSetBackground(null);
+    } finally {
+      if (loadingEl) loadingEl.classList.add("d-none");
+      if (svBtn) svBtn.disabled = false;
+    }
+  }
+
+  /**
+   * Flatten the composer stage to a JPEG Blob using an offscreen canvas,
+   * then pass it to the existing uploadEditorPhoto() function.
+   *
+   * Strategy: draw the background image, then use html-to-canvas on the
+   * sign overlay element (same origin, so no taint). We avoid drawing
+   * arbitrary external images to canvas by using the already-decoded
+   * background from the <img> element (which was loaded via a same-origin
+   * fetch proxy for SV snapshots).
+   */
+  /**
+   * Measure how wide a string renders at a given font spec on a canvas context.
+   *
+   * @param {CanvasRenderingContext2D} ctx
+   * @param {string} text
+   * @param {string} fontSpec  Full CSS font string, e.g. "900 24px Arial".
+   * @returns {number} Width in px.
+   */
+  function measureCanvasText(ctx, text, fontSpec) {
+    ctx.save();
+    ctx.font = fontSpec;
+    const w = ctx.measureText(text).width;
+    ctx.restore();
+    return w;
+  }
+
+  /**
+   * Find the largest font size at which `fullText` (+ optional arrow) fits
+   * within `maxW`. Falls back to the abbreviation if needed, then gives up
+   * gracefully at `minSize`.
+   *
+   * Tries in order:
+   *   1. Full text + arrow at decreasing sizes
+   *   2. Full text without arrow at decreasing sizes (arrow was the culprit)
+   *   3. Abbreviation + arrow at decreasing sizes
+   *   4. Abbreviation alone at minSize (last resort — always fits)
+   *
+   * @param {CanvasRenderingContext2D} ctx
+   * @param {string} fullText
+   * @param {string} abbr
+   * @param {string} arrowGlyph   Unicode arrow char, or "" for none.
+   * @param {number} maxW         Available inner width in px.
+   * @param {number} startSize    Starting font size to try (px).
+   * @param {number} minSize      Smallest acceptable font size (px).
+   * @returns {{ label: string, fontSize: number, withArrow: boolean }}
+   */
+  function fitSignText(ctx, fullText, abbr, arrowGlyph, maxW, startSize, minSize) {
+    const FONT_BASE = '"Archivo", "Helvetica Neue", Arial, sans-serif';
+
+    // Measure label + optional arrow at a given size
+    const measure = (label, size, includeArrow) => {
+      const textW  = measureCanvasText(ctx, label, `900 ${size}px ${FONT_BASE}`);
+      const arrowW = includeArrow && arrowGlyph
+        ? measureCanvasText(ctx, " " + arrowGlyph, `900 ${Math.round(size * 1.4)}px ${FONT_BASE}`) + size * 0.1
+        : 0;
+      return textW + arrowW;
+    };
+
+    // Pass 1: full text + arrow
+    for (let sz = startSize; sz >= minSize; sz--) {
+      if (measure(fullText, sz, true) <= maxW) {
+        return { label: fullText, fontSize: sz, withArrow: !!arrowGlyph };
+      }
+    }
+
+    // Pass 2: full text, drop arrow
+    if (arrowGlyph) {
+      for (let sz = startSize; sz >= minSize; sz--) {
+        if (measure(fullText, sz, false) <= maxW) {
+          return { label: fullText, fontSize: sz, withArrow: false };
+        }
+      }
+    }
+
+    // Pass 3: abbreviation + arrow
+    const abbrText = abbr || fullText.slice(0, 4);
+    for (let sz = startSize; sz >= minSize; sz--) {
+      if (measure(abbrText, sz, true) <= maxW) {
+        return { label: abbrText, fontSize: sz, withArrow: !!arrowGlyph };
+      }
+    }
+
+    // Last resort: abbreviation at minimum size
+    return { label: abbrText, fontSize: minSize, withArrow: !!arrowGlyph };
+  }
+
+  /**
+   * Draw the sign board and optional mount frame onto a canvas context
+   * using pure 2D primitives — no SVG foreignObject, which taints the canvas.
+   *
+   * Text auto-scales to fill the available width. Falls back to the
+   * placement abbreviation if the full sign text won't fit at min size.
+   *
+   * @param {CanvasRenderingContext2D} ctx
+   * @param {object} placement   Full placement object from findPlacement().
+   * @param {number} x           Left edge of the allocated sign area.
+   * @param {number} y           Top edge of the allocated sign area.
+   * @param {number} w           Width of the allocated sign area.
+   */
+  function drawSignOnCanvas(ctx, placement, x, y, w) {
+    const FONT_BASE = '"Archivo", "Helvetica Neue", Arial, sans-serif';
+    const borderR   = Math.round(w * 0.04);
+    const borderW   = Math.max(2, Math.round(w * 0.022));
+    const padH      = Math.round(w * 0.07);
+    const padV      = Math.round(w * 0.06);
+
+    const signText   = placement.sign_text || "";
+    const abbr       = placement.abbreviation || signText.slice(0, 4);
+    const arrowDir   = placement.arrow_direction || "";
+    const arrowGlyph = arrowDir && arrowDir !== "destination"
+      ? (ARROW_GLYPHS[arrowDir] || "") : "";
+    const destPin    = arrowDir === "destination";
+
+    // Max inner width available for text + arrow inside the box
+    const innerMaxW = w - padH * 2 - borderW * 2 - 4;
+    const startSize = Math.max(14, Math.round(w * 0.18));
+    const minSize   = Math.max(9,  Math.round(w * 0.06));
+
+    const { label, fontSize, withArrow } = fitSignText(
+      ctx, signText, abbr, arrowGlyph, innerMaxW, startSize, minSize,
+    );
+
+    // ── Final layout measurements ──────────────────────────────────
+    const textFont  = `900 ${fontSize}px ${FONT_BASE}`;
+    const arrowFont = `900 ${Math.round(fontSize * 1.4)}px ${FONT_BASE}`;
+    const GAP       = fontSize * 0.3;
+
+    const textW  = measureCanvasText(ctx, label, textFont);
+    const arrowW = withArrow && arrowGlyph
+      ? measureCanvasText(ctx, arrowGlyph, arrowFont) + GAP : 0;
+    const destW  = destPin ? fontSize * 0.9 + GAP : 0;
+
+    const innerW = textW + arrowW + destW;
+    const boxW   = Math.round(innerW + padH * 2);
+    const boxH   = Math.round(fontSize * 1.4 + padV * 2);
+
+    // Centre within the allocated width
+    const bx = x + Math.round((w - boxW) / 2);
+    const by = y;
+
+    ctx.save();
+
+    // ── Shadow ─────────────────────────────────────────────────────
+    ctx.shadowColor   = "rgba(0,0,0,0.50)";
+    ctx.shadowBlur    = Math.round(w * 0.06);
+    ctx.shadowOffsetY = Math.round(w * 0.025);
+    ctx.shadowOffsetX = 0;
+
+    // ── Fill ───────────────────────────────────────────────────────
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.roundRect(bx, by, boxW, boxH, borderR);
+    ctx.fill();
+
+    // ── Border ─────────────────────────────────────────────────────
+    ctx.shadowColor = "transparent";
+    ctx.strokeStyle = "#222222";
+    ctx.lineWidth   = borderW;
+    ctx.beginPath();
+    ctx.roundRect(bx, by, boxW, boxH, borderR);
+    ctx.stroke();
+
+    // ── Text + arrow ───────────────────────────────────────────────
+    ctx.fillStyle    = "#111111";
+    ctx.textBaseline = "middle";
+    ctx.textAlign    = "left";
+    const midY = by + Math.round(boxH / 2);
+    let   curX = bx + padH;
+
+    ctx.font = textFont;
+    ctx.fillText(label, curX, midY);
+    curX += textW + GAP;
+
+    if (withArrow && arrowGlyph) {
+      ctx.font = arrowFont;
+      ctx.fillText(arrowGlyph, curX, midY);
+    } else if (destPin) {
+      // Canvas-drawn location pin (FontAwesome not available on canvas)
+      const pinH = Math.round(fontSize * 1.1);
+      const pinW = Math.round(pinH * 0.65);
+      const px   = curX;
+      const py   = midY - Math.round(pinH / 2);
+      const rx   = pinW / 2;
+      ctx.fillStyle = "#dc3545";
+      ctx.beginPath();
+      ctx.arc(px + rx, py + rx, rx, Math.PI, 0);
+      ctx.lineTo(px + pinW, py + rx);
+      ctx.quadraticCurveTo(px + pinW, py + pinH * 0.75, px + rx, py + pinH);
+      ctx.quadraticCurveTo(px, py + pinH * 0.75, px, py + rx);
+      ctx.fill();
+    }
+
+    ctx.restore();
+
+    // ── Mount frame below sign board ───────────────────────────────
+    const mountType = (() => {
+      const radio = document.querySelector('input[name="composerMount"]:checked');
+      return radio ? radio.value : (placement.mount_type || "existing-structure");
+    })();
+
+    if (mountType === "cone") {
+      drawConeOnCanvas(ctx, bx + Math.round(boxW * 0.2), by + boxH, Math.round(boxW * 0.6));
+    } else if (mountType === "a-frame") {
+      drawAframeOnCanvas(ctx, bx, by + boxH, boxW);
+    }
+  }
+
+  /**
+   * Draw a traffic cone on canvas below the sign board.
+   *
+   * @param {CanvasRenderingContext2D} ctx
+   * @param {number} x    Left edge of the cone base area.
+   * @param {number} y    Top of the cone.
+   * @param {number} w    Width of the cone area.
+   */
+  function drawConeOnCanvas(ctx, x, y, w) {
+    const h      = Math.round(w * 1.1);
+    const cx     = x + w / 2;
+    const baseY  = y + h * 0.86;
+    const baseHW = w / 2;
+
+    ctx.save();
+
+    // Cone body
+    ctx.fillStyle   = "#f97316";
+    ctx.strokeStyle = "#c2410c";
+    ctx.lineWidth   = Math.max(1, Math.round(w * 0.02));
+    ctx.beginPath();
+    ctx.moveTo(cx, y);
+    ctx.lineTo(cx + baseHW, baseY);
+    ctx.lineTo(cx - baseHW, baseY);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // White stripe (clipped to cone body)
+    const stripeTop = y + h * 0.48;
+    const stripeBot = stripeTop + h * 0.12;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(cx, y);
+    ctx.lineTo(cx + baseHW, baseY);
+    ctx.lineTo(cx - baseHW, baseY);
+    ctx.closePath();
+    ctx.clip();
+    ctx.fillStyle = "rgba(255,255,255,0.85)";
+    ctx.fillRect(cx - baseHW, stripeTop, baseHW * 2, stripeBot - stripeTop);
+    ctx.restore();
+
+    // Base
+    const baseH = Math.round(h * 0.12);
+    ctx.fillStyle = "#1e293b";
+    ctx.beginPath();
+    ctx.roundRect(cx - baseHW * 1.1, baseY, baseHW * 2.2, baseH, Math.round(baseH * 0.35));
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  /**
+   * Draw A-frame legs on canvas below the sign board.
+   *
+   * @param {CanvasRenderingContext2D} ctx
+   * @param {number} x    Left edge aligned with sign board.
+   * @param {number} y    Top of the legs.
+   * @param {number} w    Width matching sign board.
+   */
+  function drawAframeOnCanvas(ctx, x, y, w) {
+    const h      = Math.round(w * 0.65);
+    const legW   = Math.max(4, Math.round(w * 0.09));
+    const braceY = y + Math.round(h * 0.5);
+    const braceH = Math.max(3, Math.round(legW * 0.55));
+
+    ctx.save();
+    ctx.fillStyle = "#64748b";
+
+    // Left leg (splays left)
+    ctx.save();
+    ctx.translate(x + legW, y);
+    ctx.rotate(0.2);
+    ctx.beginPath();
+    ctx.roundRect(0, 0, legW, h, Math.round(legW * 0.45));
+    ctx.fill();
+    ctx.restore();
+
+    // Right leg (splays right)
+    ctx.save();
+    ctx.translate(x + w - legW * 2, y);
+    ctx.rotate(-0.2);
+    ctx.beginPath();
+    ctx.roundRect(0, 0, legW, h, Math.round(legW * 0.45));
+    ctx.fill();
+    ctx.restore();
+
+    // Cross brace
+    ctx.fillStyle = "#94a3b8";
+    ctx.beginPath();
+    ctx.roundRect(
+      x + Math.round(w * 0.18), braceY,
+      Math.round(w * 0.64), braceH,
+      Math.round(braceH * 0.5),
+    );
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  /**
+   * Flatten the composer stage to a JPEG using pure canvas 2D — no SVG
+   * foreignObject (which always taints the canvas). Background drawn from
+   * the <img> element (same-origin proxy or local object URL); sign overlay
+   * reconstructed with canvas 2D primitives and auto-scaling text.
+   */
+  async function composerSave() {
+    if (!composer.hasBackground || composer.placementId === null) return;
+
+    const bgImg   = document.getElementById("composerBg");
+    const signEl  = document.getElementById("composerSign");
+    const stage   = document.getElementById("composerStage");
+    const saveBtn = document.getElementById("composerSaveBtn");
+    if (!bgImg || !signEl || !stage) return;
+
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Saving…';
+    }
+    composerSetStatus("Compositing image…");
+
+    try {
+      const stageRect = stage.getBoundingClientRect();
+      const W = Math.round(stageRect.width);
+      const H = Math.round(stageRect.height);
+
+      const canvas  = document.getElementById("composerCanvas");
+      canvas.width  = W;
+      canvas.height = H;
+      const ctx = canvas.getContext("2d");
+
+      // 1. Background — same-origin, no taint.
+      ctx.drawImage(bgImg, 0, 0, W, H);
+
+      // 2. Sign overlay — pure canvas 2D, no foreignObject taint.
+      //    Text auto-scales; falls back to abbreviation if needed.
+      const signRect = signEl.getBoundingClientRect();
+      const signX    = signRect.left - stageRect.left;
+      const signY    = signRect.top  - stageRect.top;
+      const signW    = signRect.width;
+
+      const p = findPlacement(composer.placementId);
+      if (p) drawSignOnCanvas(ctx, p, signX, signY, signW);
+
+      // 3. Export and upload via the existing photo flow.
+      const jpegBlob = await new Promise((resolve) =>
+        canvas.toBlob(resolve, "image/jpeg", 0.92),
+      );
+      if (!jpegBlob) throw new Error("Canvas export returned null.");
+
+      const file = new File(
+        [jpegBlob],
+        `placement-${composer.placementId}.jpg`,
+        { type: "image/jpeg" },
+      );
+
+      editingId = composer.placementId;
+      closeComposer();
+      await uploadEditorPhoto(file);
+
+    } catch (err) {
+      console.error("composerSave error:", err);
+      composerSetStatus(`Save failed: ${err.message}`);
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk me-1"></i>Save as photo';
+      }
+    }
+  }
+
+  // ── Composer pointer/touch event handlers ────────────────────────
+
+  /**
+   * Pointer distance helper for pinch gestures.
+   * @param {{x:number,y:number}} a
+   * @param {{x:number,y:number}} b
+   * @returns {number}
+   */
+  function pointerDist(a, b) {
+    return Math.hypot(b.x - a.x, b.y - a.y);
+  }
+
+  /**
+   * Clamp the sign overlay so it can't be dragged entirely off the stage.
+   * Allows leaving a 20px strip of the sign visible at each edge.
+   */
+  function clampComposerSign() {
+    const stage = document.getElementById("composerStage");
+    if (!stage) return;
+    const { width: stageW, height: stageH } = stage.getBoundingClientRect();
+    const signH = document.getElementById("composerSign")?.getBoundingClientRect().height || composer.signW;
+    const MARGIN = 20;
+    composer.signX = Math.max(MARGIN - composer.signW, Math.min(stageW - MARGIN, composer.signX));
+    composer.signY = Math.max(MARGIN - signH,          Math.min(stageH - MARGIN, composer.signY));
+  }
+
+  /**
+   * Wire all pointer/touch listeners for the composer overlay.
+   * Called once from wireUi(); listeners are on the overlay itself
+   * so they're always available when the overlay is shown.
+   */
+  function wireComposerEvents() {
+    const overlay   = document.getElementById("signsComposer");
+    const signEl    = document.getElementById("composerSign");
+    const stageEl   = document.getElementById("composerStage");
+    const svBtn     = document.getElementById("composerSvBtn");
+    const uploadBtn = document.getElementById("composerUploadBtn");
+    const fileInput = document.getElementById("composerFileInput");
+    const saveBtn   = document.getElementById("composerSaveBtn");
+    const cancelBtn = document.getElementById("composerCancelBtn");
+    if (!overlay) return;
+
+    // Mount type radio change
+    overlay.addEventListener("change", (e) => {
+      if (e.target.name === "composerMount") {
+        renderComposerMount(e.target.value);
+      }
+    });
+
+    // Street View button
+    if (svBtn) svBtn.addEventListener("click", composerLoadStreetView);
+
+    // Upload button → trigger file input
+    if (uploadBtn && fileInput) {
+      uploadBtn.addEventListener("click", () => fileInput.click());
+    }
+    if (fileInput) {
+      fileInput.addEventListener("change", () => {
+        const file = fileInput.files?.[0];
+        if (!file) return;
+        fileInput.value = "";
+        if (!/^image\//.test(file.type)) {
+          composerSetStatus("Please choose an image file.");
+          return;
+        }
+        const url = URL.createObjectURL(file);
+        composerSetBackground(url);
+      });
+    }
+
+    // Save + Cancel
+    if (saveBtn)   saveBtn.addEventListener("click",   composerSave);
+    if (cancelBtn) cancelBtn.addEventListener("click", closeComposer);
+
+    // ── Drag (body) and resize (corner handles) — pointer events ─────
+    if (!signEl || !stageEl) return;
+
+    signEl.addEventListener("pointerdown", (e) => {
+      // Ignore if clicking a corner handle — handled separately below
+      if (e.target.closest(".signs-composer-handle")) return;
+      e.preventDefault();
+      signEl.setPointerCapture(e.pointerId);
+
+      const signRect = signEl.getBoundingClientRect();
+      composer.dragging    = true;
+      composer.dragOffsetX = e.clientX - signRect.left;
+      composer.dragOffsetY = e.clientY - signRect.top;
+    });
+
+    signEl.addEventListener("pointermove", (e) => {
+      if (!composer.dragging) return;
+      e.preventDefault();
+      const stageRect = stageEl.getBoundingClientRect();
+      composer.signX = e.clientX - stageRect.left - composer.dragOffsetX;
+      composer.signY = e.clientY - stageRect.top  - composer.dragOffsetY;
+      clampComposerSign();
+      applyComposerSignPosition();
+    });
+
+    signEl.addEventListener("pointerup",     () => { composer.dragging = false; });
+    signEl.addEventListener("pointercancel", () => { composer.dragging = false; });
+
+    // Corner handle pointerdown — start resize
+    signEl.addEventListener("pointerdown", (e) => {
+      const handle = e.target.closest(".signs-composer-handle");
+      if (!handle) return;
+      e.preventDefault();
+      e.stopPropagation();
+      handle.setPointerCapture(e.pointerId);
+
+      const corner    = handle.getAttribute("data-corner"); // "nw"|"ne"|"sw"|"se"
+      const signRect  = signEl.getBoundingClientRect();
+      const stageRect = stageEl.getBoundingClientRect();
+
+      composer.resizingCorner = corner;
+      composer.resizeStartX   = e.clientX;
+      composer.resizeStartY   = e.clientY;
+      composer.resizeStartW   = composer.signW;
+
+      // The anchor is the opposite corner in stage-relative coords
+      const anchorMap = {
+        nw: { x: signRect.right  - stageRect.left, y: signRect.bottom - stageRect.top  },
+        ne: { x: signRect.left   - stageRect.left, y: signRect.bottom - stageRect.top  },
+        sw: { x: signRect.right  - stageRect.left, y: signRect.top    - stageRect.top  },
+        se: { x: signRect.left   - stageRect.left, y: signRect.top    - stageRect.top  },
+      };
+      composer.resizeAnchorX = anchorMap[corner].x;
+      composer.resizeAnchorY = anchorMap[corner].y;
+    });
+
+    // Pointermove on the sign also covers handle moves (pointer captured)
+    signEl.addEventListener("pointermove", (e) => {
+      if (!composer.resizingCorner) return;
+      e.preventDefault();
+      const stageRect = stageEl.getBoundingClientRect();
+      const pxInStage = e.clientX - stageRect.left;
+
+      // New width = horizontal distance from anchor to pointer
+      const corner = composer.resizingCorner;
+      let newW;
+      if (corner === "ne" || corner === "se") {
+        newW = pxInStage - composer.resizeAnchorX;
+      } else {
+        newW = composer.resizeAnchorX - pxInStage;
+      }
+      newW = Math.max(COMPOSER_MIN_W, Math.min(COMPOSER_MAX_W, newW));
+      composer.signW = newW;
+
+      // Reanchor the non-moving corner
+      if (corner === "nw" || corner === "sw") {
+        composer.signX = composer.resizeAnchorX - newW;
+      } else {
+        composer.signX = composer.resizeAnchorX;
+      }
+      // Vertical anchor — top stays fixed for sw/se, bottom stays for nw/ne
+      // (we do uniform scale so height is determined by CSS aspect; no Y fix needed)
+
+      clampComposerSign();
+      applyComposerSignPosition();
+    });
+
+    signEl.addEventListener("pointerup",     () => { composer.resizingCorner = null; });
+    signEl.addEventListener("pointercancel", () => { composer.resizingCorner = null; });
+
+    // ── Pinch-to-scale (touch) ────────────────────────────────────────
+    signEl.addEventListener("touchstart", (e) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        const [t0, t1] = e.touches;
+        composer.touches.set(t0.identifier, { x: t0.clientX, y: t0.clientY });
+        composer.touches.set(t1.identifier, { x: t1.clientX, y: t1.clientY });
+        const pts = [...composer.touches.values()];
+        composer.pinchStartDist = pointerDist(pts[0], pts[1]);
+        composer.pinchStartW    = composer.signW;
+        composer.dragging = false; // cancel any body drag
+      }
+    }, { passive: false });
+
+    signEl.addEventListener("touchmove", (e) => {
+      if (e.touches.length !== 2 || !composer.pinchStartDist) return;
+      e.preventDefault();
+      const [t0, t1] = e.touches;
+      const curDist = pointerDist(
+        { x: t0.clientX, y: t0.clientY },
+        { x: t1.clientX, y: t1.clientY },
+      );
+      const scale = curDist / composer.pinchStartDist;
+      composer.signW = Math.max(
+        COMPOSER_MIN_W,
+        Math.min(COMPOSER_MAX_W, composer.pinchStartW * scale),
+      );
+      clampComposerSign();
+      applyComposerSignPosition();
+    }, { passive: false });
+
+    signEl.addEventListener("touchend", () => {
+      composer.touches.clear();
+      composer.pinchStartDist = 0;
+    });
+
+    // ── Escape key closes the composer ────────────────────────────────
+    // (handled in the global keydown listener — see onMapKeyDown)
   }
 
   // ============================================================
