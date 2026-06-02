@@ -85,6 +85,14 @@
   const NUDGE_STEP_METERS = 0.5;
   const NUDGE_STEP_SHIFT_METERS = 5;
 
+  /**
+   * Timestamp (ms since epoch) of the most recent marker dragend, used to
+   * suppress the spurious map-background click that some browsers fire
+   * immediately after a drag completes. Without this guard, that click
+   * would clear the keyboard selection right after dragend re-sets it.
+   */
+  let lastDragEndAt = 0;
+
   /** When true, the next map click drops a new placement marker. */
   let placingMode = false;
 
@@ -368,7 +376,10 @@ mapRef = new google.maps.Map(mapEl, {
     placements.forEach((p) => addMarkerForPlacement(p));
 
     // Map background click: in placing mode, drop a new placement;
-    // otherwise, deselect any keyboard-selected marker.
+    // otherwise, deselect any keyboard-selected marker. Skip the deselect
+    // if a drag just finished — browsers sometimes fire a synthetic click
+    // immediately after dragend that would otherwise wipe the selection
+    // the dragend listener just set.
     mapRef.addListener("click", (e) => {
       if (placingMode && canManage) {
         const lat = e.latLng.lat();
@@ -376,6 +387,7 @@ mapRef = new google.maps.Map(mapEl, {
         beginNewPlacement(lat, lng);
         return;
       }
+      if (Date.now() - lastDragEndAt < 300) return;
       selectMarker(null);
     });
   }
@@ -405,11 +417,18 @@ mapRef = new google.maps.Map(mapEl, {
     });
 
     if (canManage) {
-      // gmp-dragend fires after a user finishes dragging the marker
+      // gmp-dragend fires after a user finishes dragging the marker.
+      // Keep keyboard selection on this marker so the user can continue
+      // nudging with arrow keys without re-clicking it first. Mark the
+      // drag-end timestamp synchronously (before the await) so the
+      // 300ms guard in the map-click handler catches any synthetic click
+      // that fires immediately after dragend.
       marker.addListener("dragend", async () => {
+        lastDragEndAt = Date.now();
         const pos = marker.position;
         const newLat = typeof pos.lat === "function" ? pos.lat() : pos.lat;
         const newLng = typeof pos.lng === "function" ? pos.lng() : pos.lng;
+        selectMarker(placement.placement_id);
         await persistDrag(placement.placement_id, newLat, newLng);
       });
     }
@@ -557,35 +576,35 @@ mapRef = new google.maps.Map(mapEl, {
    *
    * @param {KeyboardEvent} e
    */
-  function onMapKeyDown(e) {
-    if (selectedId === null) return;
+function onMapKeyDown(e) {
+  if (selectedId === null) return;
 
-    // Suspend while editor is open OR focus is in a form field
-    const editorEl = document.getElementById("placementEditor");
-    const editorOpen = editorEl && editorEl.classList.contains("show");
-    if (editorOpen) return;
+  // Suspend while editor is open OR focus is in a form field
+  const editorEl = document.getElementById("placementEditor");
+  const editorOpen = editorEl && editorEl.classList.contains("show");
+  if (editorOpen) return;
 
-    const tag = (e.target?.tagName || "").toUpperCase();
-    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-    if (e.target?.isContentEditable) return;
+  const tag = (e.target?.tagName || "").toUpperCase();
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+  if (e.target?.isContentEditable) return;
 
-    let dir = null;
-    if (e.key === "ArrowUp") dir = "up";
-    if (e.key === "ArrowDown") dir = "down";
-    if (e.key === "ArrowLeft") dir = "left";
-    if (e.key === "ArrowRight") dir = "right";
+  let dir = null;
+  if (e.key === "ArrowUp") dir = "up";
+  if (e.key === "ArrowDown") dir = "down";
+  if (e.key === "ArrowLeft") dir = "left";
+  if (e.key === "ArrowRight") dir = "right";
 
-    if (dir) {
-      e.preventDefault();
-      nudgeSelected(dir, e.shiftKey);
-      return;
-    }
-
-    if (e.key === "Escape") {
-      e.preventDefault();
-      selectMarker(null);
-    }
+  if (dir) {
+    e.preventDefault();
+    nudgeSelected(dir, e.shiftKey);
+    return;
   }
+
+  if (e.key === "Escape") {
+    e.preventDefault();
+    selectMarker(null);
+  }
+}
 
   /**
    * Persist a drag-end coordinate change to the server, keeping all other
@@ -1072,7 +1091,13 @@ mapRef = new google.maps.Map(mapEl, {
     // Global keyboard listener for arrow-key nudging of the selected marker.
     // The handler self-suspends while the editor is open or focus is in a
     // form field so typing doesn't move the marker.
-    document.addEventListener("keydown", onMapKeyDown);
+    //
+    // useCapture=true is critical here: Google Maps' internal DOM captures
+    // keyboard events on its container and stops their propagation, so
+    // bubble-phase listeners on document never see them. Capture phase
+    // runs on the way DOWN the tree (before Maps' handler), giving us
+    // first crack at the event.
+    document.addEventListener("keydown", onMapKeyDown, true);
   }
 
   // ============================================================

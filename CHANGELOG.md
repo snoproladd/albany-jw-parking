@@ -3,6 +3,108 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.29.1] - 2026-06-02
+
+A polish + bugfix release on top of 2.29.0's Sign Placement System. No schema
+changes, no new features — purely cleanup of the map UX and the surrounding
+CSP / config plumbing surfaced once real users started clicking around.
+
+### Added
+- **Custom Google Maps Map ID** (`6261df670165b61fc3ae73a4`) wired into
+  `signsMap.js`, replacing the placeholder `DEMO_MAP_ID`. Configured via
+  Cloud Console with POI categories (business, restaurants, gas stations,
+  banks, etc.) hidden, keeping the convention-area map clean.
+- **Keyboard nudging** for selected sign placements on `/signs/map`:
+  - Click a marker → it gets a yellow halo with a pulsing dashed ring,
+    visible until deselected.
+  - **Arrow keys** nudge ~0.5m per press (fine adjustment).
+  - **Shift+Arrow** nudges ~5m per press (coarse positioning).
+  - **Esc** or clicking the map background deselects.
+  - Each nudge debounces a 400ms PUT save to the server; in-flight saves
+    serialize so rapid keypresses can't race.
+  - Editor inputs (`#editorLat` / `#editorLng`) update live when the
+    nudged placement is the one being edited.
+  - Selection survives the offcanvas editor open/close cycle.
+  - Selection survives drag operations — the marker stays keyboard-active
+    immediately after release without needing a fresh click.
+  - View-only roles (REGISTERED / KEYMAN) can't nudge — `canManage`
+    short-circuits the handler.
+
+### Changed
+- **`GOOGLE_MAPS_API_KEY`** plumbed through `src/config/azureConfig.js`
+  (`SECRET_MAP` entry mapping the Key Vault secret `GoogleMapsApiKey`,
+  plus the `CONFIG` object with `.env` fallback). Startup log now reports
+  `googleMapsConfigured: boolean` so it's obvious whether the key is
+  reaching the server.
+- **Map defaults to roadmap** instead of hybrid/satellite — vector-map
+  satellite tiles render with washed-out colors under custom Cloud Console
+  styles; the Map / Satellite toggle is still available for users who want
+  satellite manually.
+- **Template picker dropdowns** (both the sidebar status filter and the
+  offcanvas editor's "Sign template" select) now show the arrow direction
+  Unicode glyph and `(#id)` suffix beside each `sign_text`. Resolves
+  the "six identical PARKING entries" problem when one template name has
+  multiple arrow variants. Description appears as `— text` when set.
+- **`style-src` CSP**: dropped the per-request nonce from the `style-src`
+  directive in `index.js`. When both `'unsafe-inline'` and a nonce are
+  present, browsers ignore `'unsafe-inline'` — which broke Google Maps'
+  internal inline-style writes. The nonce was redundant since
+  `'unsafe-inline'` was already permitted; removed it to restore inline-
+  style fallback for libraries that depend on it. Nonce stays on
+  `script-src` (where it actually matters for security).
+- **`script-src` CSP**: added `'wasm-unsafe-eval'` to allow the Google
+  Maps vector renderer to compile WebAssembly. Required for any vector
+  map with a `mapId` set. Scope is limited to WebAssembly only — does
+  NOT enable general `eval()` or `new Function()`.
+- **`connect-src` CSP**: added `data:` (both prod and dev) so the Maps
+  worker can fetch its embedded data-URI pixel resources.
+
+### Fixed
+- **Google Maps control rendering** — global `button` styles from
+  `styles.css` (padding, box-shadow, `box-sizing: border-box`) were
+  leaking into Google's internal control DOM, producing pill-shaped
+  zoom buttons and visually corrupted icons. Added an aggressive CSS
+  reset scoped to `#googleMap` (including `all: revert`,
+  `box-sizing: content-box`, and selector specificity that beats global
+  `button { ... }` rules without `!important`).
+- **Doubled bottom-right map controls** — vector maps enable several
+  controls by default that raster maps don't, including a "Map camera
+  controls" button that appears above the zoom stack. Suppressed via
+  explicit per-control options: `cameraControl: false`,
+  `panControl: false`, `rotateControl: false`, `scaleControl: false`,
+  `fullscreenControl: false`. The result is a clean Map/Satellite toggle
+  top-left and a zoom +/- stack bottom-right, nothing else.
+- **Offcanvas editor z-index** — the site navbar sits at `z-index: 1050`,
+  above Bootstrap's default offcanvas `z-index: 1045`, causing the navbar
+  to bleed through the editor panel. Bumped `.signs-placement-offcanvas`
+  to 1080 and `.offcanvas-backdrop.show` to 1075.
+- **Crosshair cursor in placing mode** — Google Maps writes inline
+  cursor styles to `.gm-style`, overriding the class-level
+  `.signs-map-placing { cursor: crosshair }` rule. Broadened the
+  selector to target `.gm-style` and its direct children, winning the
+  specificity battle without `!important`.
+- **Keyboard nudging after a drag** — `document.addEventListener("keydown", ...)`
+  was on the bubble phase, but Google Maps' internal DOM captures
+  keyboard events on its container and stops their propagation, so the
+  handler never fired until the user clicked elsewhere to move focus.
+  Switched to the **capture phase** (`useCapture: true`) so the handler
+  runs on the way down the tree, before Maps swallows the event. Now
+  arrow keys work immediately after a drag without needing a sidebar click.
+- **Drag-then-deselect race** — the map background's "click → deselect"
+  handler was firing on the synthetic click that some browsers emit
+  immediately after `dragend`, clearing the selection that the dragend
+  handler had just re-set. Added a 300ms timestamp guard on the map-click
+  handler that suppresses deselection during the post-drag window.
+
+### Notes
+- The Google Cloud Console style for the new Map ID must be **published**
+  (not just saved as a draft) for changes to propagate. Propagation can
+  take a few minutes; incognito + DevTools "Disable cache" bypasses any
+  client-side caching during testing.
+- The Map ID associated style currently has Roadmap as the base. Switching
+  to Satellite/Hybrid as the base later requires a re-publish of the
+  associated style; the code defaults to `roadmap` mapTypeId regardless.
+
 ## [2.29.0] - 2026-06-01
 
 A major new feature area: the **Sign Placement System** for managing the
