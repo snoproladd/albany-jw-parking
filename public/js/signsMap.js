@@ -229,6 +229,43 @@
   /** Can the current user manage placements (drag/save/delete)? */
   let canManage = false;
 
+  /**
+   * True when the primary input is a coarse pointer (touch screen).
+   * Set once at bootstrap() and used to branch between the info-sheet
+   * tap flow (mobile) and the direct-to-editor click flow (desktop).
+   * @type {boolean}
+   */
+  let isTouchDevice = false;
+
+  // ── Info sheet ──────────────────────────────────────────────────────
+
+  /**
+   * The placement_id the info sheet is currently showing, or null.
+   * @type {number|null}
+   */
+  let infoSheetForId = null;
+
+  /**
+   * True while the info sheet open/close CSS transition is in progress.
+   * Guards against double-taps and rapid open/close sequences.
+   * @type {boolean}
+   */
+  let infoSheetTransitioning = false;
+
+  /**
+   * Touch Y-position (clientY) at the start of a swipe-to-dismiss gesture
+   * on the info sheet. Null when no swipe is in progress.
+   * @type {number|null}
+   */
+  let infoSheetSwipeStartY = null;
+
+  /**
+   * Current swipe offset in pixels (positive = dragging downward).
+   * Applied as a live translateY so the sheet follows the finger.
+   * @type {number}
+   */
+  let infoSheetSwipeDelta = 0;
+
   // ============================================================
   // HELPERS
   // ============================================================
@@ -1342,6 +1379,16 @@ mapRef = new google.maps.Map(mapEl, {
     // Render each placement
     placements.forEach((p) => addMarkerForPlacement(p));
 
+    // Belt-and-suspenders: if isTouchDevice is true (or becomes true after
+    // a DevTools switch), forcibly disable dragging on every marker now
+    // that they've all been constructed. gmpDraggable can be set post-
+    // construction on AdvancedMarkerElement.
+    if (isTouchDevice) {
+      markers.forEach((marker) => {
+        marker.gmpDraggable = false;
+      });
+    }
+
     // Swap every marker when crossing the detail threshold. Google fires
     // zoom_changed continuously during pinch/scroll, so we early-out
     // unless the resulting level actually changes.
@@ -1385,13 +1432,16 @@ mapRef = new google.maps.Map(mapEl, {
         lng: Number(placement.longitude),
       },
       content: buildMarkerContentForLevel(placement, currentDetailLevel),
-      gmpDraggable: canManage,
+      // Dragging is desktop-only — touch users can accidentally reposition
+      // a sign while panning the map, and there's no undo. On touch they
+      // edit coordinates via the editor form instead.
+      gmpDraggable: canManage && !isTouchDevice,
       title: placement.sign_text,
     });
 
     marker.addListener("gmp-click", () => {
       selectMarker(placement.placement_id);
-      openEditor(placement.placement_id);
+      showInfoSheet(placement.placement_id);
     });
 
     attachMarkerHoverListeners(placement.placement_id, marker);
@@ -1405,6 +1455,19 @@ mapRef = new google.maps.Map(mapEl, {
       // that fires immediately after dragend.
       marker.addListener("dragend", async () => {
         lastDragEndAt = Date.now();
+        // If we're on a touch device (DevTools emulation or real),
+        // snap the marker back immediately and bail. persistDrag also
+        // has this guard, but snapping here avoids the async round-trip.
+        if (isTouchDevice) {
+          const p = findPlacement(placement.placement_id);
+          if (p) {
+            marker.position = {
+              lat: Number(p.latitude),
+              lng: Number(p.longitude),
+            };
+          }
+          return;
+        }
         const pos = marker.position;
         const newLat = typeof pos.lat === "function" ? pos.lat() : pos.lat;
         const newLng = typeof pos.lng === "function" ? pos.lng() : pos.lng;
@@ -1482,6 +1545,8 @@ mapRef = new google.maps.Map(mapEl, {
    */
   function attachTravelHandleListeners(placementId, handleEl, wrapperEl) {
     if (!canManage) return;
+    // Travel handle drag requires a precise pointer; skip on touch devices.
+    if (isTouchDevice) return;
 
     handleEl.addEventListener("pointerdown", (e) => {
       // Only primary button; ignore touch-scroll etc.
@@ -1795,11 +1860,16 @@ function onMapKeyDown(e) {
 
   if (e.key === "Escape") {
     e.preventDefault();
-    // Dismiss Street View overlay first if it's open; a second Escape
-    // then deselects the marker so the user can step out gracefully.
+    // Dismiss overlays in reverse z-index order so the user can step
+    // out gracefully: Street View → info sheet → deselect marker.
     const svOverlay = document.getElementById("streetViewOverlay");
     if (svOverlay && !svOverlay.classList.contains("d-none")) {
       closeStreetView();
+      return;
+    }
+    const infoSheet = document.getElementById("signsInfoSheet");
+    if (infoSheet && !infoSheet.classList.contains("d-none")) {
+      dismissInfoSheet();
       return;
     }
     selectMarker(null);
@@ -1815,6 +1885,23 @@ function onMapKeyDown(e) {
    * @param {number} lng
    */
   async function persistDrag(placementId, lat, lng) {
+    // Belt-and-suspenders: never persist a drag that originated on a
+    // touch device. gmpDraggable should already be false on touch, but
+    // DevTools emulation and mid-session device changes can produce a
+    // draggable marker on a coarse-pointer context. If that happens, snap
+    // the marker back to its stored position instead of saving the move.
+    if (isTouchDevice) {
+      const p = findPlacement(placementId);
+      const marker = markers.get(placementId);
+      if (p && marker) {
+        marker.position = {
+          lat: Number(p.latitude),
+          lng: Number(p.longitude),
+        };
+      }
+      return;
+    }
+
     const p = findPlacement(placementId);
     if (!p) return;
 
@@ -2172,7 +2259,7 @@ function onMapKeyDown(e) {
         map: mapRef,
         position: { lat, lng },
         content: ghost,
-        gmpDraggable: true,
+        gmpDraggable: !isTouchDevice,
       });
 
       pendingNewMarker.addListener("dragend", () => {
@@ -2439,6 +2526,517 @@ function onMapKeyDown(e) {
   }
 
   // ============================================================
+  // GEOLOCATION
+  // ============================================================
+
+  /**
+   * Attempt to get the device's current GPS position and apply it to the
+   * given context:
+   *
+   *   - 'new':      Repositions (or creates) the pending new-placement
+   *                 marker and populates the editor lat/lng inputs. If the
+   *                 editor isn't open yet, opens it at the GPS position.
+   *   - 'existing': Updates the editor lat/lng inputs and moves the
+   *                 existing marker visually. Does NOT auto-save — the
+   *                 user must press Save to persist.
+   *
+   * The button passed in is placed into a loading state while the fix is
+   * pending and restored on completion (success or failure).
+   *
+   * @param {'new'|'existing'} context
+   * @param {HTMLElement}      triggerBtn  The button that was clicked.
+   */
+  function geotagPlacement(context, triggerBtn) {
+    if (!navigator.geolocation) {
+      showGeotagError("Geolocation is not supported by this browser.");
+      return;
+    }
+
+    // Disable the button and show a spinner while waiting for a fix
+    triggerBtn.disabled = true;
+    const origHTML = triggerBtn.innerHTML;
+    triggerBtn.innerHTML =
+      '<i class="fa-solid fa-spinner fa-spin me-1" aria-hidden="true"></i>Getting location…';
+
+    /**
+     * Restore the trigger button to its original state.
+     */
+    const restoreBtn = () => {
+      triggerBtn.disabled = false;
+      triggerBtn.innerHTML = origHTML;
+    };
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        restoreBtn();
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        const accuracy = pos.coords.accuracy; // metres
+
+        // Populate the editor inputs
+        const latInput = document.getElementById("editorLat");
+        const lngInput = document.getElementById("editorLng");
+        if (latInput) latInput.value = lat.toFixed(7);
+        if (lngInput) lngInput.value = lng.toFixed(7);
+
+        // Show accuracy feedback so the user can judge whether the fix
+        // is good enough (GPS in a parking garage may be off by 30m+).
+        showGeotagAccuracy(accuracy);
+
+        if (context === "new") {
+          if (pendingNewMarker) {
+            // Reposition the existing ghost marker
+            pendingNewMarker.position = { lat, lng };
+            pendingNewLatLng = { lat, lng };
+          } else {
+            // No map tap yet — create a ghost marker at the GPS position
+            // and open the editor as if the user had tapped the map there.
+            beginNewPlacement(lat, lng);
+            // beginNewPlacement already opens the offcanvas and sets
+            // pendingNewLatLng, so we just need to sync the inputs again
+            // in case beginNewPlacement used slightly different rounding.
+            if (latInput) latInput.value = lat.toFixed(7);
+            if (lngInput) lngInput.value = lng.toFixed(7);
+          }
+        } else if (context === "existing" && editingId !== null) {
+          // Move the existing marker visually (not saved yet)
+          const marker = markers.get(editingId);
+          if (marker) marker.position = { lat, lng };
+
+          // Update in-memory coordinates so a subsequent Save picks up
+          // the new position even without re-reading the inputs.
+          const p = findPlacement(editingId);
+          if (p) {
+            p.latitude  = lat;
+            p.longitude = lng;
+          }
+        }
+
+        // Pan the map to the new position so the user can verify
+        if (mapRef) {
+          mapRef.panTo({ lat, lng });
+        }
+      },
+      (err) => {
+        restoreBtn();
+        let msg;
+        switch (err.code) {
+          case err.PERMISSION_DENIED:
+            msg = "Location permission denied. Enable it in your browser or device settings.";
+            break;
+          case err.POSITION_UNAVAILABLE:
+            msg = "Location unavailable. Check that GPS is enabled on your device.";
+            break;
+          case err.TIMEOUT:
+            msg = "Location request timed out. Try again in a moment.";
+            break;
+          default:
+            msg = "Could not get your location.";
+        }
+        showGeotagError(msg);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0,
+      },
+    );
+  }
+
+  /**
+   * Show a geolocation error message in the editor feedback area.
+   * Reuses the existing #editorFeedback element so no new DOM is needed.
+   *
+   * @param {string} msg
+   */
+  function showGeotagError(msg) {
+    const fb = document.getElementById("editorFeedback");
+    if (!fb) return;
+    fb.className = "small text-danger";
+    fb.textContent = msg;
+  }
+
+  /**
+   * Show a GPS accuracy hint below the coordinate inputs.
+   * Clears automatically after 6 seconds.
+   *
+   * @param {number} accuracyMeters  Accuracy radius in metres from the Geolocation API.
+   */
+  function showGeotagAccuracy(accuracyMeters) {
+    const hint = document.getElementById("editorCoordsHint");
+    if (!hint) return;
+    const rounded = Math.round(accuracyMeters);
+    const quality = rounded <= 5 ? "Excellent" : rounded <= 15 ? "Good" : rounded <= 40 ? "Fair" : "Poor";
+    hint.textContent = `GPS fix: ±${rounded} m (${quality}). Save to keep this position.`;
+    window.setTimeout(() => {
+      // Restore the default hint after a delay, but only if it hasn't
+      // been replaced by another message in the meantime.
+      if (hint.textContent.startsWith("GPS fix:")) {
+        hint.textContent = isTouchDevice && canManage
+          ? "Enter coordinates manually, or tap the map to place."
+          : "Drag the marker on the map to reposition.";
+      }
+    }, 6000);
+  }
+
+  // ============================================================
+  // INFO SHEET
+  // ============================================================
+
+  /**
+   * Build and show the bottom info sheet for a placement.
+   *
+   * The sheet is a fixed card that slides up from the bottom of the
+   * viewport. It shows the sign preview, status, detail rows, an optional
+   * photo thumbnail, and a full set of action buttons — giving touch users
+   * the same functionality as the desktop context menu.
+   *
+   * On desktop the sheet is also used as the primary tap/click target from
+   * the placement list so the user can preview before committing to the
+   * full editor.
+   *
+   * @param {number} placementId
+   */
+  function showInfoSheet(placementId) {
+    if (infoSheetTransitioning) return;
+    const p = findPlacement(placementId);
+    if (!p) return;
+
+    infoSheetForId = placementId;
+    hideTooltip(true);
+    dismissContextMenu();
+
+    const sheet   = document.getElementById("signsInfoSheet");
+    const header  = document.getElementById("signsInfoSheetHeader");
+    const body    = document.getElementById("signsInfoSheetBody");
+    const backdrop = document.getElementById("signsInfoSheetBackdrop");
+    if (!sheet || !header || !body) return;
+
+    // ── Header ───────────────────────────────────────────────────────
+
+    header.replaceChildren();
+
+    const previewGroup = document.createElement("div");
+    previewGroup.className = "signs-info-sheet-preview-group";
+
+    // Sign preview block
+    const preview = document.createElement("div");
+    preview.className = "sign-preview";
+    const previewText = document.createElement("span");
+    previewText.className = "sign-preview-text";
+    previewText.textContent = p.sign_text || "";
+    preview.appendChild(previewText);
+
+    if (p.arrow_direction) {
+      const arrowSpan = document.createElement("span");
+      arrowSpan.className = "sign-preview-arrow";
+      if (p.arrow_direction === "destination") {
+        const icon = document.createElement("i");
+        icon.className = "fa-solid fa-location-dot";
+        icon.setAttribute("aria-hidden", "true");
+        arrowSpan.appendChild(icon);
+      } else if (ARROW_GLYPHS[p.arrow_direction]) {
+        arrowSpan.textContent = ARROW_GLYPHS[p.arrow_direction];
+      }
+      preview.appendChild(arrowSpan);
+    }
+    previewGroup.appendChild(preview);
+
+    // Status badge
+    const statusBadge = document.createElement("span");
+    statusBadge.className = `signs-tooltip-status signs-tooltip-status-${p.status || "planned"}`;
+    statusBadge.textContent = p.status
+      ? p.status.charAt(0).toUpperCase() + p.status.slice(1)
+      : "Planned";
+    previewGroup.appendChild(statusBadge);
+
+    header.appendChild(previewGroup);
+
+    // Close button
+    const closeBtn = document.createElement("button");
+    closeBtn.type = "button";
+    closeBtn.className = "signs-info-sheet-close";
+    closeBtn.setAttribute("aria-label", "Close");
+    const closeIcon = document.createElement("i");
+    closeIcon.className = "fa-solid fa-xmark";
+    closeIcon.setAttribute("aria-hidden", "true");
+    closeBtn.appendChild(closeIcon);
+    closeBtn.addEventListener("click", () => dismissInfoSheet());
+    header.appendChild(closeBtn);
+
+    // ── Body ─────────────────────────────────────────────────────────
+
+    body.replaceChildren();
+
+    // Detail rows
+    const details = document.createElement("dl");
+    details.className = "signs-info-sheet-details";
+
+    /**
+     * Append a dt/dd pair to the details list.
+     * @param {string} label
+     * @param {string} value
+     */
+    const addDetail = (label, value) => {
+      const dt = document.createElement("dt");
+      dt.textContent = label;
+      const dd = document.createElement("dd");
+      dd.textContent = value;
+      details.appendChild(dt);
+      details.appendChild(dd);
+    };
+
+    if (p.mount_type) {
+      addDetail("Mount", MOUNT_LABELS[p.mount_type] || p.mount_type);
+    }
+    if (p.location_notes) {
+      addDetail("Notes", p.location_notes);
+    }
+    addDetail(
+      "Coords",
+      `${Number(p.latitude).toFixed(5)}, ${Number(p.longitude).toFixed(5)}`,
+    );
+
+    body.appendChild(details);
+
+    // Photo thumbnail
+    if (p.photo_url) {
+      const img = document.createElement("img");
+      img.className = "signs-info-sheet-thumb";
+      img.alt = "Sign placement photo";
+      img.src = `/signs/placements/${p.placement_id}/photo?t=${photoCacheBuster}`;
+      img.addEventListener("click", () => openPhotoLightbox(p.placement_id));
+      body.appendChild(img);
+    }
+
+    // ── Action buttons ───────────────────────────────────────────────
+
+    const actions = document.createElement("div");
+    actions.className = "signs-info-sheet-actions";
+
+    /**
+     * Append a full-width action button.
+     * @param {string}   iconCls    FontAwesome class string.
+     * @param {string}   label      Display text.
+     * @param {Function} onClick    Click handler.
+     * @param {string}   [modifier] Optional BEM modifier class suffix.
+     */
+    const addAction = (iconCls, label, onClick, modifier = "") => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = `signs-info-sheet-action-btn${modifier ? " signs-info-sheet-action-btn-" + modifier : ""}`;
+      const icon = document.createElement("i");
+      icon.className = iconCls;
+      icon.setAttribute("aria-hidden", "true");
+      btn.appendChild(icon);
+      btn.appendChild(document.createTextNode(" " + label));
+      btn.addEventListener("click", () => {
+        dismissInfoSheet();
+        onClick();
+      });
+      actions.appendChild(btn);
+    };
+
+    // Edit (primary CTA — always first)
+    if (canManage) {
+      addAction("fa-solid fa-pen", "Edit placement", () => openEditor(placementId), "primary");
+    }
+
+    // View photo
+    if (p.photo_url) {
+      addAction("fa-solid fa-image", "View photo", () => openPhotoLightbox(placementId));
+    }
+
+    // Quick status change (manageSigns only) — three side-by-side buttons
+    if (canManage) {
+      const statusGroup = document.createElement("div");
+      statusGroup.className = "signs-info-sheet-status-group";
+
+      const statusDefs = [
+        { status: "planned",   icon: "fa-solid fa-circle-dot",   label: "Planned"   },
+        { status: "installed", icon: "fa-solid fa-circle-check",  label: "Installed" },
+        { status: "removed",   icon: "fa-solid fa-circle-xmark",  label: "Removed"   },
+      ];
+
+      statusDefs.forEach(({ status, icon, label }) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = `signs-info-sheet-status-btn signs-info-sheet-status-btn-${status}`;
+        if (p.status === status) btn.classList.add("signs-info-sheet-status-btn-active");
+        const iconEl = document.createElement("i");
+        iconEl.className = icon;
+        iconEl.setAttribute("aria-hidden", "true");
+        btn.appendChild(iconEl);
+        btn.appendChild(document.createTextNode(label));
+        btn.addEventListener("click", async () => {
+          if (p.status === status) return; // already this status
+          dismissInfoSheet();
+          await quickSetStatus(placementId, status);
+        });
+        statusGroup.appendChild(btn);
+      });
+
+      actions.appendChild(statusGroup);
+    }
+
+    // Street View
+    addAction("fa-solid fa-street-view", "View in Street View", () => openStreetView(placementId));
+
+    // Get directions
+    addAction("fa-solid fa-diamond-turn-right", "Get directions", () => {
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${p.latitude},${p.longitude}`;
+      window.open(url, "_blank", "noopener,noreferrer");
+    });
+
+    // Copy coordinates
+    addAction("fa-solid fa-copy", "Copy coordinates", () => {
+      const text = `${Number(p.latitude).toFixed(7)}, ${Number(p.longitude).toFixed(7)}`;
+      navigator.clipboard.writeText(text).catch(() => {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      });
+    });
+
+    // Delete (manageSigns only — bottom, danger style)
+    if (canManage) {
+      addAction("fa-solid fa-trash", "Delete placement", () => {
+        openEditor(placementId);
+        window.setTimeout(() => deleteFromEditor(), 120);
+      }, "danger");
+    }
+
+    body.appendChild(actions);
+
+    // ── Animate in ───────────────────────────────────────────────────
+
+    infoSheetTransitioning = true;
+
+    if (backdrop) {
+      backdrop.classList.remove("d-none");
+      // Force a reflow so the opacity transition fires
+      void backdrop.offsetWidth;
+      backdrop.classList.add("signs-info-sheet-backdrop-visible");
+    }
+
+    sheet.classList.remove("d-none");
+    // Force a reflow before adding the open class so the translateY
+    // transition fires (avoids the element jumping to final position).
+    void sheet.offsetWidth;
+    sheet.classList.add("signs-info-sheet-open");
+
+    sheet.addEventListener(
+      "transitionend",
+      () => {
+        infoSheetTransitioning = false;
+      },
+      { once: true },
+    );
+  }
+
+  /**
+   * Dismiss the info sheet with a slide-down animation.
+   *
+   * @param {boolean} [immediate=false]  Skip the transition (e.g. on navigation).
+   */
+  function dismissInfoSheet(immediate = false) {
+    const sheet   = document.getElementById("signsInfoSheet");
+    const backdrop = document.getElementById("signsInfoSheetBackdrop");
+    if (!sheet) return;
+
+    infoSheetForId = null;
+
+    if (immediate) {
+      sheet.classList.remove("signs-info-sheet-open");
+      sheet.classList.add("d-none");
+      if (backdrop) {
+        backdrop.classList.remove("signs-info-sheet-backdrop-visible");
+        backdrop.classList.add("d-none");
+      }
+      infoSheetTransitioning = false;
+      return;
+    }
+
+    infoSheetTransitioning = true;
+    sheet.classList.remove("signs-info-sheet-open");
+
+    if (backdrop) {
+      backdrop.classList.remove("signs-info-sheet-backdrop-visible");
+    }
+
+    sheet.addEventListener(
+      "transitionend",
+      () => {
+        sheet.classList.add("d-none");
+        if (backdrop) backdrop.classList.add("d-none");
+        infoSheetTransitioning = false;
+      },
+      { once: true },
+    );
+  }
+
+  /**
+   * Wire swipe-to-dismiss on the info sheet.
+   * Tracks touchstart/touchmove/touchend on the sheet itself and the
+   * drag handle. A downward swipe of ≥ 80px dismisses the sheet; a
+   * shorter swipe snaps back.
+   */
+  function wireInfoSheetSwipe() {
+    const sheet  = document.getElementById("signsInfoSheet");
+    const handle = document.getElementById("signsInfoSheetHandle");
+    if (!sheet) return;
+
+    // We listen on the whole sheet so the user can swipe anywhere in the
+    // header/handle area. We stop propagation on the body scroll container
+    // so normal scrolling still works inside the body.
+    const swipeTarget = handle || sheet;
+
+    swipeTarget.addEventListener("touchstart", (e) => {
+      if (e.touches.length !== 1) return;
+      infoSheetSwipeStartY = e.touches[0].clientY;
+      infoSheetSwipeDelta  = 0;
+      // Remove the CSS transition while dragging so the sheet follows
+      // the finger instantly without the easing lag.
+      sheet.style.transition = "none";
+    }, { passive: true });
+
+    swipeTarget.addEventListener("touchmove", (e) => {
+      if (infoSheetSwipeStartY === null) return;
+      const dy = e.touches[0].clientY - infoSheetSwipeStartY;
+      if (dy < 0) return; // Don't allow upward drag beyond open position
+      infoSheetSwipeDelta = dy;
+
+      // Apply live transform: on desktop the sheet has an X offset too,
+      // so we must preserve it.
+      const isWide = window.matchMedia("(min-width: 768px)").matches;
+      const xOffset = isWide ? "translateX(-50%) " : "";
+      sheet.style.transform = `${xOffset}translateY(${dy}px)`;
+    }, { passive: true });
+
+    swipeTarget.addEventListener("touchend", () => {
+      if (infoSheetSwipeStartY === null) return;
+      infoSheetSwipeStartY = null;
+
+      // Restore the CSS transition
+      sheet.style.transition = "";
+      sheet.style.transform  = "";
+
+      if (infoSheetSwipeDelta >= 80) {
+        dismissInfoSheet();
+      } else {
+        // Snap back — re-apply the open class to retrigger the transition
+        sheet.classList.add("signs-info-sheet-open");
+      }
+      infoSheetSwipeDelta = 0;
+    }, { passive: true });
+  }
+
+  // ============================================================
   // WIRING
   // ============================================================
 
@@ -2470,6 +3068,13 @@ function onMapKeyDown(e) {
     ctxMenuEl.setAttribute("role", "menu");
     document.body.appendChild(ctxMenuEl);
 
+    // ── Info sheet backdrop + swipe ───────────────────────────────────
+    const infoBackdrop = document.getElementById("signsInfoSheetBackdrop");
+    if (infoBackdrop) {
+      infoBackdrop.addEventListener("click", () => dismissInfoSheet());
+    }
+    wireInfoSheetSwipe();
+
     // Dismiss context menu on outside click or Escape
     document.addEventListener("mousedown", (e) => {
       if (ctxMenuEl && !ctxMenuEl.contains(e.target)) {
@@ -2500,6 +3105,15 @@ function onMapKeyDown(e) {
     const cancelBtn = document.getElementById("cancelAddBtn");
     if (addBtn) addBtn.addEventListener("click", enterPlacingMode);
     if (cancelBtn) cancelBtn.addEventListener("click", exitPlacingMode);
+
+    const geoNewBtn = document.getElementById("geotagNewBtn");
+    if (geoNewBtn) {
+      geoNewBtn.addEventListener("click", () => geotagPlacement("new", geoNewBtn));
+    }
+    const geoUpdateBtn = document.getElementById("geotagUpdateBtn");
+    if (geoUpdateBtn) {
+      geoUpdateBtn.addEventListener("click", () => geotagPlacement("existing", geoUpdateBtn));
+    }
 
     // Editor: sign template picker -> live preview
     const tmplSelect = document.getElementById("editorSignTemplate");
@@ -2670,14 +3284,16 @@ function onMapKeyDown(e) {
       });
     }
 
-    // Placement list row click -> open editor
+    // Placement list row click -> open info sheet (same as tapping a marker)
     const list = document.getElementById("placementList");
     if (list) {
       list.addEventListener("click", (e) => {
         const row = e.target.closest(".signs-placement-row");
         if (!row) return;
         const id = Number(row.getAttribute("data-placement-id"));
-        if (id) openEditor(id);
+        if (!id) return;
+        selectMarker(id);
+        showInfoSheet(id);
       });
     }
 
@@ -2753,6 +3369,14 @@ function onMapKeyDown(e) {
     const centerLng = Number(root.getAttribute("data-center-lng"));
     const centerZoom = Number(root.getAttribute("data-center-zoom")) || 17;
     canManage = root.getAttribute("data-can-manage") === "1";
+    isTouchDevice = window.matchMedia("(pointer: coarse)").matches;
+
+    // Update the coordinate input hint so mobile canManage users know
+    // they can type coordinates directly (drag is disabled on touch).
+    if (isTouchDevice && canManage) {
+      const hint = document.getElementById("editorCoordsHint");
+      if (hint) hint.textContent = "Enter coordinates manually, or tap the map to place.";
+    }
 
     const dataEl = document.getElementById("signsMapBootstrap");
     if (dataEl) {

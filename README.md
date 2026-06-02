@@ -274,6 +274,9 @@ The first ADMIN must be granted directly in the database.
   clobbered by bearing updates).
 - **MSSQL TIME columns** return as epoch-anchored `Date` objects — always use
   `getUTCHours()`/`getUTCMinutes()`
+- **Touch device detection** in `signsMap.js` uses `window.matchMedia("(pointer: coarse)").matches`
+  evaluated once at bootstrap. Drag-to-reposition and the travel-handle are desktop-only;
+  mobile users place signs via map tap or the geolocation button.
 
 ---
 
@@ -316,6 +319,8 @@ Schema highlights:
 - `bug_reports` — full lifecycle bug tracking with resolution fields
 - `schedule_publishes` — audit log for schedule PDF publish events
 - `signs` — reusable sign templates (text + optional abbreviation); soft-deleted via `is_archived`
+  - Sign Map touch behaviour: drag-to-reposition disabled on coarse-pointer devices (`isTouchDevice`);
+    geolocation button available for GPS-assisted placement instead
   - `abbreviation` `NVARCHAR(6)` — optional compact label for map markers (auto-generated from sign text when NULL)
 - `sign_placements` — geographic instances of a sign template
   - `latitude`/`longitude` `DECIMAL(10,7)` (≈1cm precision)

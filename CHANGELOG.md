@@ -3,6 +3,92 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.36.0] - 2026-06-02
+
+### Added — Sign Map Mobile UX Pass
+
+#### Info sheet (bottom card — all devices)
+- Tapping or clicking any sign marker or sidebar placement row now opens a
+  **bottom info sheet** before the full editor, giving all users a quick-peek
+  summary without immediately committing to an edit. The sheet shows the sign
+  preview, status badge, mount type, location notes, coordinates, and a photo
+  thumbnail (tap to open lightbox). Action buttons provide the full feature set:
+  - OVERSEER+: **Edit placement** (primary, blue), quick **status buttons**
+    (Planned / Installed / Removed in a 3-column grid), Street View, Get
+    directions, Copy coordinates, Delete.
+  - View-only (REGISTERED / KEYMAN): Street View, Get directions, Copy
+    coordinates, View photo (when a photo exists).
+- The sheet slides up from the bottom of the viewport with a spring-eased
+  CSS transition. On ≥768px screens it is constrained to a 480px centred card.
+- **Swipe-to-dismiss** — drag the pill handle or the header area downward ≥80px
+  to close. Short drags snap back. Tapping the backdrop also dismisses.
+- **Escape key** cascades in order: Street View → info sheet → deselect marker.
+- The sheet is accessible to all roles on all devices.
+
+#### Touch device protection
+- **Drag-to-reposition is disabled on touch devices.** `gmpDraggable` is set
+  to `false` at marker construction time when `isTouchDevice` is true. A
+  post-construction force-disable loop in `initMap` catches any marker built
+  before the device flag was confirmed (covers DevTools emulation mid-session).
+- The `dragend` listener contains a belt-and-suspenders snap-back: if a drag
+  fires on a touch device despite the above (e.g. DevTools switch), the marker
+  is immediately snapped back to its stored position and `persistDrag` is not
+  called.
+- `persistDrag` has a final guard that snaps the marker and returns early if
+  `isTouchDevice` is true — the position is never sent to the server.
+- `isTouchDevice` is evaluated at page load via
+  `window.matchMedia("(pointer: coarse)").matches`.
+
+#### Travel handle — desktop only
+- The direction-of-travel drag handle is hidden on coarse-pointer (touch)
+  devices via `@media (pointer: coarse) { .signs-map-travel-handle { display: none } }`.
+- `attachTravelHandleListeners` returns early when `isTouchDevice` is true.
+
+#### Geolocation — "Use my location"
+- A **location crosshairs button** next to "Add placement" triggers `geotagPlacement('new')`,
+  which calls `navigator.geolocation.getCurrentPosition` with `enableHighAccuracy: true`
+  and drops a pending ghost marker at the GPS fix without requiring a map tap.
+  If a ghost marker already exists (the user tapped first), it is repositioned.
+- An **"Update to my location"** button in the offcanvas editor coordinate row
+  (OVERSEER+, existing placements only) calls `geotagPlacement('existing')`, moves
+  the marker visually, and pre-fills the lat/lng inputs. The save still requires
+  an explicit click — the position is not auto-persisted.
+- Both buttons show a spinner and disabled state while the GPS fix is pending.
+- An **accuracy badge** appears below the coordinate inputs for 6 seconds after
+  a fix: `GPS fix: ±Nm (Excellent / Good / Fair / Poor)`. Thresholds: ≤5m
+  Excellent, ≤15m Good, ≤40m Fair, otherwise Poor.
+- Geolocation errors (permission denied, unavailable, timeout) surface as
+  inline text in `#editorFeedback`.
+
+#### Sidebar filters — collapse on mobile
+- On `<lg` breakpoints the sidebar filter body (`#sidebarFiltersBody`) is
+  collapsed by default. A **Filters** toggle button in the card header (hidden
+  on `≥lg`) expands/collapses it with an animated chevron — same Bootstrap
+  collapse pattern used elsewhere in the app.
+
+#### Coordinate inputs — editable for canManage on touch
+- The lat/lng fields in the editor are `readonly` only for view-only users.
+  OVERSEER+ users can type coordinates directly (important now that drag is
+  disabled on touch). The hint text updates accordingly: desktop shows
+  "Drag the marker on the map to reposition", mobile shows
+  "Enter coordinates manually, or tap the map to place."
+
+#### Legend updates
+- Keyboard shortcut entries (`<li>`) are hidden on `<lg` screens via
+  `d-none d-lg-flex`; a "Tap marker → View details & actions" hint is shown
+  instead.
+- The direction-of-travel legend section is hidden on mobile via
+  `d-none d-lg-block / d-none d-lg-flex`.
+- Placement list `max-height: 40vh` cap removed on `≤991px` (the list sits
+  inside a collapsible section and the page scrolls natively on mobile).
+
+### Fixed
+- **Accidental drag corruption** — three markers were displaced by accidental
+  drags during mobile DevTools emulation testing before the touch guards were
+  in place. The guards prevent any future occurrence; affected placements
+  should be corrected via the editor's coordinate inputs or the "Update to my
+  location" GPS button.
+
 ## [2.35.0] - 2026-06-02
 
 ### Added — Phase 2d: Delegated `manageSigns` Permission

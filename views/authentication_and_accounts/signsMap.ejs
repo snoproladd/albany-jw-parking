@@ -46,11 +46,25 @@
                         <h1 class="h5 mb-0">
                             <i class="fa-solid fa-map-location-dot me-2"></i>Sign Map
                         </h1>
-                        <a href="/signs" class="btn btn-link btn-sm p-0">
-                            <i class="fa-solid fa-arrow-left me-1"></i>Library
-                        </a>
+                        <div class="d-flex align-items-center gap-2">
+                            <button type="button"
+                                    class="btn btn-link btn-sm p-0 text-muted d-lg-none"
+                                    id="sidebarFiltersToggle"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#sidebarFiltersBody"
+                                    aria-expanded="false"
+                                    aria-controls="sidebarFiltersBody"
+                                    aria-label="Toggle filters">
+                                <i class="fa-solid fa-filter me-1"></i>Filters
+                                <i class="fa-solid fa-chevron-down signs-sidebar-chevron ms-1"></i>
+                            </button>
+                            <a href="/signs" class="btn btn-link btn-sm p-0">
+                                <i class="fa-solid fa-arrow-left me-1"></i>Library
+                            </a>
+                        </div>
                     </header>
 
+                    <div class="collapse show" id="sidebarFiltersBody">
                     <div class="card-body">
 
                         <%# Filters %>
@@ -118,9 +132,13 @@
 
                         <% if (canManage) { %>
                             <hr class="my-2" />
-                            <div class="d-grid mb-3">
-                                <button type="button" class="btn btn-primary btn-sm" id="addPlacementBtn">
+                            <div class="d-flex gap-2 mb-3">
+                                <button type="button" class="btn btn-primary btn-sm flex-fill" id="addPlacementBtn">
                                     <i class="fa-solid fa-plus me-1"></i>Add placement
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" id="geotagNewBtn"
+                                        title="Place at my current GPS location">
+                                    <i class="fa-solid fa-location-crosshairs"></i>
                                 </button>
                             </div>
                             <p class="small text-muted mb-3" id="addPlacementHelp" hidden>
@@ -187,31 +205,35 @@
                             <%# Keyboard shortcuts ───────────────────────────── %>
                             <p class="small text-muted mb-1 fw-semibold">Keyboard shortcuts</p>
                             <ul class="signs-legend-list signs-legend-shortcuts mb-0">
-                                <li>
+                                <li class="d-none d-lg-flex">
                                     <span class="signs-legend-keys">
                                         <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd>
                                     </span>
                                     Nudge selected marker 0.5 m
                                 </li>
-                                <li>
+                                <li class="d-none d-lg-flex">
                                     <span class="signs-legend-keys">
                                         <kbd>Shift</kbd>+<kbd>arrow</kbd>
                                     </span>
                                     Nudge 5 m (coarse)
                                 </li>
-                                <li>
+                                <li class="d-none d-lg-flex">
                                     <span class="signs-legend-keys"><kbd>Esc</kbd></span>
                                     Deselect marker (second <kbd>Esc</kbd> closes Street View first)
                                 </li>
-                                <li>
+                                <li class="d-none d-lg-flex">
                                     <span class="signs-legend-keys">Right-click</span>
                                     Context menu
+                                </li>
+                                <li class="d-lg-none">
+                                    <span class="signs-legend-keys">Tap marker</span>
+                                    View details &amp; actions
                                 </li>
                             </ul>
 
                             <%# Travel direction handle ───────────────────────── %>
-                            <p class="small text-muted mb-1 fw-semibold mt-2">Direction of travel arrow</p>
-                            <ul class="signs-legend-list mb-0">
+                            <p class="small text-muted mb-1 fw-semibold mt-2 d-none d-lg-block">Direction of travel arrow</p>
+                            <ul class="signs-legend-list mb-0 d-none d-lg-flex flex-column">
                                 <li>
                                     <span class="signs-legend-keys">Drag handle</span>
                                     Set direction drivers travel toward sign
@@ -224,6 +246,7 @@
                         </div>
 
                     </div>
+                    </div>  
                 </section>
             </aside>
 
@@ -257,6 +280,22 @@
 
         </div>
     </main>
+
+    <%# ──────────────────────────────────────────────────────────
+        INFO SHEET: tap-to-peek card (slides up from bottom)
+        Populated entirely by JS; shown on marker tap for all users.
+        On desktop, also available from the placement list.
+    ────────────────────────────────────────────────────────── %>
+    <div class="signs-info-sheet d-none" id="signsInfoSheet" aria-modal="true" role="dialog" aria-label="Placement details">
+        <div class="signs-info-sheet-handle" id="signsInfoSheetHandle" aria-hidden="true"></div>
+        <div class="signs-info-sheet-header" id="signsInfoSheetHeader">
+            <%# JS populates: sign preview + status badge + close button %>
+        </div>
+        <div class="signs-info-sheet-body" id="signsInfoSheetBody">
+            <%# JS populates: details dl, thumbnail, action buttons %>
+        </div>
+    </div>
+    <div class="signs-info-sheet-backdrop d-none" id="signsInfoSheetBackdrop"></div>
 
     <%# ──────────────────────────────────────────────────────────
         OFFCANVAS: placement editor (slides in from the right)
@@ -329,13 +368,22 @@
             <div class="row g-2 mb-3">
                 <div class="col-6">
                     <label for="editorLat" class="form-label small">Latitude</label>
-                    <input type="number" step="0.0000001" class="form-control form-control-sm" id="editorLat" readonly />
+                    <input type="number" step="0.0000001" class="form-control form-control-sm" id="editorLat"
+                           <%= canManage ? '' : 'readonly' %> />
                 </div>
                 <div class="col-6">
                     <label for="editorLng" class="form-label small">Longitude</label>
-                    <input type="number" step="0.0000001" class="form-control form-control-sm" id="editorLng" readonly />
+                    <input type="number" step="0.0000001" class="form-control form-control-sm" id="editorLng"
+                           <%= canManage ? '' : 'readonly' %> />
                 </div>
-                <div class="form-text small">Drag the marker on the map to reposition.</div>
+                <% if (canManage) { %>
+                    <div class="col-12">
+                        <button type="button" class="btn btn-outline-secondary btn-sm w-100" id="geotagUpdateBtn">
+                            <i class="fa-solid fa-location-crosshairs me-1"></i>Update to my location
+                        </button>
+                    </div>
+                <% } %>
+                <div class="form-text small" id="editorCoordsHint">Drag the marker on the map to reposition.</div>
             </div>
 
             <%# Mount type %>

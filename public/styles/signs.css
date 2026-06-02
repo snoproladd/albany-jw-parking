@@ -653,6 +653,12 @@
     .signs-map-row {
         min-height: 0;
     }
+
+    /* On mobile the placement list shouldn't be height-capped — it sits
+       inside a collapsible section and the overall page scrolls. */
+    .signs-placement-list {
+        max-height: none;
+    }
 }
 
 /*
@@ -1267,6 +1273,314 @@
 
 .signs-sv-footer a:hover {
     color: #fff;
+}
+
+/* ── Info sheet (tap-to-peek card, slides up from bottom) ───────── */
+
+/*
+ * The info sheet is a fixed card anchored to the bottom of the viewport.
+ * It slides up via a CSS transition on `transform`. The `.d-none` class
+ * is removed first (so it's in the layout), then `.signs-info-sheet-open`
+ * is added in a requestAnimationFrame to trigger the transition. Dismissal
+ * reverses the sequence and restores `.d-none` on transitionend.
+ */
+.signs-info-sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1086;
+    background: var(--bs-body-bg, #fff);
+    border-top: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 1rem 1rem 0 0;
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.18);
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    transform: translateY(100%);
+    transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+    /* Prevent the sheet from triggering Google's map pan */
+    touch-action: pan-y;
+    will-change: transform;
+}
+
+.signs-info-sheet-open {
+    transform: translateY(0);
+}
+
+/* Drag handle pill */
+.signs-info-sheet-handle {
+    width: 40px;
+    height: 4px;
+    background: var(--bs-border-color, #dee2e6);
+    border-radius: 999px;
+    margin: 0.6rem auto 0;
+    flex-shrink: 0;
+    cursor: grab;
+}
+
+/* Header: preview + status + close button */
+.signs-info-sheet-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    padding: 0.6rem 1rem 0.4rem;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.signs-info-sheet-preview-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    flex: 1;
+    min-width: 0;
+}
+
+.signs-info-sheet-close {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    color: var(--bs-secondary-color, #6c757d);
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.12s ease;
+}
+
+.signs-info-sheet-close:hover {
+    background: var(--bs-secondary-bg, #e9ecef);
+}
+
+.signs-info-sheet-close:focus-visible {
+    outline: 2px solid #0d6efd;
+    outline-offset: 2px;
+}
+
+/* Scrollable body */
+.signs-info-sheet-body {
+    overflow-y: auto;
+    padding: 0.5rem 1rem 1.25rem;
+    flex: 1;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Detail rows inside the sheet — reuses .signs-tooltip-details sizing */
+.signs-info-sheet-details {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.15rem 0.6rem;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    margin: 0 0 0.75rem;
+}
+
+.signs-info-sheet-details dt {
+    font-weight: 600;
+    color: var(--bs-secondary-color, #6c757d);
+    white-space: nowrap;
+    margin: 0;
+}
+
+.signs-info-sheet-details dd {
+    color: var(--bs-body-color, #212529);
+    margin: 0;
+    word-break: break-word;
+}
+
+/* Thumbnail */
+.signs-info-sheet-thumb {
+    width: 100%;
+    max-height: 200px;
+    object-fit: cover;
+    border-radius: 0.5rem;
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    margin-bottom: 0.75rem;
+    display: block;
+}
+
+/* Action button row */
+.signs-info-sheet-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.signs-info-sheet-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    width: 100%;
+    padding: 0.6rem 0.8rem;
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--bs-body-color, #212529);
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.1s ease, border-color 0.1s ease;
+    /* Tap target: min 44px height for mobile */
+    min-height: 44px;
+}
+
+.signs-info-sheet-action-btn:hover,
+.signs-info-sheet-action-btn:active {
+    background: var(--bs-secondary-bg, #e9ecef);
+    border-color: #adb5bd;
+}
+
+.signs-info-sheet-action-btn i {
+    width: 1.1rem;
+    text-align: center;
+    flex-shrink: 0;
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+.signs-info-sheet-action-btn-primary {
+    background: #0d6efd;
+    border-color: #0d6efd;
+    color: #fff;
+}
+
+.signs-info-sheet-action-btn-primary:hover,
+.signs-info-sheet-action-btn-primary:active {
+    background: #0a58ca;
+    border-color: #0a58ca;
+    color: #fff;
+}
+
+.signs-info-sheet-action-btn-primary i {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.signs-info-sheet-action-btn-danger {
+    color: var(--bs-danger, #dc3545);
+    border-color: #f5c2c7;
+    background: #fff1f2;
+}
+
+.signs-info-sheet-action-btn-danger:hover,
+.signs-info-sheet-action-btn-danger:active {
+    background: #fce8ea;
+    border-color: #f1aeb5;
+}
+
+.signs-info-sheet-action-btn-danger i {
+    color: var(--bs-danger, #dc3545);
+}
+
+/* Status group — three side-by-side mark-as buttons */
+.signs-info-sheet-status-group {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.4rem;
+    margin-bottom: 0.4rem;
+}
+
+.signs-info-sheet-status-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    padding: 0.5rem 0.25rem;
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--bs-secondary-color, #6c757d);
+    cursor: pointer;
+    min-height: 52px;
+    transition: background 0.1s ease, border-color 0.1s ease, color 0.1s ease;
+    text-align: center;
+    line-height: 1.2;
+}
+
+.signs-info-sheet-status-btn i {
+    font-size: 1.1rem;
+}
+
+.signs-info-sheet-status-btn-planned  { border-color: #6c757d; }
+.signs-info-sheet-status-btn-installed { border-color: #198754; color: #198754; }
+.signs-info-sheet-status-btn-removed  { border-color: #dc3545; color: #dc3545; }
+
+.signs-info-sheet-status-btn-planned:hover  { background: #e9ecef; }
+.signs-info-sheet-status-btn-installed:hover { background: #d1e7dd; }
+.signs-info-sheet-status-btn-removed:hover  { background: #f8d7da; }
+
+.signs-info-sheet-status-btn-active {
+    font-weight: 700;
+    /* Slightly deeper background to signal "current" without hiding the others */
+}
+
+.signs-info-sheet-status-btn-active.signs-info-sheet-status-btn-planned  { background: #e9ecef; }
+.signs-info-sheet-status-btn-active.signs-info-sheet-status-btn-installed { background: #d1e7dd; }
+.signs-info-sheet-status-btn-active.signs-info-sheet-status-btn-removed  { background: #f8d7da; }
+
+/* Backdrop */
+.signs-info-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1085;
+    background: rgba(0, 0, 0, 0.35);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+
+.signs-info-sheet-backdrop-visible {
+    opacity: 1;
+}
+
+/* On large screens the sheet is constrained to a centred card width */
+@media (min-width: 768px) {
+    .signs-info-sheet {
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%) translateY(100%);
+        width: 480px;
+        border-radius: 1rem 1rem 0 0;
+    }
+
+    .signs-info-sheet-open {
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+/* ── Sidebar filter collapse toggle (mobile only) ─────────────────── */
+
+.signs-sidebar-chevron {
+    transition: transform 0.2s ease;
+    font-size: 0.7rem;
+}
+
+#sidebarFiltersToggle[aria-expanded="true"] .signs-sidebar-chevron {
+    transform: rotate(180deg);
+}
+
+/* ── Travel handle: desktop only ──────────────────────────────────── */
+
+/*
+ * The drag-to-set-bearing handle is only useful on desktop where the
+ * pointer is precise enough to grab a 24px SVG line. Hide it entirely
+ * on coarse-pointer (touch) devices so it doesn't clutter the marker.
+ * The bearing is still shown read-only when set (the arrow is rendered
+ * by the SVG path — hiding the whole handle hides it too, so the
+ * direction-of-travel indicator is also suppressed on mobile, which is
+ * acceptable since it's not actionable there).
+ */
+@media (pointer: coarse) {
+    .signs-map-travel-handle {
+        display: none;
+    }
 }
 
 /* ── Direction-of-travel arrow handle (full markers only) ────────── */

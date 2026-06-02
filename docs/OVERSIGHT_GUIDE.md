@@ -311,11 +311,46 @@ left sidebar (collapsed by default — click the chevron to expand).
 It shows the status dot colours, the full marker colour palette, and a
 keyboard shortcut reference card.
 
+##### Using the Sign Map on a phone or tablet
+
+The Sign Map is fully usable on mobile. A few differences from desktop:
+
+- **Tap a marker** (or tap a row in the placement list) to open the
+  **info sheet** — a card that slides up from the bottom of the screen
+  with the sign details and action buttons. Swipe the card down to close
+  it, or tap the backdrop behind it.
+- **Drag-to-reposition is not available on touch.** To move a sign, tap
+  the marker, tap **Edit placement** in the info sheet, then use the
+  **Update to my location** GPS button (if you're standing at the new
+  spot) or type the new coordinates directly into the Latitude / Longitude
+  fields, then tap **Save**.
+- **The direction-of-travel handle** is not shown on touch devices — set
+  the bearing by typing a value into the **Direction of travel** field in
+  the editor instead.
+- **Filters** are collapsed by default on small screens. Tap the
+  **Filters** button in the sidebar header to expand them.
+
+##### "Use my location" GPS button
+
+A crosshairs button (📍) sits next to **Add placement** in the sidebar.
+Tapping it requests your device's GPS location and drops a new placement
+marker at that spot — no need to tap the map. The editor opens automatically.
+
+In the editor for an existing placement, an **Update to my location**
+button appears below the coordinate fields. Tapping it moves the marker
+to your current GPS position and updates the lat/lng inputs. Nothing is
+saved until you tap **Save**.
+
+After a GPS fix, an accuracy hint appears below the coordinates for a few
+seconds (e.g. `GPS fix: ±8 m (Good)`). GPS accuracy inside parking
+structures or near tall buildings can be poor — check the reading before
+saving if precision matters.
+
+If location permission is denied, check your browser or device settings
+and try again.
+
 ##### Coming soon
 
-- **Mobile UX improvements** — the right-click context menu and hover
-  tooltip are not yet accessible on touch devices. A tap-to-peek panel
-  for view-only users is planned for a future release.
 - **Live proximity alerts** — when the page is open on a phone, get an
   in-app ping when you drive within ~50m of a placement (Phase 4,
   web-only — true background geofencing requires the eventual native
