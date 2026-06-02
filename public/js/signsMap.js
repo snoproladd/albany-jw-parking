@@ -61,6 +61,19 @@
     "red", "orange", "yellow", "green", "teal", "blue", "purple", "pink",
   ];
 
+  /**
+   * Length of the direction-of-travel arrow handle extending from the
+   * center of a full marker, in CSS pixels. Only rendered at full detail.
+   */
+  const TRAVEL_HANDLE_LENGTH = 100;
+
+  /**
+   * Distance to offset the Street View panorama position behind the sign,
+   * along the opposite of the direction of travel. Gives the viewer the
+   * perspective of an approaching driver.
+   */
+  const SV_APPROACH_DISTANCE_METERS = 20;
+
   // ============================================================
   // MODULE STATE
   // ============================================================
@@ -183,6 +196,36 @@
   /** Bootstrap Offcanvas instance for the editor. */
   let offcanvas = null;
 
+  /** @type {google.maps.StreetViewPanorama|null} Active Street View panorama, or null when closed. */
+  let streetViewPanorama = null;
+
+  /** placement_id the Street View overlay is currently showing, or null. */
+  let streetViewForId = null;
+
+  // ── Direction-of-travel handle drag ────────────────────────────────
+
+  /**
+   * placement_id currently being rotated via the travel-direction handle,
+   * or null when no drag is in progress.
+   * @type {number|null}
+   */
+  let travelDragId = null;
+
+  /**
+   * Bounding rect of the marker wrapper at the moment a travel-handle
+   * drag begins. Cached so pointermove doesn't need to call
+   * getBoundingClientRect() on every event.
+   * @type {DOMRect|null}
+   */
+  let travelDragMarkerRect = null;
+
+  /**
+   * The handle DOM element being dragged, kept so we can remove its
+   * drag-active class on pointerup even if the pointer leaves the element.
+   * @type {HTMLElement|null}
+   */
+  let travelDragHandleEl = null;
+
   /** Can the current user manage placements (drag/save/delete)? */
   let canManage = false;
 
@@ -200,10 +243,110 @@
   }
 
   /**
+   * Build the direction-of-travel arrow handle DOM element for a full
+   * marker. The handle is a thin stem + arrowhead extending TRAVEL_HANDLE_LENGTH
+   * px upward from the marker center, then rotated to match the bearing.
+   *
+   * The element is absolutely positioned relative to the marker wrapper.
+   * Bearing 0° = north = pointing straight up = no rotation needed.
+   * CSS rotate() increases clockwise, matching compass convention.
+   *
+   * The handle is interactive only for canManage users — pointerdown on
+   * it starts a drag-to-rotate session (see attachTravelHandleListeners).
+   *
+   * @param {object} placement
+   * @returns {HTMLDivElement}
+   */
+  /**
+   * Build the direction-of-travel arrow handle DOM element for a full marker.
+   *
+   * Uses an inline SVG so the arrow can be painted with a white outline
+   * stroke behind a colored fill stroke — the same high-contrast technique
+   * Windows cursor files use. This makes the shape readable on any map
+   * tile (asphalt, grass, snow, rooftop) without knowing the background.
+   *
+   * The SVG path draws a vertical stem from the marker center upward, with
+   * a triangular arrowhead at the tip. The path is stroked twice:
+   *   1. A wider white stroke (painted first, acts as an outline/halo).
+   *   2. A narrower colored stroke on top.
+   *
+   * The handle wrapper is rotated via inline transform to match the bearing.
+   * Bearing 0° = north = arrow pointing straight up = no rotation.
+   *
+   * @param {object} placement
+   * @returns {HTMLDivElement}
+   */
+  function buildTravelHandle(placement) {
+    const hasHeading =
+      placement.heading !== null &&
+      placement.heading !== undefined &&
+      placement.heading !== "";
+    const bearing = hasHeading ? Number(placement.heading) : 0;
+
+    const handle = document.createElement("div");
+    handle.className = "signs-map-travel-handle";
+    if (!hasHeading) handle.classList.add("signs-map-travel-handle-unset");
+    handle.setAttribute("data-placement-id", String(placement.placement_id));
+    handle.style.setProperty("--travel-bearing", `${bearing}deg`);
+
+    // SVG dimensions: the arrow extends 100px upward from the origin.
+    // We give the canvas a little horizontal breathing room (24px wide,
+    // centered on the axis) so the arrowhead and outline don't clip.
+    // The SVG origin (0,0) sits at the bottom-center of the canvas,
+    // which aligns with the marker center via CSS positioning.
+    //
+    // Path breakdown (all coords relative to the SVG viewBox):
+    //   M 12,100  — start at the bottom-center (origin)
+    //   L 12,18   — draw the stem upward, stopping below the arrowhead
+    //   M 2,22    — move to the left base of the arrowhead
+    //   L 12,2    — draw the left side up to the tip
+    //   L 22,22   — draw the right side back down
+    //   Z         — close the triangle (base implied by fill)
+    //
+    // Using stroke-only (fill:none) for the arrowhead so the double-stroke
+    // outline trick works uniformly across the whole shape. The triangle
+    // is open at the base — the stem connects to it visually.
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", "0 0 24 102");
+    svg.setAttribute("width", "24");
+    svg.setAttribute("height", "102");
+    svg.setAttribute("aria-hidden", "true");
+    svg.className.baseVal = "signs-map-travel-svg";
+
+    const pathD = "M 12,101 L 12,20 M 3,24 L 12,3 L 21,24";
+
+    // White outline stroke — painted first so it sits behind the color
+    const outline = document.createElementNS(ns, "path");
+    outline.setAttribute("d", pathD);
+    outline.setAttribute("stroke", "white");
+    outline.setAttribute("stroke-width", "5");
+    outline.setAttribute("stroke-linecap", "round");
+    outline.setAttribute("stroke-linejoin", "round");
+    outline.setAttribute("fill", "none");
+    outline.className.baseVal = "signs-map-travel-outline";
+    svg.appendChild(outline);
+
+    // Colored foreground stroke — painted on top of the white outline
+    const fg = document.createElementNS(ns, "path");
+    fg.setAttribute("d", pathD);
+    fg.setAttribute("stroke-linecap", "round");
+    fg.setAttribute("stroke-linejoin", "round");
+    fg.setAttribute("fill", "none");
+    fg.className.baseVal = "signs-map-travel-fg";
+    svg.appendChild(fg);
+
+    handle.appendChild(svg);
+    return handle;
+  }
+
+  /**
    * Build the inner HTML for a sign-preview block used as a marker.
    * The destination pin uses a FontAwesome icon; other arrows use Unicode.
+   * At full detail, a direction-of-travel arrow handle is appended when
+   * canManage is true or when a direction is already set.
    *
-   * @param {{ sign_text: string, arrow_direction: string|null, status: string }} placement
+   * @param {{ sign_text: string, arrow_direction: string|null, status: string, heading: number|null }} placement
    * @returns {HTMLDivElement}
    */
   function buildMarkerContent(placement) {
@@ -238,6 +381,18 @@
     sign.appendChild(arrow);
 
     wrapper.appendChild(sign);
+
+    // Travel-direction handle — show when the user can manage (so they
+    // can drag to set it) or when a direction is already stored (so
+    // view-only users can see which way traffic flows).
+    const hasHeading =
+      placement.heading !== null &&
+      placement.heading !== undefined &&
+      placement.heading !== "";
+    if (canManage || hasHeading) {
+      wrapper.appendChild(buildTravelHandle(placement));
+    }
+
     return wrapper;
   }
 
@@ -753,6 +908,11 @@
       addDivider();
     }
 
+    // Street View — opens the Street View overlay
+    addItem("fa-solid fa-street-view", "View in Street View", () => {
+      openStreetView(placementId);
+    });
+
     // Get directions — opens Google Maps in a new tab
     addItem("fa-solid fa-diamond-turn-right", "Get directions", () => {
       const url = `https://www.google.com/maps/dir/?api=1&destination=${p.latitude},${p.longitude}`;
@@ -909,6 +1069,147 @@
   }
 
   // ============================================================
+  // STREET VIEW
+  // ============================================================
+
+  /**
+   * Open the Street View modal overlay for a placement.
+   *
+   * Creates a StreetViewPanorama pointed at the placement's coordinates.
+   * If a heading is stored on the placement it is used as the initial
+   * camera bearing; otherwise the panorama opens facing north (0°) and
+   * a hint prompts the user to rotate manually.
+   *
+   * The panorama is destroyed (not just hidden) when the overlay closes
+   * so Google's internal event listeners don't leak between sessions.
+   *
+   * @param {number} placementId
+   */
+  function openStreetView(placementId) {
+    const p = findPlacement(placementId);
+    if (!p) return;
+
+    streetViewForId = placementId;
+
+    const overlay  = document.getElementById("streetViewOverlay");
+    const pane     = document.getElementById("streetViewPane");
+    const titleEl  = document.getElementById("svTitle");
+    const badgeEl  = document.getElementById("svHeadingBadge");
+    const hintEl   = document.getElementById("svHeadingHint");
+    const noImgEl  = document.getElementById("svNoImageryMsg");
+    const mapsLink = document.getElementById("svGoogleMapsLink");
+    if (!overlay || !pane) return;
+
+    // ── Populate header ───────────────────────────────────────────────
+    const arrowGlyph =
+      p.arrow_direction && p.arrow_direction !== "destination" && ARROW_GLYPHS[p.arrow_direction]
+        ? " " + ARROW_GLYPHS[p.arrow_direction]
+        : "";
+    if (titleEl) titleEl.textContent = (p.sign_text || "Placement") + arrowGlyph;
+
+    const hasHeading = p.heading !== null && p.heading !== undefined && p.heading !== "";
+    const travelBearing = hasHeading ? Number(p.heading) : 0;
+
+    if (badgeEl) {
+      if (hasHeading) {
+        badgeEl.textContent = `${Math.round(travelBearing)}° direction of travel`;
+        badgeEl.classList.remove("d-none");
+      } else {
+        badgeEl.classList.add("d-none");
+      }
+    }
+    if (hintEl) {
+      hintEl.classList.toggle("d-none", hasHeading);
+    }
+
+    // ── Compute approach position ────────────────────────────────────
+    // Stand SV_APPROACH_DISTANCE_METERS behind the sign along the
+    // opposite of the travel direction, then look forward (travelBearing).
+    // If no heading is set, position = the placement itself.
+    let svLat = Number(p.latitude);
+    let svLng = Number(p.longitude);
+
+    if (hasHeading) {
+      const backBearing = (travelBearing + 180) % 360;
+      const metersN = SV_APPROACH_DISTANCE_METERS * Math.cos((backBearing * Math.PI) / 180);
+      const metersE = SV_APPROACH_DISTANCE_METERS * Math.sin((backBearing * Math.PI) / 180);
+      const { dLat, dLng } = metersToDegrees(metersN, metersE, svLat);
+      svLat += dLat;
+      svLng += dLng;
+    }
+
+    // ── Reset no-imagery footer ───────────────────────────────────────
+    if (noImgEl) noImgEl.classList.add("d-none");
+    if (mapsLink) {
+      mapsLink.href = `https://www.google.com/maps/@${svLat},${svLng},3a,75y,${Math.round(travelBearing)}h,85t/data=!3m1!1e1`;
+    }
+
+    // ── Show overlay ──────────────────────────────────────────────────
+    overlay.classList.remove("d-none");
+    // requestAnimationFrame defers the opacity transition start until
+    // the browser has painted the initial d-none removal, ensuring the
+    // CSS fade-in actually fires.
+    requestAnimationFrame(() => overlay.classList.add("signs-sv-overlay-visible"));
+
+    // ── Destroy any previous panorama before creating a new one ──────
+    if (streetViewPanorama) {
+      streetViewPanorama.setVisible(false);
+      streetViewPanorama = null;
+    }
+
+    // ── Create panorama ───────────────────────────────────────────────
+    // Position the camera at the approach point (behind the sign).
+    // POV heading = direction of travel so the camera looks toward the sign.
+    streetViewPanorama = new google.maps.StreetViewPanorama(pane, {
+      position: { lat: svLat, lng: svLng },
+      pov: {
+        heading: travelBearing,
+        pitch: -5,
+      },
+      zoom: 0,
+      addressControl: false,
+      fullscreenControl: false,
+      motionTrackingControl: false,
+      showRoadLabels: true,
+      linksControl: true,
+    });
+
+    // ── No-imagery fallback ───────────────────────────────────────────
+    streetViewPanorama.addListener("status_changed", () => {
+      if (streetViewPanorama.getStatus() !== google.maps.StreetViewStatus.OK) {
+        if (noImgEl) noImgEl.classList.remove("d-none");
+      }
+    });
+
+    // Focus the close button so keyboard users can dismiss immediately
+    document.getElementById("streetViewCloseBtn")?.focus();
+  }
+
+  /**
+   * Close the Street View overlay and release the panorama.
+   */
+  function closeStreetView() {
+    const overlay = document.getElementById("streetViewOverlay");
+    if (!overlay) return;
+
+    overlay.classList.remove("signs-sv-overlay-visible");
+
+    // Wait for the CSS fade-out to finish before hiding the element so
+    // the transition plays out before the element disappears from layout.
+    const onTransitionEnd = () => {
+      overlay.classList.add("d-none");
+      overlay.removeEventListener("transitionend", onTransitionEnd);
+    };
+    overlay.addEventListener("transitionend", onTransitionEnd);
+
+    if (streetViewPanorama) {
+      streetViewPanorama.setVisible(false);
+      streetViewPanorama = null;
+    }
+    streetViewForId = null;
+  }
+
+  // ============================================================
   // MAP LIFECYCLE
 
   /**
@@ -974,7 +1275,7 @@ mapRef = new google.maps.Map(mapEl, {
   // controls than raster, including a pan control we don't want).
   mapTypeControl: true,
   zoomControl: true,
-  streetViewControl: false, // Phase 3 wires this up properly
+  streetViewControl: true, // Phase 3 wires this up properly
   fullscreenControl: false, // Default control rendered poorly against satellite tiles
   rotateControl: false, // Not useful at tilt: 0
   scaleControl: false,
@@ -1128,7 +1429,14 @@ mapRef = new google.maps.Map(mapEl, {
     const el = marker.content;
     if (!el) return;
 
-    el.addEventListener("mouseenter", () => {
+    el.addEventListener("mouseenter", (e) => {
+      // Don't show the tooltip when the pointer enters via the travel-
+      // direction handle — the handle needs to stay unobstructed for
+      // dragging. relatedTarget is the element the pointer came FROM;
+      // we also check the target itself in case the event fires directly
+      // on the handle rather than bubbling from it.
+      const handle = el.querySelector(".signs-map-travel-handle");
+      if (handle && (handle.contains(e.target) || handle === e.target)) return;
       showTooltip(placementId, el);
     });
     el.addEventListener("mouseleave", () => {
@@ -1138,6 +1446,145 @@ mapRef = new google.maps.Map(mapEl, {
       e.preventDefault();
       e.stopPropagation();
       showContextMenu(placementId, e.clientX, e.clientY);
+    });
+
+    // Wire the travel-direction drag handle if present (full markers only).
+    const handleEl = el.querySelector(".signs-map-travel-handle");
+    if (handleEl) {
+      // Prevent tooltip from appearing when moving the pointer onto the
+      // handle from somewhere else on the marker.
+      handleEl.addEventListener("mouseenter", (e) => {
+        e.stopPropagation();
+        hideTooltip(true);
+      });
+      attachTravelHandleListeners(placementId, handleEl, el);
+    }
+  }
+
+  /**
+   * Attach pointerdown on the travel-direction handle element so the user
+   * can drag to set the direction-of-travel bearing. Only called for full
+   * markers (compact markers have no handle). Must be re-called whenever
+   * marker.content is replaced.
+   *
+   * Drag mechanics:
+   *   - pointerdown on the handle captures the pointer and records the
+   *     marker center from getBoundingClientRect().
+   *   - pointermove computes atan2(dx, -dy) from center to pointer,
+   *     converting screen coords (Y-down) to compass bearing (clockwise
+   *     from north-up). The handle rotates live via inline transform.
+   *   - pointerup releases capture, updates in-memory heading, mirrors
+   *     to the editor input if open, and fires a debounced PUT save.
+   *
+   * @param {number}      placementId
+   * @param {HTMLElement} handleEl     The .signs-map-travel-handle element.
+   * @param {HTMLElement} wrapperEl    The marker wrapper (parent of handleEl).
+   */
+  function attachTravelHandleListeners(placementId, handleEl, wrapperEl) {
+    if (!canManage) return;
+
+    handleEl.addEventListener("pointerdown", (e) => {
+      // Only primary button; ignore touch-scroll etc.
+      if (e.button !== 0 && e.pointerType === "mouse") return;
+      e.stopPropagation(); // Don't let the map see this as a drag-start
+      e.preventDefault();
+
+      travelDragId        = placementId;
+      travelDragHandleEl  = handleEl;
+      travelDragMarkerRect = wrapperEl.getBoundingClientRect();
+
+      handleEl.setPointerCapture(e.pointerId);
+      handleEl.classList.add("signs-map-travel-handle-dragging");
+
+      // Suppress map cursor changes while dragging bearing
+      if (mapRef && mapRef.getDiv) {
+        mapRef.getDiv().classList.add("signs-map-bearing-drag");
+      }
+
+      // Hide tooltip immediately so it doesn't obscure the handle
+      hideTooltip(true);
+    });
+
+    handleEl.addEventListener("pointermove", (e) => {
+      if (travelDragId !== placementId) return;
+
+      const cx = travelDragMarkerRect.left + travelDragMarkerRect.width  / 2;
+      const cy = travelDragMarkerRect.top  + travelDragMarkerRect.height / 2;
+      const dx = e.clientX - cx;
+      const dy = e.clientY - cy;
+
+      // atan2(dx, -dy): screen Y is inverted vs. map Y, so negate dy to
+      // get clockwise-from-north matching compass convention.
+      let bearing = Math.atan2(dx, -dy) * (180 / Math.PI);
+      if (bearing < 0) bearing += 360;
+      bearing = Math.round(bearing);
+
+      handleEl.style.setProperty("--travel-bearing", `${bearing}deg`);
+      handleEl.classList.remove("signs-map-travel-handle-unset");
+
+      // Mirror live to the editor input if it's editing this placement
+      if (editingId === placementId) {
+        const inp = document.getElementById("editorHeading");
+        if (inp) inp.value = String(bearing);
+      }
+    });
+
+    handleEl.addEventListener("pointerup", (e) => {
+      if (travelDragId !== placementId) return;
+
+      handleEl.releasePointerCapture(e.pointerId);
+      handleEl.classList.remove("signs-map-travel-handle-dragging");
+
+      if (mapRef && mapRef.getDiv) {
+        mapRef.getDiv().classList.remove("signs-map-bearing-drag");
+      }
+
+      // Read the final bearing from the CSS custom property set in pointermove.
+      const transformVal = handleEl.style.getPropertyValue("--travel-bearing") || "0deg";
+      const match = transformVal.match(/(-?[\d.]+)deg/);
+      if (!match) {
+        travelDragId = null;
+        travelDragHandleEl = null;
+        travelDragMarkerRect = null;
+        return;
+      }
+
+      let finalBearing = Number(match[1]);
+      if (finalBearing < 0) finalBearing += 360;
+      finalBearing = Math.round(finalBearing) % 360;
+
+      const p = findPlacement(placementId);
+      if (p) {
+        p.heading = finalBearing;
+
+        // Mirror to the editor input (already done live, but ensure
+        // the final rounded value is reflected accurately).
+        if (editingId === placementId) {
+          const inp = document.getElementById("editorHeading");
+          if (inp) inp.value = String(finalBearing);
+        }
+
+        // Debounced PUT — reuse the same endpoint as the position saves
+        persistTravelDirection(placementId, finalBearing);
+      }
+
+      travelDragId        = null;
+      travelDragHandleEl  = null;
+      travelDragMarkerRect = null;
+    });
+
+    // Cancel drag if pointer is lost (e.g. window loses focus mid-drag)
+    handleEl.addEventListener("pointercancel", () => {
+      if (travelDragId !== placementId) return;
+      if (travelDragHandleEl) {
+        travelDragHandleEl.classList.remove("signs-map-travel-handle-dragging");
+      }
+      if (mapRef && mapRef.getDiv) {
+        mapRef.getDiv().classList.remove("signs-map-bearing-drag");
+      }
+      travelDragId        = null;
+      travelDragHandleEl  = null;
+      travelDragMarkerRect = null;
     });
   }
 
@@ -1277,6 +1724,45 @@ mapRef = new google.maps.Map(mapEl, {
   }
 
   /**
+   * Persist a direction-of-travel bearing change to the server.
+   * Sends a full PUT so all other editable fields are preserved.
+   * Silently logs on failure — the in-memory value was already updated
+   * so the marker stays correct; the user can save via the editor if
+   * a network hiccup causes a mismatch.
+   *
+   * @param {number} placementId
+   * @param {number} bearing  0–359, clockwise from north.
+   */
+  async function persistTravelDirection(placementId, bearing) {
+    const p = findPlacement(placementId);
+    if (!p) return;
+    try {
+      const res = await fetch(`/signs/placements/${placementId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "CSRF-Token": getCsrfToken(),
+        },
+        body: JSON.stringify({
+          latitude:      p.latitude,
+          longitude:     p.longitude,
+          heading:       bearing,
+          locationNotes: p.location_notes,
+          mountType:     p.mount_type,
+          markerColor:   p.marker_color,
+          arrowDirection: p.arrow_direction,
+        }),
+      });
+      const data = await res.json();
+      if (!data?.success) {
+        console.error("persistTravelDirection rejected:", data?.error);
+      }
+    } catch (err) {
+      console.error("persistTravelDirection error:", err);
+    }
+  }
+
+  /**
    * Document-level keyboard handler for arrow-key nudging. Suspended
    * while the offcanvas editor is open or focus is in a form field
    * so typing in inputs doesn't move the marker.
@@ -1309,6 +1795,13 @@ function onMapKeyDown(e) {
 
   if (e.key === "Escape") {
     e.preventDefault();
+    // Dismiss Street View overlay first if it's open; a second Escape
+    // then deselects the marker so the user can step out gracefully.
+    const svOverlay = document.getElementById("streetViewOverlay");
+    if (svOverlay && !svOverlay.classList.contains("d-none")) {
+      closeStreetView();
+      return;
+    }
     selectMarker(null);
   }
 }
@@ -1603,9 +2096,12 @@ function onMapKeyDown(e) {
       meta.hidden = false;
     }
 
-    // Delete button visible for existing placements only
+    // Delete + Street View buttons visible for existing placements only
     const delBtn = document.getElementById("editorDeleteBtn");
     if (delBtn) delBtn.hidden = false;
+
+    const svBtn = document.getElementById("editorStreetViewBtn");
+    if (svBtn) svBtn.hidden = false;
 
     const feedback = document.getElementById("editorFeedback");
     if (feedback) feedback.textContent = "";
@@ -1649,6 +2145,9 @@ function onMapKeyDown(e) {
 
     const delBtn = document.getElementById("editorDeleteBtn");
     if (delBtn) delBtn.hidden = true;
+
+    const svBtn = document.getElementById("editorStreetViewBtn");
+    if (svBtn) svBtn.hidden = true;
 
     const feedback = document.getElementById("editorFeedback");
     if (feedback) feedback.textContent = "";
@@ -1878,6 +2377,8 @@ function onMapKeyDown(e) {
         const marker = markers.get(editingId);
         if (marker) {
           marker.position = { lat, lng };
+          // Rebuild at full detail only — compact markers have no handle,
+          // so use the current level to stay consistent with zoom state.
           marker.content = buildMarkerContentForLevel(p, currentDetailLevel);
           attachMarkerHoverListeners(editingId, marker);
         }
@@ -2187,7 +2688,23 @@ function onMapKeyDown(e) {
         clearPendingMarker();
         editingId = null;
         pendingNewLatLng = null;
+        // Street View stays open if launched from the editor — the user
+        // may want to keep viewing while the panel closes. No auto-close.
       });
+    }
+
+    // Street View button in the offcanvas editor
+    const svBtn = document.getElementById("editorStreetViewBtn");
+    if (svBtn) {
+      svBtn.addEventListener("click", () => {
+        if (editingId !== null) openStreetView(editingId);
+      });
+    }
+
+    // Street View overlay close button
+    const svCloseBtn = document.getElementById("streetViewCloseBtn");
+    if (svCloseBtn) {
+      svCloseBtn.addEventListener("click", closeStreetView);
     }
 
     // Offcanvas instance

@@ -265,9 +265,13 @@ The first ADMIN must be granted directly in the database.
 - **JSDoc** on all functions
 - **No inline scripts or styles** — all JS in `public/js/`, all CSS in `public/styles/`
 - **No EJS logic** — formatting and data shaping done in routes before render
-- **CSP compliant** — strictly no `unsafe-inline`; no inline `<script>` blocks,
-  no inline `style=` attributes, no inline event handlers (`onclick`, `onchange`, etc.).
-  All JS lives in `public/js/`, all CSS in `public/styles/`. Scripts load via `<script src>`.
+- **CSP compliant** — `style-src` carries `'unsafe-inline'` (required for Google Maps
+  internal style writes). All app JS lives in `public/js/`, all CSS in `public/styles/`.
+  No inline `<script>` blocks, no inline event handlers. SVG presentation attributes
+  (`stroke=`, `fill=`) and CSS custom properties (`style.setProperty`) are used in
+  preference to `element.style.x = ...` where the distinction matters (e.g. the
+  travel-direction handle uses `--travel-bearing` so the positioning transform is never
+  clobbered by bearing updates).
 - **MSSQL TIME columns** return as epoch-anchored `Date` objects — always use
   `getUTCHours()`/`getUTCMinutes()`
 
@@ -309,7 +313,10 @@ Schema highlights:
   - `abbreviation` `NVARCHAR(6)` — optional compact label for map markers (auto-generated from sign text when NULL)
 - `sign_placements` — geographic instances of a sign template
   - `latitude`/`longitude` `DECIMAL(10,7)` (≈1cm precision)
-  - `heading` nullable compass bearing (used by Phase 3 Street View overlay)
+  - `heading` — direction of travel (0–360°, clockwise from north); the bearing
+    drivers travel *toward* the sign. Drives the map marker travel arrow and Street
+    View approach positioning. NULL = not set. Previously described as "camera
+    facing direction" — repurposed in 2.34.0, no schema change.
   - `arrow_direction` — per-placement direction (up, down, left, right, diagonals, 90° turns, destination)
   - `status` (`planned` / `installed` / `removed`) with install/remove audit trail
   - `mount_type` (`cone` / `a-frame` / `existing-structure`, nullable)

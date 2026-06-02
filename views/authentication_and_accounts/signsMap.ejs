@@ -383,14 +383,18 @@
                 </div>
             <% } %>
 
-            <%# Heading (compass bearing, for Phase 3 Street View overlay) %>
+            <%# Direction of travel (bearing drivers travel toward this sign) %>
             <div class="mb-3">
                 <label for="editorHeading" class="form-label">
-                    Heading <span class="text-muted small">(facing direction, 0–360°, optional)</span>
+                    Direction of travel <span class="text-muted small">(0–360°, optional)</span>
                 </label>
                 <input type="number" min="0" max="360" step="1" class="form-control" id="editorHeading"
-                       placeholder="e.g. 90 for east" />
-                <div class="form-text">Used by Street View overlay (Phase 3). Leave blank if unknown.</div>
+                       placeholder="e.g. 90 = eastbound traffic" />
+                <div class="form-text">
+                    The bearing drivers travel <em>toward</em> this sign. Shown as a direction arrow
+                    on the map marker and used to position Street View. Leave blank if unknown.
+                    Drag the arrow handle on the map marker to set visually.
+                </div>
             </div>
 
             <%# Location notes %>
@@ -465,17 +469,54 @@
                     <button type="button" class="btn btn-primary" id="editorSaveBtn">
                         <i class="fa-solid fa-floppy-disk me-1"></i>Save
                     </button>
+                    <button type="button" class="btn btn-outline-secondary" id="editorStreetViewBtn" hidden>
+                        <i class="fa-solid fa-street-view me-1"></i>Street View
+                    </button>
                     <button type="button" class="btn btn-outline-danger ms-auto" id="editorDeleteBtn" hidden>
                         <i class="fa-solid fa-trash me-1"></i>Delete
                     </button>
                 </div>
                 <p class="small mt-2" id="editorFeedback"></p>
             <% } else { %>
-                <p class="small text-muted mb-0">
+                <div class="d-flex flex-wrap gap-2 pt-2 border-top">
+                    <button type="button" class="btn btn-outline-secondary" id="editorStreetViewBtn" hidden>
+                        <i class="fa-solid fa-street-view me-1"></i>Street View
+                    </button>
+                </div>
+                <p class="small text-muted mt-2 mb-0">
                     <i class="fa-solid fa-eye me-1"></i>View only. OVERSEER+ can edit placements.
                 </p>
             <% } %>
 
+        </div>
+    </div>
+
+    <%# ──────────────────────────────────────────────────────────
+        STREET VIEW OVERLAY
+        Fixed full-screen modal; shown/hidden entirely by JS.
+        z-index 1095: above offcanvas (1080) and tooltip (1085),
+        below photo lightbox (1100).
+    ────────────────────────────────────────────────────────── %>
+    <div class="signs-sv-overlay d-none" id="streetViewOverlay" aria-modal="true" role="dialog" aria-label="Street View">
+        <div class="signs-sv-header">
+            <div class="signs-sv-header-info">
+                <span class="signs-sv-title" id="svTitle"></span>
+                <span class="signs-sv-heading-badge d-none" id="svHeadingBadge"></span>
+                <span class="signs-sv-heading-hint d-none" id="svHeadingHint">
+                    <i class="fa-solid fa-compass me-1"></i>Rotate to face the sign
+                </span>
+            </div>
+            <button type="button" class="signs-sv-close" id="streetViewCloseBtn" aria-label="Close Street View">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="signs-sv-pane" id="streetViewPane"></div>
+        <div class="signs-sv-footer d-none" id="svNoImageryMsg">
+            <i class="fa-solid fa-triangle-exclamation me-2"></i>
+            No Street View imagery available for this location.
+            <a id="svGoogleMapsLink" href="#" target="_blank" rel="noopener noreferrer" class="ms-2">
+                Open in Google Maps
+            </a>
         </div>
     </div>
 

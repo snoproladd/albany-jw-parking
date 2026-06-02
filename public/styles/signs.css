@@ -1086,3 +1086,303 @@
     line-height: 1.4;
     white-space: nowrap;
 }
+
+/* ── Street View overlay ─────────────────────────────────────────── */
+
+/*
+ * Full-screen modal overlay for the Google StreetViewPanorama.
+ * z-index 1095: above offcanvas (1080), tooltip (1085), context menu
+ * (1090); below photo lightbox (1100).
+ *
+ * Opacity transition provides a fast fade-in/out. The .d-none class
+ * controls display; .signs-sv-overlay-visible drives the opacity so
+ * both can coexist without a JS timeout hack.
+ */
+.signs-sv-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1095;
+    display: flex;
+    flex-direction: column;
+    background: #000;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.signs-sv-overlay-visible {
+    opacity: 1;
+}
+
+/* ── Header bar ───────────────────────────────────────────────────── */
+
+.signs-sv-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.6rem 1rem;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    flex-shrink: 0;
+    min-height: 48px;
+}
+
+.signs-sv-header-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+
+.signs-sv-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 40vw;
+}
+
+.signs-sv-heading-badge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #fff;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.signs-sv-heading-hint {
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.6);
+    white-space: nowrap;
+}
+
+.signs-sv-close {
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    color: #fff;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.12s ease;
+}
+
+.signs-sv-close:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.signs-sv-close:focus-visible {
+    outline: 2px solid #ffc107;
+    outline-offset: 2px;
+}
+
+/* ── Panorama pane ───────────────────────────────────────────────── */
+
+/*
+ * The pane fills all remaining height between the header and footer.
+ * Google renders its panorama canvas inside this div; it must have
+ * explicit dimensions for the Maps SDK to initialize correctly.
+ */
+.signs-sv-pane {
+    flex: 1;
+    width: 100%;
+    min-height: 0;
+    position: relative;
+    background: #111;
+}
+
+/*
+ * Apply the same CSS reset as #googleMap so Bootstrap's global button
+ * rules don't corrupt Google's Street View navigation controls.
+ */
+.signs-sv-pane button,
+.signs-sv-pane button:hover,
+.signs-sv-pane button:focus,
+.signs-sv-pane button:active,
+.signs-sv-pane [role="button"],
+.signs-sv-pane .gm-control-active {
+    all: revert;
+    background: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    outline: none;
+    padding: 0;
+    margin: 0;
+    color: inherit;
+    font: inherit;
+    line-height: normal;
+    text-transform: none;
+    cursor: pointer;
+    box-sizing: content-box;
+}
+
+.signs-sv-pane img {
+    max-width: none;
+    max-height: none;
+    width: auto;
+    height: auto;
+    vertical-align: baseline;
+}
+
+.signs-sv-pane a {
+    text-decoration: none;
+}
+
+.signs-sv-pane *,
+.signs-sv-pane *::before,
+.signs-sv-pane *::after {
+    box-sizing: content-box;
+}
+
+/* ── No-imagery footer bar ───────────────────────────────────────── */
+
+.signs-sv-footer {
+    padding: 0.5rem 1rem;
+    background: rgba(180, 40, 40, 0.85);
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.signs-sv-footer a {
+    color: #ffd;
+    text-decoration: underline;
+}
+
+.signs-sv-footer a:hover {
+    color: #fff;
+}
+
+/* ── Direction-of-travel arrow handle (full markers only) ────────── */
+
+/*
+ * The handle wrapper is positioned at the marker center and rotated to
+ * match the travel bearing. It contains a single inline SVG that draws
+ * the arrow with a double-stroke technique:
+ *
+ *   1. A wider white stroke is painted first (acts as an outline/halo).
+ *   2. A narrower colored stroke is painted on top.
+ *
+ * This mirrors the high-contrast technique used in Windows cursor files —
+ * the shape reads clearly on any map tile color (asphalt, grass, snow,
+ * rooftop) without needing to know the background.
+ *
+ * The wrapper needs position:relative on .signs-map-marker so the
+ * absolute handle anchors correctly.
+ */
+.signs-map-marker {
+    position: relative;
+}
+
+.signs-map-travel-handle {
+    position: absolute;
+    /*
+     * Place the bottom-center of the SVG (the handle origin) at the
+     * marker center. The SVG is 24px wide and 102px tall; translate
+     * pulls it left by half its width and up by its full height so
+     * the bottom edge sits exactly on the marker center point.
+     *
+     * Rotation is driven by the --travel-bearing custom property so JS
+     * can update the bearing without clobbering the translate. The
+     * transform-origin pins the rotation pivot to the bottom-center of
+     * the SVG, which aligns with the marker center on screen.
+     */
+    left: 50%;
+    top: 50%;
+    width: 24px;
+    height: 102px;
+    transform-origin: 12px 101px;
+    transform: translateX(-12px) translateY(-101px) rotate(var(--travel-bearing, 0deg));
+    pointer-events: auto;
+    cursor: grab;
+    z-index: 5;
+}
+
+.signs-map-travel-handle:active,
+.signs-map-travel-handle-dragging {
+    cursor: grabbing;
+}
+
+/* The SVG fills the handle wrapper */
+.signs-map-travel-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible; /* allow the outline stroke to bleed outside the viewBox */
+}
+
+/*
+ * Foreground stroke color — the value shown on top of the white outline.
+ * Default (set): a vivid cyan that reads on both light and dark tiles.
+ */
+.signs-map-travel-fg {
+    stroke: #00d4ff;
+    stroke-width: 2.5;
+}
+
+/* Outline (halo) stroke — always white, always wider than the fg stroke */
+.signs-map-travel-outline {
+    stroke-width: 5;
+    /* stroke: white is set as an SVG attribute in JS; this is the fallback */
+}
+
+/* Unset state — dashed + more transparent to signal "not yet configured" */
+.signs-map-travel-handle-unset .signs-map-travel-fg {
+    stroke: #00d4ff;
+    stroke-width: 2;
+    stroke-dasharray: 6 5;
+}
+
+.signs-map-travel-handle-unset .signs-map-travel-outline {
+    stroke-width: 4.5;
+    stroke-dasharray: 6 5;
+}
+
+/* Hover — slightly thicker fg stroke for a subtle "you can grab this" hint */
+.signs-map-travel-handle:hover .signs-map-travel-fg {
+    stroke: #00eeff;
+    stroke-width: 3;
+}
+
+.signs-map-travel-handle:hover .signs-map-travel-outline {
+    stroke-width: 6;
+}
+
+/* Dragging — thicker and fully saturated for clear active feedback */
+.signs-map-travel-handle-dragging .signs-map-travel-fg {
+    stroke: #00eeff;
+    stroke-width: 3.5;
+    stroke-dasharray: none;
+}
+
+.signs-map-travel-handle-dragging .signs-map-travel-outline {
+    stroke-width: 7;
+    stroke-dasharray: none;
+}
+
+/*
+ * Cursor override while dragging a travel-direction bearing. Applied to
+ * the whole map div (via JS adding the class) so the cursor stays
+ * 'grabbing' even if the pointer moves off the handle during a fast drag.
+ */
+.signs-map-bearing-drag,
+.signs-map-bearing-drag .gm-style,
+.signs-map-bearing-drag .gm-style > div {
+    cursor: grabbing !important;
+}

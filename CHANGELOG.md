@@ -3,8 +3,110 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
-## [2.32.0] - 2026-06-02
+## [2.34.0] - 2026-06-02
 
+### Added — Sign Map Phase 3b: Direction of Travel Handle
+
+#### Direction-of-travel arrow handle
+- Full markers (zoomed in at or above the detail threshold) now display a
+  100px direction arrow extending from the marker center. The arrow uses an
+  inline SVG with a double-stroke technique — a wider white halo painted
+  first, then a cyan (`#00d4ff`) stroke on top — identical to the
+  high-contrast approach used in Windows cursor files. The shape reads
+  clearly on any map tile color (asphalt, grass, snow, rooftop) without
+  needing to know the background.
+- OVERSEER+ users can **drag the handle** to set the direction of travel.
+  The arrow rotates live during the drag; the bearing is saved automatically
+  on release via a PUT to the placements endpoint. No Save button required.
+- Bearing is stored in the existing `heading` column on `sign_placements`
+  (repurposed — see below). The in-memory placement and the editor input
+  both update live as the handle is dragged.
+- **Unset state:** when no direction has been saved, the handle renders as
+  a dashed semi-transparent arrow, signalling "drag me to set a direction."
+- View-only users (REGISTERED / KEYMAN) see the handle when a direction is
+  set, but it is not interactive — they see the bearing without being able
+  to change it.
+- Tooltip is suppressed while the pointer is over the handle so it does not
+  obscure the drag target.
+
+#### `heading` column repurposed as direction of travel
+- The `heading` column on `sign_placements` previously held an ambiguous
+  "camera facing direction." It now specifically means **direction of travel
+  (0–360°, clockwise from north)** — the bearing drivers travel *toward* the
+  sign. No schema change was required; all existing NULLs remain valid.
+- The offcanvas editor label updated from "Heading (facing direction, 0–360°)"
+  to **"Direction of travel (0–360°, optional)"** with new helper text
+  explaining that the value drives the map arrow and Street View positioning.
+  Users can still type a bearing directly in the input instead of dragging.
+- JSDoc updated on `createSignPlacement` and `updateSignPlacement` in
+  `dbSync.js` to reflect the new semantic.
+
+#### Street View approach positioning
+- `openStreetView()` now offsets the camera **20m behind the sign** along
+  the reverse of the travel bearing (`SV_APPROACH_DISTANCE_METERS = 20`),
+  placing the viewer where an approaching driver would be standing.
+- The panorama POV heading is set to the travel bearing so the camera looks
+  forward toward the sign face.
+- When no direction of travel is set, behavior falls back to the existing
+  placement-coordinate position with a "Rotate to face the sign" hint.
+- The Street View header badge now reads `Xdeg direction of travel` to
+  clarify what the bearing represents.
+
+#### CSS architecture
+- Rotation is driven by a `--travel-bearing` CSS custom property on the
+  handle wrapper. JS uses `style.setProperty("--travel-bearing", ...)` rather
+  than overwriting `style.transform`, preserving the positioning translate
+  that centers the SVG on the marker.
+- The whole-map `grabbing` cursor override (`.signs-map-bearing-drag`) is
+  applied to `mapRef.getDiv()` during a handle drag so the cursor stays
+  consistent even when the pointer moves off the handle during a fast rotation.
+
+### Changed
+- `TRAVEL_HANDLE_LENGTH` constant updated from 40px to 100px.
+
+---
+
+## [2.33.0] - 2026-06-02
+
+### Added — Sign Map Phase 3: Street View Modal Overlay
+
+#### Street View overlay
+- A new full-screen modal overlay opens when viewing any sign placement in
+  Street View. Triggered via the **Street View** button in the offcanvas
+  editor (existing placements only) or via **View in Street View** in the
+  right-click context menu.
+- The overlay is `position: fixed`, `z-index: 1095` — above the offcanvas
+  (1080), tooltip (1085), and context menu (1090); below the photo lightbox
+  (1100). Fades in/out via a 150ms CSS opacity transition.
+- The header bar shows the sign text + arrow glyph, a direction-of-travel
+  badge (e.g. `90° direction of travel`), and a close button (×).
+- When no direction of travel is set, the header shows a "Rotate to face
+  the sign" hint in place of the badge.
+- A no-imagery footer bar appears automatically when the panorama's
+  `status_changed` event fires with a non-OK status. It offers a
+  **"Open in Google Maps"** deep link as a fallback.
+- The panorama is destroyed (not just hidden) on close so Google's internal
+  event listeners don't leak between sessions.
+- Escape key closes the Street View overlay first; a second Escape then
+  deselects the map marker (stepped dismiss).
+- The Google Maps native Street View pegman control is now enabled on the
+  map (`streetViewControl: true`).
+
+#### CSS reset for Street View pane
+- `.signs-sv-pane` carries the same `all: revert` CSS reset block as
+  `#googleMap` so Bootstrap's global button styles don't corrupt Google's
+  Street View navigation controls.
+
+#### `openStreetView()` function
+- `openStreetView(placementId)` — creates a `StreetViewPanorama` at the
+  placement's coordinates with `pov.heading` from the stored direction of
+  travel (or 0 if unset) and `pov.pitch: -5` (slightly downward, natural
+  "looking at a sign" angle).
+- `closeStreetView()` — removes the overlay and releases the panorama.
+
+---
+
+## [2.32.0] - 2026-06-02
 ### Added — Sign Map Phase 2c: Tooltip, Context Menu, Lightbox, Legend
 
 #### Hover tooltip

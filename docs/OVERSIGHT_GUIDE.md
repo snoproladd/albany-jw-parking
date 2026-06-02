@@ -15,6 +15,8 @@ send invitations, track RSVPs, log attendance, and administer the platform.
      - [Sign Library](#sign-library-registered)
      - [Sign Builder](#sign-builder-overseer)
      - [Sign Map](#sign-map-registered--to-view-overseer-to-edit)
+       - [Direction of Travel Handle](#direction-of-travel-handle-overseer)
+       - [Street View](#street-view)
 2. [My Account](#2-my-account)
 3. [Volunteer Management](#3-volunteer-management)
    - [SMS Management](#sms-management-assistant_admin)
@@ -236,13 +238,46 @@ REGISTERED and KEYMAN users can open the page and see all placements, but:
 - Markers are not draggable.
 - The editor shows the same fields but no Save or Delete buttons.
 
-##### Heading and Phase 3 Street View overlay
+##### Direction of travel handle *(OVERSEER+)*
 
-The **heading** field (0–360°, optional) records the compass bearing the
-sign physically faces. It's not used today, but Phase 3 of the Sign system
-will add a Street View pane that uses this value to render the sign
-superimposed on the actual street scene at the correct angle. Filling it
-in now is purely forward-looking — leave it blank if you don't know it.
+Every full marker (zoomed in at or above the detail threshold) shows a
+direction-of-travel arrow extending from its center. The arrow points in
+the direction drivers travel *toward* the sign — not the direction the sign
+faces, and not the direction the camera should look. From this one value the
+app automatically positions Street View behind the sign and points the
+camera forward.
+
+- **Drag the handle** to set the bearing. The arrow rotates live as you
+  drag; the value is saved automatically when you release. You can also
+  type a bearing directly into the **Direction of travel** field in the
+  offcanvas editor.
+- **Unset state:** the arrow appears dashed and semi-transparent to signal
+  that no direction has been recorded yet.
+- **View-only users** can see the arrow when a direction is set but cannot
+  drag it.
+- The handle is only visible on full markers (zoomed in). Compact disc
+  markers (zoomed out) do not show the arrow.
+
+##### Street View
+
+Click **Street View** in the offcanvas editor (visible on saved placements
+only) or **View in Street View** in the right-click context menu to open
+the Street View overlay.
+
+The overlay is full-screen and covers the map. When a direction of travel
+is set, the camera is automatically positioned **~20m behind the sign** along
+the approach path and pointed forward — so you see the sign the way a driver
+approaching it would. When no direction is set, the panorama opens at the
+placement's coordinates facing north with a hint to rotate manually.
+
+The header bar shows the sign name, a bearing badge (`Xdeg direction of
+travel`) when set, and a × close button.
+
+If no Street View imagery is available at that location, a red footer bar
+appears with an **Open in Google Maps** link as a fallback.
+
+**Keyboard:** Escape closes the Street View overlay. A second Escape
+deselects the map marker.
 
 ##### Hover tooltip
 
@@ -278,9 +313,6 @@ keyboard shortcut reference card.
 
 ##### Coming soon
 
-- **Bearing-tracked Street View overlay** — see what each placement will
-  look like from the street, with the sign rendered at the correct
-  position based on its heading (Phase 3).
 - **Mobile UX improvements** — the right-click context menu and hover
   tooltip are not yet accessible on touch devices. A tap-to-peek panel
   for view-only users is planned for a future release.
