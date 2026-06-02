@@ -69,7 +69,9 @@ const SECRET_MAP = Object.freeze({
   GRAPH_CLIENT_ID:     "GraphClientId",
   GRAPH_CLIENT_SECRET: "GraphClientSecret",
   GOOGLE_MAPS_API_KEY: "GoogleMapsApiKey",
+  SIGN_PHOTOS_STORAGE_ACCOUNT: "SignPhotosStorageAccount",
 });
+
 
 // ============================================================================
 // Load Secrets from Key Vault
@@ -158,6 +160,10 @@ export async function getConfig() {
     // Google Maps Platform (Maps JavaScript API)
     GOOGLE_MAPS_API_KEY: secrets.GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY,
 
+    // Azure Blob Storage account for sign placement photos
+    SIGN_PHOTOS_STORAGE_ACCOUNT:
+      secrets.SIGN_PHOTOS_STORAGE_ACCOUNT || process.env.SIGN_PHOTOS_STORAGE_ACCOUNT,
+
     // Sessions
     sessionSecret:
       secrets.SESSION_SECRET || process.env.SESSION_SECRET || "fallback-secret",
@@ -179,6 +185,7 @@ export async function getConfig() {
     kickboxConfigured: Boolean(CONFIG.KICKBOX_API_KEY),
     ionosSmtpConfigured: Boolean(CONFIG.IONOS_SMTP_HOST && CONFIG.IONOS_SMTP_USER_INFO),
     googleMapsConfigured: Boolean(CONFIG.GOOGLE_MAPS_API_KEY),
+    signPhotosConfigured: Boolean(CONFIG.SIGN_PHOTOS_STORAGE_ACCOUNT),
   });
 
   return CONFIG;

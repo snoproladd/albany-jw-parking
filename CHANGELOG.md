@@ -3,6 +3,105 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.30.0] - 2026-06-02
+
+### Added — Sign Placement Phase 2b: Photo Upload
+
+Volunteers can now attach a photo to any sign placement to document its
+real-world installation, condition, or location context. Photos are stored
+in Azure Blob Storage with managed-identity auth, processed for size and
+EXIF privacy, and served through an authenticated proxy route.
+
+#### Azure infrastructure
+- **New Storage Account** `albanyjwparkingstg` in the `Parking` resource
+  group (East US, Standard LRS, StorageV2). Anonymous blob access disabled
+  at the account level; minimum TLS 1.2; soft delete enabled (7 days).
+- **New blob container** `sign-photos` with private access.
+- **RBAC** — App Service managed identity `albanyjwparking` granted
+  `Storage Blob Data Contributor` scoped to the storage account (for
+  production); developer accounts granted the same role for local dev.
+- **Key Vault `ApiStorage`** — new secret `SignPhotosStorageAccount`
+  (value: `albanyjwparkingstg`) plumbed into `azureConfig.js`'s
+  `SECRET_MAP` and `CONFIG`.
+
+#### New dependencies
+- `@azure/storage-blob` — official Azure SDK for blob operations.
+- `@azure/identity` upgrade — pinned to `4.5.0` to resolve a downstream
+  `@azure/msal-node` / `@azure/msal-common` mismatch that prevented
+  startup with the previously-pulled-in `4.13.1`.
+- `sharp` — image resize/recompress (downscales to 1600px max, 85%
+  JPEG, EXIF metadata stripped for privacy, EXIF orientation honored
+  before stripping).
+- `multer` — multipart/form-data parser for upload routes.
+
+#### New backend module — `lib/blobStorage.js`
+- `uploadSignPhoto(placementId, buffer)` — resize/recompress via sharp,
+  upload to `sign-photos` container, return the blob name.
+- `streamSignPhotoToResponse(blobName, res)` — stream blob bytes
+  directly to an Express response with `Cache-Control: private, max-age=3600`.
+- `deleteSignPhoto(blobName)` — best-effort delete via `deleteIfExists`.
+- `processImage(buffer)` — exposed for potential reuse; sharp pipeline
+  with EXIF rotate → resize → JPEG encode.
+- `checkBlobAccess()` — debugging/health helper.
+- Uses `DefaultAzureCredential` (managed identity in production, Azure
+  CLI credentials locally via `az login`). No connection strings stored
+  anywhere; auth is entirely identity-based.
+
+#### New backend routes (`routes/signsRoutes.js`)
+- **`POST /signs/placements/:placementId/photo`** *(manageSigns)* —
+  Multipart upload accepting any image type sharp handles (jpeg, png,
+  webp, heic, gif, avif, tiff). 12 MB hard cap on input; processed
+  output is typically 200-500 KB. Replaces any existing photo and
+  best-effort deletes the old blob.
+- **`GET /signs/placements/:placementId/photo`** *(viewSigns)* —
+  Auth-gated proxy that streams the blob's bytes. Photo URLs are
+  never exposed directly to the browser; the proxy looks up the
+  blob name from the DB row at request time.
+- **`DELETE /signs/placements/:placementId/photo`** *(manageSigns)* —
+  Removes both the blob (best-effort) and the DB column. Returns
+  success even if the DB column was already null (idempotent).
+
+The existing `DELETE /signs/placements/:placementId` route now also
+best-effort deletes the photo blob before removing the row, preventing
+orphan blobs from accumulating when placements are deleted outright.
+
+#### New DB layer functions (`lib/dbSync.js`)
+- `setSignPlacementPhoto(placementId, blobName)` — updates `photo_url`
+  to the new blob name and touches `updated_at`.
+- `clearSignPlacementPhoto(placementId)` — sets `photo_url` back to
+  NULL when a photo is removed.
+
+The existing `photo_url` column was repurposed (no schema change): it
+now stores just the blob name (e.g. `42-1748812345.jpg`), not a full
+URL. The proxy route assembles the URL at request time so no blob
+endpoints leak into rendered HTML.
+
+#### UI — Photo section in offcanvas placement editor
+- **No-photo state:** dashed-border drop zone with a camera icon
+  ("Add photo — Drop an image or click to choose").
+- **Has-photo state:** thumbnail (up to 280px tall, full width of
+  panel), with **Replace** and **Remove** buttons below.
+- **Uploading state:** spinner with "Uploading and processing…" label.
+- **Error state:** inline red text under the section.
+- **Drag-and-drop** — drop a photo file from the OS file manager onto
+  the drop zone; visual feedback (blue border) while dragging.
+- **Cache-busting** — a session-scoped counter is appended as a query
+  string to the proxy URL so replaced photos show immediately without
+  a full page reload (the proxy itself sets `Cache-Control: max-age=3600`
+  so unchanged photos still cache efficiently).
+- **View-only mode** (REGISTERED / KEYMAN) — thumbnail visible when
+  a photo exists; no upload/replace/delete controls; a "No photo for
+  this placement" message appears in lieu of the drop zone when empty.
+
+#### `azureConfig.js`
+- `SIGN_PHOTOS_STORAGE_ACCOUNT` added to `SECRET_MAP` (maps to Key
+  Vault secret `SignPhotosStorageAccount`) and to the `CONFIG` object
+  with `.env` fallback. Boot log now reports `signPhotosConfigured: boolean`.
+
+#### `.env` (developer setup)
+A new variable for local development:
+```env
+
 ## [2.29.1] - 2026-06-02
 
 A polish + bugfix release on top of 2.29.0's Sign Placement System. No schema

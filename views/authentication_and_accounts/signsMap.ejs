@@ -260,6 +260,60 @@
                           placeholder="e.g. On telephone pole, NE corner of Central & Madison"></textarea>
             </div>
 
+            <%# Photo section %>
+            <div class="mb-3 signs-photo-section" id="editorPhotoSection">
+                <label class="form-label d-flex align-items-center justify-content-between">
+                    <span>Photo of installed sign</span>
+                    <span class="small text-muted" id="editorPhotoHint">(optional)</span>
+                </label>
+
+                <%# No-photo state: drop zone %>
+                <div class="signs-photo-dropzone" id="editorPhotoDropzone" hidden>
+                    <input type="file"
+                           class="d-none"
+                           id="editorPhotoInput"
+                           accept="image/*" />
+                    <% if (canManage) { %>
+                        <button type="button" class="signs-photo-dropzone-button" id="editorPhotoChooseBtn">
+                            <i class="fa-solid fa-camera fa-2x mb-2"></i>
+                            <div class="fw-semibold">Add photo</div>
+                            <div class="small text-muted">Drop an image or click to choose</div>
+                        </button>
+                    <% } else { %>
+                        <div class="text-center text-muted py-3 small">
+                            <i class="fa-regular fa-image me-1"></i>No photo for this placement.
+                        </div>
+                    <% } %>
+                </div>
+
+                <%# Has-photo state: thumbnail + actions %>
+                <div class="signs-photo-display" id="editorPhotoDisplay" hidden>
+                    <img class="signs-photo-thumb" id="editorPhotoThumb" alt="Sign placement photo" />
+                    <% if (canManage) { %>
+                        <div class="signs-photo-actions">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="editorPhotoReplaceBtn">
+                                <i class="fa-solid fa-arrows-rotate me-1"></i>Replace
+                            </button>
+                            <button type="button" class="btn btn-outline-danger btn-sm" id="editorPhotoDeleteBtn">
+                                <i class="fa-solid fa-trash me-1"></i>Remove
+                            </button>
+                        </div>
+                    <% } %>
+                </div>
+
+                <%# Uploading state %>
+                <div class="signs-photo-uploading" id="editorPhotoUploading" hidden>
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                            <span class="visually-hidden">Uploading…</span>
+                        </div>
+                        <span class="small">Uploading and processing…</span>
+                    </div>
+                </div>
+
+                <p class="small text-danger mt-1 mb-0" id="editorPhotoError" hidden></p>
+            </div>
+
             <%# Audit info (read-only) %>
             <div class="signs-editor-meta small text-muted mb-3" id="editorMeta" hidden>
                 <%# JS populates created_by / installed_by etc. %>

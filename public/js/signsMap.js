@@ -93,6 +93,15 @@
    */
   let lastDragEndAt = 0;
 
+  /**
+   * Counter incremented on each successful photo upload/delete, appended
+   * as a cache-busting query string to the proxy URL. Browsers happily
+   * cache the proxy response (we set Cache-Control: private, max-age=3600),
+   * so without this query param a replaced photo would still show the
+   * stale thumbnail until the user hard-refreshes.
+   */
+  let photoCacheBuster = 0;
+
   /** When true, the next map click drops a new placement marker. */
   let placingMode = false;
 
@@ -667,6 +676,174 @@ function onMapKeyDown(e) {
   // ============================================================
 
   /**
+   * Render the editor's photo section based on a placement's photo_url.
+   * Shows the thumbnail+actions if a photo exists, the drop zone if not.
+   * Clears the upload/error states.
+   *
+   * @param {object|null} placement  Null = clear/reset the section.
+   */
+  function renderEditorPhoto(placement) {
+    const section    = document.getElementById("editorPhotoSection");
+    const dropzone   = document.getElementById("editorPhotoDropzone");
+    const display    = document.getElementById("editorPhotoDisplay");
+    const uploading  = document.getElementById("editorPhotoUploading");
+    const errorEl    = document.getElementById("editorPhotoError");
+    const thumb      = document.getElementById("editorPhotoThumb");
+    if (!section) return;
+
+    if (uploading) uploading.hidden = true;
+    if (errorEl) {
+      errorEl.hidden = true;
+      errorEl.textContent = "";
+    }
+
+    if (!placement) {
+      // No placement context yet (new placement before save)
+      section.hidden = true;
+      return;
+    }
+
+    section.hidden = false;
+
+    if (placement.photo_url) {
+      if (dropzone) dropzone.hidden = true;
+      if (display)  display.hidden  = false;
+      if (thumb) {
+        // Cache-bust so a replaced photo shows the new bytes immediately
+        thumb.src = `/signs/placements/${placement.placement_id}/photo?t=${photoCacheBuster}`;
+      }
+    } else {
+      if (dropzone) dropzone.hidden = false;
+      if (display)  display.hidden  = true;
+    }
+  }
+
+  /**
+   * Upload a photo file for the currently-editing placement.
+   *
+   * @param {File} file  Image file from the input element.
+   */
+  async function uploadEditorPhoto(file) {
+    if (editingId === null) {
+      // Photos are only allowed on saved placements — new placements
+      // must be created (POST) before they can receive a photo.
+      showEditorPhotoError("Save the placement first, then add a photo.");
+      return;
+    }
+    if (!file) return;
+    if (!/^image\//.test(file.type)) {
+      showEditorPhotoError("That doesn't look like an image file.");
+      return;
+    }
+    // Match the server's 12 MB cap; reject early to skip the round trip
+    if (file.size > 12 * 1024 * 1024) {
+      showEditorPhotoError("Photo is too large (max 12 MB).");
+      return;
+    }
+
+    setEditorPhotoUploading(true);
+
+    try {
+      const fd = new FormData();
+      fd.append("photo", file, file.name || "photo.jpg");
+
+      const res = await fetch(
+        `/signs/placements/${editingId}/photo`,
+        {
+          method:  "POST",
+          headers: { "CSRF-Token": getCsrfToken() },
+          body:    fd,
+        },
+      );
+      const data = await res.json();
+      if (!data?.success) {
+        throw new Error(data?.error || "Upload failed.");
+      }
+
+      const p = findPlacement(editingId);
+      if (p) {
+        p.photo_url = data.photo_url;
+      }
+      photoCacheBuster += 1;
+      renderEditorPhoto(p);
+    } catch (err) {
+      console.error("uploadEditorPhoto error:", err);
+      showEditorPhotoError(err.message || "Upload failed.");
+    } finally {
+      setEditorPhotoUploading(false);
+    }
+  }
+
+  /**
+   * Delete the photo for the currently-editing placement.
+   */
+  async function deleteEditorPhoto() {
+    if (editingId === null) return;
+    const p = findPlacement(editingId);
+    if (!p?.photo_url) return;
+
+    const confirmed = window.confirm("Remove this photo?");
+    if (!confirmed) return;
+
+    setEditorPhotoUploading(true);
+
+    try {
+      const res = await fetch(
+        `/signs/placements/${editingId}/photo`,
+        {
+          method:  "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            "CSRF-Token":   getCsrfToken(),
+          },
+        },
+      );
+      const data = await res.json();
+      if (!data?.success) {
+        throw new Error(data?.error || "Delete failed.");
+      }
+
+      p.photo_url = null;
+      photoCacheBuster += 1;
+      renderEditorPhoto(p);
+    } catch (err) {
+      console.error("deleteEditorPhoto error:", err);
+      showEditorPhotoError(err.message || "Delete failed.");
+    } finally {
+      setEditorPhotoUploading(false);
+    }
+  }
+
+  /**
+   * Toggle the photo section's uploading/spinner state.
+   *
+   * @param {boolean} on
+   */
+  function setEditorPhotoUploading(on) {
+    const uploading = document.getElementById("editorPhotoUploading");
+    const dropzone  = document.getElementById("editorPhotoDropzone");
+    const display   = document.getElementById("editorPhotoDisplay");
+    if (uploading) uploading.hidden = !on;
+    // Hide the dropzone/display while uploading so the user can't double-fire
+    if (on) {
+      if (dropzone) dropzone.hidden = true;
+      if (display)  display.hidden  = true;
+    }
+  }
+
+  /**
+   * Show an error message in the photo section.
+   *
+   * @param {string} msg
+   */
+  function showEditorPhotoError(msg) {
+    const errorEl = document.getElementById("editorPhotoError");
+    if (!errorEl) return;
+    errorEl.textContent = msg;
+    errorEl.hidden = false;
+  }
+
+  /**
    * Open the editor offcanvas for an existing placement.
    * @param {number} placementId
    */
@@ -713,6 +890,8 @@ function onMapKeyDown(e) {
     const feedback = document.getElementById("editorFeedback");
     if (feedback) feedback.textContent = "";
 
+    renderEditorPhoto(p);
+
     offcanvas?.show();
   }
 
@@ -752,6 +931,9 @@ function onMapKeyDown(e) {
 
     const feedback = document.getElementById("editorFeedback");
     if (feedback) feedback.textContent = "";
+
+    // New placements can't have photos yet — hide the section until saved
+    renderEditorPhoto(null);
 
     // Drop a temporary marker so the user can see where the click landed
     clearPendingMarker();
@@ -1061,6 +1243,53 @@ function onMapKeyDown(e) {
     const delBtn = document.getElementById("editorDeleteBtn");
     if (saveBtn) saveBtn.addEventListener("click", saveFromEditor);
     if (delBtn) delBtn.addEventListener("click", deleteFromEditor);
+
+    // ---- Photo section wiring ----
+    const photoInput     = document.getElementById("editorPhotoInput");
+    const photoChooseBtn = document.getElementById("editorPhotoChooseBtn");
+    const photoReplaceBtn = document.getElementById("editorPhotoReplaceBtn");
+    const photoDeleteBtn = document.getElementById("editorPhotoDeleteBtn");
+    const photoDropzone  = document.getElementById("editorPhotoDropzone");
+
+    if (photoChooseBtn && photoInput) {
+      photoChooseBtn.addEventListener("click", () => photoInput.click());
+    }
+    if (photoReplaceBtn && photoInput) {
+      photoReplaceBtn.addEventListener("click", () => photoInput.click());
+    }
+    if (photoInput) {
+      photoInput.addEventListener("change", () => {
+        const file = photoInput.files?.[0];
+        if (file) uploadEditorPhoto(file);
+        // Reset so picking the same file twice still fires change
+        photoInput.value = "";
+      });
+    }
+    if (photoDeleteBtn) {
+      photoDeleteBtn.addEventListener("click", deleteEditorPhoto);
+    }
+
+    // Drag-and-drop onto the dropzone
+    if (photoDropzone) {
+      ["dragenter", "dragover"].forEach((ev) => {
+        photoDropzone.addEventListener(ev, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          photoDropzone.classList.add("signs-photo-dropzone-active");
+        });
+      });
+      ["dragleave", "drop"].forEach((ev) => {
+        photoDropzone.addEventListener(ev, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          photoDropzone.classList.remove("signs-photo-dropzone-active");
+        });
+      });
+      photoDropzone.addEventListener("drop", (e) => {
+        const file = e.dataTransfer?.files?.[0];
+        if (file) uploadEditorPhoto(file);
+      });
+    }
 
     // Placement list row click -> open editor
     const list = document.getElementById("placementList");

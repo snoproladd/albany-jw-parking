@@ -1,6 +1,6 @@
 {
   "name": "parking",
-  "version": "2.29.1",
+  "version": "2.30.0",
   "description": "Volunteer management platform for Albany JW Regional Convention parking operations — registration, scheduling, messaging, and oversight tools.",
   "homepage": "https://github.com/snoproladd/legendary-waffle#readme",
   "bugs": {
@@ -25,8 +25,9 @@
     "@azure/msal-common": "15.13.3"
   },
   "dependencies": {
-    "@azure/identity": "^4.13.0",
+    "@azure/identity": "^4.5.0",
     "@azure/keyvault-secrets": "^4.10.0",
+    "@azure/storage-blob": "^12.31.0",
     "body-parser": "^2.2.1",
     "bootstrap": "^5.3.8",
     "connect-redis": "^9.0.0",
@@ -41,10 +42,12 @@
     "helmet": "^8.1.0",
     "imask": "^7.6.1",
     "mssql": "^12.2.0",
+    "multer": "^2.1.1",
     "nodemailer": "^8.0.4",
     "path-to-regexp": "^8.3.0",
     "puppeteer": "^24.43.1",
     "redis": "^5.11.0",
+    "sharp": "^0.34.5",
     "shepherd.js": "^15.2.2",
     "twilio": "^5.10.7",
     "uuid": "9.0.0"

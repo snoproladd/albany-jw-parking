@@ -27,6 +27,7 @@
  */
 
 import express from "express";
+import multer from "multer";
 import { requirePermission } from "../src/config/roles.js";
 import {
   getSigns,
@@ -35,17 +36,53 @@ import {
   updateSign,
   archiveSign,
   getSignPlacements,
+  getSignPlacementById,
   createSignPlacement,
   updateSignPlacement,
   updateSignPlacementStatus,
   deleteSignPlacement,
+  setSignPlacementPhoto,
+  clearSignPlacementPhoto,
 } from "../lib/dbSync.js";
+import {
+  uploadSignPhoto,
+  streamSignPhotoToResponse,
+  deleteSignPhoto,
+} from "../lib/blobStorage.js";
+
+/** Multer config: in-memory upload limited to 12 MB. */
+const photoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    // 12 MB cap — modern phone photos are 5-10 MB. After sharp processing
+    // the stored blob will be ~200-500 KB regardless of input size.
+    fileSize: 12 * 1024 * 1024,
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept jpeg, png, webp, heic, gif, avif, tiff — anything sharp handles.
+    // We don't validate by extension; mimetype is checked here, and sharp
+    // will throw on actually-bad bytes which we catch in the route.
+    const ok = /^image\//.test(file.mimetype || "");
+    if (!ok) {
+      return cb(new Error("Only image uploads are allowed."));
+    }
+    cb(null, true);
+  },
+});
 
 /** Valid arrow direction tokens accepted by the sign builder. */
 const VALID_ARROWS = [
-    "up", "down", "left", "right",
-    "up-left", "up-right", "down-left", "down-right",
-    "up-then-left", "up-then-right", "destination",
+  "up",
+  "down",
+  "left",
+  "right",
+  "up-left",
+  "up-right",
+  "down-left",
+  "down-right",
+  "up-then-left",
+  "up-then-right",
+  "destination",
 ];
 
 /** Valid placement statuses. */
@@ -62,12 +99,12 @@ const VALID_MOUNT_TYPES = ["cone", "a-frame", "existing-structure"];
  * @returns {string|null}
  */
 function normaliseMountType(val) {
-    if (val === null || val === undefined || val === "") return null;
-    const v = String(val).trim().toLowerCase();
-    if (!VALID_MOUNT_TYPES.includes(v)) {
-        throw new Error(`Invalid mount type: ${v}`);
-    }
-    return v;
+  if (val === null || val === undefined || val === "") return null;
+  const v = String(val).trim().toLowerCase();
+  if (!VALID_MOUNT_TYPES.includes(v)) {
+    throw new Error(`Invalid mount type: ${v}`);
+  }
+  return v;
 }
 
 /**
@@ -99,10 +136,10 @@ function normaliseArrow(val) {
  * @returns {import('express').Router}
  */
 export function signsRouter({
-    csrfProtection,
-    logError,
-    googleMapsApiKey,
-    defaultMapCenter = { lat: 42.6485, lng: -73.7490, zoom: 17 },
+  csrfProtection,
+  logError,
+  googleMapsApiKey,
+  defaultMapCenter = { lat: 42.6485, lng: -73.749, zoom: 17 },
 }) {
   const router = express.Router();
   const log = logError || console.error;
@@ -460,92 +497,92 @@ export function signsRouter({
    *
    * @requires manageSigns permission
    */
-router.post(
-  "/signs/:id/placements",
-  requireAuth,
-  requirePermission("manageSigns"),
-  csrfProtection,
-  async (req, res) => {
-    const signId = Number(req.params.id);
-    const { latitude, longitude, heading, locationNotes, status, mountType } =
-      req.body || {};
+  router.post(
+    "/signs/:id/placements",
+    requireAuth,
+    requirePermission("manageSigns"),
+    csrfProtection,
+    async (req, res) => {
+      const signId = Number(req.params.id);
+      const { latitude, longitude, heading, locationNotes, status, mountType } =
+        req.body || {};
 
-    if (!signId) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid sign id.",
-      });
-    }
-
-    const lat = Number(latitude);
-    const lng = Number(longitude);
-    if (
-      !Number.isFinite(lat) ||
-      !Number.isFinite(lng) ||
-      lat < -90 ||
-      lat > 90 ||
-      lng < -180 ||
-      lng > 180
-    ) {
-      return res.status(400).json({
-        success: false,
-        error:
-          "latitude and longitude are required and must be valid coordinates.",
-      });
-    }
-
-    let hd = null;
-    if (heading !== undefined && heading !== null && heading !== "") {
-      hd = Number(heading);
-      if (!Number.isFinite(hd) || hd < 0 || hd > 360) {
+      if (!signId) {
         return res.status(400).json({
           success: false,
-          error: "heading must be between 0 and 360.",
+          error: "Invalid sign id.",
         });
       }
-    }
 
-const statusValue = status || "planned";
-if (!VALID_STATUSES.includes(statusValue)) {
-  return res.status(400).json({
-    success: false,
-    error: "Invalid status.",
-  });
-}
+      const lat = Number(latitude);
+      const lng = Number(longitude);
+      if (
+        !Number.isFinite(lat) ||
+        !Number.isFinite(lng) ||
+        lat < -90 ||
+        lat > 90 ||
+        lng < -180 ||
+        lng > 180
+      ) {
+        return res.status(400).json({
+          success: false,
+          error:
+            "latitude and longitude are required and must be valid coordinates.",
+        });
+      }
 
-let mountTypeValue;
-try {
-  mountTypeValue = normaliseMountType(mountType);
-} catch (e) {
-  return res.status(400).json({
-    success: false,
-    error: e.message,
-  });
-}
+      let hd = null;
+      if (heading !== undefined && heading !== null && heading !== "") {
+        hd = Number(heading);
+        if (!Number.isFinite(hd) || hd < 0 || hd > 360) {
+          return res.status(400).json({
+            success: false,
+            error: "heading must be between 0 and 360.",
+          });
+        }
+      }
 
-try {
-  const id = await createSignPlacement(
-    {
-      signId,
-      latitude: lat,
-      longitude: lng,
-      heading: hd,
-      locationNotes: locationNotes?.trim() || null,
-      status: statusValue,
-      mountType: mountTypeValue,
+      const statusValue = status || "planned";
+      if (!VALID_STATUSES.includes(statusValue)) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid status.",
+        });
+      }
+
+      let mountTypeValue;
+      try {
+        mountTypeValue = normaliseMountType(mountType);
+      } catch (e) {
+        return res.status(400).json({
+          success: false,
+          error: e.message,
+        });
+      }
+
+      try {
+        const id = await createSignPlacement(
+          {
+            signId,
+            latitude: lat,
+            longitude: lng,
+            heading: hd,
+            locationNotes: locationNotes?.trim() || null,
+            status: statusValue,
+            mountType: mountTypeValue,
+          },
+          req.session.userEmail || "admin",
+        );
+        return res.json({ success: true, id });
+      } catch (err) {
+        log("signs/:id/placements POST error:", err);
+        return res.status(500).json({
+          success: false,
+          error: "Server error.",
+        });
+      }
     },
-    req.session.userEmail || "admin",
   );
-  return res.json({ success: true, id });
-} catch (err) {
-  log("signs/:id/placements POST error:", err);
-  return res.status(500).json({
-    success: false,
-    error: "Server error.",
-  });
-}
-  },
-);
 
   /**
    * PUT /signs/placements/:placementId
@@ -557,77 +594,77 @@ try {
    *
    * @requires manageSigns permission
    */
-router.put(
-  "/signs/placements/:placementId",
-  requireAuth,
-  requirePermission("manageSigns"),
-  csrfProtection,
-  async (req, res) => {
-    const placementId = Number(req.params.placementId);
-    const { latitude, longitude, heading, locationNotes, mountType } =
-      req.body || {};
+  router.put(
+    "/signs/placements/:placementId",
+    requireAuth,
+    requirePermission("manageSigns"),
+    csrfProtection,
+    async (req, res) => {
+      const placementId = Number(req.params.placementId);
+      const { latitude, longitude, heading, locationNotes, mountType } =
+        req.body || {};
 
-    if (!placementId) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid placement id.",
-      });
-    }
-
-    const lat = Number(latitude);
-    const lng = Number(longitude);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      return res.status(400).json({
-        success: false,
-        error: "Valid latitude and longitude are required.",
-      });
-    }
-
-    let hd = null;
-    if (heading !== undefined && heading !== null && heading !== "") {
-      hd = Number(heading);
-      if (!Number.isFinite(hd) || hd < 0 || hd > 360) {
+      if (!placementId) {
         return res.status(400).json({
           success: false,
-          error: "heading must be between 0 and 360.",
+          error: "Invalid placement id.",
         });
       }
-    }
 
-let mountTypeValue;
-try {
-  mountTypeValue = normaliseMountType(mountType);
-} catch (e) {
-  return res.status(400).json({
-    success: false,
-    error: e.message,
-  });
-}
+      const lat = Number(latitude);
+      const lng = Number(longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        return res.status(400).json({
+          success: false,
+          error: "Valid latitude and longitude are required.",
+        });
+      }
 
-try {
-  const ok = await updateSignPlacement(placementId, {
-    latitude: lat,
-    longitude: lng,
-    heading: hd,
-    locationNotes: locationNotes?.trim() || null,
-    mountType: mountTypeValue,
-  });
-  if (!ok) {
-    return res.status(404).json({
-      success: false,
-      error: "Placement not found.",
-    });
-  }
-  return res.json({ success: true });
-} catch (err) {
-  log("signs/placements PUT error:", err);
-  return res.status(500).json({
-    success: false,
-    error: "Server error.",
-  });
-}
-  },
-);
+      let hd = null;
+      if (heading !== undefined && heading !== null && heading !== "") {
+        hd = Number(heading);
+        if (!Number.isFinite(hd) || hd < 0 || hd > 360) {
+          return res.status(400).json({
+            success: false,
+            error: "heading must be between 0 and 360.",
+          });
+        }
+      }
+
+      let mountTypeValue;
+      try {
+        mountTypeValue = normaliseMountType(mountType);
+      } catch (e) {
+        return res.status(400).json({
+          success: false,
+          error: e.message,
+        });
+      }
+
+      try {
+        const ok = await updateSignPlacement(placementId, {
+          latitude: lat,
+          longitude: lng,
+          heading: hd,
+          locationNotes: locationNotes?.trim() || null,
+          mountType: mountTypeValue,
+        });
+        if (!ok) {
+          return res.status(404).json({
+            success: false,
+            error: "Placement not found.",
+          });
+        }
+        return res.json({ success: true });
+      } catch (err) {
+        log("signs/placements PUT error:", err);
+        return res.status(500).json({
+          success: false,
+          error: "Server error.",
+        });
+      }
+    },
+  );
 
   /**
    * PATCH /signs/placements/:placementId/status
@@ -684,6 +721,177 @@ try {
     },
   );
 
+  // ===========================
+  // PLACEMENT PHOTOS
+  // ===========================
+
+  /**
+   * POST /signs/placements/:placementId/photo
+   * Upload (or replace) the photo for a placement.
+   *
+   * Form data: `photo` (image file, multipart/form-data)
+   * Response:  { success: true, photo_url: string } | { success: false, error: string }
+   *
+   * The uploaded image is processed (resized/recompressed) before storage.
+   * If the placement already had a photo, the old blob is best-effort
+   * deleted after the new one lands so we don't accumulate orphans.
+   *
+   * @requires manageSigns permission
+   */
+  router.post(
+    "/signs/placements/:placementId/photo",
+    requireAuth,
+    requirePermission("manageSigns"),
+    csrfProtection,
+    photoUpload.single("photo"),
+    async (req, res) => {
+      const placementId = Number(req.params.placementId);
+      if (!placementId) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid placement id.",
+        });
+      }
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          error: "No photo file uploaded.",
+        });
+      }
+
+      try {
+        const existing = await getSignPlacementById(placementId);
+        if (!existing) {
+          return res.status(404).json({
+            success: false,
+            error: "Placement not found.",
+          });
+        }
+
+        const newBlobName = await uploadSignPhoto(placementId, req.file.buffer);
+        await setSignPlacementPhoto(placementId, newBlobName);
+
+        // Best-effort delete of the previous blob. If this fails the
+        // photo is still correct in the DB; we just have an orphan.
+        if (existing.photo_url && existing.photo_url !== newBlobName) {
+          try {
+            await deleteSignPhoto(existing.photo_url);
+          } catch (err) {
+            log("Warning: failed to delete old photo blob:", err);
+          }
+        }
+
+        return res.json({
+          success: true,
+          photo_url: newBlobName,
+        });
+      } catch (err) {
+        log("signs/placements/:id/photo POST error:", err);
+        const isImgErr = /Input (?:buffer|file)|unsupported image format/i.test(
+          err.message || "",
+        );
+        return res.status(isImgErr ? 400 : 500).json({
+          success: false,
+          error: isImgErr
+            ? "Could not process the uploaded image. Try a different file."
+            : "Server error.",
+        });
+      }
+    },
+  );
+
+  /**
+   * GET /signs/placements/:placementId/photo
+   * Streams the placement's photo bytes to the client. Auth-gated; viewers
+   * need viewSigns. The blob name is read from the DB so we never expose
+   * blob URLs in markup.
+   *
+   * @requires viewSigns permission
+   */
+  router.get(
+    "/signs/placements/:placementId/photo",
+    requireAuth,
+    requirePermission("viewSigns"),
+    async (req, res) => {
+      const placementId = Number(req.params.placementId);
+      if (!placementId) {
+        return res.status(400).send("Invalid placement id.");
+      }
+
+      try {
+        const placement = await getSignPlacementById(placementId);
+        if (!placement) {
+          return res.status(404).send("Placement not found.");
+        }
+        if (!placement.photo_url) {
+          return res.status(404).send("No photo for this placement.");
+        }
+
+        await streamSignPhotoToResponse(placement.photo_url, res);
+        // streamSignPhotoToResponse ends the response on its own.
+      } catch (err) {
+        log("signs/placements/:id/photo GET error:", err);
+        if (!res.headersSent) {
+          return res.status(500).send("Server error.");
+        }
+      }
+    },
+  );
+
+  /**
+   * DELETE /signs/placements/:placementId/photo
+   * Removes the placement's photo (both the blob and the DB column).
+   * Response: { success: boolean }
+   *
+   * @requires manageSigns permission
+   */
+  router.delete(
+    "/signs/placements/:placementId/photo",
+    requireAuth,
+    requirePermission("manageSigns"),
+    csrfProtection,
+    async (req, res) => {
+      const placementId = Number(req.params.placementId);
+      if (!placementId) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid placement id.",
+        });
+      }
+
+      try {
+        const placement = await getSignPlacementById(placementId);
+        if (!placement) {
+          return res.status(404).json({
+            success: false,
+            error: "Placement not found.",
+          });
+        }
+        if (!placement.photo_url) {
+          return res.json({ success: true }); // already no photo
+        }
+
+        try {
+          await deleteSignPhoto(placement.photo_url);
+        } catch (err) {
+          // Don't fail the whole request — clear the DB column either way
+          // so the UI matches reality. Orphaned blob can be cleaned up
+          // later if it actually exists.
+          log("Warning: failed to delete photo blob:", err);
+        }
+        await clearSignPlacementPhoto(placementId);
+
+        return res.json({ success: true });
+      } catch (err) {
+        log("signs/placements/:id/photo DELETE error:", err);
+        return res.status(500).json({
+          success: false,
+          error: "Server error.",
+        });
+      }
+    },
+  );
+
   /**
    * DELETE /signs/placements/:placementId
    * Permanently remove a placement.
@@ -706,6 +914,19 @@ try {
       }
 
       try {
+        // Best-effort photo cleanup before the row goes away.
+        const existing = await getSignPlacementById(placementId);
+        if (existing?.photo_url) {
+          try {
+            await deleteSignPhoto(existing.photo_url);
+          } catch (err) {
+            log(
+              "Warning: failed to delete photo blob on placement delete:",
+              err,
+            );
+          }
+        }
+
         const ok = await deleteSignPlacement(placementId);
         if (!ok) {
           return res.status(404).json({
