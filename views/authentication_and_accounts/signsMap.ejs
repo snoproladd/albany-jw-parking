@@ -134,6 +134,82 @@
                             <%# Filled by JS so search/filter stays in one place. %>
                         </div>
 
+                        <hr class="my-2" />
+
+                        <%# ── Legend (collapsible) ─────────────────────────────── %>
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <span class="small text-uppercase text-muted fw-semibold">
+                                <i class="fa-solid fa-circle-info me-1"></i>Legend &amp; Shortcuts
+                            </span>
+                            <button type="button"
+                                    class="btn btn-link btn-sm p-0 text-muted"
+                                    id="legendToggleBtn"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#mapLegendPanel"
+                                    aria-expanded="false"
+                                    aria-controls="mapLegendPanel">
+                                <i class="fa-solid fa-chevron-down signs-legend-chevron"></i>
+                            </button>
+                        </div>
+
+                        <div class="collapse" id="mapLegendPanel">
+                            <%# Status ─────────────────────────────────────────── %>
+                            <p class="small text-muted mb-1 fw-semibold">Status</p>
+                            <ul class="signs-legend-list mb-2">
+                                <li>
+                                    <span class="signs-placement-dot signs-placement-dot-planned signs-legend-dot"></span>
+                                    Planned
+                                </li>
+                                <li>
+                                    <span class="signs-placement-dot signs-placement-dot-installed signs-legend-dot"></span>
+                                    Installed
+                                </li>
+                                <li>
+                                    <span class="signs-placement-dot signs-placement-dot-removed signs-legend-dot"></span>
+                                    Removed
+                                </li>
+                            </ul>
+
+                            <%# Marker colours ───────────────────────────────── %>
+                            <p class="small text-muted mb-1 fw-semibold">Marker colours</p>
+                            <div class="signs-legend-swatches mb-2">
+                                <span class="signs-legend-swatch" style="background:#6c757d" title="Default (status)"></span>
+                                <span class="signs-legend-swatch signs-legend-swatch-red"    title="Red"></span>
+                                <span class="signs-legend-swatch signs-legend-swatch-orange" title="Orange"></span>
+                                <span class="signs-legend-swatch signs-legend-swatch-yellow" title="Yellow"></span>
+                                <span class="signs-legend-swatch signs-legend-swatch-green"  title="Green"></span>
+                                <span class="signs-legend-swatch signs-legend-swatch-teal"   title="Teal"></span>
+                                <span class="signs-legend-swatch signs-legend-swatch-blue"   title="Blue"></span>
+                                <span class="signs-legend-swatch signs-legend-swatch-purple" title="Purple"></span>
+                                <span class="signs-legend-swatch signs-legend-swatch-pink"   title="Pink"></span>
+                            </div>
+
+                            <%# Keyboard shortcuts ───────────────────────────── %>
+                            <p class="small text-muted mb-1 fw-semibold">Keyboard shortcuts</p>
+                            <ul class="signs-legend-list signs-legend-shortcuts mb-0">
+                                <li>
+                                    <span class="signs-legend-keys">
+                                        <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd>
+                                    </span>
+                                    Nudge selected marker 0.5 m
+                                </li>
+                                <li>
+                                    <span class="signs-legend-keys">
+                                        <kbd>Shift</kbd>+<kbd>arrow</kbd>
+                                    </span>
+                                    Nudge 5 m (coarse)
+                                </li>
+                                <li>
+                                    <span class="signs-legend-keys"><kbd>Esc</kbd></span>
+                                    Deselect marker
+                                </li>
+                                <li>
+                                    <span class="signs-legend-keys">Right-click</span>
+                                    Context menu
+                                </li>
+                            </ul>
+                        </div>
+
                     </div>
                 </section>
             </aside>

@@ -3,6 +3,63 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.32.0] - 2026-06-02
+
+### Added — Sign Map Phase 2c: Tooltip, Context Menu, Lightbox, Legend
+
+#### Hover tooltip
+- Hovering over any marker shows a tooltip with the sign preview (text +
+  arrow), a status badge (Planned / Installed / Removed), mount type,
+  location notes, coordinates, and a thumbnail if a photo has been uploaded.
+- Tooltip repositions after the thumbnail loads so it never clips the image.
+- Moving the cursor from the marker onto the tooltip keeps it open (200ms
+  hide delay); moving away dismisses it.
+- Tooltip appended to `<body>` with `position: fixed` to escape the
+  `#googleMap` CSS reset block.
+
+#### Right-click context menu
+- Right-clicking any placement marker opens a custom context menu with:
+  - **Edit** — opens the offcanvas editor (always available).
+  - **View photo** — opens the photo lightbox (only when a photo exists).
+  - **Mark as Planned / Installed / Removed** — quick status change without
+    opening the editor; skips the current status. OVERSEER+ only.
+  - **Get directions** — opens Google Maps in a new tab routed to the
+    placement coordinates.
+  - **Copy coordinates** — writes `lat, lng` to the clipboard.
+  - **Delete placement** — triggers the existing delete confirmation flow.
+    OVERSEER+ only.
+- Menu dismisses on outside click or Escape; positioned to stay within
+  viewport bounds.
+- Context menu also appended to `<body>` with `position: fixed`.
+- Map background right-click suppressed (browser default menu prevented).
+
+#### Photo lightbox
+- Clicking **View photo** in the context menu (or editor) opens the full-size
+  placement photo in a full-screen overlay.
+- Dismiss by clicking the overlay background, the × button, or pressing Escape.
+
+#### Collapsible legend
+- A **Legend & Shortcuts** section at the bottom of the sidebar sidebar panel
+  (collapsed by default) shows:
+  - Status dots (Planned / Installed / Removed) with labels.
+  - Marker colour palette swatches.
+  - Keyboard shortcut reference (arrow keys = 0.5m nudge,
+    Shift+Arrow = 5m nudge, Esc = deselect, Right-click = context menu).
+- Bootstrap collapse with an animated chevron toggle button.
+
+#### Listener hygiene
+- `attachMarkerHoverListeners()` added — re-attaches `mouseenter`,
+  `mouseleave`, and `contextmenu` to the new DOM node whenever `marker.content`
+  is replaced (detail-level swap, status change, color change, save from editor,
+  bulk color apply). Ensures tooltip and context menu always work after any
+  marker rebuild.
+
+### Notes
+- Mobile UX gaps noted: context menu long-press is intercepted by Google Maps
+  on touch devices; `mouseenter` tooltip never fires on touch. A proper mobile
+  pass (bottom sheet or tap-to-peek for view-only users) is deferred to a later
+  minor version.
+
 ## [2.31.0] - 2026-06-02
 
 ### Added — Sign Placement Phase 2c: Map UX + Direction per Placement

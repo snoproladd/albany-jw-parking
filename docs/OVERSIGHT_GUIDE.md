@@ -244,17 +244,46 @@ will add a Street View pane that uses this value to render the sign
 superimposed on the actual street scene at the correct angle. Filling it
 in now is purely forward-looking — leave it blank if you don't know it.
 
+##### Hover tooltip
+
+Hover over any marker to see a tooltip showing the sign text and arrow,
+a status badge, mount type, location notes, coordinates, and a photo
+thumbnail if one has been uploaded. Moving the cursor onto the tooltip
+keeps it open so you can read long notes.
+
+##### Right-click context menu
+
+Right-clicking any marker opens a quick-action menu:
+
+- **Edit** — opens the offcanvas editor.
+- **View photo** — opens the full-size photo in a lightbox overlay (only
+  appears when a photo exists).
+- **Mark as Planned / Installed / Removed** — changes status without
+  opening the editor. The current status is omitted from the list.
+  OVERSEER+ only.
+- **Get directions** — opens Google Maps in a new tab routed to the
+  placement coordinates.
+- **Copy coordinates** — copies `lat, lng` to the clipboard.
+- **Delete placement** — triggers the standard delete confirmation.
+  OVERSEER+ only.
+
+Dismiss the menu by clicking anywhere outside it or pressing Escape.
+
+##### Legend & Shortcuts
+
+A collapsible **Legend & Shortcuts** section sits at the bottom of the
+left sidebar (collapsed by default — click the chevron to expand).
+It shows the status dot colours, the full marker colour palette, and a
+keyboard shortcut reference card.
+
 ##### Coming soon
 
-- **Hover tooltip** — hover over a marker to see sign text, status, mount
-  type, photo thumbnail, and notes without opening the editor (Phase 2c).
-- **Right-click context menu** — quick actions (edit, mark installed/removed,
-  get directions, copy coordinates, delete) without opening the full editor.
-- **Collapsible legend** — colour/icon reference + keyboard shortcuts
-  floating in the map corner.
 - **Bearing-tracked Street View overlay** — see what each placement will
   look like from the street, with the sign rendered at the correct
   position based on its heading (Phase 3).
+- **Mobile UX improvements** — the right-click context menu and hover
+  tooltip are not yet accessible on touch devices. A tap-to-peek panel
+  for view-only users is planned for a future release.
 - **Live proximity alerts** — when the page is open on a phone, get an
   in-app ping when you drive within ~50m of a placement (Phase 4,
   web-only — true background geofencing requires the eventual native

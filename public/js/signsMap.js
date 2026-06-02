@@ -129,6 +129,45 @@
    */
   let currentDetailLevel = "compact";
 
+  // ── Hover tooltip ──────────────────────────────────────────────────
+
+  /**
+   * The single shared tooltip DOM element. Positioned absolutely over the
+   * map container and shown/hidden via class. Built once in wireUi().
+   * @type {HTMLElement|null}
+   */
+  let tooltipEl = null;
+
+  /**
+   * Placement id currently shown in the tooltip, or null if hidden.
+   * Used to skip redundant DOM updates when the same marker re-triggers
+   * mouseenter (e.g. on compact↔full swap).
+   * @type {number|null}
+   */
+  let tooltipForId = null;
+
+  /**
+   * setTimeout handle used to delay hiding the tooltip briefly after
+   * mouseleave so the user can move between the marker and tooltip
+   * without it flickering out.
+   * @type {number|null}
+   */
+  let tooltipHideTimer = null;
+
+  // ── Context menu ────────────────────────────────────────────────────
+
+  /**
+   * The single shared context-menu DOM element, built once in wireUi().
+   * @type {HTMLElement|null}
+   */
+  let ctxMenuEl = null;
+
+  /**
+   * The placement_id the context menu is currently shown for, or null.
+   * @type {number|null}
+   */
+  let ctxMenuForId = null;
+
   /** When true, the next map click drops a new placement marker. */
   let placingMode = false;
 
@@ -287,6 +326,7 @@
         newContent.classList.add("signs-map-marker-selected");
       }
       marker.content = newContent;
+      attachMarkerHoverListeners(p.placement_id, marker);
     });
   }
 
@@ -439,8 +479,437 @@
   }
 
   // ============================================================
-  // MAP LIFECYCLE
+  // TOOLTIP
   // ============================================================
+
+  /**
+   * Populate and position the hover tooltip for a placement.
+   *
+   * The tooltip is absolutely positioned relative to the map canvas
+   * (#googleMap). We read the marker's content element's bounding rect
+   * and offset it by the map container's rect so the tooltip floats
+   * just above the marker regardless of where the map sits on the page.
+   *
+   * @param {number} placementId
+   * @param {HTMLElement} markerContent  The marker's .content element.
+   */
+  function showTooltip(placementId, markerContent) {
+    if (!tooltipEl) return;
+    if (tooltipHideTimer) {
+      clearTimeout(tooltipHideTimer);
+      tooltipHideTimer = null;
+    }
+    // Skip DOM rebuild if it's already showing for this placement
+    if (tooltipForId === placementId && !tooltipEl.classList.contains("d-none")) {
+      return;
+    }
+
+    const p = findPlacement(placementId);
+    if (!p) return;
+    tooltipForId = placementId;
+
+    // ── Build content ────────────────────────────────────────────────
+
+    tooltipEl.replaceChildren();
+
+    // Header row: sign preview + status badge
+    const header = document.createElement("div");
+    header.className = "signs-tooltip-header";
+
+    const preview = document.createElement("div");
+    preview.className = "sign-preview signs-tooltip-preview";
+    const previewText = document.createElement("span");
+    previewText.className = "sign-preview-text";
+    previewText.textContent = p.sign_text || "";
+    preview.appendChild(previewText);
+
+    if (p.arrow_direction) {
+      const arrowSpan = document.createElement("span");
+      arrowSpan.className = "sign-preview-arrow";
+      if (p.arrow_direction === "destination") {
+        const icon = document.createElement("i");
+        icon.className = "fa-solid fa-location-dot";
+        icon.setAttribute("aria-hidden", "true");
+        arrowSpan.appendChild(icon);
+      } else if (ARROW_GLYPHS[p.arrow_direction]) {
+        arrowSpan.textContent = ARROW_GLYPHS[p.arrow_direction];
+      }
+      preview.appendChild(arrowSpan);
+    }
+    header.appendChild(preview);
+
+    const statusBadge = document.createElement("span");
+    statusBadge.className = `signs-tooltip-status signs-tooltip-status-${p.status || "planned"}`;
+    statusBadge.textContent = p.status
+      ? p.status.charAt(0).toUpperCase() + p.status.slice(1)
+      : "Planned";
+    header.appendChild(statusBadge);
+    tooltipEl.appendChild(header);
+
+    // Detail rows
+    const details = document.createElement("dl");
+    details.className = "signs-tooltip-details";
+
+    /**
+     * Append a dt/dd pair to the details list.
+     * @param {string} label
+     * @param {string|Node} value
+     */
+    const addDetail = (label, value) => {
+      const dt = document.createElement("dt");
+      dt.textContent = label;
+      const dd = document.createElement("dd");
+      if (typeof value === "string") {
+        dd.textContent = value;
+      } else {
+        dd.appendChild(value);
+      }
+      details.appendChild(dt);
+      details.appendChild(dd);
+    };
+
+    if (p.mount_type) {
+      addDetail("Mount", MOUNT_LABELS[p.mount_type] || p.mount_type);
+    }
+    if (p.location_notes) {
+      addDetail("Notes", p.location_notes);
+    }
+
+    const coordText = `${Number(p.latitude).toFixed(5)}, ${Number(p.longitude).toFixed(5)}`;
+    addDetail("Coords", coordText);
+
+    tooltipEl.appendChild(details);
+
+    // Thumbnail — only if the placement has a photo
+    if (p.photo_url) {
+      const imgWrap = document.createElement("div");
+      imgWrap.className = "signs-tooltip-thumb-wrap";
+      const img = document.createElement("img");
+      img.className = "signs-tooltip-thumb";
+      img.alt = "Sign placement photo";
+      img.src = `/signs/placements/${p.placement_id}/photo?t=${photoCacheBuster}`;
+      imgWrap.appendChild(img);
+      tooltipEl.appendChild(imgWrap);
+    }
+
+    // ── Position ─────────────────────────────────────────────────────
+
+    tooltipEl.classList.remove("d-none");
+
+    /**
+     * Position the tooltip using fixed viewport coordinates from the
+     * marker's bounding rect. Called once immediately (before image load,
+     * for text-only placements) and again after any thumbnail loads so
+     * the taller tooltip re-anchors correctly.
+     */
+    const positionTooltip = () => {
+      const markerRect = markerContent.getBoundingClientRect();
+      const MARGIN = 8;
+      const EDGE_PAD = 6;
+      const vpW = window.innerWidth;
+      const vpH = window.innerHeight;
+
+      const tipW = tooltipEl.offsetWidth;
+      const tipH = tooltipEl.offsetHeight;
+
+      // Prefer above the marker; fall back to below if it clips the top
+      let top = markerRect.top - tipH - MARGIN;
+      if (top < EDGE_PAD) {
+        top = markerRect.bottom + MARGIN;
+      }
+
+      // Centre horizontally on the marker, clamped to viewport
+      let left = markerRect.left + markerRect.width / 2 - tipW / 2;
+      left = Math.max(EDGE_PAD, Math.min(left, vpW - tipW - EDGE_PAD));
+
+      // If showing below also clips the bottom, just pin to bottom edge
+      if (top + tipH > vpH - EDGE_PAD) {
+        top = vpH - tipH - EDGE_PAD;
+      }
+
+      tooltipEl.style.top  = `${top}px`;
+      tooltipEl.style.left = `${left}px`;
+    };
+
+    positionTooltip();
+
+    // Re-position after the thumbnail loads — it adds height to the tooltip
+    // and the initial measurement won't have accounted for it yet.
+    const img = tooltipEl.querySelector(".signs-tooltip-thumb");
+    if (img) {
+      img.addEventListener("load",  positionTooltip, { once: true });
+      img.addEventListener("error", positionTooltip, { once: true });
+    }
+  }
+
+  /**
+   * Hide the tooltip after a short delay. The delay lets the user move
+   * the cursor from the marker to the tooltip itself without it vanishing.
+   *
+   * @param {boolean} [immediate=false]  Skip the delay and hide right away.
+   */
+  function hideTooltip(immediate = false) {
+    if (immediate) {
+      if (tooltipHideTimer) {
+        clearTimeout(tooltipHideTimer);
+        tooltipHideTimer = null;
+      }
+      if (tooltipEl) tooltipEl.classList.add("d-none");
+      tooltipForId = null;
+      return;
+    }
+    tooltipHideTimer = window.setTimeout(() => {
+      tooltipHideTimer = null;
+      if (tooltipEl) tooltipEl.classList.add("d-none");
+      tooltipForId = null;
+    }, 200);
+  }
+
+  // ============================================================
+  // CONTEXT MENU
+  // ============================================================
+
+  /**
+   * Build and show the right-click context menu for a placement.
+   *
+   * The menu is a fixed-position element (not inside #googleMap, so it is
+   * unaffected by the Google Maps CSS reset block). It is created once in
+   * wireUi() and its contents are replaced on each invocation.
+   *
+   * @param {number} placementId
+   * @param {number} clientX  Mouse X from the contextmenu event.
+   * @param {number} clientY  Mouse Y from the contextmenu event.
+   */
+  function showContextMenu(placementId, clientX, clientY) {
+    if (!ctxMenuEl) return;
+    const p = findPlacement(placementId);
+    if (!p) return;
+
+    ctxMenuForId = placementId;
+    hideTooltip(true);
+    ctxMenuEl.replaceChildren();
+
+    /**
+     * Append a menu item button.
+     * @param {string}   icon     FontAwesome class string.
+     * @param {string}   label    Display text.
+     * @param {Function} onClick  Click handler.
+     * @param {string}   [cls]    Optional extra CSS class on the button.
+     */
+    const addItem = (icon, label, onClick, cls = "") => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = `signs-ctx-item${cls ? " " + cls : ""}`;
+      const iconEl = document.createElement("i");
+      iconEl.className = icon;
+      iconEl.setAttribute("aria-hidden", "true");
+      btn.appendChild(iconEl);
+      btn.appendChild(document.createTextNode(" " + label));
+      btn.addEventListener("click", () => {
+        dismissContextMenu();
+        onClick();
+      });
+      ctxMenuEl.appendChild(btn);
+    };
+
+    /**
+     * Append a visual divider.
+     */
+    const addDivider = () => {
+      const hr = document.createElement("hr");
+      hr.className = "signs-ctx-divider";
+      ctxMenuEl.appendChild(hr);
+    };
+
+    // ── Menu items ───────────────────────────────────────────────────
+
+    // Edit — always available
+    addItem("fa-solid fa-pen", "Edit", () => {
+      selectMarker(placementId);
+      openEditor(placementId);
+    });
+
+    // View photo — only when a photo exists
+    if (p.photo_url) {
+      addItem("fa-solid fa-image", "View photo", () => {
+        openPhotoLightbox(placementId);
+      });
+    }
+
+    if (canManage) {
+      addDivider();
+
+      // Mark status submenu items — skip the current status
+      const statusItems = [
+        { status: "planned",   icon: "fa-solid fa-circle-dot",   label: "Mark as Planned"   },
+        { status: "installed", icon: "fa-solid fa-circle-check",  label: "Mark as Installed" },
+        { status: "removed",   icon: "fa-solid fa-circle-xmark",  label: "Mark as Removed"   },
+      ];
+      statusItems.forEach(({ status, icon, label }) => {
+        if (status === p.status) return; // skip current
+        addItem(icon, label, () => quickSetStatus(placementId, status));
+      });
+
+      addDivider();
+    }
+
+    // Get directions — opens Google Maps in a new tab
+    addItem("fa-solid fa-diamond-turn-right", "Get directions", () => {
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${p.latitude},${p.longitude}`;
+      window.open(url, "_blank", "noopener,noreferrer");
+    });
+
+    // Copy coordinates
+    addItem("fa-solid fa-copy", "Copy coordinates", () => {
+      const text = `${Number(p.latitude).toFixed(7)}, ${Number(p.longitude).toFixed(7)}`;
+      navigator.clipboard.writeText(text).catch(() => {
+        // Fallback for older browsers / non-secure contexts
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      });
+    });
+
+    if (canManage) {
+      addDivider();
+
+      addItem("fa-solid fa-trash", "Delete placement", () => {
+        // Re-use the existing delete flow; open the editor silently
+        // then call delete (editor opens briefly — keep it seamless).
+        openEditor(placementId);
+        // Slight delay so the offcanvas finishes opening before we fire
+        // the delete, which calls its own confirm dialog.
+        window.setTimeout(() => deleteFromEditor(), 120);
+      }, "signs-ctx-item-danger");
+    }
+
+    // ── Position ─────────────────────────────────────────────────────
+
+    ctxMenuEl.classList.remove("d-none");
+
+    const EDGE_PAD = 8;
+    const menuW = ctxMenuEl.offsetWidth;
+    const menuH = ctxMenuEl.offsetHeight;
+    const vpW = window.innerWidth;
+    const vpH = window.innerHeight;
+
+    let x = clientX + 2;
+    let y = clientY + 2;
+    if (x + menuW > vpW - EDGE_PAD) x = clientX - menuW - 2;
+    if (y + menuH > vpH - EDGE_PAD) y = clientY - menuH - 2;
+    x = Math.max(EDGE_PAD, x);
+    y = Math.max(EDGE_PAD, y);
+
+    ctxMenuEl.style.left = `${x}px`;
+    ctxMenuEl.style.top  = `${y}px`;
+  }
+
+  /**
+   * Hide and clear the context menu.
+   */
+  function dismissContextMenu() {
+    if (!ctxMenuEl) return;
+    ctxMenuEl.classList.add("d-none");
+    ctxMenuForId = null;
+  }
+
+  /**
+   * Quick-set placement status from the context menu without opening the
+   * full editor. Sends the PATCH /status request and updates in-memory +
+   * marker visual on success.
+   *
+   * @param {number} placementId
+   * @param {'planned'|'installed'|'removed'} newStatus
+   */
+  async function quickSetStatus(placementId, newStatus) {
+    const p = findPlacement(placementId);
+    if (!p) return;
+
+    try {
+      const res = await fetch(`/signs/placements/${placementId}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "CSRF-Token": getCsrfToken(),
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      const data = await res.json();
+      if (!data?.success) throw new Error(data?.error || "Status update failed.");
+
+      p.status = newStatus;
+
+      const marker = markers.get(placementId);
+      if (marker) {
+        const newContent = buildMarkerContentForLevel(p, currentDetailLevel);
+        if (selectedId === placementId) {
+          newContent.classList.add("signs-map-marker-selected");
+        }
+        marker.content = newContent;
+        // Re-attach tooltip and context-menu listeners to the new content
+        attachMarkerHoverListeners(placementId, marker);
+      }
+      applyFilters();
+    } catch (err) {
+      console.error("quickSetStatus error:", err);
+      window.alert(err.message || "Failed to update status.");
+    }
+  }
+
+  /**
+   * Open a simple lightbox overlay to view the full-size placement photo.
+   * Clicking the overlay or pressing Escape dismisses it.
+   *
+   * @param {number} placementId
+   */
+  function openPhotoLightbox(placementId) {
+    const existing = document.getElementById("signsPhotoLightbox");
+    if (existing) existing.remove();
+
+    const overlay = document.createElement("div");
+    overlay.id = "signsPhotoLightbox";
+    overlay.className = "signs-lightbox";
+
+    const img = document.createElement("img");
+    img.className = "signs-lightbox-img";
+    img.alt = "Sign placement photo";
+    img.src = `/signs/placements/${placementId}/photo?t=${photoCacheBuster}`;
+    overlay.appendChild(img);
+
+    const closeBtn = document.createElement("button");
+    closeBtn.type = "button";
+    closeBtn.className = "signs-lightbox-close";
+    closeBtn.setAttribute("aria-label", "Close photo");
+    const closeIcon = document.createElement("i");
+    closeIcon.className = "fa-solid fa-xmark";
+    closeIcon.setAttribute("aria-hidden", "true");
+    closeBtn.appendChild(closeIcon);
+    overlay.appendChild(closeBtn);
+
+    const dismiss = () => overlay.remove();
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) dismiss();
+    });
+    closeBtn.addEventListener("click", dismiss);
+
+    const onKey = (e) => {
+      if (e.key === "Escape") {
+        dismiss();
+        document.removeEventListener("keydown", onKey, true);
+      }
+    };
+    document.addEventListener("keydown", onKey, true);
+
+    document.body.appendChild(overlay);
+  }
+
+  // ============================================================
+  // MAP LIFECYCLE
 
   /**
    * Dynamically inject the Google Maps loader script. Resolves once
@@ -624,6 +1093,8 @@ mapRef = new google.maps.Map(mapEl, {
       openEditor(placement.placement_id);
     });
 
+    attachMarkerHoverListeners(placement.placement_id, marker);
+
     if (canManage) {
       // gmp-dragend fires after a user finishes dragging the marker.
       // Keep keyboard selection on this marker so the user can continue
@@ -642,6 +1113,32 @@ mapRef = new google.maps.Map(mapEl, {
     }
 
     markers.set(placement.placement_id, marker);
+  }
+
+  /**
+   * Attach mouseenter/mouseleave/contextmenu listeners to a marker's
+   * current content element. Must be called whenever marker.content is
+   * replaced (detail-level swap, status change, color change) so the
+   * tooltip and context menu keep working on the new DOM node.
+   *
+   * @param {number}                                   placementId
+   * @param {google.maps.marker.AdvancedMarkerElement} marker
+   */
+  function attachMarkerHoverListeners(placementId, marker) {
+    const el = marker.content;
+    if (!el) return;
+
+    el.addEventListener("mouseenter", () => {
+      showTooltip(placementId, el);
+    });
+    el.addEventListener("mouseleave", () => {
+      hideTooltip();
+    });
+    el.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      showContextMenu(placementId, e.clientX, e.clientY);
+    });
   }
 
   /**
@@ -1382,6 +1879,7 @@ function onMapKeyDown(e) {
         if (marker) {
           marker.position = { lat, lng };
           marker.content = buildMarkerContentForLevel(p, currentDetailLevel);
+          attachMarkerHoverListeners(editingId, marker);
         }
       }
 
@@ -1447,7 +1945,49 @@ function onMapKeyDown(e) {
    * Wire all DOM event listeners. Called after Maps has loaded.
    */
   function wireUi() {
-    // Filters
+    // ── Build tooltip element ─────────────────────────────────────────
+    // ── Build tooltip element ─────────────────────────────────────────
+    // Appended to <body> (not #googleMap) so it escapes the `all: revert`
+    // CSS reset block that would otherwise kill position:fixed and our
+    // custom CSS variables. Uses fixed positioning; coordinates come from
+    // the marker's getBoundingClientRect() in showTooltip().
+    tooltipEl = document.createElement("div");
+    tooltipEl.className = "signs-tooltip d-none";
+    tooltipEl.setAttribute("aria-hidden", "true");
+    tooltipEl.addEventListener("mouseenter", () => {
+      if (tooltipHideTimer) {
+        clearTimeout(tooltipHideTimer);
+        tooltipHideTimer = null;
+      }
+    });
+    tooltipEl.addEventListener("mouseleave", () => hideTooltip());
+    document.body.appendChild(tooltipEl);
+
+    // ── Build context-menu element ────────────────────────────────────
+    ctxMenuEl = document.createElement("div");
+    ctxMenuEl.className = "signs-ctx-menu d-none";
+    ctxMenuEl.setAttribute("role", "menu");
+    document.body.appendChild(ctxMenuEl);
+
+    // Dismiss context menu on outside click or Escape
+    document.addEventListener("mousedown", (e) => {
+      if (ctxMenuEl && !ctxMenuEl.contains(e.target)) {
+        dismissContextMenu();
+      }
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") dismissContextMenu();
+    });
+    // Suppress browser default context menu on map background
+    const mapCanvas = document.getElementById("googleMap");
+    if (mapCanvas) {
+      mapCanvas.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        dismissContextMenu();
+      });
+    }
+
+    // ── Filters ───────────────────────────────────────────────────────
     document.querySelectorAll('input[name="statusFilter"]').forEach((el) => {
       el.addEventListener("change", applyFilters);
     });
@@ -1594,6 +2134,7 @@ function onMapKeyDown(e) {
                   newContent.classList.add("signs-map-marker-selected");
                 }
                 marker.content = newContent;
+                attachMarkerHoverListeners(p.placement_id, marker);
               }
             }
           });
@@ -1639,7 +2180,7 @@ function onMapKeyDown(e) {
       });
     }
 
-    // Reset pending-marker / editing state when the editor is dismissed
+// Reset pending-marker / editing state when the editor is dismissed
     const editorEl = document.getElementById("placementEditor");
     if (editorEl) {
       editorEl.addEventListener("hidden.bs.offcanvas", () => {
@@ -1653,6 +2194,7 @@ function onMapKeyDown(e) {
     if (window.bootstrap && editorEl) {
       offcanvas = window.bootstrap.Offcanvas.getOrCreateInstance(editorEl);
     }
+  
 
     // Global keyboard listener for arrow-key nudging of the selected marker.
     // The handler self-suspends while the editor is open or focus is in a
@@ -1664,6 +2206,18 @@ function onMapKeyDown(e) {
     // runs on the way DOWN the tree (before Maps' handler), giving us
     // first crack at the event.
     document.addEventListener("keydown", onMapKeyDown, true);
+
+    // ── Legend toggle ─────────────────────────────────────────────────
+    const legendToggle = document.getElementById("legendToggleBtn");
+    const legendPanel  = document.getElementById("mapLegendPanel");
+    if (legendToggle && legendPanel) {
+      legendPanel.addEventListener("show.bs.collapse", () => {
+        legendToggle.querySelector(".signs-legend-chevron")?.classList.replace("fa-chevron-down", "fa-chevron-up");
+      });
+      legendPanel.addEventListener("hide.bs.collapse", () => {
+        legendToggle.querySelector(".signs-legend-chevron")?.classList.replace("fa-chevron-up", "fa-chevron-down");
+      });
+    }
   }
 
   // ============================================================

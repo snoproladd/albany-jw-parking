@@ -794,3 +794,295 @@
     background: var(--bs-tertiary-bg, #f8f9fa);
     text-align: center;
 }
+
+/* ── Hover tooltip ───────────────────────────────────────────────── */
+
+/*
+ * Absolutely positioned inside #googleMap so it clips with the map
+ * container. Pointer-events are on so the user can hover onto the
+ * tooltip to read long notes without it vanishing (see wireUi()).
+ */
+.signs-tooltip {
+    position: fixed;
+    z-index: 1085;
+    min-width: 180px;
+    max-width: 260px;
+    background: var(--bs-body-bg, #fff);
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+    padding: 0.55rem 0.7rem;
+    pointer-events: auto;
+    /* Prevent the tooltip from triggering Google's map drag */
+    user-select: none;
+}
+
+.signs-tooltip-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.45rem;
+    flex-wrap: wrap;
+}
+
+/* Smaller sign preview inside the tooltip */
+.signs-tooltip-preview {
+    font-size: 0.8rem;
+    padding: 0.2rem 0.5rem;
+    border-width: 2px;
+    flex-shrink: 0;
+    max-width: 140px;
+}
+
+.signs-tooltip-preview .sign-preview-text {
+    max-width: 14ch;
+}
+
+.signs-tooltip-preview .sign-preview-arrow {
+    font-size: 1.1em;
+}
+
+.signs-tooltip-status {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.15rem 0.45rem;
+    border-radius: 999px;
+    line-height: 1.4;
+    white-space: nowrap;
+}
+
+.signs-tooltip-status-planned {
+    background: #e9ecef;
+    color: #495057;
+}
+
+.signs-tooltip-status-installed {
+    background: #d1e7dd;
+    color: #0f5132;
+}
+
+.signs-tooltip-status-removed {
+    background: #f8d7da;
+    color: #842029;
+}
+
+.signs-tooltip-details {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.1rem 0.5rem;
+    margin: 0 0 0.35rem;
+    font-size: 0.78rem;
+    line-height: 1.4;
+}
+
+.signs-tooltip-details dt {
+    font-weight: 600;
+    color: var(--bs-secondary-color, #6c757d);
+    white-space: nowrap;
+    margin: 0;
+}
+
+.signs-tooltip-details dd {
+    color: var(--bs-body-color, #212529);
+    margin: 0;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+}
+
+.signs-tooltip-thumb-wrap {
+    margin-top: 0.4rem;
+    border-radius: 0.35rem;
+    overflow: hidden;
+    line-height: 0;
+}
+
+.signs-tooltip-thumb {
+    width: 100%;
+    max-height: 120px;
+    object-fit: cover;
+    border-radius: 0.35rem;
+    display: block;
+}
+
+/* ── Context menu ────────────────────────────────────────────────── */
+
+.signs-ctx-menu {
+    position: fixed;
+    z-index: 1090;
+    min-width: 200px;
+    background: var(--bs-body-bg, #fff);
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 0.45rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18);
+    padding: 0.3rem 0;
+    outline: none;
+}
+
+.signs-ctx-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    padding: 0.45rem 0.9rem;
+    background: none;
+    border: 0;
+    border-radius: 0;
+    font-size: 0.875rem;
+    color: var(--bs-body-color, #212529);
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.1s ease;
+    white-space: nowrap;
+}
+
+.signs-ctx-item:hover {
+    background: var(--bs-tertiary-bg, #f8f9fa);
+}
+
+.signs-ctx-item i {
+    width: 1rem;
+    text-align: center;
+    flex-shrink: 0;
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+.signs-ctx-item:hover i {
+    color: var(--bs-body-color, #212529);
+}
+
+.signs-ctx-item-danger {
+    color: var(--bs-danger, #dc3545);
+}
+
+.signs-ctx-item-danger i,
+.signs-ctx-item-danger:hover i {
+    color: var(--bs-danger, #dc3545);
+}
+
+.signs-ctx-item-danger:hover {
+    background: #fff1f2;
+}
+
+.signs-ctx-divider {
+    margin: 0.3rem 0;
+    border-color: var(--bs-border-color, #dee2e6);
+    opacity: 1;
+}
+
+/* ── Photo lightbox ──────────────────────────────────────────────── */
+
+.signs-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-out;
+}
+
+.signs-lightbox-img {
+    max-width: 90vw;
+    max-height: 88vh;
+    object-fit: contain;
+    border-radius: 0.4rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    cursor: default;
+}
+
+.signs-lightbox-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: #fff;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.signs-lightbox-close:hover {
+    background: rgba(255, 255, 255, 0.28);
+}
+
+/* ── Legend (collapsible sidebar panel) ──────────────────────────── */
+
+.signs-legend-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 0.82rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.signs-legend-list li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--bs-body-color, #212529);
+}
+
+.signs-legend-dot {
+    /* Reuses .signs-placement-dot sizing; override margin-top from the
+       list context where it is used as inline decoration. */
+    margin-top: 0 !important;
+    flex-shrink: 0;
+}
+
+.signs-legend-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.signs-legend-swatch {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(0, 0, 0, 0.12);
+}
+
+.signs-legend-swatch-red    { background: #dc3545; }
+.signs-legend-swatch-orange { background: #fd7e14; }
+.signs-legend-swatch-yellow { background: #ffc107; }
+.signs-legend-swatch-green  { background: #198754; }
+.signs-legend-swatch-teal   { background: #0dcaf0; }
+.signs-legend-swatch-blue   { background: #0d6efd; }
+.signs-legend-swatch-purple { background: #6f42c1; }
+.signs-legend-swatch-pink   { background: #d63384; }
+
+.signs-legend-shortcuts .signs-legend-keys {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+    min-width: 90px;
+}
+
+.signs-legend-shortcuts kbd {
+    font-size: 0.7rem;
+    padding: 0.1rem 0.3rem;
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-bottom-width: 2px;
+    border-radius: 3px;
+    color: var(--bs-body-color, #212529);
+    line-height: 1.4;
+    white-space: nowrap;
+}

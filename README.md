@@ -314,6 +314,7 @@ Schema highlights:
   - `status` (`planned` / `installed` / `removed`) with install/remove audit trail
   - `mount_type` (`cone` / `a-frame` / `existing-structure`, nullable)
   - `marker_color` — optional palette key (red, orange, yellow, green, teal, blue, purple, pink) for map categorisation
+  - `photo_url` — blob name in Azure Storage `sign-photos` container (not a full URL); served via the auth-gated proxy route `GET /signs/placements/:id/photo`
   - FK to `signs` survives template archival so historical placements remain valid
 
 ---
