@@ -221,9 +221,11 @@ editor updates automatically.
   open the editor offcanvas.
 - Edit any field: arrow direction, status (planned/installed/removed),
   mount type, marker colour, heading, location notes.
-- **Drag a marker** to a new spot on the map — the new coordinates are
-  saved automatically when you let go. If the server rejects the change
-  (for any reason), the marker snaps back to its original spot.
+- **Shift+drag a marker** to a new spot on the map — hold Shift first,
+  then drag. The new coordinates are saved automatically when you let go.
+  If the server rejects the change (for any reason), the marker snaps back
+  to its original spot. A plain drag without Shift pans the map instead
+  of moving the sign — this is intentional to prevent accidental repositioning.
 - **Delete** removes only the placement; the sign template itself remains.
 
 Status changes auto-sync the installation audit trail — marking a placement
@@ -247,10 +249,11 @@ faces, and not the direction the camera should look. From this one value the
 app automatically positions Street View behind the sign and points the
 camera forward.
 
-- **Drag the handle** to set the bearing. The arrow rotates live as you
-  drag; the value is saved automatically when you release. You can also
-  type a bearing directly into the **Direction of travel** field in the
-  offcanvas editor.
+- **Shift+drag the handle** to set the bearing — hold Shift first, then
+  drag. The arrow rotates live as you drag; the value is saved automatically
+  when you release. A plain drag without Shift does nothing, preventing
+  accidental bearing changes. You can also type a bearing directly into
+  the **Direction of travel** field in the offcanvas editor.
 - **Unset state:** the arrow appears dashed and semi-transparent to signal
   that no direction has been recorded yet.
 - **View-only users** can see the arrow when a direction is set but cannot
@@ -310,6 +313,17 @@ A collapsible **Legend & Shortcuts** section sits at the bottom of the
 left sidebar (collapsed by default — click the chevron to expand).
 It shows the status dot colours, the full marker colour palette, and a
 keyboard shortcut reference card.
+
+Key shortcuts (OVERSEER+, desktop):
+
+| Action | Gesture |
+|---|---|
+| Nudge selected marker 0.5 m | Arrow keys |
+| Nudge selected marker 5 m | Shift + Arrow keys |
+| Move marker on map | Shift + drag marker |
+| Rotate direction of travel | Shift + drag handle |
+| Deselect / close overlay | Esc |
+| Context menu | Right-click marker |
 
 ##### Using the Sign Map on a phone or tablet
 

@@ -277,6 +277,13 @@ The first ADMIN must be granted directly in the database.
 - **Touch device detection** in `signsMap.js` uses `window.matchMedia("(pointer: coarse)").matches`
   evaluated once at bootstrap. Drag-to-reposition and the travel-handle are desktop-only;
   mobile users place signs via map tap or the geolocation button.
+- **Shift-gate on sign map drag operations** — on desktop, both marker position drags
+  and travel-handle rotation require Shift to be held at the start of the gesture.
+  A plain drag without Shift falls through to the normal Google Maps pan. Implemented
+  via `pointerdown` on marker content (toggles `gmpDraggable` off then back via
+  `Promise.resolve()` microtask) and an early return in the travel handle `pointerdown`
+  handler. `shiftHeld` is tracked by `document` keydown/keyup listeners; a
+  `signs-map-shift-held` class on the map div drives the grab cursor hint.
 
 ---
 

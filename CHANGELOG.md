@@ -3,6 +3,21 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.36.1] - 2026-06-02
+
+### Changed
+- **Shift-gate on marker drag and travel-handle rotation (desktop).**
+  Marker position drags and travel-direction handle rotations now require
+  Shift to be held at the start of the drag. A plain drag on a marker
+  (without Shift) falls through to the normal Google Maps pan gesture
+  instead of moving the sign. This prevents accidental sign displacement
+  when a user is panning the map near a placed sign.
+  - Holding Shift while hovering any marker shows a `grab` cursor as a
+    visual affordance that Shift+drag is available.
+  - Arrow-key nudging is unchanged — no Shift required for fine/coarse nudge.
+  - Legend updated to show `Shift+drag marker` and `Shift+drag handle`.
+  - Touch devices are unaffected (drag already disabled on touch).
+
 ## [2.36.0] - 2026-06-02
 
 ### Added — Sign Map Mobile UX Pass

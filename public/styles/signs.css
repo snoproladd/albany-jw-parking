@@ -1700,3 +1700,13 @@
 .signs-map-bearing-drag .gm-style > div {
     cursor: grabbing !important;
 }
+
+/*
+ * While Shift is held (canManage + desktop only), show a grab cursor
+ * on the map to signal that Shift+drag is now available on any marker.
+ * This is lower priority than the bearing-drag grabbing override.
+ */
+.signs-map-shift-held .signs-map-marker,
+.signs-map-shift-held .signs-map-marker * {
+    cursor: grab !important;
+}

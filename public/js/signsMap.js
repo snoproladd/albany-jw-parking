@@ -237,6 +237,15 @@
    */
   let isTouchDevice = false;
 
+  /**
+   * True while the Shift key is held anywhere on the page.
+   * Used to gate marker position drags and travel-handle rotation so
+   * accidental map pans never silently move a placed sign.
+   * Updated by the document keydown/keyup listeners wired in wireUi().
+   * @type {boolean}
+   */
+  let shiftHeld = false;
+
   // ── Info sheet ──────────────────────────────────────────────────────
 
   /**
@@ -1511,6 +1520,31 @@ mapRef = new google.maps.Map(mapEl, {
       showContextMenu(placementId, e.clientX, e.clientY);
     });
 
+    // Shift-gate for marker position dragging (desktop canManage only).
+    // AdvancedMarkerElement evaluates gmpDraggable at drag-start (after
+    // pointerdown). By toggling it off on a non-Shift pointerdown and
+    // back on after a microtask, we cancel accidental drags before Maps
+    // can initiate them — the map pans normally instead.
+    if (canManage && !isTouchDevice) {
+      el.addEventListener("pointerdown", (e) => {
+        // Only primary button; ignore right-click / middle-click.
+        if (e.button !== 0) return;
+        // Travel handle has its own Shift gate — don't double-handle.
+        const handle = el.querySelector(".signs-map-travel-handle");
+        if (handle && handle.contains(e.target)) return;
+
+        if (!e.shiftKey) {
+          // Temporarily disable dragging so Maps treats this as a pan.
+          marker.gmpDraggable = false;
+          // Restore after a microtask — long enough for Maps to have
+          // decided this isn't a drag, short enough to be imperceptible.
+          Promise.resolve().then(() => {
+            marker.gmpDraggable = true;
+          });
+        }
+      });
+    }
+
     // Wire the travel-direction drag handle if present (full markers only).
     const handleEl = el.querySelector(".signs-map-travel-handle");
     if (handleEl) {
@@ -1551,6 +1585,9 @@ mapRef = new google.maps.Map(mapEl, {
     handleEl.addEventListener("pointerdown", (e) => {
       // Only primary button; ignore touch-scroll etc.
       if (e.button !== 0 && e.pointerType === "mouse") return;
+      // Shift must be held to rotate — prevents accidental bearing changes
+      // when the user is just trying to click or pan near the handle.
+      if (!e.shiftKey) return;
       e.stopPropagation(); // Don't let the map see this as a drag-start
       e.preventDefault();
 
@@ -3083,6 +3120,33 @@ function onMapKeyDown(e) {
     });
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") dismissContextMenu();
+    });
+
+    // Track Shift state for drag-gating and cursor hint.
+    // The cursor class is applied to the map div so the grab hint appears
+    // when hovering any marker while Shift is held, giving a clear visual
+    // affordance that "Shift+drag is now available."
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Shift" || shiftHeld) return;
+      shiftHeld = true;
+      if (canManage && !isTouchDevice && mapRef?.getDiv) {
+        mapRef.getDiv().classList.add("signs-map-shift-held");
+      }
+    });
+    document.addEventListener("keyup", (e) => {
+      if (e.key !== "Shift") return;
+      shiftHeld = false;
+      if (mapRef?.getDiv) {
+        mapRef.getDiv().classList.remove("signs-map-shift-held");
+      }
+    });
+    // Also clear on window blur so releasing Shift outside the window
+    // (e.g. switching apps) doesn't leave the cursor stuck in grab mode.
+    window.addEventListener("blur", () => {
+      shiftHeld = false;
+      if (mapRef?.getDiv) {
+        mapRef.getDiv().classList.remove("signs-map-shift-held");
+      }
     });
     // Suppress browser default context menu on map background
     const mapCanvas = document.getElementById("googleMap");
