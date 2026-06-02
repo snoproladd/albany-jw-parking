@@ -37,6 +37,42 @@
     '<i class="fa-solid fa-location-dot" aria-hidden="true"></i>';
 
   /**
+   * Compute the auto-suggested abbreviation for a sign text. Mirrors the
+   * server-side helper in lib/dbSync.js — keep these two in sync, since
+   * the server falls back to its own copy when the override is NULL.
+   *
+   * @param {string} text
+   * @returns {string} Uppercase abbreviation, or '' for empty input.
+   */
+  function computeSignAbbreviation(text) {
+    if (!text || typeof text !== "string") return "";
+    const cleaned = text
+      .trim()
+      .replace(/[^\w\s&-]/g, " ")
+      .replace(/[-_/]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!cleaned) return "";
+
+    const STOP_WORDS = new Set(["the", "a", "an", "of", "&"]);
+    const words = cleaned
+      .split(" ")
+      .filter((w) => w && !STOP_WORDS.has(w.toLowerCase()));
+    if (words.length === 0) return "";
+
+    if (words.length === 1) {
+      const w = words[0];
+      if (w.length <= 3) return w.toUpperCase();
+      const m = w.match(/^([A-Za-z]+)(\d+)$/);
+      if (m) return (m[1][0] + m[2]).toUpperCase().substring(0, 3);
+      return w.substring(0, 3).toUpperCase();
+    }
+
+    const parts = words.map((w) => (/^\d+$/.test(w) ? w : w[0]));
+    return parts.join("").toUpperCase().substring(0, 3);
+  }
+
+  /**
    * Read the CSRF token from the meta tag.
    * @returns {string}
    */
@@ -87,12 +123,66 @@
   }
 
   /**
-   * Wire the text input to update the preview on every keystroke.
+   * Refresh the abbreviation input's placeholder with the current
+   * auto-suggestion. If the user hasn't manually overridden it, also
+   * push the suggestion into the value so the field reflects what
+   * will be saved. The data-user-override attr is toggled to '1' the
+   * moment the user types in the field — from that point on, sign-text
+   * changes only update the placeholder, not the value.
+   */
+  function refreshAbbreviationSuggestion() {
+    const textInput = document.getElementById("signTextInput");
+    const abbrInput = document.getElementById("signAbbreviationInput");
+    if (!textInput || !abbrInput) return;
+
+    const suggestion = computeSignAbbreviation(textInput.value);
+    abbrInput.placeholder = suggestion || "auto";
+
+    if (abbrInput.getAttribute("data-user-override") !== "1") {
+      // Don't write into the value — that'd send the suggestion to the
+      // server as an override. Leaving value empty causes the server to
+      // store NULL, which falls back to the heuristic on read.
+      abbrInput.value = "";
+    }
+  }
+
+  /**
+   * Wire the text input to update the preview and refresh the
+   * abbreviation suggestion on every keystroke.
    */
   function initTextInput() {
     const textInput = document.getElementById("signTextInput");
     if (!textInput) return;
-    textInput.addEventListener("input", updatePreview);
+    textInput.addEventListener("input", () => {
+      updatePreview();
+      refreshAbbreviationSuggestion();
+    });
+  }
+
+  /**
+   * Wire the abbreviation input. Typing in it flips the user-override
+   * flag so future sign-text changes don't clobber the value. Clearing
+   * the field flips it back so the suggestion resumes.
+   */
+  function initAbbreviationInput() {
+    const abbrInput = document.getElementById("signAbbreviationInput");
+    if (!abbrInput) return;
+
+    abbrInput.addEventListener("input", () => {
+      // Force uppercase to match the server's normalisation and the
+      // map's visual style; no point letting the user type lowercase
+      // when it'll be uppercased on save anyway.
+      const upper = abbrInput.value.toUpperCase();
+      if (upper !== abbrInput.value) abbrInput.value = upper;
+
+      abbrInput.setAttribute(
+        "data-user-override",
+        abbrInput.value.trim() ? "1" : "0",
+      );
+    });
+
+    // Seed the placeholder from current sign text on page load.
+    refreshAbbreviationSuggestion();
   }
 
   /**
@@ -162,14 +252,23 @@
       const textInput = document.getElementById("signTextInput");
       const arrowInput = document.getElementById("arrowDirectionInput");
       const descInput = document.getElementById("signDescriptionInput");
+      const abbrInput = document.getElementById("signAbbreviationInput");
 
       const signText = (textInput?.value || "").trim();
       const arrowDirection = arrowInput?.value || null;
       const description = (descInput?.value || "").trim();
+      // Only send a real override; an empty string tells the server to
+      // clear any prior override and revert to the heuristic.
+      const abbreviation = (abbrInput?.value || "").trim().toUpperCase();
 
       if (!signText) {
         setFeedback("Sign text is required.", "error");
         textInput?.focus();
+        return;
+      }
+      if (abbreviation.length > 6) {
+        setFeedback("Abbreviation must be 6 characters or fewer.", "error");
+        abbrInput?.focus();
         return;
       }
 
@@ -192,6 +291,7 @@
           body: JSON.stringify({
             signText,
             arrowDirection: arrowDirection || null,
+            abbreviation: abbreviation || null,
             description: description || null,
           }),
         });
@@ -219,6 +319,7 @@
   document.addEventListener("DOMContentLoaded", () => {
     initTextInput();
     initArrowPicker();
+    initAbbreviationInput();
     initSaveButton();
   });
 })();

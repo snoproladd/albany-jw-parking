@@ -297,7 +297,8 @@ export function signsRouter({
     requirePermission("manageSigns"),
     csrfProtection,
     async (req, res) => {
-      const { signText, arrowDirection, description } = req.body || {};
+      const { signText, arrowDirection, abbreviation, description } =
+        req.body || {};
 
       if (!signText?.trim()) {
         return res.status(400).json({
@@ -322,11 +323,23 @@ export function signsRouter({
         });
       }
 
+      // Abbreviation override is optional. Empty string is treated as
+      // "no override" so the server-side heuristic kicks in on read.
+      // Max 6 chars matches the DB column width.
+      const abbr = (abbreviation || "").trim().toUpperCase();
+      if (abbr.length > 6) {
+        return res.status(400).json({
+          success: false,
+          error: "Abbreviation must be 6 characters or fewer.",
+        });
+      }
+
       try {
         const id = await createSign(
           {
             signText: signText.trim(),
             arrowDirection: arrow,
+            abbreviation: abbr || null,
             description: description?.trim() || null,
           },
           req.session.userEmail || "admin",
@@ -358,7 +371,8 @@ export function signsRouter({
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
-      const { signText, arrowDirection, description } = req.body || {};
+      const { signText, arrowDirection, abbreviation, description } =
+        req.body || {};
 
       if (!id) {
         return res.status(400).json({
@@ -389,10 +403,21 @@ export function signsRouter({
         });
       }
 
+      // Abbreviation override is optional; empty string clears any prior
+      // override and reverts to the heuristic-computed default on read.
+      const abbr = (abbreviation || "").trim().toUpperCase();
+      if (abbr.length > 6) {
+        return res.status(400).json({
+          success: false,
+          error: "Abbreviation must be 6 characters or fewer.",
+        });
+      }
+
       try {
         const ok = await updateSign(id, {
           signText: signText.trim(),
           arrowDirection: arrow,
+          abbreviation: abbr || null,
           description: description?.trim() || null,
         });
         if (!ok) {

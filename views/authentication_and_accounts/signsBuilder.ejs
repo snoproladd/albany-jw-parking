@@ -66,6 +66,34 @@
                                 <div class="form-text">Up to 100 characters.</div>
                             </div>
 
+                            <%# Abbreviation override ── %>
+                            <%
+                                // Reflect the server-rendered abbreviation
+                                // as a data-* attribute so signsBuilder.js
+                                // knows whether the current value is the
+                                // user's override or an auto-generated
+                                // default (in which case we'll re-suggest
+                                // when sign text changes).
+                                const srvAbbrOverride = sign && sign.abbreviation_override ? sign.abbreviation_override : '';
+                            %>
+                            <div class="col-12 col-md-6">
+                                <label for="signAbbreviationInput" class="form-label">
+                                    Abbreviation
+                                    <span class="text-muted small">(optional)</span>
+                                </label>
+                                <input type="text"
+                                       class="form-control"
+                                       id="signAbbreviationInput"
+                                       maxlength="6"
+                                       value="<%= srvAbbrOverride %>"
+                                       data-user-override="<%= srvAbbrOverride ? '1' : '0' %>"
+                                       placeholder="auto" />
+                                <div class="form-text">
+                                    Up to 6 characters. Shown on the map when zoomed out.
+                                    Leave blank to auto-generate from the sign text.
+                                </div>
+                            </div>
+
                             <%# Arrow direction ── %>
                             <div class="col-12">
                                 <label class="form-label">Arrow direction</label>

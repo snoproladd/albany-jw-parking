@@ -420,7 +420,7 @@ mapRef = new google.maps.Map(mapEl, {
       title: placement.sign_text,
     });
 
-    marker.addListener("click", () => {
+    marker.addListener("gmp-click", () => {
       selectMarker(placement.placement_id);
       openEditor(placement.placement_id);
     });
