@@ -729,6 +729,12 @@ export function loginRouter({ csrfProtection, logError }) {
       req.session.permissions = await loadMergedPermissions();
       req.session.registrationStatus = user.registration_status || null;
 
+      // Build the delegated extra-permissions array from per-volunteer flags.
+      // Add a new entry here whenever a new extra_* column is added.
+      const extraPermissions = [];
+      if (user.extra_signs_placement) extraPermissions.push("manageSigns");
+      req.session.extraPermissions = extraPermissions;
+
       // Login success → clear any leftover pendingEmail
       req.session.pendingEmail = null;
 

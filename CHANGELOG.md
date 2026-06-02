@@ -3,6 +3,61 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.35.0] - 2026-06-02
+
+### Added — Phase 2d: Delegated `manageSigns` Permission
+
+#### Extra-permissions system
+- New generic delegated-permissions mechanism: `req.session.extraPermissions`
+  (string array) is built at login from per-volunteer flag columns on
+  `volunteer_in`. `requirePermission()` checks this array as a fallback after
+  the role-matrix check, so any permission can be granted to an individual
+  volunteer without a role promotion. Adding a future delegated permission
+  requires only a new DB column and one line in the login handler — no further
+  changes to `requirePermission()`.
+- First use: `extra_signs_placement BIT NOT NULL DEFAULT 0` on `volunteer_in`.
+  When set, grants `manageSigns` to a REGISTERED volunteer without promoting
+  them to OVERSEER.
+
+#### ADMIN/ASSISTANT_ADMIN UI
+- A new **Delegated Permissions** section appears in the Assignment & Role
+  accordion on the Edit Volunteer page for ADMIN and ASSISTANT_ADMIN users.
+- Contains a single **Manage sign placements** toggle (checkbox). When checked,
+  the volunteer gains full `manageSigns` access — they can create, edit, drag,
+  and delete sign placements on the Sign Map.
+- The toggle is disabled (read-only) until the section's **EDIT** button is
+  clicked, matching the existing Assignment section pattern.
+- OVERSEER users editing a volunteer do not see this section — they can only
+  set REGISTERED/KEYMAN role and crew flags as before.
+- Server-side guard in `POST /edit-volunteer/assignment`: the
+  `extra_signs_placement` value is stripped entirely when the actor is below
+  ASSISTANT_ADMIN, so a crafted POST body cannot elevate a volunteer's
+  permissions.
+
+#### `dbSync.js`
+- `updateVolunteerAssignment` gains a new `extraPerms` parameter
+  (`{ extraSignsPlacement?: boolean }`) and writes `extra_signs_placement`
+  in the same UPDATE as the role and crew columns.
+
+### Fixed
+- **Dashboard dept pill missing color on initial load** (`views/index.ejs`) —
+  the server-rendered dept pill was slugified from `shift.dept_name`
+  (`"Drop-off / Pickup"` → `db-dept-drop-off---pickup`), while
+  `dashboardShifts.js` correctly uses `shift.dept_key`
+  (`dropoff_pickup` → `db-dept-dropoff-pickup`). The CSS class never matched
+  on first load; only after the first day-navigation (which uses the JS
+  renderer) did the color appear. Fixed by switching the EJS slug to use
+  `dept_key` to match the JS renderer.
+
+### Legend update (`signsMap.ejs`)
+- Added a **Direction of travel arrow** section to the collapsible legend
+  explaining the drag handle ("Drag handle → set direction") and the dashed
+  unset state ("Dashed arrow → no direction set yet").
+- Updated the Esc shortcut description to note the stepped Street View
+  dismiss behavior ("second Esc closes Street View first").
+
+---
+
 ## [2.34.0] - 2026-06-02
 
 ### Added — Sign Map Phase 3b: Direction of Travel Handle

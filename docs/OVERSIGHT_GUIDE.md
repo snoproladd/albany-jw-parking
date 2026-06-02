@@ -363,6 +363,18 @@ Pending buttons to record a verbal RSVP — saves immediately without going
 through Finalize. Clicking the active button a second time clears the
 response back to Pending. Revoked invitations are shown read-only.
 
+The **Delegated Permissions** section appears inside the Assignment & Role
+accordion for ADMIN and ASSISTANT_ADMIN users only. It contains a single
+toggle:
+
+- **Manage sign placements** — grants `manageSigns` to this volunteer without
+  promoting them to OVERSEER. When enabled, the volunteer can create, edit,
+  drag, and delete sign placements on the Sign Map, identical to an OVERSEER.
+  The toggle takes effect on their next login.
+
+Click **EDIT** in the Assignment & Role section to enable the toggle, then
+**Finalize Changes** to save.
+
 ### Create Volunteer *(OVERSEER+)*
 
 **Path:** Oversight Tools → Create Volunteer
@@ -912,8 +924,8 @@ mobile. The tree is visible to all authenticated users regardless of role.
 | **DESK** | Log attendance; create volunteer accounts |
 | **KEYMAN** | View volunteer info; log and view attendance; view Sign Library and Sign Map |
 | **OVERSEER** | Edit volunteers; manage shifts and locations; send messages; create campaigns; create and edit sign templates; place, drag, edit, and delete sign placements on the Sign Map |
-| **ASSISTANT_ADMIN** | All OVERSEER capabilities + role management + delete volunteers + access admin console |
-| **ADMIN** | Full access including Permission Matrix, Decently Sync, and campaign management |
+| **ASSISTANT_ADMIN** | All OVERSEER capabilities + role management + delete volunteers + access admin console + grant delegated permissions to volunteers |
+| **ADMIN** | Full access including Permission Matrix, Decently Sync, campaign management, and granting delegated permissions |
 
 Roles are assigned in **Role Management** (ASSISTANT_ADMIN+). The first ADMIN
 must be set directly in the database.

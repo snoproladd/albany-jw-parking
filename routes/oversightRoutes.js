@@ -245,6 +245,7 @@ export function oversightRouter({
           pwSuccess,
           canDelete,
           includeDeleted,
+          canGrantExtraPerms: actorRole === "ADMIN" || actorRole === "ASSISTANT_ADMIN",
         });
       } catch (err) {
         (logError || console.error)("editVolunteer GET error:", err);
@@ -300,6 +301,7 @@ export function oversightRouter({
           includeDeleted,
           rsvpHistory,
           conventionDays,
+          canGrantExtraPerms: actorRole === "ADMIN" || actorRole === "ASSISTANT_ADMIN",
         });
 
         return res.render("volunteerAccountOversight", {
@@ -864,7 +866,12 @@ export function oversightRouter({
         crew_security,
         crew_mobile_support,
         crew_dropoff_pickup,
+        extra_signs_placement,
       } = req.body || {};
+
+      const actorRole = req.session.userRole || "NON_REGISTERED";
+      const canGrantExtraPerms =
+        actorRole === "ADMIN" || actorRole === "ASSISTANT_ADMIN";
 
       const id = Number(targetUserId);
 
@@ -903,6 +910,14 @@ export function oversightRouter({
               crew_mobile_support === "true" || crew_mobile_support === true,
             crew_dropoff_pickup:
               crew_dropoff_pickup === "true" || crew_dropoff_pickup === true,
+          },
+          {
+            // Only ADMIN/ASSISTANT_ADMIN can set extra permissions; strip the
+            // value entirely if the actor doesn't have the authority, so a
+            // crafted POST body can't elevate a volunteer's permissions.
+            extraSignsPlacement: canGrantExtraPerms
+              ? extra_signs_placement === "true" || extra_signs_placement === true
+              : undefined,
           },
           req.session.userEmail || "admin",
         );

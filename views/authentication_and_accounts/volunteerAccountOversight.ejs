@@ -302,6 +302,29 @@
 
                                         </div>
 
+                                        <% if (typeof canGrantExtraPerms !== 'undefined' && canGrantExtraPerms && targetUser) { %>
+                                          <hr class="my-3" />
+                                          <div class="mb-2">
+                                            <p class="form-label small fw-medium mb-2">
+                                              <i class="fa-solid fa-map-location-dot me-1"></i>Delegated Permissions
+                                            </p>
+                                            <div class="form-check">
+                                              <input class="form-check-input" type="checkbox"
+                                                id="extra_signs_placement"
+                                                name="extra_signs_placement"
+                                                value="true"
+                                                <%= targetUser.extra_signs_placement ? 'checked' : '' %>
+                                                disabled />
+                                              <label class="form-check-label" for="extra_signs_placement">
+                                                Manage sign placements
+                                              </label>
+                                              <div class="form-text">
+                                                Grants <code>manageSigns</code> without promoting to OVERSEER.
+                                              </div>
+                                            </div>
+                                          </div>
+                                        <% } %>
+
                                         <div class="d-flex justify-content-end mt-3">
                                           <button type="button"
                                             class="btn btn-outline-secondary btn-sm summary-edit-btn"

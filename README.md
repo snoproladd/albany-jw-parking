@@ -288,7 +288,13 @@ Azure SQL. Connection pool managed in `lib/sql.js` with:
   `dbo.` prefixes in SQL strings are rewritten to `demo.` at runtime.
 
 Schema highlights:
-- `volunteer_in` — core volunteer table (registration, contact, role, crews)
+- `volunteer_in` — core volunteer table (registration, contact, role, crews,
+  delegated extra permissions)
+  - `extra_signs_placement BIT NOT NULL DEFAULT 0` — grants `manageSigns` to a
+    REGISTERED volunteer without a role promotion. Checked at login; stored as
+    `'manageSigns'` in `req.session.extraPermissions` (string array). Future
+    delegated permissions follow the same pattern: add a column, add one line
+    to the login handler.
 - `invitations` — per-volunteer invite records with token, RSVP, batch link,
   and `response_other` (free-text "Other" input for dynamic RSVP)
 - `invitation_batches` — campaign metadata; `response_config` (JSON, nullable)

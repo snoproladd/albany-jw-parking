@@ -278,13 +278,23 @@ export function requirePermission(permission) {
     const role = req.session.userRole || "NON_REGISTERED";
     const permissions = req.session.permissions || PERMISSIONS;
 
-    if (!can(permissions, role, permission)) {
-      return res.status(403).render("errors/403", {
-        nav: res.locals.nav,
-        userRole: role,
-      });
+    if (can(permissions, role, permission)) {
+      return next();
     }
 
-    next();
+    // Delegated extra permissions granted per-volunteer by ADMIN/ASSISTANT_ADMIN.
+    // Stored as a string array on the session at login. Each entry is a
+    // permission key that overrides the role-matrix result for that key only.
+    const extra = Array.isArray(req.session.extraPermissions)
+      ? req.session.extraPermissions
+      : [];
+    if (extra.includes(permission)) {
+      return next();
+    }
+
+    return res.status(403).render("errors/403", {
+      nav: res.locals.nav,
+      userRole: role,
+    });
   };
 }

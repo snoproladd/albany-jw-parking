@@ -545,6 +545,11 @@ document.addEventListener("DOMContentLoaded", () => {
             sec.querySelector('[name="crew_mobile_support"]')?.checked || false,
           crew_dropoff_pickup:
             sec.querySelector('[name="crew_dropoff_pickup"]')?.checked || false,
+          // extra_signs_placement is only rendered for ADMIN/ASSISTANT_ADMIN;
+          // falls back to undefined (omitted from JSON body) for other roles,
+          // which the server treats as no change.
+          extra_signs_placement:
+            sec.querySelector('[name="extra_signs_placement"]')?.checked,
         };
         break;
     }
