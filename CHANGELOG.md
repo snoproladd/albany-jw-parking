@@ -3,6 +3,22 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.36.2] - 2026-06-02
+
+### Fixed
+- **Shift-gate bypass at full zoom after successful drag/rotation.**
+  At full detail level, the marker wrapper contains child elements
+  (sign text, arrow, travel handle). The capture-phase `pointerdown`
+  listener on the wrapper was returning early when the event target was
+  the travel handle, allowing Maps to receive the event and start a
+  marker drag without Shift. Fixed by removing the early-return for the
+  handle — `stopImmediatePropagation` now fires for all non-Shift
+  pointerdowns on any part of the marker, including the handle area.
+  The handle's own Shift-gated listener still runs correctly when Shift
+  is held. Also set `.signs-map-marker-sign { pointer-events: none }` so
+  pointer events on the sign body route to the wrapper rather than the
+  child element, closing a parallel bypass path at full zoom.
+
 ## [2.36.1] - 2026-06-02
 
 ### Changed

@@ -271,7 +271,7 @@
     font-size: 0.85rem;
     padding: 0.3rem 0.6rem;
     border-width: 2px;
-    pointer-events: auto;
+    pointer-events: none;
 }
 
 .signs-map-marker-sign .sign-preview-arrow {

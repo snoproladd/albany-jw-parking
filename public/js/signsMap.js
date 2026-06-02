@@ -246,6 +246,9 @@
    */
   let shiftHeld = false;
 
+  // (dragStartedWithShift removed — capture-phase stopPropagation prevents
+  // Maps from starting the drag at all when Shift is not held.)
+
   // ── Info sheet ──────────────────────────────────────────────────────
 
   /**
@@ -1464,9 +1467,7 @@ mapRef = new google.maps.Map(mapEl, {
       // that fires immediately after dragend.
       marker.addListener("dragend", async () => {
         lastDragEndAt = Date.now();
-        // If we're on a touch device (DevTools emulation or real),
-        // snap the marker back immediately and bail. persistDrag also
-        // has this guard, but snapping here avoids the async round-trip.
+        // Touch guard — snap back and bail (belt-and-suspenders).
         if (isTouchDevice) {
           const p = findPlacement(placement.placement_id);
           if (p) {
@@ -1477,6 +1478,9 @@ mapRef = new google.maps.Map(mapEl, {
           }
           return;
         }
+        // Shift-gate is enforced at pointerdown (capture phase) so Maps
+        // never starts a drag without Shift. This dragend handler only
+        // fires for legitimate Shift+drags — proceed directly to save.
         const pos = marker.position;
         const newLat = typeof pos.lat === "function" ? pos.lat() : pos.lat;
         const newLng = typeof pos.lng === "function" ? pos.lng() : pos.lng;
@@ -1526,23 +1530,33 @@ mapRef = new google.maps.Map(mapEl, {
     // back on after a microtask, we cancel accidental drags before Maps
     // can initiate them — the map pans normally instead.
     if (canManage && !isTouchDevice) {
+      // useCapture: true so this listener runs before Maps' own capture-phase
+      // drag-initiation listener on the same element. Without capture, Maps
+      // wins the race and starts the drag before we can inspect shiftKey.
       el.addEventListener("pointerdown", (e) => {
         // Only primary button; ignore right-click / middle-click.
         if (e.button !== 0) return;
-        // Travel handle has its own Shift gate — don't double-handle.
-        const handle = el.querySelector(".signs-map-travel-handle");
-        if (handle && handle.contains(e.target)) return;
 
         if (!e.shiftKey) {
-          // Temporarily disable dragging so Maps treats this as a pan.
-          marker.gmpDraggable = false;
-          // Restore after a microtask — long enough for Maps to have
-          // decided this isn't a drag, short enough to be imperceptible.
-          Promise.resolve().then(() => {
-            marker.gmpDraggable = true;
-          });
+          // stopImmediatePropagation in the capture phase: stops both
+          // upward propagation AND any other capture listeners on this
+          // same element, so Maps cannot initiate a drag regardless of
+          // where it registered its listener. The map pan gesture runs
+          // on the map container (not the marker element) so panning
+          // still works normally.
+          //
+          // Note: we do NOT early-return for the travel handle here.
+          // The handle has pointer-events: auto, so pointerdown on it
+          // still descends through el's capture listener. The handle's
+          // own pointerdown returns early when Shift isn't held, but
+          // without stopImmediatePropagation here, Maps would still
+          // receive the event and start a marker drag.
+          e.stopImmediatePropagation();
         }
-      });
+        // When Shift IS held: let the event through. If the target is
+        // the travel handle, its own pointerdown takes over for rotation.
+        // If the target is the sign body, Maps initiates the position drag.
+      }, { capture: true });
     }
 
     // Wire the travel-direction drag handle if present (full markers only).
