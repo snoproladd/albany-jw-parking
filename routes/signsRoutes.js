@@ -43,6 +43,7 @@ import {
   deleteSignPlacement,
   setSignPlacementPhoto,
   clearSignPlacementPhoto,
+  bulkSetPlacementColor,
 } from "../lib/dbSync.js";
 import {
   uploadSignPhoto,
@@ -90,6 +91,34 @@ const VALID_STATUSES = ["planned", "installed", "removed"];
 
 /** Valid mount types for a placement. Null means "not specified". */
 const VALID_MOUNT_TYPES = ["cone", "a-frame", "existing-structure"];
+
+/** Valid marker colour keys for placements. Null means "default (status)". */
+const VALID_MARKER_COLORS = [
+  "red",
+  "orange",
+  "yellow",
+  "green",
+  "teal",
+  "blue",
+  "purple",
+  "pink",
+];
+
+/**
+ * Normalise a marker colour key. Null/empty = "default". Throws if
+ * the value is non-empty but not in the allowed palette.
+ *
+ * @param {any} val
+ * @returns {string|null}
+ */
+function normaliseMarkerColor(val) {
+  if (val === null || val === undefined || val === "") return null;
+  const v = String(val).trim().toLowerCase();
+  if (!VALID_MARKER_COLORS.includes(v)) {
+    throw new Error(`Invalid marker colour: ${v}`);
+  }
+  return v;
+}
 
 /**
  * Normalise a mount type from the client. Accepts null/empty for "not set".
@@ -529,8 +558,16 @@ export function signsRouter({
     csrfProtection,
     async (req, res) => {
       const signId = Number(req.params.id);
-      const { latitude, longitude, heading, locationNotes, status, mountType } =
-        req.body || {};
+      const {
+        latitude,
+        longitude,
+        heading,
+        locationNotes,
+        status,
+        mountType,
+        markerColor,
+        arrowDirection,
+      } = req.body || {};
 
       if (!signId) {
         return res.status(400).json({
@@ -585,6 +622,26 @@ export function signsRouter({
         });
       }
 
+      let markerColorValue;
+      try {
+        markerColorValue = normaliseMarkerColor(markerColor);
+      } catch (e) {
+        return res.status(400).json({
+          success: false,
+          error: e.message,
+        });
+      }
+
+      let arrowValue;
+      try {
+        arrowValue = normaliseArrow(arrowDirection);
+      } catch (e) {
+        return res.status(400).json({
+          success: false,
+          error: e.message,
+        });
+      }
+
       try {
         const id = await createSignPlacement(
           {
@@ -595,6 +652,8 @@ export function signsRouter({
             locationNotes: locationNotes?.trim() || null,
             status: statusValue,
             mountType: mountTypeValue,
+            markerColor: markerColorValue,
+            arrowDirection: arrowValue,
           },
           req.session.userEmail || "admin",
         );
@@ -626,7 +685,7 @@ export function signsRouter({
     csrfProtection,
     async (req, res) => {
       const placementId = Number(req.params.placementId);
-      const { latitude, longitude, heading, locationNotes, mountType } =
+      const { latitude, longitude, heading, locationNotes, mountType, markerColor, arrowDirection } =
         req.body || {};
 
       if (!placementId) {
@@ -666,6 +725,26 @@ export function signsRouter({
         });
       }
 
+      let markerColorValue;
+      try {
+        markerColorValue = normaliseMarkerColor(markerColor);
+      } catch (e) {
+        return res.status(400).json({
+          success: false,
+          error: e.message,
+        });
+      }
+
+      let arrowValue;
+      try {
+        arrowValue = normaliseArrow(arrowDirection);
+      } catch (e) {
+        return res.status(400).json({
+          success: false,
+          error: e.message,
+        });
+      }
+
       try {
         const ok = await updateSignPlacement(placementId, {
           latitude: lat,
@@ -673,6 +752,8 @@ export function signsRouter({
           heading: hd,
           locationNotes: locationNotes?.trim() || null,
           mountType: mountTypeValue,
+          markerColor: markerColorValue,
+          arrowDirection: arrowValue,
         });
         if (!ok) {
           return res.status(404).json({
@@ -738,6 +819,55 @@ export function signsRouter({
         return res.json({ success: true });
       } catch (err) {
         log("signs/placements/:id/status PATCH error:", err);
+        return res.status(500).json({
+          success: false,
+          error: "Server error.",
+        });
+      }
+    },
+  );
+
+  /**
+   * PATCH /signs/:id/placements/color
+   * Bulk-set marker_color on every placement of a sign template.
+   * Pass { markerColor: null } to clear all custom colours.
+   *
+   * Body (JSON): { markerColor: string|null }
+   * Response:    { success: true, count: number }
+   *
+   * @requires manageSigns permission
+   */
+  router.patch(
+    "/signs/:id/placements/color",
+    requireAuth,
+    requirePermission("manageSigns"),
+    csrfProtection,
+    async (req, res) => {
+      const signId = Number(req.params.id);
+      const { markerColor } = req.body || {};
+
+      if (!signId) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid sign id.",
+        });
+      }
+
+      let colorValue;
+      try {
+        colorValue = normaliseMarkerColor(markerColor);
+      } catch (e) {
+        return res.status(400).json({
+          success: false,
+          error: e.message,
+        });
+      }
+
+      try {
+        const count = await bulkSetPlacementColor(signId, colorValue);
+        return res.json({ success: true, count });
+      } catch (err) {
+        log("signs/:id/placements/color PATCH error:", err);
         return res.status(500).json({
           success: false,
           error: "Server error.",

@@ -144,19 +144,17 @@ how many placements use this template.
 
 **Path:** Signs → Sign Builder, or `/signs/builder` (new) / `/signs/builder/:id` (edit)
 
-A single form for creating or editing a sign template.
+A single form for creating or editing a sign template. Templates are
+direction-agnostic — the arrow direction is set per-placement on the
+Sign Map, so one "DROP-OFF / PICKUP" template can serve all directional
+variants as separate placements.
 
 - **Live preview** at the top shows exactly what the sign will look like
-  as you type. Updates instantly as you change the text or pick an arrow.
+  as you type.
 - **Sign text** — up to 100 characters. Required.
-- **Arrow direction** — a 4-row picker:
-  - Row 1: ↖ ↑ ↗ (up-left, up, up-right)
-  - Row 2: ← ⊘ → (left, no-arrow, right)
-  - Row 3: ↙ ↓ ↘ (down-left, down, down-right)
-  - Row 4: ↰ ↱ 📍 (90° up-then-left, 90° up-then-right, destination pin)
-  Clicking an arrow selects it; clicking the same arrow again deselects it
-  back to no arrow. The destination pin renders as a FontAwesome icon for
-  consistent appearance across browsers.
+- **Abbreviation** — optional compact label (up to 6 characters) shown on
+  the map when zoomed out. Leave blank to auto-generate from the sign text
+  (e.g. "Parking Lot A" → "PLA", "Section 4" → "S4").
 - **Description** — optional notes about when or where this sign is used,
   up to 500 characters. Visible on the library card.
 - **Create sign / Save changes** — saves and redirects back to the library.
@@ -165,17 +163,29 @@ A single form for creating or editing a sign template.
 
 **Path:** Signs → Sign Map, or `/signs/map`
 
-A satellite-view Google Map of every non-archived sign placement. Each
-placement shows up as a small white sign-preview block at its GPS
-coordinates, color-coded by status:
+A Google Map of every non-archived sign placement with two levels of
+marker detail that swap automatically based on zoom:
 
-- **Gray border** — planned (not yet installed)
-- **Green border** — installed
-- **Red border, faded** — removed
+- **Zoomed out (below threshold):** compact 32px coloured discs showing
+  the sign abbreviation with an arrow-direction badge in the corner.
+  Status or custom colour determines the disc background.
+- **Zoomed in (at or above threshold):** full sign-preview blocks with
+  text and arrow, matching the Sign Builder's live preview style.
 
-**Layout:** sidebar on the left with filters and the placement list;
-Google Maps on the right. The map starts centered on MVP Arena at
-street-level zoom.
+The zoom threshold defaults to 19 and is adjustable via the control pill
+at the bottom-left of the map (shows current zoom level and a Detail ≥
+input). The preference persists across sessions.
+
+**Marker colours:** by default, markers are coloured by status (gray =
+planned, green = installed, faded red = removed). OVERSEER+ users can
+assign a custom colour from a palette of eight (red, orange, yellow,
+green, teal, blue, purple, pink) via the offcanvas editor. A "Bulk
+apply" button sets the chosen colour on every placement of the same
+template in one click.
+
+**Layout:** sidebar on the left with a "Filter placements" section and
+the placement list; Google Maps on the right. The map starts centered
+on MVP Arena at street-level zoom.
 
 ##### Filters
 
@@ -194,9 +204,10 @@ Two filter controls in the sidebar narrow both the markers on the map
 3. Click the spot on the map where the sign should go.
 4. A blue dashed **NEW** marker appears and the editor slides in from
    the right.
-5. Pick the sign template from the dropdown, set the status, mount type
-   (Cone / A-frame / Existing structure), heading, and location notes,
-   then click **Save**.
+5. Pick the sign template from the dropdown, set the arrow direction
+   (pre-filled from the template's default but overridable), status,
+   mount type (Cone / A-frame / Existing structure), marker colour,
+   heading, and location notes, then click **Save**.
 
 You can fine-tune the location at any point during this process by
 dragging the blue **NEW** marker around on the map — the lat/lng in the
@@ -206,8 +217,8 @@ editor updates automatically.
 
 - **Click any marker** on the map (or any row in the sidebar list) to
   open the editor offcanvas.
-- Edit any field: status (planned/installed/removed), mount type, heading,
-  location notes.
+- Edit any field: arrow direction, status (planned/installed/removed),
+  mount type, marker colour, heading, location notes.
 - **Drag a marker** to a new spot on the map — the new coordinates are
   saved automatically when you let go. If the server rejects the change
   (for any reason), the marker snaps back to its original spot.
@@ -233,10 +244,14 @@ will add a Street View pane that uses this value to render the sign
 superimposed on the actual street scene at the correct angle. Filling it
 in now is purely forward-looking — leave it blank if you don't know it.
 
-##### Coming soon: Phase 2b and Phase 3
+##### Coming soon
 
-- **Photo upload** — attach a photo of the installed sign to its placement
-  (Phase 2b, stored in Azure Blob Storage).
+- **Hover tooltip** — hover over a marker to see sign text, status, mount
+  type, photo thumbnail, and notes without opening the editor (Phase 2c).
+- **Right-click context menu** — quick actions (edit, mark installed/removed,
+  get directions, copy coordinates, delete) without opening the full editor.
+- **Collapsible legend** — colour/icon reference + keyboard shortcuts
+  floating in the map corner.
 - **Bearing-tracked Street View overlay** — see what each placement will
   look like from the street, with the sign rendered at the correct
   position based on its heading (Phase 3).

@@ -305,12 +305,15 @@ Schema highlights:
 - `departments` — lookup table for future multi-department support (id=1 seeded as Albany Parking)
 - `bug_reports` — full lifecycle bug tracking with resolution fields
 - `schedule_publishes` — audit log for schedule PDF publish events
-- `signs` — reusable sign templates (text + arrow direction); soft-deleted via `is_archived`
+- `signs` — reusable sign templates (text + optional abbreviation); soft-deleted via `is_archived`
+  - `abbreviation` `NVARCHAR(6)` — optional compact label for map markers (auto-generated from sign text when NULL)
 - `sign_placements` — geographic instances of a sign template
   - `latitude`/`longitude` `DECIMAL(10,7)` (≈1cm precision)
   - `heading` nullable compass bearing (used by Phase 3 Street View overlay)
+  - `arrow_direction` — per-placement direction (up, down, left, right, diagonals, 90° turns, destination)
   - `status` (`planned` / `installed` / `removed`) with install/remove audit trail
   - `mount_type` (`cone` / `a-frame` / `existing-structure`, nullable)
+  - `marker_color` — optional palette key (red, orange, yellow, green, teal, blue, purple, pink) for map categorisation
   - FK to `signs` survives template archival so historical placements remain valid
 
 ---

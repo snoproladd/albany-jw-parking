@@ -54,6 +54,9 @@
                     <div class="card-body">
 
                         <%# Filters %>
+                        <h6 class="text-muted mb-2">
+                            <i class="fa-solid fa-filter me-1"></i>Filter placements
+                        </h6>
                         <div class="mb-3">
                             <label class="form-label small text-uppercase text-muted mb-1">
                                 Status
@@ -114,6 +117,7 @@
                         </div>
 
                         <% if (canManage) { %>
+                            <hr class="my-2" />
                             <div class="d-grid mb-3">
                                 <button type="button" class="btn btn-primary btn-sm" id="addPlacementBtn">
                                     <i class="fa-solid fa-plus me-1"></i>Add placement
@@ -204,6 +208,34 @@
                 </div>
             </div>
 
+            <%# Arrow direction (per-placement) %>
+            <div class="mb-3" id="editorArrowRow">
+                <label class="form-label">Direction</label>
+                <div class="arrow-picker arrow-picker-sm" role="radiogroup" aria-label="Arrow direction">
+                    <button type="button" class="arrow-btn arrow-btn-sm" data-arrow="up-left" aria-label="Up-left">↖</button>
+                    <button type="button" class="arrow-btn arrow-btn-sm" data-arrow="up" aria-label="Up">↑</button>
+                    <button type="button" class="arrow-btn arrow-btn-sm" data-arrow="up-right" aria-label="Up-right">↗</button>
+
+                    <button type="button" class="arrow-btn arrow-btn-sm" data-arrow="left" aria-label="Left">←</button>
+                    <button type="button" class="arrow-btn arrow-btn-sm arrow-btn-none" data-arrow="" aria-label="No arrow">
+                        <i class="fa-solid fa-ban"></i>
+                    </button>
+                    <button type="button" class="arrow-btn arrow-btn-sm" data-arrow="right" aria-label="Right">→</button>
+
+                    <button type="button" class="arrow-btn arrow-btn-sm" data-arrow="down-left" aria-label="Down-left">↙</button>
+                    <button type="button" class="arrow-btn arrow-btn-sm" data-arrow="down" aria-label="Down">↓</button>
+                    <button type="button" class="arrow-btn arrow-btn-sm" data-arrow="down-right" aria-label="Down-right">↘</button>
+
+                    <button type="button" class="arrow-btn arrow-btn-sm" data-arrow="up-then-left" aria-label="Up then left">↰</button>
+                    <button type="button" class="arrow-btn arrow-btn-sm" data-arrow="up-then-right" aria-label="Up then right">↱</button>
+                    <button type="button" class="arrow-btn arrow-btn-sm" data-arrow="destination" aria-label="Destination pin">
+                        <i class="fa-solid fa-location-dot"></i>
+                    </button>
+                </div>
+                <input type="hidden" id="editorArrowDirection" value="" />
+                <div class="form-text small">Direction for this specific placement.</div>
+            </div>
+
             <%# Coordinates %>
             <div class="row g-2 mb-3">
                 <div class="col-6">
@@ -242,6 +274,38 @@
                     <label class="btn btn-outline-danger" for="editorStatusRemoved">Removed</label>
                 </div>
             </div>
+
+            <%# Marker colour %>
+            <% if (canManage) { %>
+                <div class="mb-3">
+                    <label class="form-label">Marker colour</label>
+                    <div class="signs-color-swatches" id="editorColorSwatches">
+                        <button type="button" class="signs-color-swatch signs-color-swatch-default active"
+                                data-color="" title="Default (status)">
+                            <i class="fa-solid fa-ban" aria-hidden="true"></i>
+                        </button>
+                        <button type="button" class="signs-color-swatch signs-color-swatch-red"
+                                data-color="red" title="Red"></button>
+                        <button type="button" class="signs-color-swatch signs-color-swatch-orange"
+                                data-color="orange" title="Orange"></button>
+                        <button type="button" class="signs-color-swatch signs-color-swatch-yellow"
+                                data-color="yellow" title="Yellow"></button>
+                        <button type="button" class="signs-color-swatch signs-color-swatch-green"
+                                data-color="green" title="Green"></button>
+                        <button type="button" class="signs-color-swatch signs-color-swatch-teal"
+                                data-color="teal" title="Teal"></button>
+                        <button type="button" class="signs-color-swatch signs-color-swatch-blue"
+                                data-color="blue" title="Blue"></button>
+                        <button type="button" class="signs-color-swatch signs-color-swatch-purple"
+                                data-color="purple" title="Purple"></button>
+                        <button type="button" class="signs-color-swatch signs-color-swatch-pink"
+                                data-color="pink" title="Pink"></button>
+                    </div>
+                    <button type="button" class="btn btn-link btn-sm p-0 mt-1" id="editorBulkColorBtn" hidden>
+                        Apply to all placements of this sign
+                    </button>
+                </div>
+            <% } %>
 
             <%# Heading (compass bearing, for Phase 3 Street View overlay) %>
             <div class="mb-3">

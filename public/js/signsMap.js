@@ -56,6 +56,11 @@
     removed: "signs-status-pill signs-status-removed",
   };
 
+  /** Valid marker colour palette keys (must match CSS classes). */
+  const MARKER_COLORS = [
+    "red", "orange", "yellow", "green", "teal", "blue", "purple", "pink",
+  ];
+
   // ============================================================
   // MODULE STATE
   // ============================================================
@@ -86,6 +91,20 @@
   const NUDGE_STEP_SHIFT_METERS = 5;
 
   /**
+   * Zoom level at and above which markers render as the full sign-preview
+   * block. Below this threshold, markers render as a compact 32px disc
+   * with abbreviation text and an arrow badge — keeps the map readable
+   * when zoomed out far enough to see multiple placements at once.
+   *
+   * Users can adjust this at runtime via the on-map control; their
+   * preference is persisted to localStorage.
+   */
+  const ZOOM_DETAIL_DEFAULT = 19;
+  let zoomFullDetail = Number(
+    localStorage.getItem("signs-map-detail-zoom") || ZOOM_DETAIL_DEFAULT,
+  );
+
+  /**
    * Timestamp (ms since epoch) of the most recent marker dragend, used to
    * suppress the spurious map-background click that some browsers fire
    * immediately after a drag completes. Without this guard, that click
@@ -101,6 +120,14 @@
    * stale thumbnail until the user hard-refreshes.
    */
   let photoCacheBuster = 0;
+
+  /**
+   * Current marker detail level — 'compact' (abbreviation disc) or
+   * 'full' (sign-preview block). Cached so we only swap marker.content
+   * when the level crosses the threshold, not on every zoom_changed
+   * fire (Google emits these continuously during pinch gestures).
+   */
+  let currentDetailLevel = "compact";
 
   /** When true, the next map click drops a new placement marker. */
   let placingMode = false;
@@ -142,7 +169,10 @@
    */
   function buildMarkerContent(placement) {
     const wrapper = document.createElement("div");
-    wrapper.className = `signs-map-marker signs-map-marker-${placement.status || "planned"}`;
+    const colorCls = placement.marker_color
+      ? ` signs-map-marker-color-${placement.marker_color}`
+      : "";
+    wrapper.className = `signs-map-marker signs-map-marker-${placement.status || "planned"}${colorCls}`;
 
     const sign = document.createElement("div");
     sign.className = "sign-preview signs-map-marker-sign";
@@ -170,6 +200,94 @@
 
     wrapper.appendChild(sign);
     return wrapper;
+  }
+
+  /**
+   * Build a compact 32px disc marker — abbreviation text centered with a
+   * status-colored background, and a small arrow badge in the top-right
+   * corner for directional signs. Used when zoom < ZOOM_FULL_DETAIL.
+   *
+   * @param {{ abbreviation: string, arrow_direction: string|null, status: string }} placement
+   * @returns {HTMLDivElement}
+   */
+  function buildCompactMarkerContent(placement) {
+    const wrapper = document.createElement("div");
+    const colorCls = placement.marker_color
+      ? ` signs-map-marker-color-${placement.marker_color}`
+      : "";
+    wrapper.className = `signs-map-marker signs-map-marker-compact signs-map-marker-${placement.status || "planned"}${colorCls}`;
+
+    const disc = document.createElement("div");
+    disc.className = "signs-map-marker-disc";
+
+    // Abbreviation text — always present (server guarantees non-null)
+    const abbr = document.createElement("span");
+    abbr.className = "signs-map-marker-abbr";
+    abbr.textContent = placement.abbreviation || "?";
+    disc.appendChild(abbr);
+
+    wrapper.appendChild(disc);
+
+    // Arrow badge — small indicator in the top-right corner.
+    // Omitted entirely for signs with no arrow direction.
+    if (placement.arrow_direction) {
+      const badge = document.createElement("span");
+      badge.className = "signs-map-marker-badge";
+
+      if (placement.arrow_direction === "destination") {
+        const icon = document.createElement("i");
+        icon.className = "fa-solid fa-location-dot";
+        icon.setAttribute("aria-hidden", "true");
+        badge.appendChild(icon);
+      } else if (ARROW_GLYPHS[placement.arrow_direction]) {
+        badge.textContent = ARROW_GLYPHS[placement.arrow_direction];
+      }
+      wrapper.appendChild(badge);
+    }
+
+    return wrapper;
+  }
+
+  /**
+   * Map a zoom level to the detail level it should render at.
+   *
+   * @param {number} zoom
+   * @returns {'compact'|'full'}
+   */
+  function detailLevelForZoom(zoom) {
+    return zoom >= zoomFullDetail ? "full" : "compact";
+  }
+
+  /**
+   * Build marker content for a placement at the given detail level.
+   *
+   * @param {object} placement
+   * @param {'compact'|'full'} level
+   * @returns {HTMLDivElement}
+   */
+  function buildMarkerContentForLevel(placement, level) {
+    return level === "full"
+      ? buildMarkerContent(placement)
+      : buildCompactMarkerContent(placement);
+  }
+
+  /**
+   * Swap every marker's content to match the new detail level. Reassigning
+   * marker.content discards the old DOM node (and its class list), so the
+   * keyboard-selected highlight has to be re-applied to the new node.
+   *
+   * @param {'compact'|'full'} level
+   */
+  function applyDetailLevelToAllMarkers(level) {
+    placements.forEach((p) => {
+      const marker = markers.get(p.placement_id);
+      if (!marker) return;
+      const newContent = buildMarkerContentForLevel(p, level);
+      if (selectedId === p.placement_id) {
+        newContent.classList.add("signs-map-marker-selected");
+      }
+      marker.content = newContent;
+    });
   }
 
   /**
@@ -213,6 +331,24 @@
    */
   function findSign(id) {
     return signs.find((s) => s.sign_id === id) || null;
+  }
+
+  /**
+   * Sync the editor's arrow picker buttons with a given direction value.
+   * Sets the hidden input and highlights the matching button.
+   *
+   * @param {string} dir  Direction token or '' for no arrow.
+   */
+  function syncEditorArrowPicker(dir) {
+    const input = document.getElementById("editorArrowDirection");
+    if (input) input.value = dir;
+
+    const row = document.getElementById("editorArrowRow");
+    if (!row) return;
+    row.querySelectorAll(".arrow-btn").forEach((btn) => {
+      const btnDir = btn.getAttribute("data-arrow") || "";
+      btn.classList.toggle("active", btnDir === dir);
+    });
   }
 
   /**
@@ -381,8 +517,71 @@ mapRef = new google.maps.Map(mapEl, {
   panControl: false,
 });
 
+    // Seed the detail level from the initial zoom so the first batch
+    // of markers renders at the correct size.
+    currentDetailLevel = detailLevelForZoom(mapRef.getZoom());
+
+    // ── Zoom / detail-threshold control ──────────────────────────
+    // Sits in the bottom-left of the map via the Maps custom controls
+    // API so it doesn't overlap Google's own controls.
+    const zoomCtrl = document.createElement("div");
+    zoomCtrl.className = "signs-map-zoom-control";
+
+    const zoomLabel = document.createElement("span");
+    zoomLabel.className = "signs-map-zoom-level";
+    zoomLabel.textContent = `Z: ${mapRef.getZoom()}`;
+
+    const detailLabel = document.createElement("label");
+    detailLabel.className = "signs-map-zoom-detail-label";
+    detailLabel.textContent = "Detail \u2265 ";
+
+    const detailInput = document.createElement("input");
+    detailInput.type = "number";
+    detailInput.className = "signs-map-zoom-input";
+    detailInput.min = "1";
+    detailInput.max = "22";
+    detailInput.value = String(zoomFullDetail);
+    detailInput.title = "Zoom level at which markers show full detail";
+
+    detailLabel.appendChild(detailInput);
+    zoomCtrl.appendChild(zoomLabel);
+    zoomCtrl.appendChild(detailLabel);
+    mapRef.controls[google.maps.ControlPosition.BOTTOM_LEFT].push(zoomCtrl);
+
+    // Keep the zoom display current
+    mapRef.addListener("zoom_changed", () => {
+      zoomLabel.textContent = `Z: ${mapRef.getZoom()}`;
+    });
+
+    // Let users adjust the detail threshold on the fly
+    detailInput.addEventListener("change", () => {
+      const val = Number(detailInput.value);
+      if (!Number.isFinite(val) || val < 1 || val > 22) {
+        detailInput.value = String(zoomFullDetail);
+        return;
+      }
+      zoomFullDetail = val;
+      localStorage.setItem("signs-map-detail-zoom", String(val));
+      const newLevel = detailLevelForZoom(mapRef.getZoom());
+      if (newLevel !== currentDetailLevel) {
+        currentDetailLevel = newLevel;
+        applyDetailLevelToAllMarkers(newLevel);
+      }
+    });
+
     // Render each placement
     placements.forEach((p) => addMarkerForPlacement(p));
+
+    // Swap every marker when crossing the detail threshold. Google fires
+    // zoom_changed continuously during pinch/scroll, so we early-out
+    // unless the resulting level actually changes.
+    mapRef.addListener("zoom_changed", () => {
+      const newLevel = detailLevelForZoom(mapRef.getZoom());
+      if (newLevel !== currentDetailLevel) {
+        currentDetailLevel = newLevel;
+        applyDetailLevelToAllMarkers(newLevel);
+      }
+    });
 
     // Map background click: in placing mode, drop a new placement;
     // otherwise, deselect any keyboard-selected marker. Skip the deselect
@@ -415,7 +614,7 @@ mapRef = new google.maps.Map(mapEl, {
         lat: Number(placement.latitude),
         lng: Number(placement.longitude),
       },
-      content: buildMarkerContent(placement),
+      content: buildMarkerContentForLevel(placement, currentDetailLevel),
       gmpDraggable: canManage,
       title: placement.sign_text,
     });
@@ -565,6 +764,8 @@ mapRef = new google.maps.Map(mapEl, {
           heading: p.heading,
           locationNotes: p.location_notes,
           mountType: p.mount_type,
+          markerColor: p.marker_color,
+          arrowDirection: p.arrow_direction,
         }),
       });
       const data = await res.json();
@@ -640,6 +841,8 @@ function onMapKeyDown(e) {
           heading: p.heading,
           locationNotes: p.location_notes,
           mountType: p.mount_type,
+          markerColor: p.marker_color,
+          arrowDirection: p.arrow_direction,
         }),
       });
       const data = await res.json();
@@ -861,6 +1064,7 @@ function onMapKeyDown(e) {
     document.getElementById("editorSignTemplateRow").hidden = true;
 
     updateEditorPreview(p.sign_text, p.arrow_direction);
+    syncEditorArrowPicker(p.arrow_direction || "");
 
     document.getElementById("editorLat").value = Number(p.latitude).toFixed(7);
     document.getElementById("editorLng").value = Number(p.longitude).toFixed(7);
@@ -873,6 +1077,25 @@ function onMapKeyDown(e) {
       `input[name="editorStatus"][value="${p.status}"]`,
     );
     if (statusInput) statusInput.checked = true;
+
+    // Colour swatches — highlight the active one
+    const swatches = document.getElementById("editorColorSwatches");
+    if (swatches) {
+      swatches.querySelectorAll(".signs-color-swatch").forEach((btn) => {
+        btn.classList.toggle(
+          "active",
+          (btn.getAttribute("data-color") || "") === (p.marker_color || ""),
+        );
+      });
+    }
+
+    // Bulk-color button — show for saved placements, include sign name
+    const bulkBtn = document.getElementById("editorBulkColorBtn");
+    if (bulkBtn) {
+      bulkBtn.hidden = false;
+      bulkBtn.setAttribute("data-sign-id", String(p.sign_id));
+      bulkBtn.textContent = `Apply to all ${p.sign_text} placements`;
+    }
 
     // Meta block
     const meta = document.getElementById("editorMeta");
@@ -910,6 +1133,7 @@ function onMapKeyDown(e) {
     document.getElementById("editorSignTemplate").value = "";
 
     updateEditorPreview("—", null);
+    syncEditorArrowPicker("");
 
     document.getElementById("editorLat").value = lat.toFixed(7);
     document.getElementById("editorLng").value = lng.toFixed(7);
@@ -1023,6 +1247,14 @@ function onMapKeyDown(e) {
     const status =
       document.querySelector('input[name="editorStatus"]:checked')?.value ||
       "planned";
+    const arrowDirection =
+      document.getElementById("editorArrowDirection")?.value || null;
+    const activeSwatch = document.querySelector(
+      "#editorColorSwatches .signs-color-swatch.active",
+    );
+    const markerColor = activeSwatch
+      ? activeSwatch.getAttribute("data-color") || null
+      : null;
 
     saveBtn.disabled = true;
     const origLabel = saveBtn.innerHTML;
@@ -1061,25 +1293,27 @@ function onMapKeyDown(e) {
             locationNotes: notes,
             status,
             mountType,
+            markerColor,
+            arrowDirection,
           }),
         });
         const data = await res.json();
         if (!data?.success) throw new Error(data?.error || "Save failed.");
 
-        // Re-fetch the row from the server to get the joined sign_text /
-        // arrow_direction fields, since the POST only returns the id.
         const sign = findSign(signId);
         const newPlacement = {
           placement_id: data.id,
           sign_id: signId,
           sign_text: sign?.sign_text || "",
-          arrow_direction: sign?.arrow_direction || null,
+          abbreviation: sign?.abbreviation || "",
+          arrow_direction: arrowDirection,
           latitude: lat,
           longitude: lng,
           heading,
           location_notes: notes,
           status,
           mount_type: mountType,
+          marker_color: markerColor,
           photo_url: null,
           installed_by: status === "installed" ? "you" : null,
           installed_at:
@@ -1109,6 +1343,8 @@ function onMapKeyDown(e) {
             heading,
             locationNotes: notes,
             mountType,
+            markerColor,
+            arrowDirection,
           }),
         });
         const putData = await putRes.json();
@@ -1139,11 +1375,13 @@ function onMapKeyDown(e) {
         p.location_notes = notes;
         p.status = status;
         p.mount_type = mountType;
+        p.marker_color = markerColor;
+        p.arrow_direction = arrowDirection;
 
         const marker = markers.get(editingId);
         if (marker) {
           marker.position = { lat, lng };
-          marker.content = buildMarkerContent(p);
+          marker.content = buildMarkerContentForLevel(p, currentDetailLevel);
         }
       }
 
@@ -1229,12 +1467,17 @@ function onMapKeyDown(e) {
         const opt = tmplSelect.options[tmplSelect.selectedIndex];
         if (!opt || !opt.value) {
           updateEditorPreview("—", null);
+          syncEditorArrowPicker("");
           return;
         }
+        const templateArrow = opt.getAttribute("data-arrow") || "";
         updateEditorPreview(
           opt.getAttribute("data-text") || "",
-          opt.getAttribute("data-arrow") || null,
+          templateArrow || null,
         );
+        // Pre-select the template's default direction; the user can
+        // override it before saving.
+        syncEditorArrowPicker(templateArrow);
       });
     }
 
@@ -1288,6 +1531,100 @@ function onMapKeyDown(e) {
       photoDropzone.addEventListener("drop", (e) => {
         const file = e.dataTransfer?.files?.[0];
         if (file) uploadEditorPhoto(file);
+      });
+    }
+
+    // Colour swatch clicks — toggle active class
+    const swatches = document.getElementById("editorColorSwatches");
+    if (swatches) {
+      swatches.addEventListener("click", (e) => {
+        const btn = e.target.closest(".signs-color-swatch");
+        if (!btn) return;
+        swatches.querySelectorAll(".signs-color-swatch").forEach((s) => {
+          s.classList.remove("active");
+        });
+        btn.classList.add("active");
+      });
+    }
+
+    // Bulk-color button
+    const bulkColorBtn = document.getElementById("editorBulkColorBtn");
+    if (bulkColorBtn) {
+      bulkColorBtn.addEventListener("click", async () => {
+        const signId = Number(bulkColorBtn.getAttribute("data-sign-id"));
+        if (!signId) return;
+
+        const activeSwatch = document.querySelector(
+          "#editorColorSwatches .signs-color-swatch.active",
+        );
+        const color = activeSwatch
+          ? activeSwatch.getAttribute("data-color") || null
+          : null;
+        const colorLabel = color || "default (status)";
+        const signName = bulkColorBtn.textContent.replace(
+          "Apply to all ",
+          "",
+        ).replace(" placements", "");
+
+        const ok = window.confirm(
+          `Set marker colour to "${colorLabel}" on all placements of "${signName}"?`,
+        );
+        if (!ok) return;
+
+        try {
+          const res = await fetch(`/signs/${signId}/placements/color`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              "CSRF-Token": getCsrfToken(),
+            },
+            body: JSON.stringify({ markerColor: color }),
+          });
+          const data = await res.json();
+          if (!data?.success) throw new Error(data?.error || "Bulk update failed.");
+
+          // Update all in-memory placements + rebuild their markers
+          placements.forEach((p) => {
+            if (p.sign_id === signId) {
+              p.marker_color = color;
+              const marker = markers.get(p.placement_id);
+              if (marker) {
+                const newContent = buildMarkerContentForLevel(p, currentDetailLevel);
+                if (selectedId === p.placement_id) {
+                  newContent.classList.add("signs-map-marker-selected");
+                }
+                marker.content = newContent;
+              }
+            }
+          });
+        } catch (err) {
+          console.error("bulkSetColor error:", err);
+          window.alert(err.message || "Bulk update failed.");
+        }
+      });
+    }
+
+    // Arrow picker in the offcanvas editor — same click-to-toggle
+    // behaviour as the Sign Builder, driving a hidden input.
+    const arrowRow = document.getElementById("editorArrowRow");
+    if (arrowRow) {
+      arrowRow.addEventListener("click", (e) => {
+        const btn = e.target.closest(".arrow-btn");
+        if (!btn) return;
+        const dir = btn.getAttribute("data-arrow") || "";
+        const input = document.getElementById("editorArrowDirection");
+        if (!input) return;
+
+        // Toggle off if clicking the already-active direction
+        if (dir && dir === input.value) {
+          input.value = "";
+        } else {
+          input.value = dir;
+        }
+        syncEditorArrowPicker(input.value);
+        // Update the sign preview so the user sees the arrow change
+        const textEl = document.getElementById("editorPreviewText");
+        updateEditorPreview(textEl?.textContent || "", input.value || null);
       });
     }
 

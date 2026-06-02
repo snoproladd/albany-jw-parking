@@ -54,7 +54,7 @@
       .trim();
     if (!cleaned) return "";
 
-    const STOP_WORDS = new Set(["the", "a", "an", "of", "&"]);
+    const STOP_WORDS = new Set(["the", "of", "&"]);
     const words = cleaned
       .split(" ")
       .filter((w) => w && !STOP_WORDS.has(w.toLowerCase()));
@@ -109,18 +109,7 @@
         }
     }
 
-  /**
-   * Mark the active arrow button in the picker so the selection is
-   * visible. Removes the active class from all buttons first.
-   * @param {string} dir
-   */
-  function syncArrowButtons(dir) {
-    const buttons = document.querySelectorAll(".arrow-btn");
-    buttons.forEach((btn) => {
-      const btnDir = btn.getAttribute("data-arrow") || "";
-      btn.classList.toggle("active", btnDir === dir);
-    });
-  }
+  
 
   /**
    * Refresh the abbreviation input's placeholder with the current
@@ -185,36 +174,7 @@
     refreshAbbreviationSuggestion();
   }
 
-  /**
-   * Wire the arrow picker buttons. Clicking a button sets the hidden
-   * input value, updates the preview, and re-syncs the active state.
-   * Clicking the currently-active direction clears it back to no arrow.
-   */
-  function initArrowPicker() {
-    const arrowInput = document.getElementById("arrowDirectionInput");
-    const buttons = document.querySelectorAll(".arrow-btn");
-    if (!arrowInput) return;
-
-    // Apply initial state from server-rendered value
-    syncArrowButtons(arrowInput.value);
-    updatePreview();
-
-    buttons.forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const dir = btn.getAttribute("data-arrow") || "";
-
-        // Toggle off when clicking the already-active direction
-        if (dir && dir === arrowInput.value) {
-          arrowInput.value = "";
-        } else {
-          arrowInput.value = dir;
-        }
-
-        syncArrowButtons(arrowInput.value);
-        updatePreview();
-      });
-    });
-  }
+  
 
   /**
    * Display a transient feedback message next to the save button.
@@ -318,7 +278,6 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     initTextInput();
-    initArrowPicker();
     initAbbreviationInput();
     initSaveButton();
   });

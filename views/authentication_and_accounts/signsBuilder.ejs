@@ -93,68 +93,8 @@
                                     Leave blank to auto-generate from the sign text.
                                 </div>
                             </div>
-
-                            <%# Arrow direction ── %>
-                            <div class="col-12">
-                                <label class="form-label">Arrow direction</label>
-                                <div class="arrow-picker" role="radiogroup" aria-label="Arrow direction">
-
-                                    <button type="button" class="arrow-btn"
-                                            data-arrow="up-left"
-                                            aria-label="Up-left">↖</button>
-                                    <button type="button" class="arrow-btn"
-                                            data-arrow="up"
-                                            aria-label="Up">↑</button>
-                                    <button type="button" class="arrow-btn"
-                                            data-arrow="up-right"
-                                            aria-label="Up-right">↗</button>
-
-                                    <button type="button" class="arrow-btn"
-                                            data-arrow="left"
-                                            aria-label="Left">←</button>
-                                    <button type="button" class="arrow-btn arrow-btn-none"
-                                            data-arrow=""
-                                            aria-label="No arrow">
-                                        <i class="fa-solid fa-ban"></i>
-                                    </button>
-                                    <button type="button" class="arrow-btn"
-                                            data-arrow="right"
-                                            aria-label="Right">→</button>
-
-                                    <button type="button" class="arrow-btn"
-                                            data-arrow="down-left"
-                                            aria-label="Down-left">↙</button>
-                                    <button type="button" class="arrow-btn"
-                                            data-arrow="down"
-                                            aria-label="Down">↓</button>
-                                    <button type="button" class="arrow-btn"
-                                            data-arrow="down-right"
-                                            aria-label="Down-right">↘</button>
-
-                                    <button type="button" class="arrow-btn"
-                                            data-arrow="up-then-left"
-                                            aria-label="Up then left">↰</button>
-                                    <button type="button" class="arrow-btn"
-                                            data-arrow="up-then-right"
-                                            aria-label="Up then right">↱</button>
-                                    <button type="button" class="arrow-btn"
-                                            data-arrow="destination"
-                                            aria-label="Destination pin">
-                                        <i class="fa-solid fa-location-dot"></i>
-                                    </button>
-
-                                </div>
-                                <input type="hidden"
-                                       id="arrowDirectionInput"
-                                       value="<%= sign && sign.arrow_direction ? sign.arrow_direction : '' %>" />
-                                <div class="form-text">
-                                    Click an arrow to set the direction, or the ⊘ button for no arrow.
-                                    The bottom row covers 90° turn arrows and a destination pin.
-                                </div>
-                            </div>
-
-                            <%# Description ── %>
-                            <div class="col-12">
+                                  <%# Description ── %>
+                                  <div class="col-12">
                                 <label for="signDescriptionInput" class="form-label">
                                     Description (optional)
                                 </label>

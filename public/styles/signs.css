@@ -168,6 +168,20 @@
     color: #0a58ca;
 }
 
+/* Compact arrow picker for the map offcanvas editor */
+.arrow-picker-sm {
+    max-width: 220px;
+    gap: 0.35rem;
+}
+
+.arrow-btn-sm {
+    font-size: 1.1rem;
+}
+
+.arrow-btn-sm.arrow-btn-none {
+    font-size: 0.85rem;
+}
+
 /* ── Empty / no-results states ────────────────────────────────────── */
 
 .signs-empty-state {
@@ -283,6 +297,249 @@
     background: #e7f1ff;
     color: #0a58ca;
 }
+
+/* ── Compact zoom markers (used when zoom < ZOOM_FULL_DETAIL) ────── */
+
+/*
+ * The wrapper inherits .signs-map-marker (translateY, drop-shadow,
+ * cursor: pointer). The disc is a 32px status-colored circle with the
+ * abbreviation text centered inside. If the sign has an arrow direction,
+ * a small badge sits in the top-right corner to convey direction at a
+ * glance. The existing .signs-map-marker-selected::after pulsing halo
+ * wraps the outer div, so the selected ring works for free.
+ */
+.signs-map-marker-compact {
+    position: relative;
+}
+
+.signs-map-marker-disc {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #6c757d;
+    border: 2px solid #fff;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35);
+}
+
+.signs-map-marker-abbr {
+    font-size: 0.6rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    /* Prevent long overrides from overflowing the disc */
+    max-width: 26px;
+    overflow: hidden;
+    text-overflow: clip;
+    white-space: nowrap;
+    text-align: center;
+}
+
+/* Arrow / destination badge — floats in the top-right corner of the disc */
+.signs-map-marker-badge {
+    position: absolute;
+    top: -4px;
+    right: -6px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #444;
+    border: 1.5px solid #fff;
+    color: #fff;
+    font-size: 0.5rem;
+    font-weight: 700;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    pointer-events: none;
+}
+
+.signs-map-marker-badge .fa-location-dot {
+    font-size: 0.45rem;
+}
+
+/* ── Compact marker: status color variants ──────────────────────── */
+
+.signs-map-marker-compact.signs-map-marker-planned .signs-map-marker-disc {
+    background: #6c757d;
+}
+
+.signs-map-marker-compact.signs-map-marker-planned .signs-map-marker-badge {
+    background: #495057;
+}
+
+.signs-map-marker-compact.signs-map-marker-installed .signs-map-marker-disc {
+    background: #198754;
+}
+
+.signs-map-marker-compact.signs-map-marker-installed .signs-map-marker-badge {
+    background: #0f5132;
+}
+
+.signs-map-marker-compact.signs-map-marker-removed .signs-map-marker-disc {
+    background: #b02a37;
+    opacity: 0.65;
+}
+
+.signs-map-marker-compact.signs-map-marker-removed .signs-map-marker-badge {
+    background: #842029;
+    opacity: 0.65;
+}
+
+.signs-map-marker-compact.signs-map-marker-pending .signs-map-marker-disc {
+    background: #0d6efd;
+    border-style: dashed;
+}
+
+.signs-map-marker-compact.signs-map-marker-pending .signs-map-marker-badge {
+    background: #084298;
+}
+
+/* Selection ring on the disc itself (the outer pulsing halo is inherited
+   from .signs-map-marker-selected::after on the wrapper). */
+.signs-map-marker-compact.signs-map-marker-selected .signs-map-marker-disc {
+    box-shadow:
+        0 0 0 3px #ffc107,
+        0 4px 8px rgba(0, 0, 0, 0.45);
+}
+
+/* ── Zoom / detail-threshold control ────────────────────────────── */
+
+.signs-map-zoom-control {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: rgba(255, 255, 255, 0.92);
+    border-radius: 4px;
+    padding: 4px 10px;
+    margin: 0 0 6px 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #333;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+    user-select: none;
+}
+
+.signs-map-zoom-level {
+    font-variant-numeric: tabular-nums;
+    min-width: 2.4em;
+}
+
+.signs-map-zoom-detail-label {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    color: #555;
+    font-weight: 500;
+    cursor: default;
+}
+
+.signs-map-zoom-input {
+    width: 3em;
+    padding: 1px 4px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-align: center;
+    color: #333;
+    background: #fff;
+}
+
+.signs-map-zoom-input:focus {
+    outline: 2px solid #0d6efd;
+    outline-offset: 1px;
+    border-color: #0d6efd;
+}
+
+/* ── Colour swatches (offcanvas editor) ────────────────────────── */
+
+.signs-color-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.signs-color-swatch {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid #dee2e6;
+    padding: 0;
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.1s ease, border-color 0.1s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    color: #888;
+}
+
+.signs-color-swatch:hover {
+    transform: scale(1.15);
+    border-color: #adb5bd;
+}
+
+.signs-color-swatch.active {
+    border-color: #333;
+    box-shadow: 0 0 0 2px #fff, 0 0 0 4px #333;
+}
+
+.signs-color-swatch-default {
+    background: #fff;
+}
+
+.signs-color-swatch-red      { background: #dc3545; border-color: #dc3545; }
+.signs-color-swatch-orange   { background: #fd7e14; border-color: #fd7e14; }
+.signs-color-swatch-yellow   { background: #ffc107; border-color: #ffc107; }
+.signs-color-swatch-green    { background: #198754; border-color: #198754; }
+.signs-color-swatch-teal     { background: #0dcaf0; border-color: #0dcaf0; }
+.signs-color-swatch-blue     { background: #0d6efd; border-color: #0d6efd; }
+.signs-color-swatch-purple   { background: #6f42c1; border-color: #6f42c1; }
+.signs-color-swatch-pink     { background: #d63384; border-color: #d63384; }
+
+/* ── Marker custom colour overrides ────────────────────────────── */
+
+/*
+ * Custom colour overrides the status background on both compact discs
+ * and full marker borders. These rules are placed AFTER the status
+ * rules so same-specificity selectors win by source order. The badge
+ * reverts to a neutral dark when a custom colour is active so it
+ * doesn't clash.
+ */
+
+/* Compact markers — disc background */
+.signs-map-marker-compact.signs-map-marker-color-red    .signs-map-marker-disc  { background: #dc3545; opacity: 1; }
+.signs-map-marker-compact.signs-map-marker-color-orange .signs-map-marker-disc  { background: #fd7e14; opacity: 1; }
+.signs-map-marker-compact.signs-map-marker-color-yellow .signs-map-marker-disc  { background: #ffc107; color: #333; opacity: 1; }
+.signs-map-marker-compact.signs-map-marker-color-green  .signs-map-marker-disc  { background: #198754; opacity: 1; }
+.signs-map-marker-compact.signs-map-marker-color-teal   .signs-map-marker-disc  { background: #0dcaf0; color: #333; opacity: 1; }
+.signs-map-marker-compact.signs-map-marker-color-blue   .signs-map-marker-disc  { background: #0d6efd; opacity: 1; }
+.signs-map-marker-compact.signs-map-marker-color-purple .signs-map-marker-disc  { background: #6f42c1; opacity: 1; }
+.signs-map-marker-compact.signs-map-marker-color-pink   .signs-map-marker-disc  { background: #d63384; opacity: 1; }
+
+/* Compact markers — neutral badge when custom colour is active */
+.signs-map-marker-compact[class*="signs-map-marker-color-"] .signs-map-marker-badge {
+    background: #444;
+    opacity: 1;
+}
+
+/* Full markers — border colour */
+.signs-map-marker-color-red    .sign-preview { border-color: #dc3545; }
+.signs-map-marker-color-orange .sign-preview { border-color: #fd7e14; }
+.signs-map-marker-color-yellow .sign-preview { border-color: #ffc107; }
+.signs-map-marker-color-green  .sign-preview { border-color: #198754; }
+.signs-map-marker-color-teal   .sign-preview { border-color: #0dcaf0; }
+.signs-map-marker-color-blue   .sign-preview { border-color: #0d6efd; }
+.signs-map-marker-color-purple .sign-preview { border-color: #6f42c1; }
+.signs-map-marker-color-pink   .sign-preview { border-color: #d63384; }
 
 /* ── Sidebar placement list ──────────────────────────────────────── */
 

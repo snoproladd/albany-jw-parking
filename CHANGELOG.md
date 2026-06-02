@@ -3,6 +3,56 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.31.0] - 2026-06-02
+
+### Added — Sign Placement Phase 2c: Map UX + Direction per Placement
+
+#### Compact markers + zoom-based detail swap
+- Markers now render as **32px colored discs** with abbreviation text and
+  an arrow badge when zoomed out, swapping to the full sign-preview block
+  at close zoom. The threshold is adjustable via an on-map control
+  (bottom-left pill showing current zoom level and a Detail ≥ input) and
+  persists across sessions via `localStorage`.
+
+#### Sign abbreviation system
+- New `abbreviation NVARCHAR(6) NULL` column on `signs` table.
+- Server-side heuristic (`computeSignAbbreviation`) auto-generates a
+  2–3 character abbreviation from sign text (first-letter-of-each-word
+  for multi-word, first-three-chars for single-word, digits preserved).
+- Sign Builder exposes an optional override field; leaving it blank uses
+  the heuristic. Compact map markers display the abbreviation.
+
+#### Per-placement marker colours
+- New `marker_color NVARCHAR(20) NULL` column on `sign_placements`.
+- Eight-colour preset palette (red, orange, yellow, green, teal, blue,
+  purple, pink) with a swatch picker in the offcanvas editor.
+- **Bulk apply** button sets colour on every placement of a sign template
+  in one click via `PATCH /signs/:id/placements/color`.
+- Custom colour overrides the status-based colour on both compact discs
+  and full marker borders; status remains visible in the sidebar dot.
+
+#### Arrow direction moved to placements
+- New `arrow_direction NVARCHAR(20) NULL` column on `sign_placements`.
+- Backfill migration copies each placement's direction from its template.
+- Arrow picker added to the map's offcanvas editor (compact 3×4 grid);
+  new placements pre-fill from the template's default direction but can
+  be overridden before saving.
+- Arrow picker **removed from Sign Builder** — templates are now
+  direction-agnostic; one "DROP-OFF / PICKUP" template serves all
+  directional variants as separate placements.
+- `getSignPlacements` and `getSignPlacementById` now read
+  `p.arrow_direction` instead of `s.arrow_direction`.
+
+#### Map UX polish
+- Sidebar filter section now has a **"Filter placements"** header with
+  filter icon and a horizontal rule separating filters from the Add
+  Placement action button, making it clear the controls are filters.
+- Migrated marker click listener from deprecated `click` to `gmp-click`
+  event (suppresses Google Maps deprecation warning and fixes a
+  drag-without-DevTools bug in some browser versions).
+
+### Fix
+
 ## [2.30.0] - 2026-06-02
 
 ### Added — Sign Placement Phase 2b: Photo Upload
