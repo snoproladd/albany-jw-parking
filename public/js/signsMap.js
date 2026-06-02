@@ -72,6 +72,19 @@
   /** Map of placement_id -> AdvancedMarkerElement. */
   const markers = new Map();
 
+  /** Currently keyboard-selected placement_id (separate from editor's editingId). */
+  let selectedId = null;
+
+  /** Debounce timer for autosaving nudges. */
+  let nudgeSaveTimer = null;
+
+  /** True while a nudge save is in-flight to serialize rapid keypresses. */
+  let nudgeInFlight = false;
+
+  /** Meters per nudge — base step (arrow keys) and shift step (shift+arrow). */
+  const NUDGE_STEP_METERS = 0.5;
+  const NUDGE_STEP_SHIFT_METERS = 5;
+
   /** When true, the next map click drops a new placement marker. */
   let placingMode = false;
 
@@ -354,12 +367,16 @@ mapRef = new google.maps.Map(mapEl, {
     // Render each placement
     placements.forEach((p) => addMarkerForPlacement(p));
 
-    // Click-to-place handler (only does anything when placingMode is on)
+    // Map background click: in placing mode, drop a new placement;
+    // otherwise, deselect any keyboard-selected marker.
     mapRef.addListener("click", (e) => {
-      if (!placingMode || !canManage) return;
-      const lat = e.latLng.lat();
-      const lng = e.latLng.lng();
-      beginNewPlacement(lat, lng);
+      if (placingMode && canManage) {
+        const lat = e.latLng.lat();
+        const lng = e.latLng.lng();
+        beginNewPlacement(lat, lng);
+        return;
+      }
+      selectMarker(null);
     });
   }
 
@@ -383,6 +400,7 @@ mapRef = new google.maps.Map(mapEl, {
     });
 
     marker.addListener("click", () => {
+      selectMarker(placement.placement_id);
       openEditor(placement.placement_id);
     });
 
@@ -397,6 +415,176 @@ mapRef = new google.maps.Map(mapEl, {
     }
 
     markers.set(placement.placement_id, marker);
+  }
+
+  /**
+   * Mark a placement as keyboard-selected. Adds a visual highlight class
+   * to its marker content and tracks the selection so arrow-key nudges
+   * know which marker to move. Pass null to clear.
+   *
+   * @param {number|null} placementId
+   */
+  function selectMarker(placementId) {
+    if (selectedId !== null) {
+      const prev = markers.get(selectedId);
+      if (prev && prev.content) {
+        prev.content.classList.remove("signs-map-marker-selected");
+      }
+    }
+
+    selectedId = placementId;
+
+    if (placementId !== null) {
+      const next = markers.get(placementId);
+      if (next && next.content) {
+        next.content.classList.add("signs-map-marker-selected");
+      }
+    }
+  }
+
+  /**
+   * Convert a (meters_north, meters_east) offset into (deltaLat, deltaLng)
+   * in degrees, accounting for longitude compression by latitude.
+   *
+   * @param {number} metersNorth
+   * @param {number} metersEast
+   * @param {number} atLat  Latitude where the conversion applies (degrees).
+   * @returns {{ dLat: number, dLng: number }}
+   */
+  function metersToDegrees(metersNorth, metersEast, atLat) {
+    const dLat = metersNorth / 111320;
+    const cosLat = Math.cos((atLat * Math.PI) / 180);
+    const dLng = metersEast / (111320 * Math.max(cosLat, 1e-9));
+    return { dLat, dLng };
+  }
+
+  /**
+   * Apply a keyboard nudge to the currently selected marker. Updates the
+   * marker position visually, mirrors to the editor inputs if it's open
+   * on this placement, and debounces the autosave to the server.
+   *
+   * @param {'up'|'down'|'left'|'right'} direction
+   * @param {boolean} shifted  True for the 5m coarse step; false for 0.5m fine.
+   */
+  function nudgeSelected(direction, shifted) {
+    if (selectedId === null || !canManage) return;
+    const p = findPlacement(selectedId);
+    if (!p) return;
+    const marker = markers.get(selectedId);
+    if (!marker) return;
+
+    const step = shifted ? NUDGE_STEP_SHIFT_METERS : NUDGE_STEP_METERS;
+    let dN = 0;
+    let dE = 0;
+    if (direction === "up") dN = step;
+    if (direction === "down") dN = -step;
+    if (direction === "right") dE = step;
+    if (direction === "left") dE = -step;
+
+    const lat = Number(p.latitude);
+    const lng = Number(p.longitude);
+    const { dLat, dLng } = metersToDegrees(dN, dE, lat);
+    const newLat = lat + dLat;
+    const newLng = lng + dLng;
+
+    p.latitude = newLat;
+    p.longitude = newLng;
+    marker.position = { lat: newLat, lng: newLng };
+
+    // Mirror to the editor inputs if it's currently editing this placement
+    if (editingId === selectedId) {
+      const latInput = document.getElementById("editorLat");
+      const lngInput = document.getElementById("editorLng");
+      if (latInput) latInput.value = newLat.toFixed(7);
+      if (lngInput) lngInput.value = newLng.toFixed(7);
+    }
+
+    // Debounced autosave
+    if (nudgeSaveTimer) clearTimeout(nudgeSaveTimer);
+    nudgeSaveTimer = window.setTimeout(() => {
+      nudgeSaveTimer = null;
+      saveNudge(selectedId);
+    }, 400);
+  }
+
+  /**
+   * Persist the latest position of a nudged placement to the server.
+   * Sends a full PUT (matching the existing drag-save flow) so all
+   * editable fields are preserved.
+   *
+   * @param {number} placementId
+   */
+  async function saveNudge(placementId) {
+    if (nudgeInFlight) {
+      // Another save is in flight — re-schedule this one for after it lands
+      nudgeSaveTimer = window.setTimeout(() => saveNudge(placementId), 100);
+      return;
+    }
+    const p = findPlacement(placementId);
+    if (!p) return;
+
+    nudgeInFlight = true;
+    try {
+      const res = await fetch(`/signs/placements/${placementId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "CSRF-Token": getCsrfToken(),
+        },
+        body: JSON.stringify({
+          latitude: p.latitude,
+          longitude: p.longitude,
+          heading: p.heading,
+          locationNotes: p.location_notes,
+          mountType: p.mount_type,
+        }),
+      });
+      const data = await res.json();
+      if (!data?.success) {
+        console.error("Nudge save rejected:", data?.error);
+      }
+    } catch (err) {
+      console.error("saveNudge error:", err);
+    } finally {
+      nudgeInFlight = false;
+    }
+  }
+
+  /**
+   * Document-level keyboard handler for arrow-key nudging. Suspended
+   * while the offcanvas editor is open or focus is in a form field
+   * so typing in inputs doesn't move the marker.
+   *
+   * @param {KeyboardEvent} e
+   */
+  function onMapKeyDown(e) {
+    if (selectedId === null) return;
+
+    // Suspend while editor is open OR focus is in a form field
+    const editorEl = document.getElementById("placementEditor");
+    const editorOpen = editorEl && editorEl.classList.contains("show");
+    if (editorOpen) return;
+
+    const tag = (e.target?.tagName || "").toUpperCase();
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+    if (e.target?.isContentEditable) return;
+
+    let dir = null;
+    if (e.key === "ArrowUp") dir = "up";
+    if (e.key === "ArrowDown") dir = "down";
+    if (e.key === "ArrowLeft") dir = "left";
+    if (e.key === "ArrowRight") dir = "right";
+
+    if (dir) {
+      e.preventDefault();
+      nudgeSelected(dir, e.shiftKey);
+      return;
+    }
+
+    if (e.key === "Escape") {
+      e.preventDefault();
+      selectMarker(null);
+    }
   }
 
   /**
@@ -880,6 +1068,11 @@ mapRef = new google.maps.Map(mapEl, {
     if (window.bootstrap && editorEl) {
       offcanvas = window.bootstrap.Offcanvas.getOrCreateInstance(editorEl);
     }
+
+    // Global keyboard listener for arrow-key nudging of the selected marker.
+    // The handler self-suspends while the editor is open or focus is in a
+    // form field so typing doesn't move the marker.
+    document.addEventListener("keydown", onMapKeyDown);
   }
 
   // ============================================================

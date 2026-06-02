@@ -448,3 +448,32 @@
 #googleMap *::after {
     box-sizing: content-box;
 }
+
+/* ── Keyboard-selected marker highlight ───────────────────────────── */
+
+.signs-map-marker-selected .sign-preview {
+    box-shadow:
+        0 0 0 3px #ffc107,
+        0 4px 12px rgba(0, 0, 0, 0.5);
+    z-index: 10;
+}
+
+.signs-map-marker-selected::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 60px;
+    height: 60px;
+    transform: translate(-50%, -50%);
+    border: 2px dashed #ffc107;
+    border-radius: 50%;
+    pointer-events: none;
+    animation: signs-map-pulse 1.6s ease-out infinite;
+}
+
+@keyframes signs-map-pulse {
+    0%   { opacity: 0.9; transform: translate(-50%, -50%) scale(0.85); }
+    70%  { opacity: 0;   transform: translate(-50%, -50%) scale(1.2);  }
+    100% { opacity: 0;   transform: translate(-50%, -50%) scale(1.2);  }
+}
