@@ -923,8 +923,11 @@ export function signsRouter({
           });
         }
 
+        const actorName = [req.session.firstName, req.session.lastName]
+          .filter(Boolean)
+          .join(" ") || null;
         const newBlobName = await uploadSignPhoto(placementId, req.file.buffer);
-        await setSignPlacementPhoto(placementId, newBlobName);
+        await setSignPlacementPhoto(placementId, newBlobName, actorName);
 
         // Best-effort delete of the previous blob. If this fails the
         // photo is still correct in the DB; we just have an orphan.
@@ -939,6 +942,8 @@ export function signsRouter({
         return res.json({
           success: true,
           photo_url: newBlobName,
+          photo_taken_by: actorName,
+          photo_taken_at: new Date().toISOString(),
         });
       } catch (err) {
         log("signs/placements/:id/photo POST error:", err);
@@ -1194,8 +1199,11 @@ export function signsRouter({
 
         // Upload via the same blob pipeline as regular photo uploads.
         // processImage (inside uploadSignPhoto) handles resize + JPEG.
+        const actorName = [req.session.firstName, req.session.lastName]
+          .filter(Boolean)
+          .join(" ") || null;
         const newBlobName = await uploadSignPhoto(placementId, buffer);
-        await setSignPlacementPhoto(placementId, newBlobName);
+        await setSignPlacementPhoto(placementId, newBlobName, actorName);
 
         // Best-effort delete the old blob if replaced
         if (existing.photo_url && existing.photo_url !== newBlobName) {
@@ -1209,6 +1217,8 @@ export function signsRouter({
         return res.json({
           success: true,
           photo_url: newBlobName,
+          photo_taken_by: actorName,
+          photo_taken_at: new Date().toISOString(),
         });
       } catch (err) {
         log("signs/placements/:id/street-view-photo POST error:", err);

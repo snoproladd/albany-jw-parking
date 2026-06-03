@@ -222,6 +222,10 @@ editor updates automatically.
   open the editor offcanvas.
 - Edit any field: arrow direction, status (planned/installed/removed),
   mount type, marker colour, heading, location notes.
+- **Photo section:** two buttons — **Take Photo** (opens the device
+  camera directly on mobile) and **Upload** (opens the gallery or file
+  picker). When a photo already exists, **Retake** and **Replace**
+  appear alongside **Remove**.
 - **Shift+drag a marker** to a new spot on the map — hold Shift first,
   then drag. The new coordinates are saved automatically when you let go.
   If the server rejects the change (for any reason), the marker snaps back
@@ -275,7 +279,18 @@ approaching it would. When no direction is set, the panorama opens at the
 placement's coordinates facing north with a hint to rotate manually.
 
 The header bar shows the sign name, a bearing badge (`Xdeg direction of
-travel`) when set, and a × close button.
+travel`) when set, a **Save as Photo** button (OVERSEER+ only), and a ×
+close button.
+
+**Save as Photo:** navigate the Street View panorama to the exact vantage
+point you want — the auto-calculated position may land across the street or
+at a bad angle depending on where Google's coverage was captured, so use the
+navigation controls to walk to a better spot if needed. When the view is
+right, click **Save as Photo**. The button captures your exact panorama
+position, heading, pitch, and zoom, then the server fetches a matching
+image from the Google Street View Static API and stores it as the
+placement's photo. If the placement already has a photo, a confirmation
+dialog asks before replacing it.
 
 If no Street View imagery is available at that location, a red footer bar
 appears with an **Open in Google Maps** link as a fallback.
@@ -291,18 +306,18 @@ what the sign will look like when installed. The composer lets you pick
 a background, position and resize the sign overlay on top of it, then
 save the result as the placement's photo.
 
-**Choosing a background:** three options in the toolbar:
+**Choosing a background:** two options in the toolbar:
 
-- **Street View** — fetches a snapshot from the Google Street View
-  Static API at the sign's approach position and heading. Good for
-  planning what a placement will look like before anyone goes into
-  the field.
 - **Upload image** — use your own photo (e.g. a picture of the
   location taken from your phone).
 - **Existing photo** — loads the placement's current photo as the
   background. Only appears when the placement already has a photo.
   Useful for compositing the sign onto a real field photo you already
   captured via Take Photo or Save as Photo.
+
+To use a Street View snapshot as the composer background, first save
+it as the placement's photo using the **Save as Photo** button in the
+Street View overlay, then open the composer and click **Existing photo**.
 
 **Positioning the sign:** once a background is loaded, the sign preview
 appears on the canvas. Drag it to the correct position. Use the corner

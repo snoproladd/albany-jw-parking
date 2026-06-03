@@ -660,7 +660,8 @@ export function loginRouter({ csrfProtection, logError }) {
         registration_status,
         last_step,
         account_status, 
-        role
+        role,
+        extra_signs_placement
       FROM dbo.volunteer_in
       WHERE LOWER(email) = @email
         AND accountType = 'registered'
@@ -725,6 +726,8 @@ export function loginRouter({ csrfProtection, logError }) {
       req.session.userEmail = user.email;
       req.session.userRole = user.role;
       req.session.userInitials = initials;
+      req.session.firstName = user.firstName || "";
+      req.session.lastName = user.lastName || "";
       req.session.userRole = user.role || "REGISTERED";
       req.session.permissions = await loadMergedPermissions();
       req.session.registrationStatus = user.registration_status || null;

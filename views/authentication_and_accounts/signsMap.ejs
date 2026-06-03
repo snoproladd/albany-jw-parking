@@ -483,6 +483,7 @@
                     <span>Photo of installed sign</span>
                     <span class="small text-muted" id="editorPhotoHint">(optional)</span>
                 </label>
+                <p class="small text-muted mb-2" id="editorPhotoCredit" hidden></p>
 
                 <%# No-photo state: drop zone %>
                 <div class="signs-photo-dropzone" id="editorPhotoDropzone" hidden>
@@ -543,6 +544,18 @@
                 </div>
 
                 <p class="small text-danger mt-1 mb-0" id="editorPhotoError" hidden></p>
+
+                <%# Street View + Compose controls (shown for saved placements only) %>
+                <div class="d-flex gap-2 mt-2" id="editorPhotoTools" hidden>
+                    <button type="button" class="btn btn-outline-secondary btn-sm flex-fill" id="editorStreetViewBtn">
+                        <i class="fa-solid fa-street-view me-1"></i>Street View
+                    </button>
+                    <% if (canManage) { %>
+                        <button type="button" class="btn btn-outline-secondary btn-sm flex-fill" id="editorComposerBtn">
+                            <i class="fa-solid fa-layer-group me-1"></i>Compose
+                        </button>
+                    <% } %>
+                </div>
             </div>
 
             <%# Audit info (read-only) %>
@@ -556,23 +569,12 @@
                     <button type="button" class="btn btn-primary" id="editorSaveBtn">
                         <i class="fa-solid fa-floppy-disk me-1"></i>Save
                     </button>
-                    <button type="button" class="btn btn-outline-secondary" id="editorStreetViewBtn" hidden>
-                        <i class="fa-solid fa-street-view me-1"></i>Street View
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary" id="editorComposerBtn" hidden>
-                        <i class="fa-solid fa-layer-group me-1"></i>Compose photo
-                    </button>
                     <button type="button" class="btn btn-outline-danger ms-auto" id="editorDeleteBtn" hidden>
                         <i class="fa-solid fa-trash me-1"></i>Delete
                     </button>
                 </div>
                 <p class="small mt-2" id="editorFeedback"></p>
             <% } else { %>
-                <div class="d-flex flex-wrap gap-2 pt-2 border-top">
-                    <button type="button" class="btn btn-outline-secondary" id="editorStreetViewBtn" hidden>
-                        <i class="fa-solid fa-street-view me-1"></i>Street View
-                    </button>
-                </div>
                 <p class="small text-muted mt-2 mb-0">
                     <i class="fa-solid fa-eye me-1"></i>View only. OVERSEER+ can edit placements.
                 </p>
@@ -629,11 +631,8 @@
 
         <%# ── Toolbar ──────────────────────────────────────────── %>
         <div class="signs-composer-toolbar" id="composerToolbar">
-            <div class="signs-composer-toolbar-group">
+ <div class="signs-composer-toolbar-group">
                 <span class="signs-composer-toolbar-label">Background</span>
-                <button type="button" class="btn btn-sm btn-outline-light" id="composerSvBtn">
-                    <i class="fa-solid fa-street-view me-1"></i>Street View
-                </button>
                 <button type="button" class="btn btn-sm btn-outline-light" id="composerUploadBtn">
                     <i class="fa-solid fa-image me-1"></i>Upload image
                 </button>

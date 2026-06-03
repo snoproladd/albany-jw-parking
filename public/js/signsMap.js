@@ -62,6 +62,19 @@
   ];
 
   /**
+   * Format a Date (or ISO string) as dd/mm/yyyy.
+   *
+   * @param {Date|string} d
+   * @returns {string}
+   */
+  function formatDateDMY(d) {
+    const dt = d instanceof Date ? d : new Date(d);
+    const dd = String(dt.getUTCDate()).padStart(2, "0");
+    const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
+    return `${dd}/${mm}/${dt.getUTCFullYear()}`;
+  }
+
+  /**
    * Length of the direction-of-travel arrow handle extending from the
    * center of a full marker, in CSS pixels. Only rendered at full detail.
    */
@@ -1323,6 +1336,8 @@
 
       // Update in-memory placement
       p.photo_url = data.photo_url;
+      p.photo_taken_by = data.photo_taken_by || null;
+      p.photo_taken_at = data.photo_taken_at || null;
       photoCacheBuster += 1;
 
       // Re-render editor photo section if this placement is open
@@ -2230,6 +2245,21 @@ function onMapKeyDown(e) {
 
     section.hidden = false;
 
+    // Photo credit line
+    const creditEl = document.getElementById("editorPhotoCredit");
+    if (creditEl) {
+      if (placement.photo_url && placement.photo_taken_by) {
+        const parts = [placement.photo_taken_by];
+        if (placement.photo_taken_at) {
+          parts.push(formatDateDMY(placement.photo_taken_at));
+        }
+        creditEl.textContent = "Photo taken by: " + parts.join(" \u2014 ");
+        creditEl.hidden = false;
+      } else {
+        creditEl.hidden = true;
+      }
+    }
+
     if (placement.photo_url) {
       if (dropzone) dropzone.hidden = true;
       if (display)  display.hidden  = false;
@@ -2288,6 +2318,8 @@ function onMapKeyDown(e) {
       const p = findPlacement(editingId);
       if (p) {
         p.photo_url = data.photo_url;
+        p.photo_taken_by = data.photo_taken_by || null;
+        p.photo_taken_at = data.photo_taken_at || null;
       }
       photoCacheBuster += 1;
       renderEditorPhoto(p);
@@ -2428,15 +2460,13 @@ function onMapKeyDown(e) {
       meta.hidden = false;
     }
 
-    // Delete + Street View buttons visible for existing placements only
+    // Delete button visible for existing placements only
     const delBtn = document.getElementById("editorDeleteBtn");
     if (delBtn) delBtn.hidden = false;
 
-    const svBtn = document.getElementById("editorStreetViewBtn");
-    if (svBtn) svBtn.hidden = false;
-
-    const composerBtn = document.getElementById("editorComposerBtn");
-    if (composerBtn) composerBtn.hidden = false;
+    // Street View + Compose tools (inside the photo section)
+    const photoTools = document.getElementById("editorPhotoTools");
+    if (photoTools) photoTools.hidden = false;
 
     const feedback = document.getElementById("editorFeedback");
     if (feedback) feedback.textContent = "";
@@ -2481,11 +2511,8 @@ function onMapKeyDown(e) {
     const delBtn = document.getElementById("editorDeleteBtn");
     if (delBtn) delBtn.hidden = true;
 
-    const svBtn = document.getElementById("editorStreetViewBtn");
-    if (svBtn) svBtn.hidden = true;
-
-    const composerBtn = document.getElementById("editorComposerBtn");
-    if (composerBtn) composerBtn.hidden = true;
+    const photoTools = document.getElementById("editorPhotoTools");
+    if (photoTools) photoTools.hidden = true;
 
     const feedback = document.getElementById("editorFeedback");
     if (feedback) feedback.textContent = "";
@@ -4489,7 +4516,6 @@ function onMapKeyDown(e) {
     const overlay   = document.getElementById("signsComposer");
     const signEl    = document.getElementById("composerSign");
     const stageEl   = document.getElementById("composerStage");
-    const svBtn     = document.getElementById("composerSvBtn");
     const uploadBtn = document.getElementById("composerUploadBtn");
     const fileInput = document.getElementById("composerFileInput");
     const saveBtn   = document.getElementById("composerSaveBtn");
@@ -4502,9 +4528,6 @@ function onMapKeyDown(e) {
         renderComposerMount(e.target.value);
       }
     });
-
-    // Street View button
-    if (svBtn) svBtn.addEventListener("click", composerLoadStreetView);
 
     // Existing photo button
     const existingBtn = document.getElementById("composerExistingBtn");

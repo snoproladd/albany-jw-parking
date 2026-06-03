@@ -21,12 +21,22 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
   via the same pipeline as regular photo uploads.
 - **Existing photo as composer background.** The placement composer
   toolbar now shows an "Existing photo" button (when a photo exists)
-  alongside Street View and Upload. Loads the placement's current
+  alongside Upload. Loads the placement's current
   photo as the background so the sign overlay can be positioned on
   a real field photo.
+- **Photo credit line** beneath the "Photo of installed sign" header in
+  the editor: "Photo taken by: First Last — dd/mm/yyyy". New DB columns
+  `photo_taken_by` and `photo_taken_at` on `sign_placements`.
 - **New route** `POST /signs/placements/:id/street-view-photo` —
   accepts `{ panoId, heading, pitch, fov }`, fetches 640×480 JPEG
   from the SV Static API, processes through sharp, and stores in blob.
+
+### Changed
+- **Composer toolbar** no longer offers Street View as a background
+  source — redundant now that the main Street View overlay has "Save
+  as Photo". Background options are now Upload and Existing photo.
+- **Street View and Compose buttons** moved from the editor action bar
+  to the photo section, beneath the upload/replace controls.
 
 ## [2.36.3] - 2026-06-03
 
@@ -523,8 +533,8 @@ endpoints leak into rendered HTML.
   with `.env` fallback. Boot log now reports `signPhotosConfigured: boolean`.
 
 #### `.env` (developer setup)
-A new variable for local development:
-```env
+  A new variable for local development:
+  env
 
 ## [2.29.1] - 2026-06-02
 
