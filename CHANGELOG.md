@@ -3,6 +3,26 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.37.0] - 2026-06-03
+
+### Added
+- **Separate Take Photo / Upload buttons** in the placement editor.
+  "Take Photo" uses `capture="environment"` to go straight to the
+  device camera on mobile; "Upload" opens the gallery / file picker.
+  Both inputs feed the same upload pipeline. The has-photo state now
+  shows "Retake" (camera), "Replace" (gallery), and "Remove".
+- **Save Street View as Photo.** A "Save as Photo" button in the
+  Street View overlay header (visible to OVERSEER+ / delegated
+  `manageSigns` users) captures the user's exact panorama position,
+  heading, pitch, and FOV. The server fetches the corresponding image
+  from the Google Street View Static API (`pano=` mode so the saved
+  view matches exactly what the user sees, regardless of auto-
+  calculated approach position) and uploads it to Azure Blob Storage
+  via the same pipeline as regular photo uploads.
+- **New route** `POST /signs/placements/:id/street-view-photo` —
+  accepts `{ panoId, heading, pitch, fov }`, fetches 640×480 JPEG
+  from the SV Static API, processes through sharp, and stores in blob.
+
 ## [2.36.3] - 2026-06-03
 
 ### Fixed

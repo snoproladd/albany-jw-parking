@@ -488,14 +488,25 @@
                 <div class="signs-photo-dropzone" id="editorPhotoDropzone" hidden>
                     <input type="file"
                            class="d-none"
-                           id="editorPhotoInput"
+                           id="editorPhotoCaptureInput"
+                           accept="image/*"
+                           capture="environment" />
+                    <input type="file"
+                           class="d-none"
+                           id="editorPhotoUploadInput"
                            accept="image/*" />
                     <% if (canManage) { %>
-                        <button type="button" class="signs-photo-dropzone-button" id="editorPhotoChooseBtn">
-                            <i class="fa-solid fa-camera fa-2x mb-2"></i>
-                            <div class="fw-semibold">Add photo</div>
-                            <div class="small text-muted">Drop an image or click to choose</div>
-                        </button>
+                        <div class="signs-photo-dropzone-buttons">
+                            <button type="button" class="signs-photo-dropzone-button" id="editorPhotoCaptureBtn">
+                                <i class="fa-solid fa-camera fa-lg"></i>
+                                <span class="fw-semibold">Take Photo</span>
+                            </button>
+                            <button type="button" class="signs-photo-dropzone-button" id="editorPhotoUploadBtn">
+                                <i class="fa-solid fa-upload fa-lg"></i>
+                                <span class="fw-semibold">Upload</span>
+                            </button>
+                        </div>
+                        <div class="small text-muted mt-1 text-center">or drop an image here</div>
                     <% } else { %>
                         <div class="text-center text-muted py-3 small">
                             <i class="fa-regular fa-image me-1"></i>No photo for this placement.
@@ -508,8 +519,11 @@
                     <img class="signs-photo-thumb" id="editorPhotoThumb" alt="Sign placement photo" />
                     <% if (canManage) { %>
                         <div class="signs-photo-actions">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="editorPhotoCaptureReplaceBtn">
+                                <i class="fa-solid fa-camera me-1"></i>Retake
+                            </button>
                             <button type="button" class="btn btn-outline-secondary btn-sm" id="editorPhotoReplaceBtn">
-                                <i class="fa-solid fa-arrows-rotate me-1"></i>Replace
+                                <i class="fa-solid fa-upload me-1"></i>Replace
                             </button>
                             <button type="button" class="btn btn-outline-danger btn-sm" id="editorPhotoDeleteBtn">
                                 <i class="fa-solid fa-trash me-1"></i>Remove
@@ -582,6 +596,13 @@
                     <i class="fa-solid fa-compass me-1"></i>Rotate to face the sign
                 </span>
             </div>
+            <% if (canManage) { %>
+                <button type="button"
+                        class="btn btn-primary btn-sm signs-sv-save-photo-btn"
+                        id="svSavePhotoBtn">
+                    <i class="fa-solid fa-camera me-1"></i>Save as Photo
+                </button>
+            <% } %>
             <button type="button" class="signs-sv-close" id="streetViewCloseBtn" aria-label="Close Street View">
                 <i class="fa-solid fa-xmark"></i>
             </button>

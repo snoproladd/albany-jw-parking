@@ -1108,6 +1108,119 @@ export function signsRouter({
   );
 
   /**
+   * POST /signs/placements/:placementId/street-view-photo
+   * Capture the current Street View as a photo for the placement.
+   *
+   * Body (JSON): { panoId, heading, pitch, fov }
+   * Response:    { success: true, photo_url: string }
+   *
+   * Uses the Google Street View Static API to fetch a JPEG at the
+   * user's exact panorama position / heading / pitch / fov, then
+   * uploads it to Azure Blob Storage via the same pipeline as a
+   * regular photo upload. If the placement already has a photo the
+   * old blob is best-effort deleted.
+   *
+   * @requires manageSigns permission
+   */
+  router.post(
+    "/signs/placements/:placementId/street-view-photo",
+    requireAuth,
+    requirePermission("manageSigns"),
+    csrfProtection,
+    async (req, res) => {
+      if (!googleMapsApiKey) {
+        return res.status(503).json({
+          success: false,
+          error: "Google Maps API key is not configured.",
+        });
+      }
+
+      const placementId = Number(req.params.placementId);
+      const { panoId, heading, pitch, fov } = req.body || {};
+
+      if (!placementId) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid placement id.",
+        });
+      }
+      if (!panoId || typeof panoId !== "string") {
+        return res.status(400).json({
+          success: false,
+          error: "panoId is required.",
+        });
+      }
+      if (
+        !Number.isFinite(Number(heading)) ||
+        !Number.isFinite(Number(pitch)) ||
+        !Number.isFinite(Number(fov))
+      ) {
+        return res.status(400).json({
+          success: false,
+          error: "heading, pitch, and fov must be valid numbers.",
+        });
+      }
+
+      try {
+        const existing = await getSignPlacementById(placementId);
+        if (!existing) {
+          return res.status(404).json({
+            success: false,
+            error: "Placement not found.",
+          });
+        }
+
+        // Fetch the Street View Static API image using the user's
+        // exact panorama ID, heading, pitch, and FOV.
+        const svUrl = new URL(
+          "https://maps.googleapis.com/maps/api/streetview",
+        );
+        svUrl.searchParams.set("size", "640x480");
+        svUrl.searchParams.set("pano", panoId);
+        svUrl.searchParams.set("heading", String(Math.round(Number(heading))));
+        svUrl.searchParams.set("pitch", String(Math.round(Number(pitch))));
+        svUrl.searchParams.set("fov", String(Math.round(Number(fov))));
+        svUrl.searchParams.set("key", googleMapsApiKey);
+
+        const svRes = await fetch(svUrl.toString());
+        if (!svRes.ok) {
+          return res.status(502).json({
+            success: false,
+            error: `Street View API returned ${svRes.status}.`,
+          });
+        }
+
+        const buffer = Buffer.from(await svRes.arrayBuffer());
+
+        // Upload via the same blob pipeline as regular photo uploads.
+        // processImage (inside uploadSignPhoto) handles resize + JPEG.
+        const newBlobName = await uploadSignPhoto(placementId, buffer);
+        await setSignPlacementPhoto(placementId, newBlobName);
+
+        // Best-effort delete the old blob if replaced
+        if (existing.photo_url && existing.photo_url !== newBlobName) {
+          try {
+            await deleteSignPhoto(existing.photo_url);
+          } catch (err) {
+            log("Warning: failed to delete old photo blob:", err);
+          }
+        }
+
+        return res.json({
+          success: true,
+          photo_url: newBlobName,
+        });
+      } catch (err) {
+        log("signs/placements/:id/street-view-photo POST error:", err);
+        return res.status(500).json({
+          success: false,
+          error: "Server error.",
+        });
+      }
+    },
+  );
+
+  /**
    * DELETE /signs/placements/:placementId/photo
    * Removes the placement's photo (both the blob and the DB column).
    * Response: { success: boolean }

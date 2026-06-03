@@ -1258,6 +1258,110 @@
     streetViewForId = null;
   }
 
+  /**
+   * Save the current Street View panorama state as the placement's photo.
+   *
+   * Reads the panorama ID, heading, pitch, and FOV from the active
+   * StreetViewPanorama instance, POSTs to the server which fetches the
+   * corresponding Street View Static API image and uploads it to blob
+   * storage. On success the in-memory placement is updated and the
+   * editor photo section re-rendered if open.
+   */
+  async function saveStreetViewAsPhoto() {
+    if (!streetViewPanorama || streetViewForId === null) return;
+
+    const p = findPlacement(streetViewForId);
+    if (!p) return;
+
+    // Confirm if replacing an existing photo
+    if (p.photo_url) {
+      const ok = window.confirm(
+        "Replace the existing photo with this Street View capture?",
+      );
+      if (!ok) return;
+    }
+
+    const btn = document.getElementById("svSavePhotoBtn");
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "";
+      const spinner = document.createElement("i");
+      spinner.className = "fa-solid fa-spinner fa-spin me-1";
+      btn.appendChild(spinner);
+      btn.appendChild(document.createTextNode("Saving\u2026"));
+    }
+
+    try {
+      const panoId = streetViewPanorama.getPano();
+      const pov = streetViewPanorama.getPov();
+      const zoom = streetViewPanorama.getZoom() || 0;
+      // Convert Street View zoom to FOV:
+      // zoom 0 = 180°, zoom 1 = 90°, zoom 2 = 45°, etc.
+      // Clamp to 120 (Google SV Static API max).
+      const fov = Math.min(120, Math.floor(180 / Math.pow(2, zoom)));
+
+      const res = await fetch(
+        `/signs/placements/${streetViewForId}/street-view-photo`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "CSRF-Token": getCsrfToken(),
+          },
+          body: JSON.stringify({
+            panoId,
+            heading: pov.heading,
+            pitch: pov.pitch,
+            fov,
+          }),
+        },
+      );
+      const data = await res.json();
+      if (!data?.success) {
+        throw new Error(data?.error || "Save failed.");
+      }
+
+      // Update in-memory placement
+      p.photo_url = data.photo_url;
+      photoCacheBuster += 1;
+
+      // Re-render editor photo section if this placement is open
+      if (editingId === streetViewForId) {
+        renderEditorPhoto(p);
+      }
+
+      // Brief success feedback on the button
+      if (btn) {
+        btn.textContent = "";
+        const check = document.createElement("i");
+        check.className = "fa-solid fa-check me-1";
+        btn.appendChild(check);
+        btn.appendChild(document.createTextNode("Saved!"));
+        setTimeout(() => {
+          resetSvSaveBtn(btn);
+        }, 2000);
+      }
+    } catch (err) {
+      console.error("saveStreetViewAsPhoto error:", err);
+      window.alert(err.message || "Failed to save Street View photo.");
+      if (btn) resetSvSaveBtn(btn);
+    }
+  }
+
+  /**
+   * Reset the Street View "Save as Photo" button to its default state.
+   *
+   * @param {HTMLButtonElement} btn
+   */
+  function resetSvSaveBtn(btn) {
+    btn.disabled = false;
+    btn.textContent = "";
+    const icon = document.createElement("i");
+    icon.className = "fa-solid fa-camera me-1";
+    btn.appendChild(icon);
+    btn.appendChild(document.createTextNode("Save as Photo"));
+  }
+
   // ============================================================
   // MAP LIFECYCLE
 
@@ -3317,26 +3421,43 @@ function onMapKeyDown(e) {
     if (delBtn) delBtn.addEventListener("click", deleteFromEditor);
 
     // ---- Photo section wiring ----
-    const photoInput     = document.getElementById("editorPhotoInput");
-    const photoChooseBtn = document.getElementById("editorPhotoChooseBtn");
-    const photoReplaceBtn = document.getElementById("editorPhotoReplaceBtn");
-    const photoDeleteBtn = document.getElementById("editorPhotoDeleteBtn");
-    const photoDropzone  = document.getElementById("editorPhotoDropzone");
+    const photoCaptureInput      = document.getElementById("editorPhotoCaptureInput");
+    const photoUploadInput       = document.getElementById("editorPhotoUploadInput");
+    const photoCaptureBtn        = document.getElementById("editorPhotoCaptureBtn");
+    const photoUploadBtn         = document.getElementById("editorPhotoUploadBtn");
+    const photoCaptureReplaceBtn = document.getElementById("editorPhotoCaptureReplaceBtn");
+    const photoReplaceBtn        = document.getElementById("editorPhotoReplaceBtn");
+    const photoDeleteBtn         = document.getElementById("editorPhotoDeleteBtn");
+    const photoDropzone          = document.getElementById("editorPhotoDropzone");
 
-    if (photoChooseBtn && photoInput) {
-      photoChooseBtn.addEventListener("click", () => photoInput.click());
+    // Both file inputs feed the same upload handler
+    [photoCaptureInput, photoUploadInput].forEach((input) => {
+      if (input) {
+        input.addEventListener("change", () => {
+          const file = input.files?.[0];
+          if (file) uploadEditorPhoto(file);
+          // Reset so picking the same file twice still fires change
+          input.value = "";
+        });
+      }
+    });
+
+    // Take Photo buttons → capture input (camera)
+    if (photoCaptureBtn && photoCaptureInput) {
+      photoCaptureBtn.addEventListener("click", () => photoCaptureInput.click());
     }
-    if (photoReplaceBtn && photoInput) {
-      photoReplaceBtn.addEventListener("click", () => photoInput.click());
+    if (photoCaptureReplaceBtn && photoCaptureInput) {
+      photoCaptureReplaceBtn.addEventListener("click", () => photoCaptureInput.click());
     }
-    if (photoInput) {
-      photoInput.addEventListener("change", () => {
-        const file = photoInput.files?.[0];
-        if (file) uploadEditorPhoto(file);
-        // Reset so picking the same file twice still fires change
-        photoInput.value = "";
-      });
+
+    // Upload / Replace buttons → upload input (gallery / file picker)
+    if (photoUploadBtn && photoUploadInput) {
+      photoUploadBtn.addEventListener("click", () => photoUploadInput.click());
     }
+    if (photoReplaceBtn && photoUploadInput) {
+      photoReplaceBtn.addEventListener("click", () => photoUploadInput.click());
+    }
+
     if (photoDeleteBtn) {
       photoDeleteBtn.addEventListener("click", deleteEditorPhoto);
     }
@@ -3495,6 +3616,12 @@ function onMapKeyDown(e) {
     const svCloseBtn = document.getElementById("streetViewCloseBtn");
     if (svCloseBtn) {
       svCloseBtn.addEventListener("click", closeStreetView);
+    }
+
+    // Street View "Save as Photo" button
+    const svSavePhotoBtn = document.getElementById("svSavePhotoBtn");
+    if (svSavePhotoBtn) {
+      svSavePhotoBtn.addEventListener("click", saveStreetViewAsPhoto);
     }
 
     // Composer button in the offcanvas editor (canManage + saved placement only)
