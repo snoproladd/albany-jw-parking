@@ -3,6 +3,24 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.36.3] - 2026-06-03
+
+### Fixed
+- **Mobile: pressing a sign disabled the map and scrolled the page instead
+  of panning.** Two independent layers were each claiming one-finger touch:
+  - The map had no `gestureHandling` set, so Maps defaulted to `auto`, which
+    resolves to `cooperative` on a scrollable page — one finger scrolls the
+    document, two fingers pan the map. Set `gestureHandling: "greedy"` so a
+    single-finger drag always pans the map.
+  - Marker content carried `touch-action: manipulation`, which still lets the
+    browser treat a single-finger drag as a page scroll and turns the
+    follow-up `touchmove` events non-cancelable before Maps' pan handler can
+    run. Changed to `touch-action: none` on `.signs-map-marker` and its
+    descendants so the gesture stays cancelable and reaches Maps regardless of
+    which part of the marker (full sign body or compact disc) is pressed.
+  - Note: `greedy` also enables scroll-wheel zoom on desktop without holding
+    Ctrl, which is expected for a dedicated full-page map tool.
+
 ## [2.36.2] - 2026-06-02
 
 ### Fixed
