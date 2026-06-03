@@ -217,7 +217,7 @@ parking/
 │   │   ├── dashboardShifts.js        # Home page day-navigator for shifts
 │   │   ├── oversightStructure.js       # Oversight structure admin tree JS
 │   │   └── sitemapSearch.js          # Live search/filter for the sitemap page
-│   ├── styles/               # CSS files
+│   ├── styles/               # CSS files (one per page; signs.css, sitemap.css, volunteerAccountOversight.css, …)
 │   ├── css/                  # Additional CSS (tours, etc.)
 │   │   └── tours.css                 # Shepherd.js tour styling and z-index rules
 │   │   ├── oversightStructure.css      # Oversight structure admin styles
@@ -339,7 +339,8 @@ Schema highlights:
   - `status` (`planned` / `installed` / `removed`) with install/remove audit trail
   - `mount_type` (`cone` / `a-frame` / `existing-structure`, nullable)
   - `marker_color` — optional palette key (red, orange, yellow, green, teal, blue, purple, pink) for map categorisation
-  - `photo_url` — blob name in Azure Storage `sign-photos` container (not a full URL); served via the auth-gated proxy route `GET /signs/placements/:id/photo`. Can be set from camera capture, file upload, Street View save (`POST .../street-view-photo` — fetches from Google SV Static API using the user's exact pano/heading/pitch/fov), or placement composer (flattened composite of sign overlay on a background). The composer supports two background sources: uploaded image or the placement's existing photo.. Can be set from camera capture, file upload, Street View save (`POST .../street-view-photo` fetches from Google SV Static API using the user's exact pano/heading/pitch/fov), or placement composer (flattened composite of sign overlay on a background). The composer supports three background sources: SV snapshot, uploaded image, or the placement's existing photo.
+  - `photo_url` — blob name in Azure Storage `sign-photos` container (not a full URL); served via the auth-gated proxy route `GET /signs/placements/:id/photo`. Can be set from camera capture, file upload, Street View save (`POST .../street-view-photo` — fetches from Google SV Static API using the user's exact pano/heading/pitch/fov), or placement composer (flattened composite of sign overlay on a background). The composer supports two background sources: uploaded image or the placement's existing photo.
+  - `sv_pano_id / sv_heading / sv_pitch / sv_fov` — Street View camera state captured when a snapshot is saved via `POST .../street-view-photo`. Used to restore the exact panorama and camera angle the next time Street View is opened for this placement. All four are `NULL` until a snapshot is taken; `NULL` = no saved state, fall back to the computed approach position.
   - FK to `signs` survives template archival so historical placements remain valid
 
 ---

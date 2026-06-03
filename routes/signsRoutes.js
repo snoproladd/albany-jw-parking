@@ -1203,7 +1203,12 @@ export function signsRouter({
           .filter(Boolean)
           .join(" ") || null;
         const newBlobName = await uploadSignPhoto(placementId, buffer);
-        await setSignPlacementPhoto(placementId, newBlobName, actorName);
+        await setSignPlacementPhoto(placementId, newBlobName, actorName, {
+          panoId:  panoId,
+          heading: Number(heading),
+          pitch:   Number(pitch),
+          fov:     Number(fov),
+        });
 
         // Best-effort delete the old blob if replaced
         if (existing.photo_url && existing.photo_url !== newBlobName) {
@@ -1216,9 +1221,13 @@ export function signsRouter({
 
         return res.json({
           success: true,
-          photo_url: newBlobName,
+          photo_url:     newBlobName,
           photo_taken_by: actorName,
           photo_taken_at: new Date().toISOString(),
+          sv_pano_id:    panoId,
+          sv_heading:    Number(heading),
+          sv_pitch:      Number(pitch),
+          sv_fov:        Number(fov),
         });
       } catch (err) {
         log("signs/placements/:id/street-view-photo POST error:", err);

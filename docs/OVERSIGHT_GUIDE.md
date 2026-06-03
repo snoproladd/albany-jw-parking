@@ -38,10 +38,11 @@ send invitations, track RSVPs, log attendance, and administer the platform.
 Navigate to the site and enter your email and password. If you have forgotten
 your password, contact an admin — they can send a reset link via email or SMS.
 
-### Oversight Tools Hub
+### Operations Hub
 
-After logging in, click **Oversight** in the navigation bar (visible to
-KEYMAN and above) to open the Oversight dropdown. Categories are collapsible —
+After logging in, click **Operations** in the navigation bar (visible to
+all registered volunteers — REGISTERED and above) to open the Operations
+dropdown. Categories are collapsible —
 click a category header to expand or collapse its tools. Click **All Tools**
 at the top to go to the full hub page, which groups every available tool by
 category with descriptions. Which tools appear depends on your role — higher
@@ -66,7 +67,7 @@ manually if needed. Nothing is saved during a tour.
 ### Site Map
 
 A full index of every page on the platform is available at `/sitemap` (also
-linked in the footer and as a card at the bottom of the Oversight Tools hub).
+linked in the footer and as a card at the bottom of the Operations hub).
 Pages are filtered to your current access level — you will only see entries
 you can actually navigate to. Use the search box at the top to filter by page
 name, description, or path. The sitemap is useful for orientation and as a
@@ -102,7 +103,7 @@ JSON format.
 
 **Path:** Signs → Sign Library (`/signs`), Sign Builder (`/signs/builder`),
 or Sign Map (`/signs/map`); also linked from the Resources dropdown, the
-Oversight dropdown, and the Oversight Tools hub.
+Oversight dropdown, and the Operations hub.
 
 The Sign system tracks the placards placed around the convention area —
 things like **PARKING →**, **LOT FULL**, and **OVERFLOW ↗**. Signs are
@@ -292,6 +293,12 @@ image from the Google Street View Static API and stores it as the
 placement's photo. If the placement already has a photo, a confirmation
 dialog asks before replacing it.
 
+The panorama position is also saved alongside the photo. The next time
+Street View is opened for this placement it will reopen at the exact frame
+and camera angle you used — rather than recalculating the approach position
+from the placement coordinates — so the view is consistent for anyone who
+opens it later.
+
 If no Street View imagery is available at that location, a red footer bar
 appears with an **Open in Google Maps** link as a fallback.
 
@@ -442,7 +449,7 @@ Click **Finalize Changes** after editing to save all sections at once.
 
 ### Edit Volunteer *(OVERSEER+)*
 
-**Path:** Oversight Tools → Edit Volunteer
+**Path:** Operations → Edit Volunteer
 
 Search for a volunteer by name. Click their row to open their full profile,
 which mirrors the My Account layout. You can edit any section and save
@@ -472,7 +479,7 @@ Click **EDIT** in the Assignment & Role section to enable the toggle, then
 
 ### Create Volunteer *(OVERSEER+)*
 
-**Path:** Oversight Tools → Create Volunteer
+**Path:** Operations → Create Volunteer
 
 Fill in name, email, phone, and congregation details. The system checks for
 potential duplicates (matching email, phone, or name) before creating the
@@ -483,7 +490,7 @@ should change it on first login.
 
 ### Role Management *(ASSISTANT_ADMIN+)*
 
-**Path:** Oversight Tools → Role Management
+**Path:** Operations → Role Management
 
 View all volunteers and their current roles. Click a volunteer's row to open
 the role editor. You can assign any role strictly below your own level.
@@ -492,7 +499,7 @@ the role editor. You can assign any role strictly below your own level.
 
 ### Volunteer Account Oversight *(ASSISTANT_ADMIN+)*
 
-**Path:** Oversight Tools → Edit Volunteer (oversight tab)
+**Path:** Operations → Edit Volunteer (oversight tab)
 
 Filter volunteers by status: **Active**, **Inactive**, or **Deleted**.
 
@@ -502,7 +509,7 @@ Filter volunteers by status: **Active**, **Inactive**, or **Deleted**.
 
 ### SMS Management *(ASSISTANT_ADMIN+)*
 
-**Path:** Oversight Tools → SMS Management, or Oversight Tools → Edit Volunteer → SMS tab
+**Path:** Operations → SMS Management, or Operations → Edit Volunteer → SMS tab
 
 View and manage volunteer SMS opt-in and opt-out status. The tab loads lazily
 when first activated and can also be reached directly via `/editVolunteer?tab=sms`.
@@ -529,7 +536,7 @@ The search box filters by name in real time.
 
 ### Campaign Center *(OVERSEER+)*
 
-**Path:** Oversight Tools → Campaign Center
+**Path:** Operations → Campaign Center
 
 The primary tool for sending convention invitations to volunteers.
 
@@ -594,7 +601,7 @@ include merge fields and are available across all campaigns.
 
 ### Invitation Tracker *(OVERSEER+)*
 
-**Path:** Oversight Tools → Invitation Tracker
+**Path:** Operations → Invitation Tracker
 
 View all sent invitations for the current year. Filter by:
 - **Campaign** — see all invitations from a specific batch
@@ -661,7 +668,7 @@ mode pre-set to that campaign.
 
 ### Send Reset Link *(ASSISTANT_ADMIN+)*
 
-**Path:** Oversight Tools → Send Reset Link
+**Path:** Operations → Send Reset Link
 
 Send a password reset or account completion link to a volunteer via email
 or SMS. Two tabs:
@@ -678,7 +685,7 @@ accidental spam. The cooldown countdown is shown on each row.
 
 ### Timelines *(OVERSEER+)*
 
-**Path:** Oversight Tools → Timelines
+**Path:** Operations → Timelines
 
 Manage the convention schedule hierarchy: **Days → Sessions → Shifts**.
 
@@ -718,7 +725,7 @@ deletion.
 
 ### Scheduler *(OVERSEER+)*
 
-**Path:** Oversight Tools → Scheduler
+**Path:** Operations → Scheduler
 
 A drag-and-drop interface for assigning volunteers to shift slots across a
 convention day.
@@ -770,7 +777,7 @@ Every assignment and unassignment can be reversed:
 
 ### Schedule Report *(OVERSEER+)*
 
-**Path:** Oversight Tools → Scheduler → Report button in day banner
+**Path:** Operations → Scheduler → Report button in day banner
 
 A printable per-department schedule report for one convention day. After
 assigning volunteers in the Scheduler, click **Report** in the day banner
@@ -865,7 +872,7 @@ department:
 
 ### Event Types *(ADMIN)*
 
-**Path:** Oversight Tools → Event Types
+**Path:** Operations → Event Types
 
 Manage the categories used to label shifts (Ingress, Egress, Mobile Support,
 etc.). Each event type has a name, optional description, and a color used
@@ -875,7 +882,7 @@ as a dot indicator in the Timelines and Attendance views.
 
 ### Locations *(OVERSEER+)*
 
-**Path:** Oversight Tools → Locations
+**Path:** Operations → Locations
 
 Define parking locations used in shift schedule assignments. Each location
 has a name, optional description, capacity, address, and map URL.
@@ -889,7 +896,7 @@ each shift in Timelines.
 
 ### Check-In Tool *(KEYMAN+)*
 
-**Path:** Oversight Tools → Check-In Tool
+**Path:** Operations → Check-In Tool
 
 Used on the day of the convention to record who showed up.
 
@@ -912,7 +919,7 @@ you mark attendance. Use the search box to find a specific volunteer quickly.
 
 ### Attendance Report *(KEYMAN+)*
 
-**Path:** Oversight Tools → Attendance Report
+**Path:** Operations → Attendance Report
 
 View a read-only summary of attendance across all shifts for a convention day.
 
@@ -932,7 +939,7 @@ Use the **filter bar** to narrow across all shifts simultaneously by:
 
 ### Volunteer Application Status *(OVERSEER+)*
 
-**Path:** Oversight Tools → Reports
+**Path:** Operations → Reports
 
 A table of all volunteers showing their registration completeness. Volunteers
 with missing required fields are flagged so oversight can follow up.
@@ -943,7 +950,7 @@ with missing required fields are flagged so oversight can follow up.
 
 ### Export to Decently *(ADMIN)*
 
-**Path:** Oversight Tools → Export to Decently
+**Path:** Operations → Export to Decently
 
 Downloads a CSV of all volunteers not yet exported to Decently, then marks
 them as exported in the system. Run this after finalizing volunteer registrations
@@ -951,7 +958,7 @@ to keep Decently in sync.
 
 ### Import from Decently *(ADMIN)*
 
-**Path:** Oversight Tools → Import from Decently
+**Path:** Operations → Import from Decently
 
 Upload an approved volunteer CSV from Decently. The system matches records
 by name/email/phone, sets active status for matched volunteers, and flags
@@ -963,7 +970,7 @@ new volunteers for review.
 
 ### Permission Matrix
 
-**Path:** Oversight Tools → Permission Matrix
+**Path:** Operations → Permission Matrix
 
 Override the default role permissions at runtime without a code deployment.
 Changes take effect on the next login of affected users.
@@ -979,7 +986,7 @@ on any override to restore the factory default.
 
 ### Oversight Structure *(ADMIN)*
 
-**Path:** Oversight Tools → Oversight Structure
+**Path:** Operations → Oversight Structure
 
 Define the reporting structure shown on every volunteer's home page dashboard.
 

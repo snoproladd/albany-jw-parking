@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Oversight Tools — Albany JW Parking</title>
+  <title>Operations — Albany JW Parking</title>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
@@ -42,6 +42,9 @@
             <% if (isAtLeast('OVERSEER')) { %>
               <option value="reports">📊 Reports</option>
             <% } %>
+            <% if (can('viewSigns') || can('manageSigns')) { %>
+              <option value="signs">🪧 Signs</option>
+            <% } %>
             <% if (can('manageShifts') || can('accessAdminConsole')) { %>
               <option value="scheduling">📅 Scheduling</option>
             <% } %>
@@ -71,6 +74,11 @@
             <% if (isAtLeast('OVERSEER')) { %>
               <a class="ot-sidebar-link" href="#reports">
                 <i class="fa-solid fa-chart-bar"></i> Reports
+              </a>
+            <% } %>
+            <% if (can('viewSigns') || can('manageSigns')) { %>
+              <a class="ot-sidebar-link" href="#signs">
+                <i class="fa-solid fa-signs-post"></i> Signs
               </a>
             <% } %>
             <% if (can('manageShifts') || can('accessAdminConsole')) { %>
@@ -104,9 +112,9 @@
             <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
               <div class="text-center flex-grow-1">
                 <h1 class="h2 my-2">
-                  <i class="fa-solid fa-screwdriver-wrench me-2"></i>Oversight Tools
+                  <i class="fa-solid fa-screwdriver-wrench me-2"></i>Operations
                 </h1>
-                <p class="mb-0">Tools available based on your role.</p>
+                <p class="mb-0">Available tools are based on your role.</p>
               </div>
               <button type="button" class="btn btn-outline-secondary btn-sm ajwp-tour-trigger" id="tourTriggerBtn">
                 <i class="fa-solid fa-circle-question me-1"></i>Take a tour
@@ -308,6 +316,21 @@
                       <h3 class="admin-tool-title">Sign Builder</h3>
                       <p class="admin-tool-desc">Create reusable sign templates with text and arrow direction. Place each template in multiple locations.</p>
                       <a href="/signs/builder" class="btn btn-success admin-tool-btn">
+                        Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                      </a>
+                    </div>
+                  </div>
+                <% } %>
+
+                <% if (can('viewSigns')) { %>
+                  <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="admin-tool-card h-100">
+                      <div class="admin-tool-icon text-warning">
+                        <i class="fa-solid fa-map-location-dot"></i>
+                      </div>
+                      <h3 class="admin-tool-title">Sign Map</h3>
+                      <p class="admin-tool-desc">View all sign placements on a satellite map. Overseer and above can place, reposition, and manage signs directly on the map.</p>
+                      <a href="/signs/map" class="btn btn-warning admin-tool-btn">
                         Open <i class="fa-solid fa-arrow-right ms-1"></i>
                       </a>
                     </div>

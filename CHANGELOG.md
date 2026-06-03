@@ -3,6 +3,51 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.38.0] - 2026-06-03
+
+### Added
+- **Street View camera position persistence.** After a Street View snapshot
+  is saved as a placement's photo, the panorama ID, heading, pitch, and FOV
+  are stored in four new nullable columns on `sign_placements` (`sv_pano_id`,
+  `sv_heading`, `sv_pitch`, `sv_fov`). The next time Street View is opened
+  for that placement it restores the exact panorama and camera angle instead
+  of recalculating the approach position from scratch. Falls back to the
+  computed approach when no snapshot state has been saved.
+  *SQL migration required: `ALTER TABLE dbo.sign_placements ADD sv_pano_id
+  NVARCHAR(100) NULL, sv_heading DECIMAL(6,2) NULL, sv_pitch DECIMAL(6,2)
+  NULL, sv_fov DECIMAL(6,2) NULL;`*
+- **Operations hub accessible to `viewSigns` users.** `GET /oversight/tools`
+  gate lowered from `editVolunteerInfo` → `viewSigns`, opening the hub to
+  REGISTERED volunteers (and anyone with the delegated `manageSigns`
+  permission). The Operations nav dropdown gate was widened to match.
+- **Sign Map card** added to the Operations hub Signs section; **Sign Map
+  link** added to the Operations nav dropdown.
+- **`public/styles/volunteerAccountOversight.css`** — new stylesheet for the
+  Edit Volunteer page. Accordion sections in edit mode (`data-editing="true"`)
+  receive a blue left-accent shadow and a light background tint. Unchecked
+  checkboxes gain a darker border so they are clearly visible against the
+  background. Active text inputs and selects gain a primary-colour border.
+  Locked-mode form controls are slightly muted to reinforce read-only state.
+
+### Changed
+- **Oversight Tools renamed to Operations** across the hub page title, h1,
+  and nav dropdown label.
+- **Sitemap page title** now wrapped in a frosted-glass backdrop
+  (`rgba(0,0,0,0.45)` with `backdrop-filter: blur`). Section heading text
+  changed to white with a dark text-shadow so both read over the hero photo.
+
+### Fixed
+- **Canvas compositing aspect ratio.** `composerSave()` called
+  `ctx.drawImage(bgImg, 0, 0, W, H)`, which ignores the CSS
+  `object-fit: contain` on `.signs-composer-bg` and stretches the
+  background to fill the full stage, displacing the sign overlay relative
+  to the photo content. Fixed by computing the `object-fit: contain` render
+  rectangle (`scale = min(stageW/nW, stageH/nH)`, centered), sizing the
+  canvas to the image content area only, drawing the background without
+  stretch, and subtracting the letterbox offset from the sign coordinates.
+  The saved JPEG now matches the photo's native aspect ratio and the sign
+  appears exactly where it was positioned on screen.
+
 ## [2.37.0] - 2026-06-03
 
 ### Added

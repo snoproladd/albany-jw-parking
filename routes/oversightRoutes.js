@@ -1085,12 +1085,13 @@ export function oversightRouter({
   router.get(
     "/oversight/tools",
     requireAuth,
-    requirePermission("editVolunteerInfo"),
+    requirePermission("viewSigns"),
     csrfProtection,
     (req, res) => {
       res.render("authentication_and_accounts/oversightTools", {
         csrfToken: req.csrfToken(),
         userRole: req.session.userRole || "NON_REGISTERED",
+        userPermissions: req.session.permissions || {},
       });
     },
   );

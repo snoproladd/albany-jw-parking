@@ -1220,21 +1220,47 @@
     }
 
     // ── Create panorama ───────────────────────────────────────────────
-    // Position the camera at the approach point (behind the sign).
-    // POV heading = direction of travel so the camera looks toward the sign.
-    streetViewPanorama = new google.maps.StreetViewPanorama(pane, {
-      position: { lat: svLat, lng: svLng },
-      pov: {
-        heading: travelBearing,
-        pitch: -5,
-      },
-      zoom: 0,
-      addressControl: false,
-      fullscreenControl: false,
-      motionTrackingControl: false,
-      showRoadLabels: true,
-      linksControl: true,
-    });
+    // If a saved Street View state exists, restore the exact camera
+    // position from the last snapshot.  Otherwise open at the computed
+    // approach point (SV_APPROACH_DISTANCE_METERS behind the sign).
+    const hasSavedSvState = p.sv_pano_id != null && p.sv_pano_id !== "";
+
+    if (hasSavedSvState) {
+      // Convert stored FOV back to Google Maps zoom:
+      // fov = 180 / 2^zoom  →  zoom = log2(180 / fov)
+      const svFov    = Math.max(Number(p.sv_fov) || 90, 1);
+      const svZoom   = Math.max(0, Math.log2(180 / svFov));
+
+      streetViewPanorama = new google.maps.StreetViewPanorama(pane, {
+        pano: p.sv_pano_id,
+        pov: {
+          heading: Number(p.sv_heading) || 0,
+          pitch:   Number(p.sv_pitch)   || -5,
+        },
+        zoom: svZoom,
+        addressControl:        false,
+        fullscreenControl:     false,
+        motionTrackingControl: false,
+        showRoadLabels:        true,
+        linksControl:          true,
+      });
+    } else {
+      // Position the camera at the approach point (behind the sign).
+      // POV heading = direction of travel so the camera looks toward the sign.
+      streetViewPanorama = new google.maps.StreetViewPanorama(pane, {
+        position: { lat: svLat, lng: svLng },
+        pov: {
+          heading: travelBearing,
+          pitch: -5,
+        },
+        zoom: 0,
+        addressControl:        false,
+        fullscreenControl:     false,
+        motionTrackingControl: false,
+        showRoadLabels:        true,
+        linksControl:          true,
+      });
+    }
 
     // ── No-imagery fallback ───────────────────────────────────────────
     streetViewPanorama.addListener("status_changed", () => {
@@ -1335,9 +1361,14 @@
       }
 
       // Update in-memory placement
-      p.photo_url = data.photo_url;
+      p.photo_url      = data.photo_url;
       p.photo_taken_by = data.photo_taken_by || null;
       p.photo_taken_at = data.photo_taken_at || null;
+      // Persist SV state so re-opening Street View restores this view
+      p.sv_pano_id = data.sv_pano_id || null;
+      p.sv_heading = data.sv_heading != null ? data.sv_heading : null;
+      p.sv_pitch   = data.sv_pitch   != null ? data.sv_pitch   : null;
+      p.sv_fov     = data.sv_fov     != null ? data.sv_fov     : null;
       photoCacheBuster += 1;
 
       // Re-render editor photo section if this placement is open
@@ -4434,22 +4465,35 @@ function onMapKeyDown(e) {
 
     try {
       const stageRect = stage.getBoundingClientRect();
-      const W = Math.round(stageRect.width);
-      const H = Math.round(stageRect.height);
+      const stageW = Math.round(stageRect.width);
+      const stageH = Math.round(stageRect.height);
 
+      // Replicate object-fit: contain; object-position: center.
+      // drawImage() does not honour CSS object-fit — without this
+      // correction it stretches the background to fill the full stage,
+      // displacing the sign relative to the photo content.
+      const nW    = bgImg.naturalWidth  || stageW;
+      const nH    = bgImg.naturalHeight || stageH;
+      const scale = Math.min(stageW / nW, stageH / nH);
+      const rW    = Math.round(nW * scale);
+      const rH    = Math.round(nH * scale);
+      const dx    = Math.round((stageW - rW) / 2);
+      const dy    = Math.round((stageH - rH) / 2);
+
+      // Canvas matches the image content area only — no letterbox bars.
       const canvas  = document.getElementById("composerCanvas");
-      canvas.width  = W;
-      canvas.height = H;
+      canvas.width  = rW;
+      canvas.height = rH;
       const ctx = canvas.getContext("2d");
 
-      // 1. Background — same-origin, no taint.
-      ctx.drawImage(bgImg, 0, 0, W, H);
+      // 1. Background — drawn at natural aspect ratio, no stretch.
+      ctx.drawImage(bgImg, 0, 0, rW, rH);
 
-      // 2. Sign overlay — pure canvas 2D, no foreignObject taint.
-      //    Text auto-scales; falls back to abbreviation if needed.
+      // 2. Sign overlay — subtract the letterbox offset so the sign sits
+      //    at the same position relative to the image content as on screen.
       const signRect = signEl.getBoundingClientRect();
-      const signX    = signRect.left - stageRect.left;
-      const signY    = signRect.top  - stageRect.top;
+      const signX    = (signRect.left - stageRect.left) - dx;
+      const signY    = (signRect.top  - stageRect.top)  - dy;
       const signW    = signRect.width;
 
       const p = findPlacement(composer.placementId);

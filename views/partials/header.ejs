@@ -86,13 +86,13 @@
 
             
 
-            <% if (isAtLeast('KEYMAN') || _navRole === 'DESK'){ %>
+            <% if (can('viewSigns') || isAtLeast('KEYMAN') || _navRole === 'DESK'){ %>
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" id="oversightDropdown"
                  role="button" data-bs-toggle="dropdown" aria-expanded="false"
                  data-bs-auto-close="outside">
                 <i class="fa-solid fa-screwdriver-wrench me-1"></i>
-                Oversight
+                Operations
               </a>
               <ul class="dropdown-menu ot-nav-dropdown" aria-labelledby="oversightDropdown">
 
@@ -205,6 +205,11 @@
                       <% if (can('manageSigns')) { %>
                         <li><a class="ot-nav-item" href="/signs/builder">
                           <i class="fa-solid fa-pen-to-square"></i>Sign Builder
+                        </a></li>
+                      <% } %>
+                      <% if (can('viewSigns')) { %>
+                        <li><a class="ot-nav-item" href="/signs/map">
+                          <i class="fa-solid fa-map-location-dot"></i>Sign Map
                         </a></li>
                       <% } %>
                     </ul>

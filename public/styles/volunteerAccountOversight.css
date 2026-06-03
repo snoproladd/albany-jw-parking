@@ -1,0 +1,56 @@
+/* =============================================================================
+   volunteerAccountOversight.css
+   Visual distinction between locked (view) and active (edit) accordion sections
+   on the Edit Volunteer oversight page.
+
+   Targeting:
+     [data-editing="true"]  — section currently open for editing
+     [data-editing="false"] — section locked in read-only view
+
+   The status section (data-section="status") never receives a data-editing
+   attribute and is therefore unaffected.
+   ============================================================================= */
+
+/* ── Edit mode ────────────────────────────────────────────────────────────── */
+
+/**
+ * Accent the entire section body when editing is active.
+ * box-shadow inset avoids layout shift that border-left would cause.
+ * color-mix() tint is supported in all evergreen browsers.
+ */
+.accordion-body[data-editing="true"] {
+    background-color: color-mix(in srgb, var(--bs-primary) 4%, var(--bs-body-bg));
+    box-shadow: inset 3px 0 0 var(--bs-primary);
+    transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/**
+ * Unchecked checkboxes: Bootstrap defaults to border-color: #dee2e6
+ * which is nearly invisible on white. Darken to secondary gray so
+ * empty boxes clearly show they are toggleable.
+ */
+.accordion-body[data-editing="true"] .form-check-input[type="checkbox"]:not(:checked),
+.accordion-body[data-editing="true"] .form-check-input[type="radio"]:not(:checked) {
+    border-color: #6c757d;
+    border-width: 2px;
+}
+
+/**
+ * Enabled text inputs and selects: give them a primary-colored border
+ * to reinforce that the fields are live and editable.
+ */
+.accordion-body[data-editing="true"] .form-control:not(:disabled),
+.accordion-body[data-editing="true"] .form-select:not(:disabled) {
+    border-color: var(--bs-primary);
+}
+
+/* ── Locked / view mode ───────────────────────────────────────────────────── */
+
+/**
+ * Bootstrap applies opacity via the parent .form-check for disabled inputs,
+ * but does not do the same for standalone checkboxes. Mute them slightly
+ * so the locked state reads clearly as non-interactive.
+ */
+.accordion-body[data-editing="false"] .form-check-input {
+    opacity: 0.5;
+}
