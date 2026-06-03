@@ -1455,86 +1455,6 @@ mapRef = new google.maps.Map(mapEl, {
       title: placement.sign_text,
     });
 
-    if (isTouchDevice) {
-      // Touch: single tap → select + info sheet.
-      //        double-tap  → open editor directly.
-      //
-      // Uses native touchend (not gmp-click) to avoid corrupting Google's
-      // internal touch-gesture state. Travel guard (10px) ignores scroll
-      // drags. Double-tap detected via a 350ms window between taps.
-      let touchStartX   = 0;
-      let touchStartY   = 0;
-      let lastTapAt     = 0;
-      let lastTapX      = 0;
-      let lastTapY      = 0;
-
-      marker.content.addEventListener("touchstart", (e) => {
-        touchStartX = e.touches[0]?.clientX ?? 0;
-        touchStartY = e.touches[0]?.clientY ?? 0;
-      }, { passive: true });
-
-      marker.content.addEventListener("touchend", (e) => {
-        // Suppress touchend fired immediately after a Shift+drag completes.
-        if (Date.now() - lastDragEndAt < 350) return;
-        const touch = e.changedTouches[0];
-        const endX  = touch?.clientX ?? touchStartX;
-        const endY  = touch?.clientY ?? touchStartY;
-        if (Math.abs(endX - touchStartX) > 10 || Math.abs(endY - touchStartY) > 10) return;
-        e.stopPropagation();
-
-        const now = Date.now();
-        const isDoubleTap =
-          now - lastTapAt < 350 &&
-          Math.abs(endX - lastTapX) < 30 &&
-          Math.abs(endY - lastTapY) < 30;
-
-        lastTapAt = now;
-        lastTapX  = endX;
-        lastTapY  = endY;
-
-        if (isDoubleTap) {
-          // Double-tap → open editor directly (same as right-click → Edit)
-          selectMarker(placement.placement_id);
-          openEditor(placement.placement_id);
-        } else {
-          // Single tap → select + info sheet only
-          selectMarker(placement.placement_id);
-          showInfoSheet(placement.placement_id);
-        }
-      }, { passive: true });
-
-    } else {
-      // Desktop: single click → select + info sheet.
-      //          double-click → open editor directly.
-      //          right-click  → context menu (handled in attachMarkerHoverListeners).
-      //
-      // The standard dblclick event fires after two clicks. We cancel the
-      // single-click action on the first click of a double so the info sheet
-      // doesn't flash open before the editor. A 220ms timer is long enough
-      // to distinguish intent without feeling sluggish.
-      let singleClickTimer = null;
-
-      marker.content.addEventListener("click", () => {
-        // Suppress synthetic click fired by the browser after a drag ends.
-        if (Date.now() - lastDragEndAt < 350) return;
-        clearTimeout(singleClickTimer);
-        singleClickTimer = setTimeout(() => {
-          selectMarker(placement.placement_id);
-          showInfoSheet(placement.placement_id);
-        }, 220);
-      });
-
-      marker.content.addEventListener("dblclick", (e) => {
-        // Cancel the pending single-click so the info sheet doesn't open
-        clearTimeout(singleClickTimer);
-        singleClickTimer = null;
-        e.stopPropagation(); // don't let Maps zoom on double-click
-        e.preventDefault();
-        selectMarker(placement.placement_id);
-        openEditor(placement.placement_id);
-      });
-    }
-
     attachMarkerHoverListeners(placement.placement_id, marker);
 
     if (canManage) {
@@ -1582,6 +1502,85 @@ mapRef = new google.maps.Map(mapEl, {
   function attachMarkerHoverListeners(placementId, marker) {
     const el = marker.content;
     if (!el) return;
+
+    // ── Tap / click wiring ────────────────────────────────────────
+    // Lives here rather than in addMarkerForPlacement so that listeners
+    // are re-attached every time marker.content is swapped on a
+    // detail-level zoom transition. Wiring in addMarkerForPlacement
+    // would orphan the listeners on the discarded DOM node.
+    if (isTouchDevice) {
+      // Single tap  → select + info sheet.
+      // Double-tap  → open editor directly.
+      // Right-touch → context menu (long-press handled by contextmenu event below).
+      //
+      // No stopPropagation on touchend — calling it inside Google Maps'
+      // DOM hierarchy kills the browser's touch sequence on real mobile
+      // devices, freezing both the map and page scroll. The
+      // touch-action: manipulation CSS on .signs-map-marker prevents
+      // gesture corruption without needing to suppress propagation.
+      let touchStartX = 0;
+      let touchStartY = 0;
+      let lastTapAt   = 0;
+      let lastTapX    = 0;
+      let lastTapY    = 0;
+
+      el.addEventListener("touchstart", (e) => {
+        touchStartX = e.touches[0]?.clientX ?? 0;
+        touchStartY = e.touches[0]?.clientY ?? 0;
+      }, { passive: true });
+
+      el.addEventListener("touchend", (e) => {
+        // Suppress touchend immediately after a drag ends.
+        if (Date.now() - lastDragEndAt < 350) return;
+        const touch = e.changedTouches[0];
+        const endX  = touch?.clientX ?? touchStartX;
+        const endY  = touch?.clientY ?? touchStartY;
+        if (Math.abs(endX - touchStartX) > 10 || Math.abs(endY - touchStartY) > 10) return;
+
+        const now         = Date.now();
+        const isDoubleTap =
+          now - lastTapAt < 350 &&
+          Math.abs(endX - lastTapX) < 30 &&
+          Math.abs(endY - lastTapY) < 30;
+        lastTapAt = now;
+        lastTapX  = endX;
+        lastTapY  = endY;
+
+        if (isDoubleTap) {
+          selectMarker(placementId);
+          openEditor(placementId);
+        } else {
+          selectMarker(placementId);
+          showInfoSheet(placementId);
+        }
+      }, { passive: true });
+
+    } else {
+      // Single click  → select + info sheet (after 220ms, cancelled by dblclick).
+      // Double-click  → open editor directly.
+      // Right-click   → context menu (wired below via contextmenu event).
+      //
+      // lastDragEndAt guard suppresses the synthetic click the browser
+      // fires after a Shift+drag pointer release.
+      let singleClickTimer = null;
+
+      el.addEventListener("click", () => {
+        if (Date.now() - lastDragEndAt < 350) return;
+        clearTimeout(singleClickTimer);
+        singleClickTimer = setTimeout(() => {
+          selectMarker(placementId);
+          showInfoSheet(placementId);
+        }, 220);
+      });
+
+      el.addEventListener("dblclick", (e) => {
+        clearTimeout(singleClickTimer);
+        singleClickTimer = null;
+        e.stopPropagation();
+        selectMarker(placementId);
+        openEditor(placementId);
+      });
+    }
 
     el.addEventListener("mouseenter", (e) => {
       // Don't show the tooltip when the pointer enters via the travel-
