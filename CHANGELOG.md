@@ -19,6 +19,11 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
   view matches exactly what the user sees, regardless of auto-
   calculated approach position) and uploads it to Azure Blob Storage
   via the same pipeline as regular photo uploads.
+- **Existing photo as composer background.** The placement composer
+  toolbar now shows an "Existing photo" button (when a photo exists)
+  alongside Street View and Upload. Loads the placement's current
+  photo as the background so the sign overlay can be positioned on
+  a real field photo.
 - **New route** `POST /signs/placements/:id/street-view-photo` —
   accepts `{ panoId, heading, pitch, fov }`, fetches 640×480 JPEG
   from the SV Static API, processes through sharp, and stores in blob.

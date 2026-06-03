@@ -3765,6 +3765,10 @@ function onMapKeyDown(e) {
     const saveBtn = document.getElementById("composerSaveBtn");
     if (saveBtn) saveBtn.disabled = true;
 
+    // Show "Existing photo" button only when placement has a photo
+    const existingBtn = document.getElementById("composerExistingBtn");
+    if (existingBtn) existingBtn.hidden = !p.photo_url;
+
     // ── Show overlay ─────────────────────────────────────────────────
     const overlay = document.getElementById("signsComposer");
     if (!overlay) return;
@@ -4030,6 +4034,46 @@ function onMapKeyDown(e) {
     } finally {
       if (loadingEl) loadingEl.classList.add("d-none");
       if (svBtn) svBtn.disabled = false;
+    }
+  }
+
+  /**
+   * Load the placement's existing photo as the composer background.
+   * Fetches from the auth-gated photo proxy and converts to a data URL.
+   */
+  async function composerLoadExistingPhoto() {
+    if (composer.placementId === null) return;
+
+    const p = findPlacement(composer.placementId);
+    if (!p?.photo_url) return;
+
+    const loadingEl = document.getElementById("composerLoading");
+    const btn = document.getElementById("composerExistingBtn");
+    if (loadingEl) loadingEl.classList.remove("d-none");
+    if (btn) btn.disabled = true;
+    composerSetStatus("Loading existing photo\u2026");
+
+    try {
+      const res = await fetch(
+        `/signs/placements/${composer.placementId}/photo?t=${photoCacheBuster}`,
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const blob = await res.blob();
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+
+      composerSetBackground(dataUrl);
+    } catch (err) {
+      composerSetStatus(`Could not load photo: ${err.message}`);
+      composerSetBackground(null);
+    } finally {
+      if (loadingEl) loadingEl.classList.add("d-none");
+      if (btn) btn.disabled = false;
     }
   }
 
@@ -4461,6 +4505,12 @@ function onMapKeyDown(e) {
 
     // Street View button
     if (svBtn) svBtn.addEventListener("click", composerLoadStreetView);
+
+    // Existing photo button
+    const existingBtn = document.getElementById("composerExistingBtn");
+    if (existingBtn) {
+      existingBtn.addEventListener("click", composerLoadExistingPhoto);
+    }
 
     // Upload button → trigger file input
     if (uploadBtn && fileInput) {

@@ -17,6 +17,7 @@ send invitations, track RSVPs, log attendance, and administer the platform.
      - [Sign Map](#sign-map-registered--to-view-overseer-to-edit)
        - [Direction of Travel Handle](#direction-of-travel-handle-overseer)
        - [Street View](#street-view)
+       - [Placement Composer](#placement-composer-overseer)
 2. [My Account](#2-my-account)
 3. [Volunteer Management](#3-volunteer-management)
    - [SMS Management](#sms-management-assistant_admin)
@@ -281,6 +282,36 @@ appears with an **Open in Google Maps** link as a fallback.
 
 **Keyboard:** Escape closes the Street View overlay. A second Escape
 deselects the map marker.
+
+##### Placement Composer *(OVERSEER+)*
+
+Click **Compose photo** in the offcanvas editor to open the placement
+composer — a full-screen overlay for creating a realistic mockup of
+what the sign will look like when installed. The composer lets you pick
+a background, position and resize the sign overlay on top of it, then
+save the result as the placement's photo.
+
+**Choosing a background:** three options in the toolbar:
+
+- **Street View** — fetches a snapshot from the Google Street View
+  Static API at the sign's approach position and heading. Good for
+  planning what a placement will look like before anyone goes into
+  the field.
+- **Upload image** — use your own photo (e.g. a picture of the
+  location taken from your phone).
+- **Existing photo** — loads the placement's current photo as the
+  background. Only appears when the placement already has a photo.
+  Useful for compositing the sign onto a real field photo you already
+  captured via Take Photo or Save as Photo.
+
+**Positioning the sign:** once a background is loaded, the sign preview
+appears on the canvas. Drag it to the correct position. Use the corner
+handles to resize. The mount type selector in the toolbar (Cone /
+A-frame / Sign only) changes the frame drawn around the sign.
+
+**Saving:** click **Save as photo** to flatten the composite into a
+JPEG and store it as the placement's photo. If the placement already
+has a photo, it is replaced.
 
 ##### Hover tooltip
 
