@@ -270,13 +270,37 @@
     cursor: pointer;
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
     /*
-     * Override Google's touch-action:none on the AdvancedMarkerElement host.
-     * Without this, a finger that starts on a marker consumes the touch
-     * sequence and breaks the map's pan/zoom gesture recognizer for the
-     * rest of the session. pan-x pan-y restores native scroll/pan alongside
-     * the tap, and manipulation suppresses the 300ms click delay on mobile.
+     * Delegate every touch gesture that begins on a marker to Google's own
+     * JS gesture recognizer (which listens on the map container) instead of
+     * letting the browser claim it.
+     *
+     * The previous value, touch-action:manipulation, still permits the
+     * browser to treat a single-finger drag as a *scroll*. The marker isn't
+     * scrollable, so that scroll bubbled to the page — pressing a sign and
+     * dragging scrolled the page instead of panning the map. Worse, once the
+     * browser commits to that scroll the follow-up touchmove events become
+     * non-cancelable, so Maps' preventDefault-based pan never runs and the
+     * map appears frozen for the rest of the gesture.
+     *
+     * touch-action:none performs no default touch behavior here, so every
+     * touchmove stays cancelable and reaches Maps' pan/zoom handler on the
+     * ancestor map div. Taps still work: the marker's own touchend listener
+     * fires the info sheet.
      */
-    touch-action: manipulation;
+    touch-action: none;
+}
+
+/*
+ * touch-action does not inherit and is read from the element actually under
+ * the finger. In compact mode that's .signs-map-marker-disc (in full-detail
+ * mode the sign body is pointer-events:none, so the hit resolves up to the
+ * wrapper). Force every marker descendant to the same delegate-to-Maps
+ * behavior so panning works regardless of which part of the marker is
+ * pressed. The travel handle is desktop/fine-pointer only, so this has no
+ * effect on its mouse-driven rotation.
+ */
+.signs-map-marker * {
+    touch-action: none;
 }
 
 .signs-map-marker-sign {
