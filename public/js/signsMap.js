@@ -1320,6 +1320,14 @@ mapRef = new google.maps.Map(mapEl, {
   mapId: "6261df670165b61fc3ae73a4", // Custom Map ID — POIs hidden via Cloud Console style
   tilt: 0,
   disableDefaultUI: false,
+  // One-finger touch must PAN the map, not scroll the page. With no
+  // gestureHandling set, Maps defaults to "auto", which resolves to
+  // "cooperative" on a scrollable page: a single-finger drag scrolls the
+  // document and the map only moves with two fingers ("touch becomes page
+  // control"). "greedy" makes every one-finger drag pan the map. Combined
+  // with touch-action:none on the markers (signs.css), this also fixes
+  // drags that begin on a sign.
+  gestureHandling: "greedy",
   // Explicit per-control toggles (vector maps default to more
   // controls than raster, including a pan control we don't want).
   mapTypeControl: true,
