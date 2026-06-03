@@ -4767,6 +4767,17 @@ function onMapKeyDown(e) {
       }
     }
 
+    // Expose a minimal API for companion modules (e.g. signsGeofence.js).
+    // Only functions consumed by external callers are surfaced here.
+    window.signsMapApi = {
+      getPlacements: () => placements,
+      findPlacement,
+      selectMarker,
+      quickSetStatus,
+      canManage: () => canManage,
+      getMapRef: () => mapRef,
+    };
+
     wireUi();
     renderPlacementList(placements);
 

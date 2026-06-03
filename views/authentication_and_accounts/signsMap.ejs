@@ -309,6 +309,38 @@
     </div>
     <div class="signs-info-sheet-backdrop d-none" id="signsInfoSheetBackdrop"></div>
 
+    <% if (canManage) { %>
+    <%# ──────────────────────────────────────────────────────────
+        GEOFENCE: FAB toggle + proximity alert bar
+        Only rendered for manageSigns users. JS initialisation in
+        signsGeofence.js — the FAB stays d-none until the map loads.
+    ────────────────────────────────────────────────────────── %>
+    <button type="button"
+            class="signs-geofence-fab d-none"
+            id="signsGeofenceFab"
+            aria-pressed="false"
+            title="Track my location">
+        <i class="fa-solid fa-location-crosshairs" aria-hidden="true"></i>
+    </button>
+
+    <div class="signs-proximity-bar d-none" id="signsProximityBar">
+        <div class="signs-proximity-bar-inner">
+            <div class="signs-proximity-bar-info" id="signsProximityInfo">
+                <%# JS populates: sign preview + distance %>
+            </div>
+            <div class="signs-proximity-bar-actions" id="signsProximityActions">
+                <%# JS populates: status buttons %>
+            </div>
+            <button type="button"
+                    class="signs-proximity-bar-dismiss"
+                    id="signsProximityDismiss"
+                    aria-label="Dismiss">
+                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+            </button>
+        </div>
+    </div>
+    <% } %>
+
     <%# ──────────────────────────────────────────────────────────
         OFFCANVAS: placement editor (slides in from the right)
     ────────────────────────────────────────────────────────── %>
@@ -724,5 +756,8 @@
     <%- include('../partials/footer') %>
     <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
     <script src="/js/signsMap.js"></script>
+    <% if (canManage) { %>
+    <script src="/js/signsGeofence.js"></script>
+    <% } %>
 </body>
 </html>
