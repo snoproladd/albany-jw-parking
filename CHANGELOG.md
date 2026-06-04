@@ -3,6 +3,29 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.39.0] - 2026-06-04
+
+### Added
+- **Sign Map geofencing (Phase 4).** `manageSigns` users see a floating GPS
+  button (bottom-right of the map) that toggles continuous location tracking.
+  When active, a blue pulsing dot shows the user's live position and the map
+  auto-follows. When the user comes within 75 m of a sign placement, a
+  proximity bar slides up from the bottom of the screen showing the sign
+  preview, live distance readout, a photo thumbnail (tap to expand), and
+  one-tap Planned / Installed / Removed status buttons. Dismissing a
+  placement suppresses it for the remainder of the tracking session.
+  Auto-follow pauses for 5 s when the user manually pans or zooms.
+  New file: `public/js/signsGeofence.js`.
+- **`window.signsMapApi`** — `signsMap.js` now exposes a minimal API object
+  (`getPlacements`, `findPlacement`, `selectMarker`, `quickSetStatus`,
+  `canManage`, `getMapRef`) so companion modules can interact with the map
+  without reaching into the IIFE's private scope.
+
+### Fixed
+- **Travel-handle rotation no longer opens the info sheet** — `lastDragEndAt`
+  is now set on travel-handle `pointerup`, matching the existing position-drag
+  guard so the synthetic click after pointer release is suppressed.
+
 ## [2.38.0] - 2026-06-03
 
 ### Added

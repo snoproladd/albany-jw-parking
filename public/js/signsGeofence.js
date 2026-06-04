@@ -96,6 +96,9 @@
   /** Safety timeout handle from hideProximityBar, cleared on re-show. */
   let hideBarTimer = null;
 
+  /** Interval handle for periodic proximity rechecks between GPS updates. */
+  let proximityInterval = null;
+
   // ── DOM refs (set once in init) ─────────────────────────────
 
   /** @type {HTMLButtonElement|null} */
@@ -109,6 +112,9 @@
 
   /** @type {HTMLElement|null} */
   let proxActions = null;
+
+  /** @type {HTMLElement|null} */
+  let proxPhoto = null;
 
   /** @type {HTMLButtonElement|null} */
   let proxDismiss = null;
@@ -162,10 +168,16 @@
       fabBtn.classList.add("signs-geofence-fab-active");
       fabBtn.setAttribute("aria-pressed", "true");
       fabBtn.setAttribute("title", "Stop tracking");
+      fabBtn.style.background = "#0d6efd";
+      fabBtn.style.color = "#fff";
+      fabBtn.style.boxShadow = "0 2px 12px rgba(13,110,253,0.45)";
     } else {
       fabBtn.classList.remove("signs-geofence-fab-active");
       fabBtn.setAttribute("aria-pressed", "false");
       fabBtn.setAttribute("title", "Track my location");
+      fabBtn.style.background = "#fff";
+      fabBtn.style.color = "#6c757d";
+      fabBtn.style.boxShadow = "0 2px 8px rgba(0,0,0,0.25)";
     }
   }
 
@@ -262,6 +274,9 @@
     distEl.textContent = fmtDist(distanceM);
     proxInfo.appendChild(distEl);
 
+    // ── Photo thumbnail ────────────────────────────────────────
+    buildProximityPhoto(placement);
+
     // ── Status buttons ─────────────────────────────────────────
     buildStatusButtons(placement);
 
@@ -329,6 +344,52 @@
 
       proxActions.appendChild(btn);
     });
+  }
+
+  /**
+   * Build the photo thumbnail inside the proximity bar. Shows a small
+   * preview that expands on tap with a chevron to collapse.
+   *
+   * @param {object} placement  In-memory placement object.
+   */
+  function buildProximityPhoto(placement) {
+    if (!proxPhoto) return;
+    proxPhoto.replaceChildren();
+
+    if (!placement.photo_url) {
+      proxPhoto.classList.add("d-none");
+      return;
+    }
+
+    const thumb = document.createElement("img");
+    thumb.className = "signs-proximity-photo-thumb";
+    thumb.alt = "Sign placement photo";
+    thumb.src = `/signs/placements/${placement.placement_id}/photo?t=${Date.now()}`;
+
+    const collapseBtn = document.createElement("button");
+    collapseBtn.type = "button";
+    collapseBtn.className = "signs-proximity-photo-collapse d-none";
+    collapseBtn.setAttribute("aria-label", "Collapse photo");
+    const chevron = document.createElement("i");
+    chevron.className = "fa-solid fa-chevron-down";
+    chevron.setAttribute("aria-hidden", "true");
+    collapseBtn.appendChild(chevron);
+
+    thumb.addEventListener("click", () => {
+      const expanded = proxPhoto.classList.toggle(
+        "signs-proximity-photo-expanded",
+      );
+      collapseBtn.classList.toggle("d-none", !expanded);
+    });
+
+    collapseBtn.addEventListener("click", () => {
+      proxPhoto.classList.remove("signs-proximity-photo-expanded");
+      collapseBtn.classList.add("d-none");
+    });
+
+    proxPhoto.appendChild(thumb);
+    proxPhoto.appendChild(collapseBtn);
+    proxPhoto.classList.remove("d-none");
   }
 
   /**
@@ -505,6 +566,10 @@
       onPositionError,
       GEO_OPTIONS,
     );
+
+    // Periodic recheck so placement moves made while tracking are
+    // detected without waiting for the next GPS position update.
+    proximityInterval = setInterval(checkProximity, 4000);
   }
 
   /**
@@ -518,6 +583,10 @@
     tracking = false;
     followMode = false;
     clearFollowTimer();
+    if (proximityInterval !== null) {
+      clearInterval(proximityInterval);
+      proximityInterval = null;
+    }
     removeUserMarker();
     hideProximityBar();
     activeProxId = null;
@@ -542,12 +611,49 @@
     proxBar = document.getElementById("signsProximityBar");
     proxInfo = document.getElementById("signsProximityInfo");
     proxActions = document.getElementById("signsProximityActions");
+    proxPhoto   = document.getElementById("signsProximityPhoto");
     proxDismiss = document.getElementById("signsProximityDismiss");
 
     if (!fabBtn) return;
 
-    // Show the FAB (starts d-none in EJS until JS confirms readiness)
-    fabBtn.classList.remove("d-none");
+    // Once the map is available, move the FAB into the Google Maps
+    // control stack so it sits above the zoom / Street View controls
+    // instead of overlapping them. Poll briefly since the map loads
+    // asynchronously after bootstrap().
+    const attachToMap = () => {
+      const map = api.getMapRef();
+      if (!map) {
+        setTimeout(attachToMap, 500);
+        return;
+      }
+      // Google Maps applies all:revert on custom control containers,
+      // which collapses class-based sizing. Inline styles survive
+      // the reset because they have highest specificity.
+      const s = fabBtn.style;
+      s.width         = "52px";
+      s.height        = "52px";
+      s.minWidth      = "52px";
+      s.minHeight     = "52px";
+      s.borderRadius  = "50%";
+      s.border        = "none";
+      s.background    = "#fff";
+      s.boxShadow     = "0 2px 8px rgba(0,0,0,0.25)";
+      s.color         = "#6c757d";
+      s.fontSize      = "1.25rem";
+      s.display       = "flex";
+      s.alignItems    = "center";
+      s.justifyContent = "center";
+      s.cursor        = "pointer";
+      s.padding       = "0";
+      s.margin        = "0 10px 10px 0";
+      s.position      = "relative";
+
+      const wrapper = document.createElement("div");
+      wrapper.appendChild(fabBtn);
+      fabBtn.classList.remove("d-none");
+      map.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(wrapper);
+    };
+    attachToMap();
 
     // Toggle tracking on FAB click
     fabBtn.addEventListener("click", () => {
@@ -556,6 +662,9 @@
       } else {
         startTracking();
       }
+      // Release focus so keyboard events (Shift+drag, arrow nudge)
+      // aren't swallowed by the Maps control container.
+      fabBtn.blur();
     });
 
     // Dismiss bar for the current placement; re-check for others

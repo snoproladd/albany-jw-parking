@@ -358,6 +358,33 @@ Right-clicking any marker opens a quick-action menu:
 - **Delete placement** — triggers the standard delete confirmation.
   OVERSEER+ only.
 
+##### Geofencing — proximity tracking *(manageSigns)*
+
+The floating GPS button in the bottom-right corner of the map toggles
+continuous location tracking. When active:
+
+- A **blue pulsing dot** shows your live position on the map.
+- The map **auto-follows** your position. Panning or zooming manually
+  pauses auto-follow for 5 seconds, then it resumes.
+- When you come within **75 metres** of a placement, a **proximity bar**
+  slides up from the bottom of the screen showing:
+  - The sign preview (text + arrow direction).
+  - Your current distance, updating in real time.
+  - A photo thumbnail if the placement has one (tap to expand, tap the
+    chevron to collapse).
+  - Three status buttons — **Planned**, **Installed**, **Removed** —
+    for one-tap status changes without opening the editor.
+- The **× dismiss button** hides the bar for that placement until you
+  leave and re-enter its radius, or until a different placement becomes
+  nearest. Dismissed placements are remembered for the duration of the
+  tracking session.
+- Tap the GPS button again to **stop tracking**. The blue dot and
+  proximity bar are removed, and all dismiss history is cleared.
+
+Geofencing requires the browser's geolocation permission. On first
+activation you may see a browser prompt — allow it so the GPS can track
+your position. If permission is denied, tracking stops automatically.
+
 Dismiss the menu by clicking anywhere outside it or pressing Escape.
 
 ##### Legend & Shortcuts

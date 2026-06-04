@@ -177,67 +177,247 @@ as Key Vault secrets and referenced via App Service Key Vault references.
 
 ```
 parking/
-├── index.js                  # Server entry point, middleware, top-level routes
+├── index.js                   # Server entry point, middleware, top-level routes
+├── set-local-env.js           # Sets AZURE_KEY_VAULT_URL for local dev
+├── nodemon.json               # Dev-mode file-watch configuration
+├── Dockerfile                 # Production container build
+├── .dockerignore
+├── .gitignore
+│
 ├── lib/
-│   ├── dbSync.js             # All database query functions
-│   ├── messaging.js          # Email + SMS delivery helpers (suppressed in demo context)
-│   ├── passwordVer.js        # PBKDF2 hashing + verification
-│   ├── sql.js                # SQL connection pool management + demo pool routing
-│   └── volunteerStatus.js    # Profile completeness checks
+│   ├── alertScheduler.js      # Shift-alert scheduling engine (cron-like timer)
+│   ├── blobStorage.js         # Azure Blob Storage helpers (sign photos)
+│   ├── dbSync.js              # All database query functions
+│   ├── graphClient.js         # Microsoft Graph API client (OneDrive)
+│   ├── messaging.js           # Email + SMS delivery helpers (suppressed in demo context)
+│   ├── passwordVer.js         # PBKDF2 hashing + verification
+│   ├── publishSchedule.js     # PDF schedule generation + OneDrive upload
+│   ├── sql.js                 # SQL connection pool management + demo pool routing
+│   └── volunteerStatus.js     # Profile completeness checks
+│
 ├── middleware/
-│   └── demoContext.js        # Demo hostname detection + AsyncLocalStorage context wrap
+│   └── demoContext.js         # Demo hostname detection + AsyncLocalStorage context wrap
+│
 ├── routes/
-│   ├── accountRoutes.js      # Login, My Account, password change
-│   ├── apiRoutes.js          # Internal API endpoints
-│   ├── oversightRoutes.js    # All Oversight Tools routes
-│   ├── registrationRoutes.js # Registration flow (multi-step draft)
-│   ├── mapsRoutes.js         # Maps page — OneDrive file listing with ScribbleMaps integration
-│   ├── signsRoutes.js        # Sign Library + Sign Builder pages and CRUD (templates and placements)
-│   ├── sitemapRoutes.js      # Public role-filtered sitemap page
-│   ├── upgradeRoutes.js      # Account upgrade (email/phone → password)
-│   └── validationRoutes.js   # Phone (Twilio) + email (Kickbox) validation
+│   ├── accountRoutes.js       # Login, My Account, password change
+│   ├── apiRoutes.js           # Internal API endpoints (session touch, etc.)
+│   ├── mapsRoutes.js          # Maps page — OneDrive file listing with ScribbleMaps integration
+│   ├── oversightRoutes.js     # All Oversight Tools routes
+│   ├── registrationRoutes.js  # Registration flow (multi-step draft)
+│   ├── signsRoutes.js         # Sign Library, Sign Builder, Sign Map — templates and placements CRUD
+│   ├── sitemapRoutes.js       # Public role-filtered sitemap page
+│   ├── upgradeRoutes.js       # Account upgrade (email/phone → password)
+│   └── validationRoutes.js    # Phone (Twilio) + email (Kickbox) validation
+│
 ├── src/config/
-│   ├── azureConfig.js        # Key Vault + SQL connection bootstrap
-│   ├── privilegeRules.js     # Registration field incompatibility rules
-│   ├── roles.js              # RBAC permission matrix + middleware
-│   └── sitemap.json          # Page metadata for the role-filtered sitemap
+│   ├── azureConfig.js         # Key Vault + SQL connection bootstrap
+│   ├── privilegeRules.js      # Registration field incompatibility rules
+│   ├── prodedures.js          # Stored procedure definitions
+│   ├── roles.js               # RBAC permission matrix + middleware
+│   └── sitemap.json           # Page metadata for the role-filtered sitemap
+│
 ├── views/
-│   ├── authentication_and_accounts/  # Login, My Account, oversight tools
-│   │   └── oversightStructure.ejs      # Oversight structure admin tree editor
-│   ├── partials/             # header.ejs, footer.ejs
-│   ├── registration/         # Multi-step registration EJS views
-│   └── upgrade/              # Account upgrade flow views
+│   ├── index.ejs              # Home / dashboard page
+│   ├── maps.ejs               # Maps page (OneDrive listing)
+│   ├── privacy.ejs            # Privacy policy
+│   ├── terms.ejs              # Terms of use
+│   ├── sitemap.ejs            # Role-filtered sitemap
+│   ├── partials/
+│   │   ├── header.ejs         # Shared navigation header
+│   │   ├── footer.ejs         # Shared footer + session keepalive
+│   │   └── roleGuard.ejs      # Access-denied partial for role checks
+│   ├── errors/
+│   │   ├── 403.ejs            # Forbidden
+│   │   └── 404.ejs            # Not found
+│   ├── authentication_and_accounts/
+│   │   ├── login.ejs
+│   │   ├── myAccount.ejs
+│   │   ├── resetPassword.ejs
+│   │   ├── chooseContinueOrUpgrade.ejs
+│   │   ├── oversightTools.ejs         # Operations hub landing page
+│   │   ├── oversightStructure.ejs     # Oversight structure admin tree editor
+│   │   ├── oversightPermissions.ejs   # Permission matrix editor
+│   │   ├── oversightDecentlyExport.ejs
+│   │   ├── adminCreateVolunteer.ejs
+│   │   ├── adminRoles.ejs
+│   │   ├── adminSendReset.ejs
+│   │   ├── volunteerAccountOversight.ejs  # Edit Volunteer page
+│   │   ├── attendanceCheckin.ejs
+│   │   ├── attendanceReport.ejs
+│   │   ├── bugReports.ejs
+│   │   ├── campaignCenter.ejs
+│   │   ├── crewMatrix.ejs
+│   │   ├── decentlyImport.ejs
+│   │   ├── invitationTracker.ejs
+│   │   ├── inviteRespond.ejs
+│   │   ├── locationsAndTasks.ejs
+│   │   ├── reports.ejs
+│   │   ├── scheduler.ejs
+│   │   ├── schedulerReport.ejs
+│   │   ├── shiftAlerts.ejs
+│   │   ├── signsBuilder.ejs
+│   │   ├── signsList.ejs
+│   │   ├── signsMap.ejs
+│   │   └── timelines.ejs
+│   ├── registration/
+│   │   ├── createProfileLaunch.ejs
+│   │   ├── emailPass.ejs
+│   │   ├── personalInfo.ejs
+│   │   ├── congregationInfo.ejs
+│   │   ├── spiritualInfo.ejs
+│   │   ├── volunteerIn.ejs
+│   │   ├── notes.ejs
+│   │   ├── nonProfile.ejs
+│   │   ├── formSummary.ejs
+│   │   └── continueRegistration.ejs
+│   └── upgrade/
+│       ├── upgradeStart.ejs
+│       ├── upgradeName.ejs
+│       ├── upgradeSend.ejs
+│       └── upgradeSent.ejs
+│
 ├── public/
-│   ├── js/                   # Frontend JS modules (one file per page)
-│   │   ├── tours/                    # Shepherd.js guided tour modules (one per page)
-│   │   │   ├── tourBase.js           # Shared tour factory and button helpers
-│   │   │   ├── timelinesTour.js      # Three-path tour: event types, days, sessions
-│   │   │   └── …                     # One file per oversight tool page
-│   │   ├── dashboardWeather.js       # Open-Meteo 3-day weather widget
-│   │   ├── dashboardShifts.js        # Home page day-navigator for shifts
-│   │   ├── oversightStructure.js       # Oversight structure admin tree JS
-│   │   └── sitemapSearch.js          # Live search/filter for the sitemap page
-│   ├── styles/               # CSS files (one per page; signs.css, sitemap.css, volunteerAccountOversight.css, …)
-│   ├── css/                  # Additional CSS (tours, etc.)
-│   │   └── tours.css                 # Shepherd.js tour styling and z-index rules
-│   │   ├── oversightStructure.css      # Oversight structure admin styles
-│   │   └── sitemap.css               # Sitemap page card grid and layout
-│   └── vendor/               # Third-party UMD bundles (agnostic-draggable, Bootstrap)
+│   ├── js/                    # Frontend JS modules (one file per page/feature)
+│   │   ├── # ── Shared / global ──────────────────────────────
+│   │   ├── bfcacheGuard.js            # Prevents bfcache stale-page issues
+│   │   ├── cookieConsent.js           # Cookie consent banner
+│   │   ├── mobileDropdownSafety.js    # Mobile nav dropdown touch fixes
+│   │   ├── navDropdown.js             # Header navigation dropdown behaviour
+│   │   ├── scrollToTop.js             # Scroll-to-top button
+│   │   ├── sessionKeepAlive.js        # GET /api/session/touch heartbeat
+│   │   ├── timeUtils.js               # Shared date/time formatting helpers
+│   │   │
+│   │   ├── # ── Dashboard ────────────────────────────────────
+│   │   ├── dashboardShifts.js         # Home page day-navigator for shifts
+│   │   ├── dashboardWeather.js        # Open-Meteo 3-day weather widget
+│   │   ├── loginSuccess.js            # Post-login redirect handler
+│   │   │
+│   │   ├── # ── Registration & account ───────────────────────
+│   │   ├── continueRegistration.js
+│   │   ├── dobPicker.js               # Date-of-birth input with validation
+│   │   ├── email-validation.js        # Kickbox email validation
+│   │   ├── emailPass.js               # Email + password registration step
+│   │   ├── formListeners.js           # Multi-step form navigation
+│   │   ├── formSummary.js             # Registration summary page
+│   │   ├── myAccount.js               # My Account page (edit, finalize, password)
+│   │   ├── nonProfile.js              # Non-profile registration path
+│   │   ├── passwords.js               # Password strength + toggle visibility
+│   │   ├── phoneVer.js                # Twilio phone verification
+│   │   ├── privilegeEnforcer.js       # Registration field incompatibility
+│   │   │
+│   │   ├── # ── Oversight tools ──────────────────────────────
+│   │   ├── adminCreateVolunteer.js    # Admin-created volunteer accounts
+│   │   ├── adminRoles.js              # Role management page
+│   │   ├── adminSendReset.js          # Send password reset page
+│   │   ├── attendanceCheckin.js       # Attendance check-in kiosk
+│   │   ├── attendanceReport.js        # Attendance report page
+│   │   ├── bugReport.js               # Bug report submission form
+│   │   ├── bugReports.js              # Bug reports list/management
+│   │   ├── campaignCenter.js          # Campaign messaging centre
+│   │   ├── crewMatrix.js              # Crew assignment matrix
+│   │   ├── decentlyImport.js          # Decently data import
+│   │   ├── departments.js             # Department management
+│   │   ├── invitationTracker.js       # Campaign invitation tracker
+│   │   ├── inviteRespond.js           # Invitation RSVP response page
+│   │   ├── locationsAndTasks.js       # Locations & tasks management
+│   │   ├── maps.js                    # Maps page (OneDrive listing)
+│   │   ├── oversightStructure.js      # Oversight structure admin tree
+│   │   ├── oversightTools.js          # Operations hub page
+│   │   ├── permissionMatrix.js        # Permission matrix editor
+│   │   ├── reports.js                 # Reports page
+│   │   ├── shiftAlerts.js             # Shift alert configuration
+│   │   ├── sitemapSearch.js           # Live search/filter for the sitemap
+│   │   ├── volunteerAccountOversight.js # Edit Volunteer page
+│   │   │
+│   │   ├── # ── Scheduler (9-file suite) ─────────────────────
+│   │   ├── scheduler.js               # Core scheduler grid + state
+│   │   ├── schedulerConflicts.js      # Volunteer conflict detection
+│   │   ├── schedulerContextMenu.js    # Right-click context menu
+│   │   ├── schedulerDomActions.js     # DOM manipulation helpers
+│   │   ├── schedulerDomEvents.js      # Event listener wiring
+│   │   ├── schedulerDraggable.js      # Drag-and-drop assignment
+│   │   ├── schedulerHistory.js        # Undo/redo history stack
+│   │   ├── schedulerReport.js         # Schedule report/PDF page
+│   │   ├── schedulerTimeUtils.js      # Scheduler-specific time helpers
+│   │   │
+│   │   ├── # ── Timelines ────────────────────────────────────
+│   │   ├── timelines.js               # Event types / days / sessions / shifts CRUD
+│   │   │
+│   │   ├── # ── Signs (4-file suite) ─────────────────────────
+│   │   ├── signsBuilder.js            # Sign template builder
+│   │   ├── signsList.js               # Sign library grid
+│   │   ├── signsMap.js                # Sign Map — Google Maps + markers + editor
+│   │   ├── signsGeofence.js           # Geofencing companion (GPS tracking + proximity)
+│   │   │
+│   │   └── tours/                     # Shepherd.js guided tour modules
+│   │       ├── tourBase.js            # Shared tour factory and button helpers
+│   │       ├── attandanceCheckinTour.js  # (legacy typo filename, kept for compat)
+│   │       ├── attendanceCheckinTour.js
+│   │       ├── attendanceReportTour.js
+│   │       ├── campaignTour.js
+│   │       ├── crewMatrixTour.js
+│   │       ├── invitationTrackerTour.js
+│   │       ├── locationsTour.js
+│   │       ├── oversightToolsTour.js
+│   │       ├── reportsTour.js
+│   │       ├── rolesTour.js
+│   │       ├── schedulerReportTour.js
+│   │       ├── schedulerTour.js
+│   │       ├── timelinesTour.js
+│   │       └── volunteersTour.js
+│   │
+│   ├── styles/                # CSS files (one per page/feature)
+│   │   ├── styles.css                 # Global / shared styles
+│   │   ├── index.css                  # Home / dashboard page
+│   │   ├── attendance.css             # Attendance check-in + report
+│   │   ├── bugReport.css              # Bug report pages
+│   │   ├── campaignCenter.css         # Campaign centre
+│   │   ├── createProfileLaunch.css    # Registration launch page
+│   │   ├── crewMatrix.css             # Crew matrix
+│   │   ├── invitationTracker.css      # Invitation tracker
+│   │   ├── maps.css                   # Maps page
+│   │   ├── oversightStructure.css     # Oversight structure admin tree
+│   │   ├── permissionMatrix.css       # Permission matrix
+│   │   ├── reports.css                # Reports page
+│   │   ├── scheduler.css              # Scheduler grid
+│   │   ├── schedulerReport.css        # Schedule report / PDF
+│   │   ├── shiftAlerts.css            # Shift alerts page
+│   │   ├── signs.css                  # Sign Library, Builder, Map + geofencing
+│   │   ├── sitemap.css                # Sitemap page
+│   │   ├── volunteerAccountOversight.css  # Edit Volunteer page
+│   │   ├── CSS_ARCHITECTURE.md        # CSS conventions and architecture notes
+│   │   └── fontawesome/               # FontAwesome 6 (self-hosted)
+│   │       ├── css/                   # fontawesome.min.css, all.css
+│   │       └── webfonts/              # .woff2 font files
+│   │
+│   ├── css/                   # Additional CSS (loaded separately from styles/)
+│   │   └── tours.css                  # Shepherd.js tour styling and z-index rules
+│   │
+│   ├── images/                # Static images (SVGs, JPGs for dashboard cards)
+│   │
+│   └── vendor/                # Third-party UMD bundles
+│       ├── agnostic-draggable.js      # Drag-and-drop library (scheduler)
+│       └── bootstrap/                 # Bootstrap 5 (CSS + JS bundle)
+│
 ├── scripts/
-│   ├── migrations/           # SQL schema migrations (always paired: .sql + _demo.sql)
-│   │   ├── README.md         # Migration convention docs + migration log
-│   │   ├── addDepartmentId.sql
-│   │   ├── addDepartmentId_demo.sql
-│   │   ├── addResponseConfig.sql
-│   │   └── addResponseConfig_demo.sql
-│   ├── seedDemo.js           # Populates the demo schema with realistic fake data
-│   ├── anonymizeDemo.sql     # UPDATE statements to replace real names/places in demo
-│   ├── setupDemoSchema.sql   # One-time: create demo schema, tables, and DB user
-│   └── setupDemoSchema_fix.sql # Patch for tables with string DEFAULT values
+│   ├── anonymizeSeed.js       # Anonymizes + seeds the demo schema with fake data
+│   ├── seedDemo.js            # Populates the demo schema with realistic data
+│   ├── append-env-secrets.ps1 # Appends Key Vault secrets to .env
+│   ├── azure-app-setup.ps1    # Azure App Service provisioning script
+│   └── migrations/            # SQL schema migrations (always paired: .sql + _demo.sql)
+│       ├── README.md          # Migration convention docs + migration log
+│       ├── addDepartmentId.sql / _demo.sql
+│       └── addResponseConfig.sql / _demo.sql
+│
 ├── docs/
-│   └── OVERSIGHT_GUIDE.md    # End-user guide for oversight staff
-├── CHANGELOG.md
-└── Dockerfile
+│   └── OVERSIGHT_GUIDE.md     # End-user guide for oversight staff
+│
+├── .github/workflows/
+│   ├── main.yml               # CI/CD: build + push to Azure Container Registry
+│   ├── docker-image.yml       # Docker build test
+│   └── main_albanyjwparking.yml
+│
+└── CHANGELOG.md
 ```
 
 ---
@@ -330,6 +510,9 @@ Schema highlights:
     geolocation button available for GPS-assisted placement instead
   - `abbreviation` `NVARCHAR(6)` — optional compact label for map markers (auto-generated from sign text when NULL)
 - `sign_placements` — geographic instances of a sign template
+  - **Geofencing** (`signsGeofence.js`): `manageSigns` users can toggle
+    continuous GPS tracking on the Sign Map. A proximity bar alerts when
+    within 75 m of a placement and offers one-tap status changes.
   - `latitude`/`longitude` `DECIMAL(10,7)` (≈1cm precision)
   - `heading` — direction of travel (0–360°, clockwise from north); the bearing
     drivers travel *toward* the sign. Drives the map marker travel arrow and Street

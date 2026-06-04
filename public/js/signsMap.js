@@ -1885,6 +1885,7 @@ mapRef = new google.maps.Map(mapEl, {
 
       handleEl.releasePointerCapture(e.pointerId);
       handleEl.classList.remove("signs-map-travel-handle-dragging");
+      lastDragEndAt = Date.now();
 
       if (mapRef && mapRef.getDiv) {
         mapRef.getDiv().classList.remove("signs-map-bearing-drag");
