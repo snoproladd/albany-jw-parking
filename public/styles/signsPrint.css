@@ -1,0 +1,392 @@
+/**
+ * @file signsPrint.css
+ * @description Styles for the print-optimised sign placement map.
+ *
+ * WYSIWYG approach: the screen layout matches the print output.
+ * A "page preview" div renders at letter-portrait proportions with
+ * a 7in × 7in square map box. The user pans/zooms to frame the
+ * view they want, then prints — what they see is what they get.
+ *
+ * Portrait letter: 8.5in × 11in, 0.5in margins → 7.5in × 10in
+ *   Title:  ~0.4in
+ *   Map:     7in × 7in
+ *   Legend:  ~2.5in remaining
+ */
+
+/* ── Page body ─────────────────────────────────────────────────── */
+
+.signs-print-body {
+    overflow-y: auto;
+    background: #e5e7eb;
+}
+
+/* ── Toolbar ───────────────────────────────────────────────────── */
+
+.signs-print-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1rem;
+    padding: 0.5rem 1rem;
+    background: var(--bs-body-bg, #fff);
+    border-bottom: 1px solid var(--bs-border-color, #dee2e6);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    z-index: 10;
+    position: relative;
+}
+
+.signs-print-toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: nowrap;
+}
+
+.signs-print-toolbar-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--bs-secondary-color, #6c757d);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.signs-print-toolbar-actions {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+}
+
+.signs-print-template-select {
+    max-width: 200px;
+}
+
+.signs-print-back-btn {
+    white-space: nowrap;
+}
+
+/* ── Page preview (WYSIWYG print area) ─────────────────────────── */
+
+.signs-print-page {
+    /*
+     * Render at letter-width proportions so the screen view matches
+     * the printed output. 7.5in = printable width after 0.5in margins.
+     */
+    max-width: 7.5in;
+    margin: 0.75rem auto;
+    padding: 0.3in 0.25in 0.4in;
+    background: #fff;
+    border: 1px solid #c8ccd0;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* ── Title bar ─────────────────────────────────────────────────── */
+
+.signs-print-title {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0 0 0.3rem;
+    border-bottom: 1.5px solid #333;
+    margin-bottom: 0.35rem;
+}
+
+.signs-print-title-text {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.signs-print-title-meta {
+    font-size: 0.78rem;
+    color: var(--bs-secondary-color, #6c757d);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.signs-print-title-sep {
+    margin: 0 0.3rem;
+    color: var(--bs-border-color, #dee2e6);
+}
+
+/* ── Map container (square, 7in × 7in at print) ────────────────── */
+
+.signs-print-map-wrap {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    max-width: 7in;
+    margin: 0 auto;
+    border: 1px solid #bbb;
+    position: relative;
+}
+
+.signs-print-map {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    background: #1f1f1f;
+}
+
+/* ── Print markers ─────────────────────────────────────────────── */
+
+.signs-map-marker-print {
+    filter: none;
+    cursor: default;
+    touch-action: auto;
+}
+
+.signs-map-marker-print .sign-preview {
+    font-size: 0.72rem;
+    padding: 0.15rem 0.4rem;
+    border-width: 2px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    pointer-events: none;
+}
+
+.signs-map-marker-print .sign-preview-text {
+    white-space: nowrap;
+    max-width: none;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+}
+
+.signs-map-marker-print .sign-preview-arrow {
+    font-size: 1.15em;
+}
+
+/* ── Legend (below map, 3-column grid) ─────────────────────────── */
+
+.signs-print-legend {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 0.1rem 1rem;
+    align-items: start;
+    margin-top: 0.4rem;
+    padding-top: 0.35rem;
+    border-top: 1px solid #ddd;
+    font-size: 0.72rem;
+    line-height: 1.45;
+}
+
+.signs-print-legend-section {
+    min-width: 0;
+}
+
+.signs-print-legend-label {
+    font-weight: 700;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #555;
+    margin-bottom: 0.15rem;
+}
+
+/* Sign key rows */
+
+.signs-print-legend-key-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.05rem;
+}
+
+.signs-print-legend-key-row {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.68rem;
+    line-height: 1.35;
+}
+
+.signs-print-legend-key-abbr {
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    min-width: 2.5em;
+    flex-shrink: 0;
+}
+
+.signs-print-legend-key-arrow {
+    font-weight: 900;
+    flex-shrink: 0;
+}
+
+.signs-print-legend-key-sep {
+    color: #aaa;
+    flex-shrink: 0;
+}
+
+.signs-print-legend-key-name {
+    color: #444;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Status rows */
+
+.signs-print-legend-row {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-bottom: 0.1rem;
+}
+
+.signs-print-legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.signs-print-legend-dot-planned {
+    background: #6c757d;
+}
+
+.signs-print-legend-dot-installed {
+    background: #198754;
+}
+
+.signs-print-legend-dot-removed {
+    background: #b02a37;
+}
+
+/* Colour swatches */
+
+.signs-print-legend-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    margin-bottom: 0.3rem;
+}
+
+.signs-print-legend-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+/* Count */
+
+.signs-print-legend-count {
+    font-weight: 600;
+    color: #333;
+    margin-top: 0.15rem;
+    padding-top: 0.15rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    font-size: 0.68rem;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   PRINT MEDIA RULES
+   ══════════════════════════════════════════════════════════════════ */
+/* Stacked count badge on print markers */
+.signs-print-marker-count {
+    position: absolute;
+    top: -5px;
+    right: -8px;
+    font-size: 0.55rem;
+    font-weight: 700;
+    background: #333;
+    color: #fff;
+    border: 1.5px solid #fff;
+    border-radius: 999px;
+    padding: 0 0.25rem;
+    line-height: 1.4;
+    pointer-events: none;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+@page {
+    size: letter portrait;
+    margin: 0.5in;
+}
+
+@media print {
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /*
+     * Kill the global `body { min-height: 100dvh }` from styles.css
+     * that caused the blank-first-page bug. The page preview is already
+     * sized to fit one letter page, so no min-height is needed.
+     */
+    html,
+    body.signs-print-body {
+        min-height: 0 !important;
+        height: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+        background: #fff !important;
+        background-image: none !important;
+    }
+
+    /* Hide all non-print chrome */
+    .signs-print-toolbar,
+    .site-navbar,
+    footer,
+    #scrollToTopBtn {
+        display: none !important;
+    }
+
+    /*
+     * Page preview: remove the decorative border/shadow, fill the
+     * printable area. Padding matches @page margins so content sits
+     * where it belongs.
+     */
+    .signs-print-page {
+        max-width: none;
+        margin: 0;
+        padding: 0;
+        border: none;
+        box-shadow: none;
+        background: #fff;
+    }
+
+    /* Title bar */
+    .signs-print-title {
+        padding: 0 0 0.2rem;
+        margin-bottom: 0.2rem;
+    }
+
+    .signs-print-title-text {
+        font-size: 0.85rem;
+    }
+
+    .signs-print-title-meta {
+        font-size: 0.7rem;
+    }
+
+    /*
+     * Map: exactly 7in × 7in. Because the screen container uses
+     * aspect-ratio: 1/1 at ~7in max-width, the map is already
+     * rendered at approximately this size. No significant resize
+     * occurs, so marker positions stay correct.
+     */
+    .signs-print-map-wrap {
+        width: 7in;
+        height: 7in;
+        max-width: none;
+        aspect-ratio: auto;
+        border-color: #999;
+    }
+
+    /* Markers: clean for print */
+    .signs-map-marker-print .sign-preview {
+        box-shadow: none;
+        border-width: 1.5px;
+    }
+
+    /* Legend */
+    .signs-print-legend {
+        margin-top: 0.25rem;
+        padding-top: 0.2rem;
+        border-top: 1px solid #999;
+    }
+}

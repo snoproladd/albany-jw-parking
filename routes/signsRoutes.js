@@ -18,12 +18,22 @@
  *   PUT    /signs/:id                      — Update a template (JSON)
  *   DELETE /signs/:id                      — Archive a template (JSON)
  *
- * Placement endpoints (used in Phase 2):
- *   GET    /signs/:id/placements           — List placements for a sign
- *   POST   /signs/:id/placements           — Create a placement
- *   PUT    /signs/placements/:placementId  — Update a placement
- *   PATCH  /signs/placements/:placementId/status — Update placement status
- *   DELETE /signs/placements/:placementId  — Delete a placement
+ * Location endpoints:
+ *   POST   /signs/locations                          — Create a location
+ *   PUT    /signs/locations/:locationId               — Update a location
+ *   DELETE /signs/locations/:locationId               — Delete a location
+ *
+ * Attachment endpoints:
+ *   POST   /signs/locations/:locationId/attachments          — Attach a sign
+ *   PUT    /signs/attachments/:attachmentId                  — Update attachment
+ *   PATCH  /signs/attachments/:attachmentId/status           — Update status
+ *   DELETE /signs/attachments/:attachmentId                  — Remove attachment
+ *   PUT    /signs/locations/:locationId/attachments/reorder  — Reorder stack
+ *
+ * Photo endpoints:
+ *   POST   /signs/locations/:locationId/photo   — Upload photo
+ *   GET    /signs/locations/:locationId/photo    — Stream photo
+ *   DELETE /signs/locations/:locationId/photo    — Delete photo
  */
 
 import express from "express";
@@ -35,15 +45,18 @@ import {
   createSign,
   updateSign,
   archiveSign,
-  getSignPlacements,
-  getSignPlacementById,
-  createSignPlacement,
-  updateSignPlacement,
-  updateSignPlacementStatus,
-  deleteSignPlacement,
-  setSignPlacementPhoto,
-  clearSignPlacementPhoto,
-  bulkSetPlacementColor,
+  getSignLocations,
+  getSignLocationById,
+  createSignLocation,
+  updateSignLocation,
+  deleteSignLocation,
+  setSignLocationPhoto,
+  clearSignLocationPhoto,
+  createSignAttachment,
+  updateSignAttachment,
+  updateSignAttachmentStatus,
+  deleteSignAttachment,
+  reorderSignAttachments,
 } from "../lib/dbSync.js";
 import {
   uploadSignPhoto,
@@ -90,7 +103,7 @@ const VALID_ARROWS = [
 const VALID_STATUSES = ["planned", "installed", "removed"];
 
 /** Valid mount types for a placement. Null means "not specified". */
-const VALID_MOUNT_TYPES = ["cone", "a-frame", "existing-structure"];
+const VALID_MOUNT_TYPES = ["pole", "cone", "a-frame", "existing-structure"];
 
 /** Valid marker colour keys for placements. Null means "default (status)". */
 const VALID_MARKER_COLORS = [
@@ -232,9 +245,9 @@ export function signsRouter({
     csrfProtection,
     async (req, res) => {
       try {
-        const [signs, placements] = await Promise.all([
+        const [signs, locations] = await Promise.all([
           getSigns(),
-          getSignPlacements(),
+          getSignLocations(),
         ]);
 
         if (!googleMapsApiKey) {
@@ -244,12 +257,57 @@ export function signsRouter({
         return res.render("authentication_and_accounts/signsMap", {
           csrfToken: req.csrfToken(),
           signs,
-          placements,
+          locations,
+          placements: [],
           googleMapsApiKey: googleMapsApiKey || "",
           defaultMapCenter,
         });
       } catch (err) {
         log("signs/map GET error:", err);
+        return res.status(500).send("Server error");
+      }
+    },
+  );
+
+  // ===========================
+  // SIGN MAP — PRINT VIEW
+  // ===========================
+
+  /**
+   * GET /signs/map/print
+   * Render a print-optimized view of the sign placement map.
+   * Uses the same Google Maps JS API but with a stripped-down UI
+   * tuned for paper output. Markers always render at full detail
+   * with a print-specific CSS class for slightly reduced sizing
+   * and text wrapping.
+   *
+   * Requires viewSigns permission.
+   */
+  router.get(
+    "/signs/map/print",
+    requireAuth,
+    requirePermission("viewSigns"),
+    csrfProtection,
+    async (req, res) => {
+      try {
+        const [signs, locations] = await Promise.all([
+          getSigns(),
+          getSignLocations(),
+        ]);
+
+        if (!googleMapsApiKey) {
+          log("signs/map/print: GOOGLE_MAPS_API_KEY is not configured.");
+        }
+
+        return res.render("authentication_and_accounts/signsMapPrint", {
+          csrfToken: req.csrfToken(),
+          signs,
+          locations,
+          googleMapsApiKey: googleMapsApiKey || "",
+          defaultMapCenter,
+        });
+      } catch (err) {
+        log("signs/map/print GET error:", err);
         return res.status(500).send("Server error");
       }
     },
@@ -507,192 +565,101 @@ export function signsRouter({
   );
 
   // ===========================
-  // SIGN PLACEMENTS (used in Phase 2)
-  // Routes are wired now so the map UI can call them without a
-  // separate routing change in the next phase.
+  // SIGN LOCATIONS (physical mounting points)
   // ===========================
 
   /**
-   * GET /signs/:id/placements
-   * List all placements for a single sign template (JSON).
-   * @requires viewSigns permission
-   */
-  router.get(
-    "/signs/:id/placements",
-    requireAuth,
-    requirePermission("viewSigns"),
-    async (req, res) => {
-      const id = Number(req.params.id);
-      if (!id) {
-        return res.status(400).json({
-          success: false,
-          error: "Invalid sign id.",
-        });
-      }
-      try {
-        const placements = await getSignPlacements({ signId: id });
-        return res.json({ success: true, placements });
-      } catch (err) {
-        log("signs/:id/placements GET error:", err);
-        return res.status(500).json({
-          success: false,
-          error: "Server error.",
-        });
-      }
-    },
-  );
-
-  /**
-   * POST /signs/:id/placements
-   * Create a new placement under a sign template.
+   * POST /signs/locations
+   * Create a new sign location (empty — no attachments yet).
    *
-   * Body (JSON): { latitude, longitude, heading?, locationNotes?, status? }
+   * Body (JSON): { latitude, longitude, mountType?, frontBearing?,
+   *                markerColor?, locationNotes? }
    * Response:    { success: true, id: number }
    *
    * @requires manageSigns permission
    */
   router.post(
-    "/signs/:id/placements",
+    "/signs/locations",
     requireAuth,
     requirePermission("manageSigns"),
     csrfProtection,
     async (req, res) => {
-      const signId = Number(req.params.id);
       const {
-        latitude,
-        longitude,
-        heading,
-        locationNotes,
-        status,
-        mountType,
-        markerColor,
-        arrowDirection,
+        latitude, longitude, mountType, frontBearing,
+        markerColor, locationNotes,
       } = req.body || {};
-
-      if (!signId) {
-        return res.status(400).json({
-          success: false,
-          error: "Invalid sign id.",
-        });
-      }
 
       const lat = Number(latitude);
       const lng = Number(longitude);
       if (
-        !Number.isFinite(lat) ||
-        !Number.isFinite(lng) ||
-        lat < -90 ||
-        lat > 90 ||
-        lng < -180 ||
-        lng > 180
+        !Number.isFinite(lat) || !Number.isFinite(lng) ||
+        lat < -90 || lat > 90 || lng < -180 || lng > 180
       ) {
         return res.status(400).json({
           success: false,
-          error:
-            "latitude and longitude are required and must be valid coordinates.",
-        });
-      }
-
-      let hd = null;
-      if (heading !== undefined && heading !== null && heading !== "") {
-        hd = Number(heading);
-        if (!Number.isFinite(hd) || hd < 0 || hd > 360) {
-          return res.status(400).json({
-            success: false,
-            error: "heading must be between 0 and 360.",
-          });
-        }
-      }
-
-      const statusValue = status || "planned";
-      if (!VALID_STATUSES.includes(statusValue)) {
-        return res.status(400).json({
-          success: false,
-          error: "Invalid status.",
+          error: "Valid latitude and longitude are required.",
         });
       }
 
       let mountTypeValue;
-      try {
-        mountTypeValue = normaliseMountType(mountType);
-      } catch (e) {
-        return res.status(400).json({
-          success: false,
-          error: e.message,
-        });
-      }
+      try { mountTypeValue = normaliseMountType(mountType); }
+      catch (e) { return res.status(400).json({ success: false, error: e.message }); }
 
       let markerColorValue;
-      try {
-        markerColorValue = normaliseMarkerColor(markerColor);
-      } catch (e) {
-        return res.status(400).json({
-          success: false,
-          error: e.message,
-        });
-      }
+      try { markerColorValue = normaliseMarkerColor(markerColor); }
+      catch (e) { return res.status(400).json({ success: false, error: e.message }); }
 
-      let arrowValue;
-      try {
-        arrowValue = normaliseArrow(arrowDirection);
-      } catch (e) {
-        return res.status(400).json({
-          success: false,
-          error: e.message,
-        });
+      let fb = null;
+      if (frontBearing !== undefined && frontBearing !== null && frontBearing !== "") {
+        fb = Number(frontBearing);
+        if (!Number.isFinite(fb) || fb < 0 || fb > 360) {
+          return res.status(400).json({
+            success: false,
+            error: "frontBearing must be between 0 and 360.",
+          });
+        }
       }
 
       try {
-        const id = await createSignPlacement(
+        const id = await createSignLocation(
           {
-            signId,
             latitude: lat,
             longitude: lng,
-            heading: hd,
-            locationNotes: locationNotes?.trim() || null,
-            status: statusValue,
             mountType: mountTypeValue,
+            frontBearing: fb,
             markerColor: markerColorValue,
-            arrowDirection: arrowValue,
+            locationNotes: locationNotes?.trim() || null,
           },
           req.session.userEmail || "admin",
         );
         return res.json({ success: true, id });
       } catch (err) {
-        log("signs/:id/placements POST error:", err);
-        return res.status(500).json({
-          success: false,
-          error: "Server error.",
-        });
+        log("signs/locations POST error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
       }
     },
   );
 
   /**
-   * PUT /signs/placements/:placementId
-   * Update an existing placement's coordinates / heading / notes.
-   * Use the PATCH /status route for status changes.
-   *
-   * Body (JSON): { latitude, longitude, heading?, locationNotes? }
-   * Response:    { success: boolean }
+   * PUT /signs/locations/:locationId
+   * Update a location's metadata (coords, mount type, notes, colour).
    *
    * @requires manageSigns permission
    */
   router.put(
-    "/signs/placements/:placementId",
+    "/signs/locations/:locationId",
     requireAuth,
     requirePermission("manageSigns"),
     csrfProtection,
     async (req, res) => {
-      const placementId = Number(req.params.placementId);
-      const { latitude, longitude, heading, locationNotes, mountType, markerColor, arrowDirection } =
-        req.body || {};
+      const locationId = Number(req.params.locationId);
+      const {
+        latitude, longitude, mountType, frontBearing,
+        markerColor, locationNotes,
+      } = req.body || {};
 
-      if (!placementId) {
-        return res.status(400).json({
-          success: false,
-          error: "Invalid placement id.",
-        });
+      if (!locationId) {
+        return res.status(400).json({ success: false, error: "Invalid location id." });
       }
 
       const lat = Number(latitude);
@@ -704,239 +671,345 @@ export function signsRouter({
         });
       }
 
-      let hd = null;
-      if (heading !== undefined && heading !== null && heading !== "") {
-        hd = Number(heading);
-        if (!Number.isFinite(hd) || hd < 0 || hd > 360) {
-          return res.status(400).json({
-            success: false,
-            error: "heading must be between 0 and 360.",
-          });
-        }
-      }
-
       let mountTypeValue;
-      try {
-        mountTypeValue = normaliseMountType(mountType);
-      } catch (e) {
-        return res.status(400).json({
-          success: false,
-          error: e.message,
-        });
-      }
+      try { mountTypeValue = normaliseMountType(mountType); }
+      catch (e) { return res.status(400).json({ success: false, error: e.message }); }
 
       let markerColorValue;
-      try {
-        markerColorValue = normaliseMarkerColor(markerColor);
-      } catch (e) {
-        return res.status(400).json({
-          success: false,
-          error: e.message,
-        });
-      }
+      try { markerColorValue = normaliseMarkerColor(markerColor); }
+      catch (e) { return res.status(400).json({ success: false, error: e.message }); }
 
-      let arrowValue;
-      try {
-        arrowValue = normaliseArrow(arrowDirection);
-      } catch (e) {
-        return res.status(400).json({
-          success: false,
-          error: e.message,
-        });
+      let fb = null;
+      if (frontBearing !== undefined && frontBearing !== null && frontBearing !== "") {
+        fb = Number(frontBearing);
+        if (!Number.isFinite(fb) || fb < 0 || fb > 360) {
+          return res.status(400).json({
+            success: false,
+            error: "frontBearing must be between 0 and 360.",
+          });
+        }
       }
 
       try {
-        const ok = await updateSignPlacement(placementId, {
+        const ok = await updateSignLocation(locationId, {
           latitude: lat,
           longitude: lng,
-          heading: hd,
-          locationNotes: locationNotes?.trim() || null,
           mountType: mountTypeValue,
+          frontBearing: fb,
           markerColor: markerColorValue,
-          arrowDirection: arrowValue,
+          locationNotes: locationNotes?.trim() || null,
         });
         if (!ok) {
-          return res.status(404).json({
-            success: false,
-            error: "Placement not found.",
-          });
+          return res.status(404).json({ success: false, error: "Location not found." });
         }
         return res.json({ success: true });
       } catch (err) {
-        log("signs/placements PUT error:", err);
-        return res.status(500).json({
-          success: false,
-          error: "Server error.",
-        });
+        log("signs/locations PUT error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
       }
     },
   );
 
   /**
-   * PATCH /signs/placements/:placementId/status
-   * Update only the status field; the DB layer adjusts installed_by / installed_at /
-   * removed_at automatically based on the destination status.
-   *
-   * Body (JSON): { status: 'planned'|'installed'|'removed' }
-   * Response:    { success: boolean }
+   * DELETE /signs/locations/:locationId
+   * Delete a location. Cascade deletes its attachments and
+   * any traffic-arrow links.
    *
    * @requires manageSigns permission
    */
-  router.patch(
-    "/signs/placements/:placementId/status",
+  router.delete(
+    "/signs/locations/:locationId",
     requireAuth,
     requirePermission("manageSigns"),
     csrfProtection,
     async (req, res) => {
-      const placementId = Number(req.params.placementId);
-      const { status } = req.body || {};
-
-      if (!placementId) {
-        return res.status(400).json({
-          success: false,
-          error: "Invalid placement id.",
-        });
-      }
-      if (!VALID_STATUSES.includes(status)) {
-        return res.status(400).json({
-          success: false,
-          error: "Invalid status.",
-        });
+      const locationId = Number(req.params.locationId);
+      if (!locationId) {
+        return res.status(400).json({ success: false, error: "Invalid location id." });
       }
 
       try {
-        const ok = await updateSignPlacementStatus(
-          placementId,
-          status,
-          req.session.userEmail || "admin",
-        );
+        // Best-effort photo cleanup before the row goes away.
+        const existing = await getSignLocationById(locationId);
+        if (existing?.photo_url) {
+          try { await deleteSignPhoto(existing.photo_url); }
+          catch (err) { log("Warning: failed to delete photo blob on location delete:", err); }
+        }
+
+        const ok = await deleteSignLocation(locationId);
         if (!ok) {
-          return res.status(404).json({
-            success: false,
-            error: "Placement not found.",
-          });
+          return res.status(404).json({ success: false, error: "Location not found." });
         }
         return res.json({ success: true });
       } catch (err) {
-        log("signs/placements/:id/status PATCH error:", err);
-        return res.status(500).json({
-          success: false,
-          error: "Server error.",
-        });
-      }
-    },
-  );
-
-  /**
-   * PATCH /signs/:id/placements/color
-   * Bulk-set marker_color on every placement of a sign template.
-   * Pass { markerColor: null } to clear all custom colours.
-   *
-   * Body (JSON): { markerColor: string|null }
-   * Response:    { success: true, count: number }
-   *
-   * @requires manageSigns permission
-   */
-  router.patch(
-    "/signs/:id/placements/color",
-    requireAuth,
-    requirePermission("manageSigns"),
-    csrfProtection,
-    async (req, res) => {
-      const signId = Number(req.params.id);
-      const { markerColor } = req.body || {};
-
-      if (!signId) {
-        return res.status(400).json({
-          success: false,
-          error: "Invalid sign id.",
-        });
-      }
-
-      let colorValue;
-      try {
-        colorValue = normaliseMarkerColor(markerColor);
-      } catch (e) {
-        return res.status(400).json({
-          success: false,
-          error: e.message,
-        });
-      }
-
-      try {
-        const count = await bulkSetPlacementColor(signId, colorValue);
-        return res.json({ success: true, count });
-      } catch (err) {
-        log("signs/:id/placements/color PATCH error:", err);
-        return res.status(500).json({
-          success: false,
-          error: "Server error.",
-        });
+        log("signs/locations DELETE error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
       }
     },
   );
 
   // ===========================
-  // PLACEMENT PHOTOS
+  // SIGN ATTACHMENTS (signs mounted on a location)
   // ===========================
 
   /**
-   * POST /signs/placements/:placementId/photo
-   * Upload (or replace) the photo for a placement.
+   * POST /signs/locations/:locationId/attachments
+   * Attach a sign template to a location.
    *
-   * Form data: `photo` (image file, multipart/form-data)
-   * Response:  { success: true, photo_url: string } | { success: false, error: string }
-   *
-   * The uploaded image is processed (resized/recompressed) before storage.
-   * If the placement already had a photo, the old blob is best-effort
-   * deleted after the new one lands so we don't accumulate orphans.
+   * Body (JSON): { signId, face?, sortOrder?, arrowDirection?, status? }
+   * Response:    { success: true, id: number }
    *
    * @requires manageSigns permission
    */
   router.post(
-    "/signs/placements/:placementId/photo",
+    "/signs/locations/:locationId/attachments",
+    requireAuth,
+    requirePermission("manageSigns"),
+    csrfProtection,
+    async (req, res) => {
+      const locationId = Number(req.params.locationId);
+      const { signId, face, sortOrder, arrowDirection, status } = req.body || {};
+
+      if (!locationId) {
+        return res.status(400).json({ success: false, error: "Invalid location id." });
+      }
+      if (!signId) {
+        return res.status(400).json({ success: false, error: "signId is required." });
+      }
+
+      // Validate face
+      const faceValue = face ? String(face).trim().toLowerCase() : null;
+      if (faceValue && !["front", "back"].includes(faceValue)) {
+        return res.status(400).json({ success: false, error: "face must be 'front' or 'back'." });
+      }
+
+      let arrowValue;
+      try { arrowValue = normaliseArrow(arrowDirection); }
+      catch (e) { return res.status(400).json({ success: false, error: e.message }); }
+
+      const statusValue = status || "planned";
+      if (!VALID_STATUSES.includes(statusValue)) {
+        return res.status(400).json({ success: false, error: "Invalid status." });
+      }
+
+      try {
+        const id = await createSignAttachment(
+          {
+            locationId,
+            signId: Number(signId),
+            face: faceValue,
+            sortOrder: Number(sortOrder) || 0,
+            arrowDirection: arrowValue,
+            status: statusValue,
+          },
+          req.session.userEmail || "admin",
+        );
+        return res.json({ success: true, id });
+      } catch (err) {
+        log("signs/locations/:id/attachments POST error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * PUT /signs/attachments/:attachmentId
+   * Update an attachment's face, arrow direction, or sort order.
+   *
+   * @requires manageSigns permission
+   */
+  router.put(
+    "/signs/attachments/:attachmentId",
+    requireAuth,
+    requirePermission("manageSigns"),
+    csrfProtection,
+    async (req, res) => {
+      const attachmentId = Number(req.params.attachmentId);
+      const { face, sortOrder, arrowDirection } = req.body || {};
+
+      if (!attachmentId) {
+        return res.status(400).json({ success: false, error: "Invalid attachment id." });
+      }
+
+      const faceValue = face ? String(face).trim().toLowerCase() : null;
+      if (faceValue && !["front", "back"].includes(faceValue)) {
+        return res.status(400).json({ success: false, error: "face must be 'front' or 'back'." });
+      }
+
+      let arrowValue;
+      try { arrowValue = normaliseArrow(arrowDirection); }
+      catch (e) { return res.status(400).json({ success: false, error: e.message }); }
+
+      try {
+        const ok = await updateSignAttachment(attachmentId, {
+          face: faceValue,
+          sortOrder: Number(sortOrder) || 0,
+          arrowDirection: arrowValue,
+        });
+        if (!ok) {
+          return res.status(404).json({ success: false, error: "Attachment not found." });
+        }
+        return res.json({ success: true });
+      } catch (err) {
+        log("signs/attachments PUT error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * PATCH /signs/attachments/:attachmentId/status
+   * Update only the status; DB layer adjusts installed_by / installed_at /
+   * removed_at automatically.
+   *
+   * Body (JSON): { status: 'planned'|'installed'|'removed' }
+   *
+   * @requires manageSigns permission
+   */
+  router.patch(
+    "/signs/attachments/:attachmentId/status",
+    requireAuth,
+    requirePermission("manageSigns"),
+    csrfProtection,
+    async (req, res) => {
+      const attachmentId = Number(req.params.attachmentId);
+      const { status } = req.body || {};
+
+      if (!attachmentId) {
+        return res.status(400).json({ success: false, error: "Invalid attachment id." });
+      }
+      if (!VALID_STATUSES.includes(status)) {
+        return res.status(400).json({ success: false, error: "Invalid status." });
+      }
+
+      try {
+        const ok = await updateSignAttachmentStatus(
+          attachmentId,
+          status,
+          req.session.userEmail || "admin",
+        );
+        if (!ok) {
+          return res.status(404).json({ success: false, error: "Attachment not found." });
+        }
+        return res.json({ success: true });
+      } catch (err) {
+        log("signs/attachments/:id/status PATCH error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * DELETE /signs/attachments/:attachmentId
+   * Remove a sign attachment from its location.
+   *
+   * @requires manageSigns permission
+   */
+  router.delete(
+    "/signs/attachments/:attachmentId",
+    requireAuth,
+    requirePermission("manageSigns"),
+    csrfProtection,
+    async (req, res) => {
+      const attachmentId = Number(req.params.attachmentId);
+      if (!attachmentId) {
+        return res.status(400).json({ success: false, error: "Invalid attachment id." });
+      }
+
+      try {
+        const ok = await deleteSignAttachment(attachmentId);
+        if (!ok) {
+          return res.status(404).json({ success: false, error: "Attachment not found." });
+        }
+        return res.json({ success: true });
+      } catch (err) {
+        log("signs/attachments DELETE error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * PUT /signs/locations/:locationId/attachments/reorder
+   * Reorder the attachments on a location via drag-and-drop.
+   *
+   * Body (JSON): { orderedIds: [3, 1, 2] }  — attachment IDs in display order
+   *
+   * @requires manageSigns permission
+   */
+  router.put(
+    "/signs/locations/:locationId/attachments/reorder",
+    requireAuth,
+    requirePermission("manageSigns"),
+    csrfProtection,
+    async (req, res) => {
+      const locationId = Number(req.params.locationId);
+      const { orderedIds } = req.body || {};
+
+      if (!locationId) {
+        return res.status(400).json({ success: false, error: "Invalid location id." });
+      }
+      if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: "orderedIds must be a non-empty array of attachment IDs.",
+        });
+      }
+
+      try {
+        await reorderSignAttachments(locationId, orderedIds.map(Number));
+        return res.json({ success: true });
+      } catch (err) {
+        log("signs/locations/:id/attachments/reorder PUT error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  // ===========================
+  // LOCATION PHOTOS
+  // ===========================
+
+  /**
+   * POST /signs/locations/:locationId/photo
+   * Upload (or replace) the photo for a location.
+   *
+   * Form data: `photo` (image file, multipart/form-data)
+   * Response:  { success: true, photo_url: string }
+   *
+   * @requires manageSigns permission
+   */
+  router.post(
+    "/signs/locations/:locationId/photo",
     requireAuth,
     requirePermission("manageSigns"),
     csrfProtection,
     photoUpload.single("photo"),
     async (req, res) => {
-      const placementId = Number(req.params.placementId);
-      if (!placementId) {
-        return res.status(400).json({
-          success: false,
-          error: "Invalid placement id.",
-        });
+      const locationId = Number(req.params.locationId);
+      if (!locationId) {
+        return res.status(400).json({ success: false, error: "Invalid location id." });
       }
       if (!req.file) {
-        return res.status(400).json({
-          success: false,
-          error: "No photo file uploaded.",
-        });
+        return res.status(400).json({ success: false, error: "No photo file uploaded." });
       }
 
       try {
-        const existing = await getSignPlacementById(placementId);
+        const existing = await getSignLocationById(locationId);
         if (!existing) {
-          return res.status(404).json({
-            success: false,
-            error: "Placement not found.",
-          });
+          return res.status(404).json({ success: false, error: "Location not found." });
         }
 
         const actorName = [req.session.firstName, req.session.lastName]
           .filter(Boolean)
           .join(" ") || null;
-        const newBlobName = await uploadSignPhoto(placementId, req.file.buffer);
-        await setSignPlacementPhoto(placementId, newBlobName, actorName);
+        const newBlobName = await uploadSignPhoto(locationId, req.file.buffer);
+        await setSignLocationPhoto(locationId, newBlobName, actorName);
 
-        // Best-effort delete of the previous blob. If this fails the
-        // photo is still correct in the DB; we just have an orphan.
+        // Best-effort delete of the previous blob.
         if (existing.photo_url && existing.photo_url !== newBlobName) {
-          try {
-            await deleteSignPhoto(existing.photo_url);
-          } catch (err) {
-            log("Warning: failed to delete old photo blob:", err);
-          }
+          try { await deleteSignPhoto(existing.photo_url); }
+          catch (err) { log("Warning: failed to delete old photo blob:", err); }
         }
 
         return res.json({
@@ -946,7 +1019,7 @@ export function signsRouter({
           photo_taken_at: new Date().toISOString(),
         });
       } catch (err) {
-        log("signs/placements/:id/photo POST error:", err);
+        log("signs/locations/:id/photo POST error:", err);
         const isImgErr = /Input (?:buffer|file)|unsupported image format/i.test(
           err.message || "",
         );
@@ -961,36 +1034,33 @@ export function signsRouter({
   );
 
   /**
-   * GET /signs/placements/:placementId/photo
-   * Streams the placement's photo bytes to the client. Auth-gated; viewers
-   * need viewSigns. The blob name is read from the DB so we never expose
-   * blob URLs in markup.
+   * GET /signs/locations/:locationId/photo
+   * Stream the location's photo bytes to the client.
    *
    * @requires viewSigns permission
    */
   router.get(
-    "/signs/placements/:placementId/photo",
+    "/signs/locations/:locationId/photo",
     requireAuth,
     requirePermission("viewSigns"),
     async (req, res) => {
-      const placementId = Number(req.params.placementId);
-      if (!placementId) {
-        return res.status(400).send("Invalid placement id.");
+      const locationId = Number(req.params.locationId);
+      if (!locationId) {
+        return res.status(400).send("Invalid location id.");
       }
 
       try {
-        const placement = await getSignPlacementById(placementId);
-        if (!placement) {
-          return res.status(404).send("Placement not found.");
+        const location = await getSignLocationById(locationId);
+        if (!location) {
+          return res.status(404).send("Location not found.");
         }
-        if (!placement.photo_url) {
-          return res.status(404).send("No photo for this placement.");
+        if (!location.photo_url) {
+          return res.status(404).send("No photo for this location.");
         }
 
-        await streamSignPhotoToResponse(placement.photo_url, res);
-        // streamSignPhotoToResponse ends the response on its own.
+        await streamSignPhotoToResponse(location.photo_url, res);
       } catch (err) {
-        log("signs/placements/:id/photo GET error:", err);
+        log("signs/locations/:id/photo GET error:", err);
         if (!res.headersSent) {
           return res.status(500).send("Server error.");
         }
@@ -999,349 +1069,39 @@ export function signsRouter({
   );
 
   /**
-   * GET /signs/placements/:placementId/sv-snapshot
-   * Returns a Street View Static API JPEG for the placement's approach
-   * position + heading. Used by the visual placement composer to populate
-   * the background canvas without requiring html2canvas (which can't
-   * access cross-origin Street View tiles).
+   * DELETE /signs/locations/:locationId/photo
+   * Remove the location's photo (blob + DB column).
    *
-   * The approach position and heading match the live Street View overlay:
-   * SV_APPROACH_DISTANCE_METERS (20) behind the sign along the reverse
-   * bearing, camera facing forward (travel bearing).
-   *
-   * Query params (all optional):
-   *   width  — image width in px  (default 800, max 640 for free tier)
-   *   height — image height in px (default 450, max 640 for free tier)
-   *
-   * Response: JPEG bytes proxied from the Street View Static API, or
-   *   404 JSON if no imagery is available at that location.
-   *
-   * @requires viewSigns permission
+   * @requires manageSigns permission
    */
-  router.get(
-    "/signs/placements/:placementId/sv-snapshot",
+  router.delete(
+    "/signs/locations/:locationId/photo",
     requireAuth,
-    requirePermission("viewSigns"),
+    requirePermission("manageSigns"),
+    csrfProtection,
     async (req, res) => {
-      if (!googleMapsApiKey) {
-        return res.status(503).json({
-          success: false,
-          error: "Google Maps API key is not configured.",
-        });
-      }
-
-      const placementId = Number(req.params.placementId);
-      if (!placementId) {
-        return res.status(400).json({ success: false, error: "Invalid placement id." });
+      const locationId = Number(req.params.locationId);
+      if (!locationId) {
+        return res.status(400).json({ success: false, error: "Invalid location id." });
       }
 
       try {
-        const p = await getSignPlacementById(placementId);
-        if (!p) {
-          return res.status(404).json({ success: false, error: "Placement not found." });
+        const location = await getSignLocationById(locationId);
+        if (!location) {
+          return res.status(404).json({ success: false, error: "Location not found." });
+        }
+        if (!location.photo_url) {
+          return res.json({ success: true });
         }
 
-        const lat = Number(p.latitude);
-        const lng = Number(p.longitude);
+        try { await deleteSignPhoto(location.photo_url); }
+        catch (err) { log("Warning: failed to delete photo blob:", err); }
+        await clearSignLocationPhoto(locationId);
 
-        // Mirror the approach-position logic from signsMap.js:
-        // stand 20 m behind the sign along the reverse travel bearing.
-        const SV_APPROACH_M = 20;
-        const hasHeading =
-          p.heading !== null && p.heading !== undefined && p.heading !== "";
-        const travelBearing = hasHeading ? Number(p.heading) : 0;
-
-        let svLat = lat;
-        let svLng = lng;
-
-        if (hasHeading) {
-          const backBearing = (travelBearing + 180) % 360;
-          const metersN = SV_APPROACH_M * Math.cos((backBearing * Math.PI) / 180);
-          const metersE = SV_APPROACH_M * Math.sin((backBearing * Math.PI) / 180);
-          const cosLat = Math.cos((lat * Math.PI) / 180);
-          svLat += metersN / 111320;
-          svLng += metersE / (111320 * Math.max(cosLat, 1e-9));
-        }
-
-        // Clamp dimensions: Street View Static API max is 640x640 on the
-        // standard tier; we default to 800×450 which Google will cap at
-        // 640×450 automatically — acceptable for a planning background.
-        const width  = Math.min(Number(req.query.width)  || 800, 1200);
-        const height = Math.min(Number(req.query.height) || 450, 800);
-
-        const svUrl = new URL("https://maps.googleapis.com/maps/api/streetview");
-        svUrl.searchParams.set("size",     `${width}x${height}`);
-        svUrl.searchParams.set("location", `${svLat},${svLng}`);
-        svUrl.searchParams.set("heading",  String(Math.round(travelBearing)));
-        svUrl.searchParams.set("pitch",    "-5");
-        svUrl.searchParams.set("fov",      "90");
-        svUrl.searchParams.set("source",   "outdoor");
-        svUrl.searchParams.set("key",      googleMapsApiKey);
-
-        const svRes = await fetch(svUrl.toString());
-
-        // Street View Static API returns a 200 even for "no imagery" —
-        // we detect it by checking Content-Type (no-imagery returns a
-        // small image/gif placeholder) or by first fetching the metadata
-        // endpoint. Use the metadata check: it's free and explicit.
-        const metaUrl = new URL("https://maps.googleapis.com/maps/api/streetview/metadata");
-        metaUrl.searchParams.set("location", `${svLat},${svLng}`);
-        metaUrl.searchParams.set("key",      googleMapsApiKey);
-        const metaRes  = await fetch(metaUrl.toString());
-        const metaJson = await metaRes.json();
-
-        if (metaJson.status !== "OK") {
-          return res.status(404).json({
-            success: false,
-            error:   "No Street View imagery available for this location.",
-            status:  metaJson.status,
-          });
-        }
-
-        // Pipe the JPEG back to the client.
-        res.setHeader("Content-Type",  "image/jpeg");
-        res.setHeader("Cache-Control", "private, max-age=3600");
-
-        const buf = Buffer.from(await svRes.arrayBuffer());
-        return res.send(buf);
-
+        return res.json({ success: true });
       } catch (err) {
-        log("signs/placements/:id/sv-snapshot GET error:", err);
+        log("signs/locations/:id/photo DELETE error:", err);
         return res.status(500).json({ success: false, error: "Server error." });
-      }
-    },
-  );
-
-  /**
-   * POST /signs/placements/:placementId/street-view-photo
-   * Capture the current Street View as a photo for the placement.
-   *
-   * Body (JSON): { panoId, heading, pitch, fov }
-   * Response:    { success: true, photo_url: string }
-   *
-   * Uses the Google Street View Static API to fetch a JPEG at the
-   * user's exact panorama position / heading / pitch / fov, then
-   * uploads it to Azure Blob Storage via the same pipeline as a
-   * regular photo upload. If the placement already has a photo the
-   * old blob is best-effort deleted.
-   *
-   * @requires manageSigns permission
-   */
-  router.post(
-    "/signs/placements/:placementId/street-view-photo",
-    requireAuth,
-    requirePermission("manageSigns"),
-    csrfProtection,
-    async (req, res) => {
-      if (!googleMapsApiKey) {
-        return res.status(503).json({
-          success: false,
-          error: "Google Maps API key is not configured.",
-        });
-      }
-
-      const placementId = Number(req.params.placementId);
-      const { panoId, heading, pitch, fov } = req.body || {};
-
-      if (!placementId) {
-        return res.status(400).json({
-          success: false,
-          error: "Invalid placement id.",
-        });
-      }
-      if (!panoId || typeof panoId !== "string") {
-        return res.status(400).json({
-          success: false,
-          error: "panoId is required.",
-        });
-      }
-      if (
-        !Number.isFinite(Number(heading)) ||
-        !Number.isFinite(Number(pitch)) ||
-        !Number.isFinite(Number(fov))
-      ) {
-        return res.status(400).json({
-          success: false,
-          error: "heading, pitch, and fov must be valid numbers.",
-        });
-      }
-
-      try {
-        const existing = await getSignPlacementById(placementId);
-        if (!existing) {
-          return res.status(404).json({
-            success: false,
-            error: "Placement not found.",
-          });
-        }
-
-        // Fetch the Street View Static API image using the user's
-        // exact panorama ID, heading, pitch, and FOV.
-        const svUrl = new URL(
-          "https://maps.googleapis.com/maps/api/streetview",
-        );
-        svUrl.searchParams.set("size", "640x480");
-        svUrl.searchParams.set("pano", panoId);
-        svUrl.searchParams.set("heading", String(Math.round(Number(heading))));
-        svUrl.searchParams.set("pitch", String(Math.round(Number(pitch))));
-        svUrl.searchParams.set("fov", String(Math.round(Number(fov))));
-        svUrl.searchParams.set("key", googleMapsApiKey);
-
-        const svRes = await fetch(svUrl.toString());
-        if (!svRes.ok) {
-          return res.status(502).json({
-            success: false,
-            error: `Street View API returned ${svRes.status}.`,
-          });
-        }
-
-        const buffer = Buffer.from(await svRes.arrayBuffer());
-
-        // Upload via the same blob pipeline as regular photo uploads.
-        // processImage (inside uploadSignPhoto) handles resize + JPEG.
-        const actorName = [req.session.firstName, req.session.lastName]
-          .filter(Boolean)
-          .join(" ") || null;
-        const newBlobName = await uploadSignPhoto(placementId, buffer);
-        await setSignPlacementPhoto(placementId, newBlobName, actorName, {
-          panoId:  panoId,
-          heading: Number(heading),
-          pitch:   Number(pitch),
-          fov:     Number(fov),
-        });
-
-        // Best-effort delete the old blob if replaced
-        if (existing.photo_url && existing.photo_url !== newBlobName) {
-          try {
-            await deleteSignPhoto(existing.photo_url);
-          } catch (err) {
-            log("Warning: failed to delete old photo blob:", err);
-          }
-        }
-
-        return res.json({
-          success: true,
-          photo_url:     newBlobName,
-          photo_taken_by: actorName,
-          photo_taken_at: new Date().toISOString(),
-          sv_pano_id:    panoId,
-          sv_heading:    Number(heading),
-          sv_pitch:      Number(pitch),
-          sv_fov:        Number(fov),
-        });
-      } catch (err) {
-        log("signs/placements/:id/street-view-photo POST error:", err);
-        return res.status(500).json({
-          success: false,
-          error: "Server error.",
-        });
-      }
-    },
-  );
-
-  /**
-   * DELETE /signs/placements/:placementId/photo
-   * Removes the placement's photo (both the blob and the DB column).
-   * Response: { success: boolean }
-   *
-   * @requires manageSigns permission
-   */
-  router.delete(
-    "/signs/placements/:placementId/photo",
-    requireAuth,
-    requirePermission("manageSigns"),
-    csrfProtection,
-    async (req, res) => {
-      const placementId = Number(req.params.placementId);
-      if (!placementId) {
-        return res.status(400).json({
-          success: false,
-          error: "Invalid placement id.",
-        });
-      }
-
-      try {
-        const placement = await getSignPlacementById(placementId);
-        if (!placement) {
-          return res.status(404).json({
-            success: false,
-            error: "Placement not found.",
-          });
-        }
-        if (!placement.photo_url) {
-          return res.json({ success: true }); // already no photo
-        }
-
-        try {
-          await deleteSignPhoto(placement.photo_url);
-        } catch (err) {
-          // Don't fail the whole request — clear the DB column either way
-          // so the UI matches reality. Orphaned blob can be cleaned up
-          // later if it actually exists.
-          log("Warning: failed to delete photo blob:", err);
-        }
-        await clearSignPlacementPhoto(placementId);
-
-        return res.json({ success: true });
-      } catch (err) {
-        log("signs/placements/:id/photo DELETE error:", err);
-        return res.status(500).json({
-          success: false,
-          error: "Server error.",
-        });
-      }
-    },
-  );
-
-  /**
-   * DELETE /signs/placements/:placementId
-   * Permanently remove a placement.
-   * Response: { success: boolean }
-   *
-   * @requires manageSigns permission
-   */
-  router.delete(
-    "/signs/placements/:placementId",
-    requireAuth,
-    requirePermission("manageSigns"),
-    csrfProtection,
-    async (req, res) => {
-      const placementId = Number(req.params.placementId);
-      if (!placementId) {
-        return res.status(400).json({
-          success: false,
-          error: "Invalid placement id.",
-        });
-      }
-
-      try {
-        // Best-effort photo cleanup before the row goes away.
-        const existing = await getSignPlacementById(placementId);
-        if (existing?.photo_url) {
-          try {
-            await deleteSignPhoto(existing.photo_url);
-          } catch (err) {
-            log(
-              "Warning: failed to delete photo blob on placement delete:",
-              err,
-            );
-          }
-        }
-
-        const ok = await deleteSignPlacement(placementId);
-        if (!ok) {
-          return res.status(404).json({
-            success: false,
-            error: "Placement not found.",
-          });
-        }
-        return res.json({ success: true });
-      } catch (err) {
-        log("signs/placements DELETE error:", err);
-        return res.status(500).json({
-          success: false,
-          error: "Server error.",
-        });
       }
     },
   );

@@ -15,9 +15,6 @@ send invitations, track RSVPs, log attendance, and administer the platform.
      - [Sign Library](#sign-library-registered)
      - [Sign Builder](#sign-builder-overseer)
      - [Sign Map](#sign-map-registered--to-view-overseer-to-edit)
-       - [Direction of Travel Handle](#direction-of-travel-handle-overseer)
-       - [Street View](#street-view)
-       - [Placement Composer](#placement-composer-overseer)
 2. [My Account](#2-my-account)
 3. [Volunteer Management](#3-volunteer-management)
    - [SMS Management](#sms-management-assistant_admin)
@@ -107,15 +104,21 @@ Oversight dropdown, and the Operations hub.
 
 The Sign system tracks the placards placed around the convention area —
 things like **PARKING →**, **LOT FULL**, and **OVERFLOW ↗**. Signs are
-managed in two layers:
+managed in three layers:
 
-- **Templates** — the reusable sign design (text + arrow direction).
-- **Placements** — specific spots on a map where one of those templates
-  is going to be (or has been) physically installed.
+- **Templates** — the reusable sign design (text + optional default arrow).
+  Created in the Sign Builder.
+- **Locations** — physical mounting points on the map (a pole, cone,
+  a-frame, or existing structure). Each location has GPS coordinates,
+  notes, a photo, and a marker colour.
+- **Attachments** — a sign template mounted on a location. Multiple signs
+  can be stacked on one location (e.g. three signs vertically stacked on
+  a telephone pole). Each attachment has its own status (planned / installed /
+  removed), arrow direction, and stacking priority.
 
-A single template can be placed at many locations — e.g. one "PARKING →"
-template might be placed at five different street corners as five separate
-placements, each with its own GPS coordinates, status, and notes.
+A single template can be attached to many locations — e.g. one "PARKING →"
+template might appear at five street corners. A single location can hold
+multiple signs (stacked or, for a-frames, on separate front/back faces).
 
 #### Who can do what
 
@@ -167,8 +170,127 @@ variants as separate placements.
 
 **Path:** Signs → Sign Map, or `/signs/map`
 
-A Google Map of every non-archived sign placement with two levels of
-marker detail that swap automatically based on zoom:
+A Google Map showing every sign location as a stacked marker. Each marker
+displays the signs attached to that location as a vertical column of
+sign-preview blocks. The map starts centred on MVP Arena at street-level zoom.
+
+**Layout:** sidebar on the left with filters and the location list; Google
+Maps on the right. A printer icon in the sidebar header opens the
+printable map view in a new tab.
+
+##### Filters
+
+Two filter controls narrow both the map markers and the sidebar list:
+
+- **Status chips** — All / Planned / Installed / Removed (derived from
+  each location's attachments — a location with any installed attachment
+  shows as "installed")
+- **Sign template** — dropdown to see only locations that have a specific
+  template attached
+
+##### Markers
+
+Each marker renders the attached signs as a vertical stack of sign-preview
+blocks (sign text + arrow direction), with status indicated by the border
+colour of each sign in the stack:
+
+- Gray border = planned
+- Green border = installed
+- Red border + opacity = removed
+
+Empty locations (no attachments yet) show a dashed "empty" placeholder.
+Custom marker colours override the default status-based colouring and
+apply to the outer marker wrapper.
+
+##### Adding a location *(OVERSEER+)*
+
+1. Click **Add location** in the sidebar.
+2. The cursor becomes a crosshair and a hint appears.
+3. Click the spot on the map — a blue dashed "New" marker appears and the
+   editor slides in from the right.
+4. Set the mount type, marker colour, location notes, then click **Save**.
+5. Once saved, the **Attached Signs** section appears — add signs to the
+   location using the inline form.
+
+The GPS button next to "Add location" drops a new location at your current
+device position without needing to tap the map.
+
+##### Editing a location *(OVERSEER+)*
+
+Click any marker on the map (or any row in the sidebar list) to open the
+editor offcanvas. The editor has two sections:
+
+**Location fields:**
+- Coordinates (lat/lng) with an "Update to my location" GPS button
+- Mount type (Pole / Cone / A-frame / Existing structure)
+- A-frame bearing (shown only for a-frames — the compass direction the
+  front face points toward; back = front + 180°)
+- Marker colour palette
+- Location notes
+- Photo section (Take Photo / Upload / Replace / Remove)
+
+**Attached Signs:** a draggable list of all signs mounted on this location,
+ordered top-to-bottom by stacking priority. Each attachment row shows:
+- **Drag handle** (⋮⋮) — drag to reorder. The new order is saved
+  automatically and the map marker updates to match.
+- **Sign name + arrow** — the sign text and its per-attachment arrow direction.
+- **Face badge** — "FRONT" or "BACK" (only shown for a-frame locations).
+- **Status badge** — click to cycle through planned → installed → removed.
+  Status changes are saved immediately.
+- **× button** — remove the sign from this location (with confirmation).
+
+Click **Add sign to this location** to expand an inline form:
+- Sign template picker
+- Arrow direction picker (per-attachment; defaults to the template's arrow)
+- Face selector (shown only for a-frame mount types)
+
+**Drag to reposition:** drag any marker directly on the map to move it.
+All overlays (info sheets, context menus) are automatically hidden during
+the drag so the marker is unobstructed. The new coordinates are saved
+when you release.
+
+**Delete** removes the location and all its attached signs.
+
+##### View-only mode
+
+REGISTERED and KEYMAN users can see all locations and their attached signs,
+but the Add button, drag handles, status cycling, and Save/Delete buttons
+are hidden.
+
+##### Printable Map
+
+Click the **printer icon** (🖨) in the sidebar header to open a
+print-optimised view in a new tab.
+
+The print page shows a WYSIWYG preview sized for letter-portrait paper
+(7 in × 7 in map area). Markers display each location's top sign
+abbreviation + arrow. A legend below the map shows:
+- **Sign Key** — abbreviation → full name mapping
+- **Status** — dot colours for planned/installed/removed
+- **Marker colours** — the palette swatches
+
+Toolbar controls (Road / Hybrid toggle, status and template filters, fit
+button) let you frame the view. Click **Print** to open the browser print
+dialog — what you see on screen is what prints.
+
+##### Legend
+
+A collapsible **Legend** section sits at the bottom of the sidebar
+(collapsed by default). It shows status dot colours, the marker colour
+palette, and mount type icons.
+
+##### Coming soon
+
+- **A-frame face support** — front/back face assignment with bearing
+  handle and split marker rendering.
+- **Traffic arrows** — road-surface directional indicators linked to
+  specific sign attachments, with bidirectional highlighting on click.
+- **Geofencing** — proximity-based alerts when near a sign location
+  (temporarily removed, pending adaptation to the new location model).
+- **Street View** and **Placement Composer** — temporarily removed,
+  returning in a future phase adapted for the location/attachment model.
+- **Publish to Downloads** — generate a PDF snapshot and upload to the
+  Maps downloads page.
 
 - **Zoomed out (below threshold):** compact 32px coloured discs showing
   the sign abbreviation with an arrow-direction badge in the corner.
@@ -496,10 +618,10 @@ The **Delegated Permissions** section appears inside the Assignment & Role
 accordion for ADMIN and ASSISTANT_ADMIN users only. It contains a single
 toggle:
 
-- **Manage sign placements** — grants `manageSigns` to this volunteer without
+- **Manage sign locations** — grants `manageSigns` to this volunteer without
   promoting them to OVERSEER. When enabled, the volunteer can create, edit,
-  drag, and delete sign placements on the Sign Map, identical to an OVERSEER.
-  The toggle takes effect on their next login.
+  drag, and delete sign locations and manage attachments on the Sign Map,
+  identical to an OVERSEER. The toggle takes effect on their next login.
 
 Click **EDIT** in the Assignment & Role section to enable the toggle, then
 **Finalize Changes** to save.
@@ -1052,7 +1174,7 @@ mobile. The tree is visible to all authenticated users regardless of role.
 | **REGISTERED** | View schedules, maps, the Sign Library, and the Sign Map (read-only); edit own account |
 | **DESK** | Log attendance; create volunteer accounts |
 | **KEYMAN** | View volunteer info; log and view attendance; view Sign Library and Sign Map |
-| **OVERSEER** | Edit volunteers; manage shifts and locations; send messages; create campaigns; create and edit sign templates; place, drag, edit, and delete sign placements on the Sign Map |
+| **OVERSEER** | Edit volunteers; manage shifts and locations; send messages; create campaigns; create and edit sign templates; manage sign locations and attachments on the Sign Map |
 | **ASSISTANT_ADMIN** | All OVERSEER capabilities + role management + delete volunteers + access admin console + grant delegated permissions to volunteers |
 | **ADMIN** | Full access including Permission Matrix, Decently Sync, campaign management, and granting delegated permissions |
 

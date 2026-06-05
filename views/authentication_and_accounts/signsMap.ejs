@@ -20,8 +20,6 @@
     <%- include('../partials/header') %>
 
     <%
-        // Role helpers must be inlined per template — variables inside
-        // include() partials are not in scope here.
         const _role     = typeof userRole        !== 'undefined' ? userRole        : 'NON_REGISTERED';
         const _perms    = typeof userPermissions !== 'undefined' ? userPermissions : {};
         const can       = (permission) => !!(_perms[_role] && _perms[_role][permission]);
@@ -38,7 +36,7 @@
              data-center-zoom="<%= defaultMapCenter.zoom %>">
 
             <%# ──────────────────────────────────────────────────────────
-                LEFT COLUMN: filters + placement list
+                LEFT COLUMN: filters + location list
             ────────────────────────────────────────────────────────── %>
             <aside class="col-12 col-lg-4 col-xl-3">
                 <section class="card shadow-sm admin-console-card signs-map-side">
@@ -58,6 +56,12 @@
                                 <i class="fa-solid fa-filter me-1"></i>Filters
                                 <i class="fa-solid fa-chevron-down signs-sidebar-chevron ms-1"></i>
                             </button>
+                            <a href="/signs/map/print"
+                               target="_blank"
+                               class="btn btn-link btn-sm p-0 text-muted"
+                               title="Printable map">
+                                <i class="fa-solid fa-print"></i>
+                            </a>
                             <a href="/signs" class="btn btn-link btn-sm p-0">
                                 <i class="fa-solid fa-arrow-left me-1"></i>Library
                             </a>
@@ -69,7 +73,7 @@
 
                         <%# Filters %>
                         <h6 class="text-muted mb-2">
-                            <i class="fa-solid fa-filter me-1"></i>Filter placements
+                            <i class="fa-solid fa-filter me-1"></i>Filter locations
                         </h6>
                         <div class="mb-3">
                             <label class="form-label small text-uppercase text-muted mb-1">
@@ -96,36 +100,8 @@
                             </label>
                             <select class="form-select form-select-sm" id="signTemplateFilter">
                                 <option value="">All templates</option>
-                                <%
-                                    // Arrow direction → Unicode glyph for <option> display.
-                                    // <select> elements can't render HTML, so we use Unicode
-                                    // characters here even though the destination pin is a
-                                    // FontAwesome icon everywhere else on the page.
-                                    const arrowGlyphForOption = (dir) => {
-                                        switch (dir) {
-                                            case 'up':            return '↑';
-                                            case 'down':          return '↓';
-                                            case 'left':          return '←';
-                                            case 'right':         return '→';
-                                            case 'up-left':       return '↖';
-                                            case 'up-right':      return '↗';
-                                            case 'down-left':     return '↙';
-                                            case 'down-right':    return '↘';
-                                            case 'up-then-left':  return '↰';
-                                            case 'up-then-right': return '↱';
-                                            case 'destination':   return '📍';
-                                            default:              return '';
-                                        }
-                                    };
-                                    const optionLabel = (s) => {
-                                        const glyph = arrowGlyphForOption(s.arrow_direction);
-                                        const arrowPart = glyph ? ` ${glyph}` : '';
-                                        const descPart  = s.description ? ` — ${s.description}` : '';
-                                        return `${s.sign_text}${arrowPart}${descPart} (#${s.sign_id})`;
-                                    };
-                                %>
                                 <% signs.forEach(s => { %>
-                                    <option value="<%= s.sign_id %>"><%= optionLabel(s) %></option>
+                                    <option value="<%= s.sign_id %>"><%= s.sign_text %> (#<%= s.sign_id %>)</option>
                                 <% }); %>
                             </select>
                         </div>
@@ -133,23 +109,23 @@
                         <% if (canManage) { %>
                             <hr class="my-2" />
                             <div class="d-flex gap-2 mb-3">
-                                <button type="button" class="btn btn-primary btn-sm flex-fill" id="addPlacementBtn">
-                                    <i class="fa-solid fa-plus me-1"></i>Add placement
+                                <button type="button" class="btn btn-primary btn-sm flex-fill" id="addLocationBtn">
+                                    <i class="fa-solid fa-plus me-1"></i>Add location
                                 </button>
                                 <button type="button" class="btn btn-outline-secondary btn-sm" id="geotagNewBtn"
                                         title="Place at my current GPS location">
                                     <i class="fa-solid fa-location-crosshairs"></i>
                                 </button>
                             </div>
-                            <p class="small text-muted mb-3" id="addPlacementHelp" hidden>
+                            <p class="small text-muted mb-3" id="addLocationHelp" hidden>
                                 <i class="fa-solid fa-circle-info me-1"></i>
-                                Click anywhere on the map to drop a placement.
+                                Click anywhere on the map to drop a location.
                                 <button type="button" class="btn btn-link btn-sm p-0 ms-1" id="cancelAddBtn">Cancel</button>
                             </p>
                         <% } %>
 
-                        <div class="signs-placement-list" id="placementList">
-                            <%# Filled by JS so search/filter stays in one place. %>
+                        <div class="signs-location-list" id="locationList">
+                            <%# Filled by JS %>
                         </div>
 
                         <hr class="my-2" />
@@ -157,7 +133,7 @@
                         <%# ── Legend (collapsible) ─────────────────────────────── %>
                         <div class="d-flex align-items-center justify-content-between mb-1">
                             <span class="small text-uppercase text-muted fw-semibold">
-                                <i class="fa-solid fa-circle-info me-1"></i>Legend &amp; Shortcuts
+                                <i class="fa-solid fa-circle-info me-1"></i>Legend
                             </span>
                             <button type="button"
                                     class="btn btn-link btn-sm p-0 text-muted"
@@ -171,7 +147,6 @@
                         </div>
 
                         <div class="collapse" id="mapLegendPanel">
-                            <%# Status ─────────────────────────────────────────── %>
                             <p class="small text-muted mb-1 fw-semibold">Status</p>
                             <ul class="signs-legend-list mb-2">
                                 <li>
@@ -188,7 +163,6 @@
                                 </li>
                             </ul>
 
-                            <%# Marker colours ───────────────────────────────── %>
                             <p class="small text-muted mb-1 fw-semibold">Marker colours</p>
                             <div class="signs-legend-swatches mb-2">
                                 <span class="signs-legend-swatch" style="background:#6c757d" title="Default (status)"></span>
@@ -202,63 +176,17 @@
                                 <span class="signs-legend-swatch signs-legend-swatch-pink"   title="Pink"></span>
                             </div>
 
-                            <%# Keyboard shortcuts ───────────────────────────── %>
-                            <p class="small text-muted mb-1 fw-semibold">Keyboard shortcuts</p>
-                            <ul class="signs-legend-list signs-legend-shortcuts mb-0">
-                                <li class="d-none d-lg-flex">
-                                    <span class="signs-legend-keys">
-                                        <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd>
-                                    </span>
-                                    Nudge selected marker 0.5 m
-                                </li>
-                                <li class="d-none d-lg-flex">
-                                    <span class="signs-legend-keys">
-                                        <kbd>Shift</kbd>+<kbd>arrow</kbd>
-                                    </span>
-                                    Nudge 5 m (coarse)
-                                </li>
-                                <li class="d-none d-lg-flex">
-                                    <span class="signs-legend-keys">
-                                        <kbd>Shift</kbd>+drag marker
-                                    </span>
-                                    Move marker on map
-                                </li>
-                                <li class="d-none d-lg-flex">
-                                    <span class="signs-legend-keys">
-                                        <kbd>Shift</kbd>+drag handle
-                                    </span>
-                                    Rotate direction of travel
-                                </li>
-                                <li class="d-none d-lg-flex">
-                                    <span class="signs-legend-keys"><kbd>Esc</kbd></span>
-                                    Deselect / close overlay
-                                </li>
-                                <li class="d-none d-lg-flex">
-                                    <span class="signs-legend-keys">Right-click</span>
-                                    Context menu
-                                </li>
-                                <li class="d-lg-none">
-                                    <span class="signs-legend-keys">Tap marker</span>
-                                    View details &amp; actions
-                                </li>
-                            </ul>
-
-                            <%# Travel direction handle ───────────────────────── %>
-                            <p class="small text-muted mb-1 fw-semibold mt-2 d-none d-lg-block">Direction of travel arrow</p>
-                            <ul class="signs-legend-list mb-0 d-none d-lg-flex flex-column">
-                                <li>
-                                    <span class="signs-legend-keys"><kbd>Shift</kbd>+drag handle</span>
-                                    Set direction drivers travel toward sign
-                                </li>
-                                <li>
-                                    <span class="signs-legend-keys">Dashed arrow</span>
-                                    No direction set yet
-                                </li>
+                            <p class="small text-muted mb-1 fw-semibold">Mount types</p>
+                            <ul class="signs-legend-list mb-0">
+                                <li><i class="fa-solid fa-signs-post me-2 text-muted" style="width:1rem;text-align:center"></i>Pole</li>
+                                <li><i class="fa-solid fa-triangle-exclamation me-2 text-muted" style="width:1rem;text-align:center"></i>Cone</li>
+                                <li><i class="fa-solid fa-tent me-2 text-muted" style="width:1rem;text-align:center"></i>A-frame</li>
+                                <li><i class="fa-solid fa-building me-2 text-muted" style="width:1rem;text-align:center"></i>Existing structure</li>
                             </ul>
                         </div>
 
                     </div>
-                    </div>  
+                    </div>
                 </section>
             </aside>
 
@@ -267,14 +195,13 @@
             ────────────────────────────────────────────────────────── %>
             <div class="col-12 col-lg-8 col-xl-9">
                 <section class="card shadow-sm admin-console-card signs-map-wrapper">
-
                     <% if (!googleMapsApiKey) { %>
                         <div class="signs-map-missing-key p-5 text-center">
                             <i class="fa-solid fa-key fa-2x mb-3 text-warning"></i>
                             <h2 class="h5">Google Maps API key not configured</h2>
                             <p class="text-muted mb-0">
                                 Set <code>GOOGLE_MAPS_API_KEY</code> in the environment
-                                (or <code>GoogleMapsApiKey</code> in Key Vault) and restart the server.
+                                (or <code>GoogleMapsApiKey</code> in Key Vault) and restart.
                             </p>
                         </div>
                     <% } else { %>
@@ -286,7 +213,6 @@
                             </div>
                         </div>
                     <% } %>
-
                 </section>
             </div>
 
@@ -295,123 +221,32 @@
 
     <%# ──────────────────────────────────────────────────────────
         INFO SHEET: tap-to-peek card (slides up from bottom)
-        Populated entirely by JS; shown on marker tap for all users.
-        On desktop, also available from the placement list.
     ────────────────────────────────────────────────────────── %>
-    <div class="signs-info-sheet d-none" id="signsInfoSheet" aria-modal="true" role="dialog" aria-label="Placement details">
+    <div class="signs-info-sheet d-none" id="signsInfoSheet" aria-modal="true" role="dialog" aria-label="Location details">
         <div class="signs-info-sheet-handle" id="signsInfoSheetHandle" aria-hidden="true"></div>
         <div class="signs-info-sheet-header" id="signsInfoSheetHeader">
-            <%# JS populates: sign preview + status badge + close button %>
+            <%# JS populates %>
         </div>
         <div class="signs-info-sheet-body" id="signsInfoSheetBody">
-            <%# JS populates: details dl, thumbnail, action buttons %>
+            <%# JS populates %>
         </div>
     </div>
     <div class="signs-info-sheet-backdrop d-none" id="signsInfoSheetBackdrop"></div>
 
-    <% if (canManage) { %>
     <%# ──────────────────────────────────────────────────────────
-        GEOFENCE: FAB toggle + proximity alert bar
-        Only rendered for manageSigns users. JS initialisation in
-        signsGeofence.js — the FAB stays d-none until the map loads.
-    ────────────────────────────────────────────────────────── %>
-    <button type="button"
-            class="signs-geofence-fab d-none"
-            id="signsGeofenceFab"
-            aria-pressed="false"
-            title="Track my location">
-        <i class="fa-solid fa-location-crosshairs" aria-hidden="true"></i>
-    </button>
-
-    <div class="signs-proximity-bar d-none" id="signsProximityBar">
-        <div class="signs-proximity-bar-inner">
-            <div class="signs-proximity-bar-info" id="signsProximityInfo">
-                <%# JS populates: sign preview + distance %>
-            </div>
-            <div class="signs-proximity-bar-photo d-none" id="signsProximityPhoto">
-                <%# JS populates: thumbnail with expand/collapse %>
-            </div>
-            <div class="signs-proximity-bar-actions" id="signsProximityActions">
-                <%# JS populates: status buttons %>
-            </div>
-            <button type="button"
-                    class="signs-proximity-bar-dismiss"
-                    id="signsProximityDismiss"
-                    aria-label="Dismiss">
-                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-            </button>
-        </div>
-    </div>
-    <% } %>
-
-    <%# ──────────────────────────────────────────────────────────
-        OFFCANVAS: placement editor (slides in from the right)
+        OFFCANVAS: location editor (slides in from the right)
     ────────────────────────────────────────────────────────── %>
     <div class="offcanvas offcanvas-end signs-placement-offcanvas"
          tabindex="-1"
-         id="placementEditor"
-         aria-labelledby="placementEditorTitle">
+         id="locationEditor"
+         aria-labelledby="locationEditorTitle">
         <div class="offcanvas-header">
-            <h2 class="offcanvas-title h5 mb-0" id="placementEditorTitle">Placement</h2>
+            <h2 class="offcanvas-title h5 mb-0" id="locationEditorTitle">Location</h2>
             <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
         </div>
         <div class="offcanvas-body">
 
-            <%# Sign template picker (only for new placements) %>
-            <div class="mb-3" id="editorSignTemplateRow" hidden>
-                <label for="editorSignTemplate" class="form-label">
-                    Sign template <span class="text-danger">*</span>
-                </label>
-                <select class="form-select" id="editorSignTemplate">
-                    <option value="">Pick a sign…</option>
-                    <% signs.forEach(s => { %>
-                        <option value="<%= s.sign_id %>"
-                                data-text="<%= s.sign_text %>"
-                                data-arrow="<%= s.arrow_direction || '' %>">
-                            <%= optionLabel(s) %>
-                        </option>
-                    <% }); %>
-                </select>
-            </div>
-
-            <%# Preview of selected sign %>
-            <div class="mb-3 text-center">
-                <p class="text-muted small mb-2">Sign preview</p>
-                <div class="sign-preview mx-auto" id="editorPreview">
-                    <span class="sign-preview-text" id="editorPreviewText">—</span>
-                    <span class="sign-preview-arrow" id="editorPreviewArrow"></span>
-                </div>
-            </div>
-
-            <%# Arrow direction (per-placement) %>
-            <div class="mb-3" id="editorArrowRow">
-                <label class="form-label">Direction</label>
-                <div class="arrow-picker arrow-picker-sm" role="radiogroup" aria-label="Arrow direction">
-                    <button type="button" class="arrow-btn arrow-btn-sm" data-arrow="up-left" aria-label="Up-left">↖</button>
-                    <button type="button" class="arrow-btn arrow-btn-sm" data-arrow="up" aria-label="Up">↑</button>
-                    <button type="button" class="arrow-btn arrow-btn-sm" data-arrow="up-right" aria-label="Up-right">↗</button>
-
-                    <button type="button" class="arrow-btn arrow-btn-sm" data-arrow="left" aria-label="Left">←</button>
-                    <button type="button" class="arrow-btn arrow-btn-sm arrow-btn-none" data-arrow="" aria-label="No arrow">
-                        <i class="fa-solid fa-ban"></i>
-                    </button>
-                    <button type="button" class="arrow-btn arrow-btn-sm" data-arrow="right" aria-label="Right">→</button>
-
-                    <button type="button" class="arrow-btn arrow-btn-sm" data-arrow="down-left" aria-label="Down-left">↙</button>
-                    <button type="button" class="arrow-btn arrow-btn-sm" data-arrow="down" aria-label="Down">↓</button>
-                    <button type="button" class="arrow-btn arrow-btn-sm" data-arrow="down-right" aria-label="Down-right">↘</button>
-
-                    <button type="button" class="arrow-btn arrow-btn-sm" data-arrow="up-then-left" aria-label="Up then left">↰</button>
-                    <button type="button" class="arrow-btn arrow-btn-sm" data-arrow="up-then-right" aria-label="Up then right">↱</button>
-                    <button type="button" class="arrow-btn arrow-btn-sm" data-arrow="destination" aria-label="Destination pin">
-                        <i class="fa-solid fa-location-dot"></i>
-                    </button>
-                </div>
-                <input type="hidden" id="editorArrowDirection" value="" />
-                <div class="form-text small">Direction for this specific placement.</div>
-            </div>
-
-            <%# Coordinates %>
+            <%# ── Coordinates ────────────────────────────────── %>
             <div class="row g-2 mb-3">
                 <div class="col-6">
                     <label for="editorLat" class="form-label small">Latitude</label>
@@ -430,36 +265,31 @@
                         </button>
                     </div>
                 <% } %>
-                <div class="form-text small" id="editorCoordsHint">Drag the marker on the map to reposition.</div>
             </div>
 
-            <%# Mount type %>
+            <%# ── Mount type ─────────────────────────────────── %>
             <div class="mb-3">
-                <label for="editorMountType" class="form-label">Mounted on</label>
-                <select class="form-select" id="editorMountType">
+                <label for="editorMountType" class="form-label">Mount type</label>
+                <select class="form-select" id="editorMountType" <%= canManage ? '' : 'disabled' %>>
                     <option value="">Not specified</option>
+                    <option value="pole">Pole</option>
                     <option value="cone">Cone</option>
                     <option value="a-frame">A-frame</option>
-                    <option value="existing-structure">Existing structure (pole, wall, etc.)</option>
+                    <option value="existing-structure">Existing structure</option>
                 </select>
             </div>
 
-            <%# Status %>
-            <div class="mb-3">
-                <label class="form-label">Status</label>
-                <div class="btn-group w-100" role="group">
-                    <input type="radio" class="btn-check" name="editorStatus" id="editorStatusPlanned" value="planned" checked />
-                    <label class="btn btn-outline-secondary" for="editorStatusPlanned">Planned</label>
-
-                    <input type="radio" class="btn-check" name="editorStatus" id="editorStatusInstalled" value="installed" />
-                    <label class="btn btn-outline-success" for="editorStatusInstalled">Installed</label>
-
-                    <input type="radio" class="btn-check" name="editorStatus" id="editorStatusRemoved" value="removed" />
-                    <label class="btn btn-outline-danger" for="editorStatusRemoved">Removed</label>
-                </div>
+            <%# ── A-frame bearing (shown only when mount_type = a-frame) ── %>
+            <div class="mb-3" id="editorBearingRow" hidden>
+                <label for="editorFrontBearing" class="form-label">
+                    Front face bearing <span class="text-muted small">(0–360°)</span>
+                </label>
+                <input type="number" min="0" max="360" step="1" class="form-control" id="editorFrontBearing"
+                       placeholder="e.g. 90 = front faces east" <%= canManage ? '' : 'readonly' %> />
+                <div class="form-text">Compass direction the front face points toward. Back = front + 180°.</div>
             </div>
 
-            <%# Marker colour %>
+            <%# ── Marker colour ──────────────────────────────── %>
             <% if (canManage) { %>
                 <div class="mb-3">
                     <label class="form-label">Marker colour</label>
@@ -468,69 +298,37 @@
                                 data-color="" title="Default (status)">
                             <i class="fa-solid fa-ban" aria-hidden="true"></i>
                         </button>
-                        <button type="button" class="signs-color-swatch signs-color-swatch-red"
-                                data-color="red" title="Red"></button>
-                        <button type="button" class="signs-color-swatch signs-color-swatch-orange"
-                                data-color="orange" title="Orange"></button>
-                        <button type="button" class="signs-color-swatch signs-color-swatch-yellow"
-                                data-color="yellow" title="Yellow"></button>
-                        <button type="button" class="signs-color-swatch signs-color-swatch-green"
-                                data-color="green" title="Green"></button>
-                        <button type="button" class="signs-color-swatch signs-color-swatch-teal"
-                                data-color="teal" title="Teal"></button>
-                        <button type="button" class="signs-color-swatch signs-color-swatch-blue"
-                                data-color="blue" title="Blue"></button>
-                        <button type="button" class="signs-color-swatch signs-color-swatch-purple"
-                                data-color="purple" title="Purple"></button>
-                        <button type="button" class="signs-color-swatch signs-color-swatch-pink"
-                                data-color="pink" title="Pink"></button>
+                        <button type="button" class="signs-color-swatch signs-color-swatch-red"    data-color="red"    title="Red"></button>
+                        <button type="button" class="signs-color-swatch signs-color-swatch-orange" data-color="orange" title="Orange"></button>
+                        <button type="button" class="signs-color-swatch signs-color-swatch-yellow" data-color="yellow" title="Yellow"></button>
+                        <button type="button" class="signs-color-swatch signs-color-swatch-green"  data-color="green"  title="Green"></button>
+                        <button type="button" class="signs-color-swatch signs-color-swatch-teal"   data-color="teal"   title="Teal"></button>
+                        <button type="button" class="signs-color-swatch signs-color-swatch-blue"   data-color="blue"   title="Blue"></button>
+                        <button type="button" class="signs-color-swatch signs-color-swatch-purple" data-color="purple" title="Purple"></button>
+                        <button type="button" class="signs-color-swatch signs-color-swatch-pink"   data-color="pink"   title="Pink"></button>
                     </div>
-                    <button type="button" class="btn btn-link btn-sm p-0 mt-1" id="editorBulkColorBtn" hidden>
-                        Apply to all placements of this sign
-                    </button>
                 </div>
             <% } %>
 
-            <%# Direction of travel (bearing drivers travel toward this sign) %>
-            <div class="mb-3">
-                <label for="editorHeading" class="form-label">
-                    Direction of travel <span class="text-muted small">(0–360°, optional)</span>
-                </label>
-                <input type="number" min="0" max="360" step="1" class="form-control" id="editorHeading"
-                       placeholder="e.g. 90 = eastbound traffic" />
-                <div class="form-text">
-                    The bearing drivers travel <em>toward</em> this sign. Shown as a direction arrow
-                    on the map marker and used to position Street View. Leave blank if unknown.
-                    Drag the arrow handle on the map marker to set visually.
-                </div>
-            </div>
-
-            <%# Location notes %>
+            <%# ── Location notes ─────────────────────────────── %>
             <div class="mb-3">
                 <label for="editorNotes" class="form-label">Location notes</label>
-                <textarea class="form-control" id="editorNotes" rows="3" maxlength="500"
-                          placeholder="e.g. On telephone pole, NE corner of Central & Madison"></textarea>
+                <textarea class="form-control" id="editorNotes" rows="2" maxlength="500"
+                          placeholder="e.g. On telephone pole, NE corner of Central & Madison"
+                          <%= canManage ? '' : 'readonly' %>></textarea>
             </div>
 
-            <%# Photo section %>
+            <%# ── Photo section ──────────────────────────────── %>
             <div class="mb-3 signs-photo-section" id="editorPhotoSection">
                 <label class="form-label d-flex align-items-center justify-content-between">
-                    <span>Photo of installed sign</span>
+                    <span>Photo</span>
                     <span class="small text-muted" id="editorPhotoHint">(optional)</span>
                 </label>
                 <p class="small text-muted mb-2" id="editorPhotoCredit" hidden></p>
 
-                <%# No-photo state: drop zone %>
                 <div class="signs-photo-dropzone" id="editorPhotoDropzone" hidden>
-                    <input type="file"
-                           class="d-none"
-                           id="editorPhotoCaptureInput"
-                           accept="image/*"
-                           capture="environment" />
-                    <input type="file"
-                           class="d-none"
-                           id="editorPhotoUploadInput"
-                           accept="image/*" />
+                    <input type="file" class="d-none" id="editorPhotoCaptureInput" accept="image/*" capture="environment" />
+                    <input type="file" class="d-none" id="editorPhotoUploadInput" accept="image/*" />
                     <% if (canManage) { %>
                         <div class="signs-photo-dropzone-buttons">
                             <button type="button" class="signs-photo-dropzone-button" id="editorPhotoCaptureBtn">
@@ -542,17 +340,15 @@
                                 <span class="fw-semibold">Upload</span>
                             </button>
                         </div>
-                        <div class="small text-muted mt-1 text-center">or drop an image here</div>
                     <% } else { %>
                         <div class="text-center text-muted py-3 small">
-                            <i class="fa-regular fa-image me-1"></i>No photo for this placement.
+                            <i class="fa-regular fa-image me-1"></i>No photo for this location.
                         </div>
                     <% } %>
                 </div>
 
-                <%# Has-photo state: thumbnail + actions %>
                 <div class="signs-photo-display" id="editorPhotoDisplay" hidden>
-                    <img class="signs-photo-thumb" id="editorPhotoThumb" alt="Sign placement photo" />
+                    <img class="signs-photo-thumb" id="editorPhotoThumb" alt="Location photo" />
                     <% if (canManage) { %>
                         <div class="signs-photo-actions">
                             <button type="button" class="btn btn-outline-secondary btn-sm" id="editorPhotoCaptureReplaceBtn">
@@ -568,7 +364,6 @@
                     <% } %>
                 </div>
 
-                <%# Uploading state %>
                 <div class="signs-photo-uploading" id="editorPhotoUploading" hidden>
                     <div class="d-flex align-items-center gap-2">
                         <div class="spinner-border spinner-border-sm text-primary" role="status">
@@ -577,28 +372,97 @@
                         <span class="small">Uploading and processing…</span>
                     </div>
                 </div>
-
                 <p class="small text-danger mt-1 mb-0" id="editorPhotoError" hidden></p>
+            </div>
 
-                <%# Street View + Compose controls (shown for saved placements only) %>
-                <div class="d-flex gap-2 mt-2" id="editorPhotoTools" hidden>
-                    <button type="button" class="btn btn-outline-secondary btn-sm flex-fill" id="editorStreetViewBtn">
-                        <i class="fa-solid fa-street-view me-1"></i>Street View
-                    </button>
-                    <% if (canManage) { %>
-                        <button type="button" class="btn btn-outline-secondary btn-sm flex-fill" id="editorComposerBtn">
-                            <i class="fa-solid fa-layer-group me-1"></i>Compose
-                        </button>
-                    <% } %>
+            <%# ══════════════════════════════════════════════════
+                ATTACHED SIGNS — drag-to-reorder list
+            ══════════════════════════════════════════════════ %>
+            <div class="mb-3 border-top pt-3" id="editorAttachmentsSection" hidden>
+                <label class="form-label fw-semibold d-flex align-items-center justify-content-between">
+                    <span><i class="fa-solid fa-layer-group me-1"></i>Attached Signs</span>
+                    <span class="badge bg-secondary" id="editorAttachmentCount">0</span>
+                </label>
+
+                <%# Attachment list — populated and reorderable via JS %>
+                <div class="signs-attachment-list" id="editorAttachmentList">
+                    <%# JS builds rows here %>
                 </div>
+
+                <% if (canManage) { %>
+                    <%# Add attachment form (collapsed by default) %>
+                    <div class="mt-2" id="addAttachmentWrap">
+                        <button type="button" class="btn btn-outline-primary btn-sm w-100" id="addAttachmentToggle">
+                            <i class="fa-solid fa-plus me-1"></i>Add sign to this location
+                        </button>
+
+                        <div class="collapse mt-2" id="addAttachmentForm">
+                            <div class="card card-body p-2">
+                                <div class="mb-2">
+                                    <label for="addAttSignTemplate" class="form-label small mb-1">Sign template</label>
+                                    <select class="form-select form-select-sm" id="addAttSignTemplate">
+                                        <option value="">Pick a sign…</option>
+                                        <% signs.forEach(s => { %>
+                                            <option value="<%= s.sign_id %>"
+                                                    data-text="<%= s.sign_text %>"
+                                                    data-arrow="<%= s.arrow_direction || '' %>">
+                                                <%= s.sign_text %> (#<%= s.sign_id %>)
+                                            </option>
+                                        <% }); %>
+                                    </select>
+                                </div>
+
+                                <div class="mb-2">
+                                    <label class="form-label small mb-1">Arrow on sign</label>
+                                    <div class="arrow-picker arrow-picker-sm" role="radiogroup" aria-label="Arrow direction">
+                                        <button type="button" class="arrow-btn arrow-btn-sm" data-arrow="up-left" aria-label="Up-left">↖</button>
+                                        <button type="button" class="arrow-btn arrow-btn-sm" data-arrow="up" aria-label="Up">↑</button>
+                                        <button type="button" class="arrow-btn arrow-btn-sm" data-arrow="up-right" aria-label="Up-right">↗</button>
+                                        <button type="button" class="arrow-btn arrow-btn-sm" data-arrow="left" aria-label="Left">←</button>
+                                        <button type="button" class="arrow-btn arrow-btn-sm arrow-btn-none active" data-arrow="" aria-label="No arrow">
+                                            <i class="fa-solid fa-ban"></i>
+                                        </button>
+                                        <button type="button" class="arrow-btn arrow-btn-sm" data-arrow="right" aria-label="Right">→</button>
+                                        <button type="button" class="arrow-btn arrow-btn-sm" data-arrow="down-left" aria-label="Down-left">↙</button>
+                                        <button type="button" class="arrow-btn arrow-btn-sm" data-arrow="down" aria-label="Down">↓</button>
+                                        <button type="button" class="arrow-btn arrow-btn-sm" data-arrow="down-right" aria-label="Down-right">↘</button>
+                                        <button type="button" class="arrow-btn arrow-btn-sm" data-arrow="up-then-left" aria-label="Up then left">↰</button>
+                                        <button type="button" class="arrow-btn arrow-btn-sm" data-arrow="up-then-right" aria-label="Up then right">↱</button>
+                                        <button type="button" class="arrow-btn arrow-btn-sm" data-arrow="destination" aria-label="Destination pin">
+                                            <i class="fa-solid fa-location-dot"></i>
+                                        </button>
+                                    </div>
+                                    <input type="hidden" id="addAttArrowDirection" value="" />
+                                </div>
+
+                                <%# Face selector (shown only for a-frame locations) %>
+                                <div class="mb-2" id="addAttFaceRow" hidden>
+                                    <label class="form-label small mb-1">Face</label>
+                                    <select class="form-select form-select-sm" id="addAttFace">
+                                        <option value="">Not specified</option>
+                                        <option value="front">Front</option>
+                                        <option value="back">Back</option>
+                                    </select>
+                                </div>
+
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-primary btn-sm flex-fill" id="addAttSaveBtn">
+                                        <i class="fa-solid fa-plus me-1"></i>Add
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="addAttCancelBtn">Cancel</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                <% } %>
             </div>
 
-            <%# Audit info (read-only) %>
+            <%# ── Audit info ─────────────────────────────────── %>
             <div class="signs-editor-meta small text-muted mb-3" id="editorMeta" hidden>
-                <%# JS populates created_by / installed_by etc. %>
+                <%# JS populates %>
             </div>
 
-            <%# Actions %>
+            <%# ── Actions ────────────────────────────────────── %>
             <% if (canManage) { %>
                 <div class="d-flex flex-wrap gap-2 pt-2 border-top">
                     <button type="button" class="btn btn-primary" id="editorSaveBtn">
@@ -611,156 +475,20 @@
                 <p class="small mt-2" id="editorFeedback"></p>
             <% } else { %>
                 <p class="small text-muted mt-2 mb-0">
-                    <i class="fa-solid fa-eye me-1"></i>View only. OVERSEER+ can edit placements.
+                    <i class="fa-solid fa-eye me-1"></i>View only. OVERSEER+ can edit locations.
                 </p>
             <% } %>
 
         </div>
     </div>
 
-    <%# ──────────────────────────────────────────────────────────
-        STREET VIEW OVERLAY
-        Fixed full-screen modal; shown/hidden entirely by JS.
-        z-index 1095: above offcanvas (1080) and tooltip (1085),
-        below photo lightbox (1100).
-    ────────────────────────────────────────────────────────── %>
-    <div class="signs-sv-overlay d-none" id="streetViewOverlay" aria-modal="true" role="dialog" aria-label="Street View">
-        <div class="signs-sv-header">
-            <div class="signs-sv-header-info">
-                <span class="signs-sv-title" id="svTitle"></span>
-                <span class="signs-sv-heading-badge d-none" id="svHeadingBadge"></span>
-                <span class="signs-sv-heading-hint d-none" id="svHeadingHint">
-                    <i class="fa-solid fa-compass me-1"></i>Rotate to face the sign
-                </span>
-            </div>
-            <% if (canManage) { %>
-                <button type="button"
-                        class="btn btn-primary btn-sm signs-sv-save-photo-btn"
-                        id="svSavePhotoBtn">
-                    <i class="fa-solid fa-camera me-1"></i>Save as Photo
-                </button>
-            <% } %>
-            <button type="button" class="signs-sv-close" id="streetViewCloseBtn" aria-label="Close Street View">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-        </div>
-        <div class="signs-sv-pane" id="streetViewPane"></div>
-        <div class="signs-sv-footer d-none" id="svNoImageryMsg">
-            <i class="fa-solid fa-triangle-exclamation me-2"></i>
-            No Street View imagery available for this location.
-            <a id="svGoogleMapsLink" href="#" target="_blank" rel="noopener noreferrer" class="ms-2">
-                Open in Google Maps
-            </a>
-        </div>
-    </div>
-
-    <%# ──────────────────────────────────────────────────────────
-        PLACEMENT COMPOSER OVERLAY
-        Full-screen overlay for composing a planned placement photo.
-        The user sets a background (Street View snapshot or uploaded image),
-        drags a mount-framed sign to the correct position, resizes it with
-        corner handles, then flattens to JPEG and saves as the placement photo.
-        z-index 1097: above Street View (1095), below photo lightbox (1100).
-    ────────────────────────────────────────────────────────── %>
-    <div class="signs-composer d-none" id="signsComposer" aria-modal="true" role="dialog" aria-label="Placement composer">
-
-        <%# ── Toolbar ──────────────────────────────────────────── %>
-        <div class="signs-composer-toolbar" id="composerToolbar">
- <div class="signs-composer-toolbar-group">
-                <span class="signs-composer-toolbar-label">Background</span>
-                <button type="button" class="btn btn-sm btn-outline-light" id="composerUploadBtn">
-                    <i class="fa-solid fa-image me-1"></i>Upload image
-                </button>
-                <button type="button" class="btn btn-sm btn-outline-light" id="composerExistingBtn" hidden>
-                    <i class="fa-solid fa-photo-film me-1"></i>Existing photo
-                </button>
-                <input type="file" class="d-none" id="composerFileInput" accept="image/*" />
-            </div>
-
-            <div class="signs-composer-toolbar-group">
-                <span class="signs-composer-toolbar-label">Mount</span>
-                <div class="btn-group btn-group-sm" role="group" aria-label="Mount type">
-                    <input type="radio" class="btn-check" name="composerMount" id="composerMountCone"      value="cone"               />
-                    <label class="btn btn-outline-light" for="composerMountCone">Cone</label>
-
-                    <input type="radio" class="btn-check" name="composerMount" id="composerMountAframe"    value="a-frame"            />
-                    <label class="btn btn-outline-light" for="composerMountAframe">A-frame</label>
-
-                    <input type="radio" class="btn-check" name="composerMount" id="composerMountStructure" value="existing-structure" />
-                    <label class="btn btn-outline-light" for="composerMountStructure">Sign only</label>
-                </div>
-            </div>
-
-            <div class="signs-composer-toolbar-group signs-composer-toolbar-actions">
-                <button type="button" class="btn btn-sm btn-primary" id="composerSaveBtn" disabled>
-                    <i class="fa-solid fa-floppy-disk me-1"></i>Save as photo
-                </button>
-                <button type="button" class="btn btn-sm btn-outline-light" id="composerCancelBtn">
-                    <i class="fa-solid fa-xmark me-1"></i>Cancel
-                </button>
-            </div>
-        </div>
-
-        <%# ── Canvas area ───────────────────────────────────────── %>
-        <div class="signs-composer-stage" id="composerStage">
-
-            <%# Empty state — shown before a background is set %>
-            <div class="signs-composer-empty" id="composerEmpty">
-                <i class="fa-solid fa-image fa-2x mb-3 text-secondary"></i>
-                <p class="mb-0 text-secondary">Choose a background above to begin</p>
-            </div>
-
-            <%# Background image (set via JS, hidden until loaded) %>
-            <img class="signs-composer-bg d-none" id="composerBg" alt="" aria-hidden="true" />
-
-            <%# Loading spinner — shown while SV snapshot is fetching %>
-            <div class="signs-composer-loading d-none" id="composerLoading">
-                <div class="spinner-border text-light" role="status">
-                    <span class="visually-hidden">Loading…</span>
-                </div>
-                <p class="text-light mt-2 mb-0 small">Fetching Street View…</p>
-            </div>
-
-            <%# The draggable sign overlay — populated and positioned by JS %>
-            <div class="signs-composer-sign d-none" id="composerSign" role="img" aria-label="Sign placement preview">
-
-                <%# Mount frame — swapped by JS based on mount type selection %>
-                <div class="signs-composer-mount" id="composerMount"></div>
-
-                <%# The actual sign preview block %>
-                <div class="sign-preview signs-composer-sign-preview" id="composerSignPreview">
-                    <span class="sign-preview-text"  id="composerSignText">SIGN</span>
-                    <span class="sign-preview-arrow" id="composerSignArrow"></span>
-                </div>
-
-                <%# Corner resize handles — one per corner %>
-                <div class="signs-composer-handle signs-composer-handle-nw" data-corner="nw" aria-hidden="true"></div>
-                <div class="signs-composer-handle signs-composer-handle-ne" data-corner="ne" aria-hidden="true"></div>
-                <div class="signs-composer-handle signs-composer-handle-sw" data-corner="sw" aria-hidden="true"></div>
-                <div class="signs-composer-handle signs-composer-handle-se" data-corner="se" aria-hidden="true"></div>
-            </div>
-
-            <%# Hidden canvas — only used during flatten-to-JPEG on save %>
-            <canvas class="d-none" id="composerCanvas" aria-hidden="true"></canvas>
-        </div>
-
-        <%# ── Status bar ─────────────────────────────────────────── %>
-        <div class="signs-composer-status" id="composerStatus">
-            <span id="composerStatusText">Choose a background above to begin.</span>
-        </div>
-
-    </div>
-
-    <%# Inline JSON bootstrap — read by signsMap.js, no inline behavior. %>
+    <%# Inline JSON bootstrap %>
     <script id="signsMapBootstrap" type="application/json"><%-
-        JSON.stringify({ signs, placements })
+        JSON.stringify({ signs, locations })
     %></script>
 
     <%- include('../partials/footer') %>
     <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
     <script src="/js/signsMap.js"></script>
-    <% if (canManage) { %>
-    <script src="/js/signsGeofence.js"></script>
-    <% } %>
 </body>
 </html>

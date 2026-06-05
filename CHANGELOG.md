@@ -3,6 +3,58 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.40.0] - 2026-06-05
+
+### Changed — Sign Map overhaul (location-based architecture)
+- **New data model.** Replaced the flat `sign_placements` table with three
+  entities: `sign_locations` (physical mounting points), `sign_attachments`
+  (signs mounted on a location with per-attachment status and stacking order),
+  and `traffic_arrows` / `traffic_arrow_signs` (road-surface directional
+  indicators linked to specific attachments — Phase 3 tables, created now).
+  *SQL migration required: `scripts/migrations/sign_overhaul.sql` (dbo) and
+  `sign_overhaul_demo.sql` (demo). Drops `sign_placements`; all existing
+  placement data and photos are removed.*
+- **Stacked sign markers.** Map markers now render as a vertical stack of
+  sign-preview blocks, one per attachment sorted by `sort_order`. Empty
+  locations show a dashed placeholder. Per-attachment status colours
+  (border tint) are visible within the stack.
+- **Location-based sidebar.** The sidebar list groups by location with
+  nested sign rows showing sign name, arrow direction, and status badge.
+  Mount type and location notes shown as a sub-line.
+- **Offcanvas editor redesigned** for location + attachment management:
+  location fields (coordinates, mount type, a-frame bearing, marker colour,
+  notes, photo) at the top, followed by a draggable attachment list with
+  status cycling (click badge to cycle planned → installed → removed),
+  remove buttons, and an inline "Add sign" form with template picker,
+  arrow direction picker, and face selector (for a-frames).
+- **Drag-to-reorder attachments** in the editor. Reorder persists via
+  `PUT /signs/locations/:id/attachments/reorder` (single CASE UPDATE).
+- **Hide overlays on drag.** Moving a location hides all context menus,
+  info sheets, and tooltips so only the pin is visible during repositioning.
+- **Print map updated** for the new data model. Markers show the top sign's
+  abbreviation + arrow; legend maps abbreviations to full sign names.
+
+### Added
+- **Printable sign map (Phase 1).** New route `GET /signs/map/print` renders
+  a WYSIWYG print-optimised view with a 7 in × 7 in square map on a
+  letter-portrait page preview. Users pan/zoom to frame their view, then
+  print — what they see is what they get. Toolbar with Road/Hybrid toggle,
+  status + template filters, fit-to-markers button, and print button.
+  Legend below the map with sign key, status dots, and colour swatches.
+  Print button added to the main sign map sidebar header.
+  New files: `signsMapPrint.ejs`, `signsMapPrint.js`, `signsPrint.css`.
+- `pole` added to valid mount types.
+- New API routes: `POST/PUT/DELETE /signs/locations`, attachment CRUD under
+  `/signs/locations/:id/attachments` and `/signs/attachments/:id`, reorder
+  via `/signs/locations/:id/attachments/reorder`, location photos via
+  `/signs/locations/:id/photo`.
+
+### Removed
+- `sign_placements` table and all placement-specific API routes.
+- Geofence FAB, proximity bar, Street View overlay, and placement composer
+  (temporarily removed — will return in later phases adapted to the new
+  location-based model).
+
 ## [2.39.0] - 2026-06-04
 
 ### Added

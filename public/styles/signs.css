@@ -2561,3 +2561,625 @@
         transform: translateX(-50%) translateY(0);
     }
 }
+/* ═══════════════════════════════════════════════════════════════
+   STACKED SIGN MARKERS (location-based, multiple signs per pin)
+   ═══════════════════════════════════════════════════════════════ */
+
+/*
+ * A stacked marker is a vertical column of sign-preview blocks.
+ * The wrapper positions them all at the marker center; each sign
+ * is a flex child rendered top-to-bottom by sort_order.
+ */
+.signs-map-marker-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+}
+
+.signs-map-marker-stack .sign-preview {
+    pointer-events: none;
+}
+
+/* Compact stacked marker: disc with count badge */
+.signs-map-marker-compact .signs-map-marker-count {
+    position: absolute;
+    bottom: -4px;
+    right: -6px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #333;
+    border: 1.5px solid #fff;
+    color: #fff;
+    font-size: 0.5rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    pointer-events: none;
+}
+
+/*
+ * Hover-expand: on hover the stacked signs fan out with spacing
+ * so each is individually readable. The transition provides a
+ * smooth accordion-like expansion.
+ */
+.signs-map-marker-stack {
+    transition: gap 0.15s ease;
+}
+
+.signs-map-marker-stack:hover,
+.signs-map-marker-stack.signs-map-marker-expanded {
+    gap: 3px;
+}
+
+.signs-map-marker-stack .sign-preview {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.signs-map-marker-stack:hover .sign-preview,
+.signs-map-marker-stack.signs-map-marker-expanded .sign-preview {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+/* ── Location sidebar list ─────────────────────────────────────── */
+
+.signs-location-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    max-height: 40vh;
+    overflow-y: auto;
+}
+
+.signs-location-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    padding: 0.55rem 0.7rem;
+    background: var(--bs-body-bg, #fff);
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 0.4rem;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.signs-location-row:hover {
+    background: #f8f9fa;
+    border-color: #adb5bd;
+}
+
+.signs-location-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.signs-location-signs {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.signs-location-sign-row {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.82rem;
+    line-height: 1.25;
+}
+
+.signs-location-sign-text {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.signs-location-sign-arrow {
+    font-weight: 900;
+    flex-shrink: 0;
+    font-size: 0.9em;
+}
+
+.signs-location-sign-status {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 0.05rem 0.3rem;
+    border-radius: 999px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.signs-location-sign-status-planned {
+    background: #e9ecef;
+    color: #495057;
+}
+
+.signs-location-sign-status-installed {
+    background: #d1e7dd;
+    color: #0f5132;
+}
+
+.signs-location-sign-status-removed {
+    background: #f8d7da;
+    color: #842029;
+}
+
+.signs-location-sub {
+    font-size: 0.75rem;
+    color: var(--bs-secondary-color, #6c757d);
+    margin-top: 0.15rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.signs-location-empty {
+    font-size: 0.78rem;
+    color: var(--bs-secondary-color, #6c757d);
+    font-style: italic;
+}
+
+/* ── Attachment list in editor (drag-to-reorder) ───────────────── */
+
+.signs-attachment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.signs-attachment-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.5rem;
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 0.4rem;
+    font-size: 0.85rem;
+    transition: background 0.1s ease, box-shadow 0.1s ease;
+}
+
+.signs-attachment-row.signs-attachment-dragging {
+    background: #e7f1ff;
+    border-color: #0d6efd;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    opacity: 0.9;
+}
+
+.signs-attachment-drag-handle {
+    cursor: grab;
+    color: var(--bs-secondary-color, #6c757d);
+    padding: 0.2rem;
+    flex-shrink: 0;
+    font-size: 0.8rem;
+}
+
+.signs-attachment-drag-handle:active {
+    cursor: grabbing;
+}
+
+.signs-attachment-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.signs-attachment-name {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.signs-attachment-arrow {
+    font-weight: 900;
+    flex-shrink: 0;
+}
+
+.signs-attachment-face {
+    font-size: 0.68rem;
+    font-weight: 500;
+    color: #6c757d;
+    background: #e9ecef;
+    padding: 0.05rem 0.3rem;
+    border-radius: 3px;
+    flex-shrink: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.signs-attachment-status-btn {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 0.1rem 0.4rem;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.1s ease;
+}
+
+.signs-attachment-status-planned {
+    background: #e9ecef;
+    color: #495057;
+    border-color: #ced4da;
+}
+
+.signs-attachment-status-installed {
+    background: #d1e7dd;
+    color: #0f5132;
+    border-color: #a3cfbb;
+}
+
+.signs-attachment-status-removed {
+    background: #f8d7da;
+    color: #842029;
+    border-color: #f1aeb5;
+}
+
+.signs-attachment-status-btn:hover {
+    filter: brightness(0.92);
+}
+
+.signs-attachment-remove-btn {
+    background: none;
+    border: none;
+    color: var(--bs-secondary-color, #6c757d);
+    cursor: pointer;
+    padding: 0.15rem 0.3rem;
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    border-radius: 3px;
+    transition: color 0.1s ease, background 0.1s ease;
+}
+
+.signs-attachment-remove-btn:hover {
+    color: var(--bs-danger, #dc3545);
+    background: #fff1f2;
+}
+
+/* ── Drag-over placeholder ─────────────────────────────────────── */
+
+.signs-attachment-drop-indicator {
+    height: 2px;
+    background: #0d6efd;
+    border-radius: 2px;
+    margin: -0.15rem 0;
+    transition: opacity 0.1s ease;
+}
+
+/* ── Hide overlays during location drag ────────────────────────── */
+
+.signs-map-dragging .signs-info-sheet,
+.signs-map-dragging .signs-info-sheet-backdrop,
+.signs-map-dragging .signs-tooltip,
+.signs-map-dragging .signs-ctx-menu {
+    display: none !important;
+}
+
+@media (max-width: 991.98px) {
+    .signs-location-list {
+        max-height: none;
+    }
+}
+/* ═══════════════════════════════════════════════════════════════
+   STACKED SIGN MARKERS (location-based, multiple signs per pin)
+   ═══════════════════════════════════════════════════════════════ */
+
+/*
+ * A stacked marker is a vertical column of sign-preview blocks.
+ * The wrapper positions them all at the marker center; each sign
+ * is a flex child rendered top-to-bottom by sort_order.
+ */
+.signs-map-marker-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+}
+
+.signs-map-marker-stack .sign-preview {
+    pointer-events: none;
+}
+
+/* Compact stacked marker: disc with count badge */
+.signs-map-marker-compact .signs-map-marker-count {
+    position: absolute;
+    bottom: -4px;
+    right: -6px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #333;
+    border: 1.5px solid #fff;
+    color: #fff;
+    font-size: 0.5rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    pointer-events: none;
+}
+
+/*
+ * Hover-expand: on hover the stacked signs fan out with spacing
+ * so each is individually readable. The transition provides a
+ * smooth accordion-like expansion.
+ */
+.signs-map-marker-stack {
+    transition: gap 0.15s ease;
+}
+
+.signs-map-marker-stack:hover,
+.signs-map-marker-stack.signs-map-marker-expanded {
+    gap: 3px;
+}
+
+.signs-map-marker-stack .sign-preview {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.signs-map-marker-stack:hover .sign-preview,
+.signs-map-marker-stack.signs-map-marker-expanded .sign-preview {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+/* ── Location sidebar list ─────────────────────────────────────── */
+
+.signs-location-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    max-height: 40vh;
+    overflow-y: auto;
+}
+
+.signs-location-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    padding: 0.55rem 0.7rem;
+    background: var(--bs-body-bg, #fff);
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 0.4rem;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.signs-location-row:hover {
+    background: #f8f9fa;
+    border-color: #adb5bd;
+}
+
+.signs-location-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.signs-location-signs {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.signs-location-sign-row {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.82rem;
+    line-height: 1.25;
+}
+
+.signs-location-sign-text {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.signs-location-sign-arrow {
+    font-weight: 900;
+    flex-shrink: 0;
+    font-size: 0.9em;
+}
+
+.signs-location-sign-status {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 0.05rem 0.3rem;
+    border-radius: 999px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.signs-location-sign-status-planned {
+    background: #e9ecef;
+    color: #495057;
+}
+
+.signs-location-sign-status-installed {
+    background: #d1e7dd;
+    color: #0f5132;
+}
+
+.signs-location-sign-status-removed {
+    background: #f8d7da;
+    color: #842029;
+}
+
+.signs-location-sub {
+    font-size: 0.75rem;
+    color: var(--bs-secondary-color, #6c757d);
+    margin-top: 0.15rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.signs-location-empty {
+    font-size: 0.78rem;
+    color: var(--bs-secondary-color, #6c757d);
+    font-style: italic;
+}
+
+/* ── Attachment list in editor (drag-to-reorder) ───────────────── */
+
+.signs-attachment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.signs-attachment-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.5rem;
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 0.4rem;
+    font-size: 0.85rem;
+    transition: background 0.1s ease, box-shadow 0.1s ease;
+}
+
+.signs-attachment-row.signs-attachment-dragging {
+    background: #e7f1ff;
+    border-color: #0d6efd;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    opacity: 0.9;
+}
+
+.signs-attachment-drag-handle {
+    cursor: grab;
+    color: var(--bs-secondary-color, #6c757d);
+    padding: 0.2rem;
+    flex-shrink: 0;
+    font-size: 0.8rem;
+}
+
+.signs-attachment-drag-handle:active {
+    cursor: grabbing;
+}
+
+.signs-attachment-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.signs-attachment-name {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.signs-attachment-arrow {
+    font-weight: 900;
+    flex-shrink: 0;
+}
+
+.signs-attachment-face {
+    font-size: 0.68rem;
+    font-weight: 500;
+    color: #6c757d;
+    background: #e9ecef;
+    padding: 0.05rem 0.3rem;
+    border-radius: 3px;
+    flex-shrink: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.signs-attachment-status-btn {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 0.1rem 0.4rem;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.1s ease;
+}
+
+.signs-attachment-status-planned {
+    background: #e9ecef;
+    color: #495057;
+    border-color: #ced4da;
+}
+
+.signs-attachment-status-installed {
+    background: #d1e7dd;
+    color: #0f5132;
+    border-color: #a3cfbb;
+}
+
+.signs-attachment-status-removed {
+    background: #f8d7da;
+    color: #842029;
+    border-color: #f1aeb5;
+}
+
+.signs-attachment-status-btn:hover {
+    filter: brightness(0.92);
+}
+
+.signs-attachment-remove-btn {
+    background: none;
+    border: none;
+    color: var(--bs-secondary-color, #6c757d);
+    cursor: pointer;
+    padding: 0.15rem 0.3rem;
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    border-radius: 3px;
+    transition: color 0.1s ease, background 0.1s ease;
+}
+
+.signs-attachment-remove-btn:hover {
+    color: var(--bs-danger, #dc3545);
+    background: #fff1f2;
+}
+
+/* ── Drag-over placeholder ─────────────────────────────────────── */
+
+.signs-attachment-drop-indicator {
+    height: 2px;
+    background: #0d6efd;
+    border-radius: 2px;
+    margin: -0.15rem 0;
+    transition: opacity 0.1s ease;
+}
+
+/* ── Hide overlays during location drag ────────────────────────── */
+
+.signs-map-dragging .signs-info-sheet,
+.signs-map-dragging .signs-info-sheet-backdrop,
+.signs-map-dragging .signs-tooltip,
+.signs-map-dragging .signs-ctx-menu {
+    display: none !important;
+}
+
+@media (max-width: 991.98px) {
+    .signs-location-list {
+        max-height: none;
+    }
+}

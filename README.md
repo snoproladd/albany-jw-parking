@@ -204,7 +204,7 @@ parking/
 │   ├── mapsRoutes.js          # Maps page — OneDrive file listing with ScribbleMaps integration
 │   ├── oversightRoutes.js     # All Oversight Tools routes
 │   ├── registrationRoutes.js  # Registration flow (multi-step draft)
-│   ├── signsRoutes.js         # Sign Library, Sign Builder, Sign Map — templates and placements CRUD
+│   ├── signsRoutes.js         # Sign Library, Sign Builder, Sign Map — templates, locations, and attachments CRUD
 │   ├── sitemapRoutes.js       # Public role-filtered sitemap page
 │   ├── upgradeRoutes.js       # Account upgrade (email/phone → password)
 │   └── validationRoutes.js    # Phone (Twilio) + email (Kickbox) validation
@@ -258,6 +258,7 @@ parking/
 │   │   ├── signsBuilder.ejs
 │   │   ├── signsList.ejs
 │   │   ├── signsMap.ejs
+│   │   ├── signsMapPrint.ejs
 │   │   └── timelines.ejs
 │   ├── registration/
 │   │   ├── createProfileLaunch.ejs
@@ -343,11 +344,11 @@ parking/
 │   │   ├── # ── Timelines ────────────────────────────────────
 │   │   ├── timelines.js               # Event types / days / sessions / shifts CRUD
 │   │   │
-│   │   ├── # ── Signs (4-file suite) ─────────────────────────
+│   │   ├── # ── Signs ────────────────────────────────────────
 │   │   ├── signsBuilder.js            # Sign template builder
 │   │   ├── signsList.js               # Sign library grid
-│   │   ├── signsMap.js                # Sign Map — Google Maps + markers + editor
-│   │   ├── signsGeofence.js           # Geofencing companion (GPS tracking + proximity)
+│   │   ├── signsMap.js                # Sign Map — Google Maps + stacked markers + location/attachment editor
+│   │   ├── signsMapPrint.js           # Print-optimised map (WYSIWYG letter-portrait)
 │   │   │
 │   │   └── tours/                     # Shepherd.js guided tour modules
 │   │       ├── tourBase.js            # Shared tour factory and button helpers
@@ -382,7 +383,8 @@ parking/
 │   │   ├── scheduler.css              # Scheduler grid
 │   │   ├── schedulerReport.css        # Schedule report / PDF
 │   │   ├── shiftAlerts.css            # Shift alerts page
-│   │   ├── signs.css                  # Sign Library, Builder, Map + geofencing
+│   │   ├── signs.css                  # Sign Library, Builder, Map
+│   │   ├── signsPrint.css             # Printable sign map (WYSIWYG page preview + @media print)
 │   │   ├── sitemap.css                # Sitemap page
 │   │   ├── volunteerAccountOversight.css  # Edit Volunteer page
 │   │   ├── CSS_ARCHITECTURE.md        # CSS conventions and architecture notes
@@ -454,16 +456,16 @@ The first ADMIN must be granted directly in the database.
   clobbered by bearing updates).
 - **MSSQL TIME columns** return as epoch-anchored `Date` objects — always use
   `getUTCHours()`/`getUTCMinutes()`
-- **Touch device detection** in `signsMap.js` uses `window.matchMedia("(pointer: coarse)").matches`
-  evaluated once at bootstrap. Drag-to-reposition and the travel-handle are desktop-only;
-  mobile users place signs via map tap or the geolocation button.
-- **Shift-gate on sign map drag operations** — on desktop, both marker position drags
-  and travel-handle rotation require Shift to be held at the start of the gesture.
-  A plain drag without Shift falls through to the normal Google Maps pan. Implemented
-  via `pointerdown` on marker content (toggles `gmpDraggable` off then back via
-  `Promise.resolve()` microtask) and an early return in the travel handle `pointerdown`
-  handler. `shiftHeld` is tracked by `document` keydown/keyup listeners; a
-  `signs-map-shift-held` class on the map div drives the grab cursor hint.
+- **Sign Map architecture (2.40.0):** locations → attachments model. Each map marker
+  represents a physical mounting point with one or more attached signs rendered as a
+  vertical stack. Markers use `gmpDraggable: true` (no Shift gate); all overlays
+  (info sheet, context menu) are dismissed during drag via the `signs-map-dragging`
+  body class. Geofencing, Street View, and the placement composer are temporarily
+  removed pending adaptation to the new model.
+- **Printable sign map** (`/signs/map/print`): WYSIWYG page preview at letter-portrait
+  proportions (7 in × 7 in map area). Markers show the top sign's abbreviation + arrow.
+  Legend maps abbreviations to full names. `@media print` hides toolbar/nav and fills
+  the page. New files: `signsMapPrint.ejs`, `signsMapPrint.js`, `signsPrint.css`.
 
 ---
 
@@ -506,25 +508,27 @@ Schema highlights:
 - `bug_reports` — full lifecycle bug tracking with resolution fields
 - `schedule_publishes` — audit log for schedule PDF publish events
 - `signs` — reusable sign templates (text + optional abbreviation); soft-deleted via `is_archived`
-  - Sign Map touch behaviour: drag-to-reposition disabled on coarse-pointer devices (`isTouchDevice`);
-    geolocation button available for GPS-assisted placement instead
   - `abbreviation` `NVARCHAR(6)` — optional compact label for map markers (auto-generated from sign text when NULL)
-- `sign_placements` — geographic instances of a sign template
-  - **Geofencing** (`signsGeofence.js`): `manageSigns` users can toggle
-    continuous GPS tracking on the Sign Map. A proximity bar alerts when
-    within 75 m of a placement and offers one-tap status changes.
+- `sign_locations` — physical mounting points (the pin on the map). Multiple signs
+  can be attached to one location (stacked signs on a pole, double-sided a-frames, etc.)
   - `latitude`/`longitude` `DECIMAL(10,7)` (≈1cm precision)
-  - `heading` — direction of travel (0–360°, clockwise from north); the bearing
-    drivers travel *toward* the sign. Drives the map marker travel arrow and Street
-    View approach positioning. NULL = not set. Previously described as "camera
-    facing direction" — repurposed in 2.34.0, no schema change.
-  - `arrow_direction` — per-placement direction (up, down, left, right, diagonals, 90° turns, destination)
-  - `status` (`planned` / `installed` / `removed`) with install/remove audit trail
-  - `mount_type` (`cone` / `a-frame` / `existing-structure`, nullable)
-  - `marker_color` — optional palette key (red, orange, yellow, green, teal, blue, purple, pink) for map categorisation
-  - `photo_url` — blob name in Azure Storage `sign-photos` container (not a full URL); served via the auth-gated proxy route `GET /signs/placements/:id/photo`. Can be set from camera capture, file upload, Street View save (`POST .../street-view-photo` — fetches from Google SV Static API using the user's exact pano/heading/pitch/fov), or placement composer (flattened composite of sign overlay on a background). The composer supports two background sources: uploaded image or the placement's existing photo.
-  - `sv_pano_id / sv_heading / sv_pitch / sv_fov` — Street View camera state captured when a snapshot is saved via `POST .../street-view-photo`. Used to restore the exact panorama and camera angle the next time Street View is opened for this placement. All four are `NULL` until a snapshot is taken; `NULL` = no saved state, fall back to the computed approach position.
-  - FK to `signs` survives template archival so historical placements remain valid
+  - `mount_type` (`pole` / `cone` / `a-frame` / `existing-structure`, nullable)
+  - `front_bearing` `DECIMAL(5,1)` — a-frame only: compass bearing the front face points toward (back = front + 180°)
+  - `marker_color` — optional palette key (red, orange, yellow, green, teal, blue, purple, pink) for visual grouping
+  - `photo_url` — blob name in Azure Storage `sign-photos` container; served via `GET /signs/locations/:id/photo`
+  - No status column — effective status is derived from attachments (any installed → installed, otherwise planned/removed)
+- `sign_attachments` — a sign template mounted on a location, with its own status
+  - `location_id` FK → `sign_locations` (ON DELETE CASCADE)
+  - `sign_id` FK → `signs`; survives template archival
+  - `face` — `NULL` (non-a-frame), `'front'`, or `'back'`
+  - `sort_order` — stacking priority (lower = higher on the post); drag-to-reorder in the editor
+  - `arrow_direction` — the arrow printed on the physical sign (per-attachment override)
+  - `status` (`planned` / `installed` / `removed`) with install/remove audit trail per attachment
+- `traffic_arrows` — road-surface directional indicators (Phase 3, tables created)
+  - `bearing` `DECIMAL(5,1)` — direction traffic flows (0–360°)
+  - Separate from sign markers; placed on the road near intersections
+- `traffic_arrow_signs` — links traffic arrows to specific attachments
+  - `(arrow_id, attachment_id)` composite PK, both FK with ON DELETE CASCADE
 
 ---
 

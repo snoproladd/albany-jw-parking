@@ -51,8 +51,9 @@ page's layout and do not interact with the scroll ownership model in
 `styles.css` unless the page uses `.entry-card`.
 
 Pages with their own scroll/layout models (e.g. `signs.css` with its
-fixed-position map, info sheet, and geofencing overlays; `scheduler.css`
-with its grid) define those independently.
+fixed-position map, info sheet, and stacked marker overlays; `scheduler.css`
+with its grid) define those independently. `signsPrint.css` handles the
+print-optimised sign map with WYSIWYG page preview and `@media print` rules.
 
 See the file tree in `README.md` for the full list.
 
