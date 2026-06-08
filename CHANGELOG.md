@@ -3,6 +3,39 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.41.0] - 2026-06-08
+
+### Changed — Sign Map UX refinements
+- **Arrow tip as reference point.** Traffic arrow markers now anchor at the
+  arrow tip instead of the element center. Rotation pivots around the tip.
+  Full arrows offset by `translateY(26px)`, compact arrows by `translateY(6px)`.
+  CSS `transform-origin` set to `50% 9.375%` (full) and `50% 20%` (compact).
+- **Mount-type icons on compact markers.** Zoomed-out disc markers now show
+  an inline SVG icon for the mount type (cone, a-frame, existing-structure /
+  telephone pole) instead of the first sign's abbreviation. A count badge
+  appears for 1+ attachments. Locations with no mount type show a bullet
+  fallback.
+- **Mount-type label on full markers.** Zoomed-in sign stacks now display a
+  small icon + text label (e.g. "Cone", "A-frame") below the sign stack.
+- **Hover-to-expand compact markers.** At zoom < 19, hovering a compact disc
+  temporarily expands it to the full sign stack after a 250 ms debounce.
+  Collapse after mouse leave with a 150 ms grace period. Desktop only (no-op
+  on coarse-pointer devices).
+- **Click-after-drag suppression.** Marker clicks (location and arrow) are
+  suppressed for 300 ms after a drag or map pan ends, preventing accidental
+  editor opens on pointer release.
+
+### Fixed
+- **Shift-gate consolidation.** Replaced seven copy-pasted inline
+  `pointerdown` shift-gate blocks with two centralised helpers:
+  `attachLocationShiftGate(content)` and `attachArrowShiftGate(content, arrowId)`.
+  Fixes sporadic shift-gate failures caused by content-swap paths that missed
+  re-attaching the listener (hover expand/collapse, detail level change,
+  `refreshMarker`).
+- **Duplicate JSDoc blocks** cleaned up in `addMarkerForLocation`,
+  `buildArrowMarkerContent`, `addMarkerForArrow`, and
+  `buildCompactLocationContent`.
+
 ## [2.40.0] - 2026-06-05
 
 ### Changed — Sign Map overhaul (location-based architecture)

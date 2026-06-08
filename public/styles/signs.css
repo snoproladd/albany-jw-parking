@@ -222,6 +222,7 @@
 }
 
 .signs-map-wrapper {
+    position: relative;
     height: calc(100vh - 140px);
     min-height: 480px;
     overflow: hidden;
@@ -373,6 +374,43 @@
     text-overflow: clip;
     white-space: nowrap;
     text-align: center;
+}
+
+/* ── Mount-type icon inside compact disc ─────────────────────── */
+
+.signs-map-marker-mount-icon-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.signs-mount-icon {
+    width: 14px;
+    height: 14px;
+    display: block;
+}
+
+/* ── Mount-type label below full-detail sign stack ───────────── */
+
+.signs-map-marker-mount-label {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.6rem;
+    font-weight: 600;
+    color: #666;
+    background: rgba(255, 255, 255, 0.88);
+    padding: 1px 5px;
+    border-radius: 3px;
+    white-space: nowrap;
+    margin-top: 1px;
+    pointer-events: none;
+    line-height: 1.2;
+}
+
+.signs-map-marker-mount-label .signs-mount-icon {
+    width: 10px;
+    height: 10px;
 }
 
 /* Arrow / destination badge — floats in the top-right corner of the disc */
@@ -2872,314 +2910,242 @@
         max-height: none;
     }
 }
+
 /* ═══════════════════════════════════════════════════════════════
-   STACKED SIGN MARKERS (location-based, multiple signs per pin)
+   ZOOM LEVEL INDICATOR
+   ═══════════════════════════════════════════════════════════════ */
+
+.signs-zoom-indicator {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-radius: 6px;
+    padding: 3px 8px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-family: "Georama", sans-serif;
+    color: #333;
+    pointer-events: auto;
+}
+
+.signs-zoom-badge {
+    white-space: nowrap;
+    user-select: none;
+}
+
+.signs-zoom-input {
+    width: 3.2rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 1px 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-align: center;
+    outline: none;
+    appearance: textfield;
+    -moz-appearance: textfield;
+}
+
+.signs-zoom-input::-webkit-inner-spin-button,
+.signs-zoom-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.signs-zoom-input:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.2);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TRAFFIC ARROW MARKERS (road-surface directional indicators)
    ═══════════════════════════════════════════════════════════════ */
 
 /*
- * A stacked marker is a vertical column of sign-preview blocks.
- * The wrapper positions them all at the marker center; each sign
- * is a flex child rendered top-to-bottom by sort_order.
+ * Traffic arrows are flat chevron SVGs placed on the road to show
+ * driver direction of travel. They render at a lower z-index than
+ * sign markers and use the same double-stroke halo technique as
+ * the travel-direction handle (white outline + cyan foreground).
  */
-.signs-map-marker-stack {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1px;
-}
-
-.signs-map-marker-stack .sign-preview {
-    pointer-events: none;
-}
-
-/* Compact stacked marker: disc with count badge */
-.signs-map-marker-compact .signs-map-marker-count {
-    position: absolute;
-    bottom: -4px;
-    right: -6px;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background: #333;
-    border: 1.5px solid #fff;
-    color: #fff;
-    font-size: 0.5rem;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-    pointer-events: none;
-}
-
-/*
- * Hover-expand: on hover the stacked signs fan out with spacing
- * so each is individually readable. The transition provides a
- * smooth accordion-like expansion.
- */
-.signs-map-marker-stack {
-    transition: gap 0.15s ease;
-}
-
-.signs-map-marker-stack:hover,
-.signs-map-marker-stack.signs-map-marker-expanded {
-    gap: 3px;
-}
-
-.signs-map-marker-stack .sign-preview {
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.signs-map-marker-stack:hover .sign-preview,
-.signs-map-marker-stack.signs-map-marker-expanded .sign-preview {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
-}
-
-/* ── Location sidebar list ─────────────────────────────────────── */
-
-.signs-location-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-    max-height: 40vh;
-    overflow-y: auto;
-}
-
-.signs-location-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.6rem;
-    padding: 0.55rem 0.7rem;
-    background: var(--bs-body-bg, #fff);
-    border: 1px solid var(--bs-border-color, #dee2e6);
-    border-radius: 0.4rem;
-    text-align: left;
+.signs-arrow-marker {
+    position: relative;
     cursor: pointer;
-    transition: background 0.12s ease, border-color 0.12s ease;
+    transition: filter 0.15s ease;
+    /* Pivot at the arrow tip so rotation swings around the point */
+    transform-origin: 50% 9.375%;
 }
 
-.signs-location-row:hover {
-    background: #f8f9fa;
-    border-color: #adb5bd;
+.signs-arrow-marker svg {
+    display: block;
+    width: 40px;
+    height: 64px;
+    pointer-events: none;
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.45));
 }
 
-.signs-location-body {
-    flex: 1;
-    min-width: 0;
+/* Stroke colours */
+.signs-arrow-marker-outline {
+    fill: none;
+    stroke: #fff;
+    stroke-width: 5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
 }
 
-.signs-location-signs {
-    display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
+.signs-arrow-marker-fg {
+    fill: none;
+    stroke: #00d4ff;
+    stroke-width: 3;
+    stroke-linejoin: round;
+    stroke-linecap: round;
 }
 
-.signs-location-sign-row {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    font-size: 0.82rem;
-    line-height: 1.25;
+/* Selected state — pulsing glow */
+.signs-arrow-marker-selected .signs-arrow-marker-fg {
+    stroke: #00ffcc;
+    filter: drop-shadow(0 0 6px rgba(0, 255, 204, 0.7));
 }
 
-.signs-location-sign-text {
-    font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+.signs-arrow-marker-selected svg {
+    animation: signs-arrow-pulse 1.5s ease-in-out infinite;
 }
 
-.signs-location-sign-arrow {
-    font-weight: 900;
-    flex-shrink: 0;
-    font-size: 0.9em;
+@keyframes signs-arrow-pulse {
+    0%, 100% { filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.45)); }
+    50%      { filter: drop-shadow(0 0 8px rgba(0, 212, 255, 0.6)); }
 }
 
-.signs-location-sign-status {
-    font-size: 0.65rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    padding: 0.05rem 0.3rem;
-    border-radius: 999px;
-    white-space: nowrap;
-    flex-shrink: 0;
+/* Compact arrow (low zoom) — smaller chevron, no handle, no tail */
+.signs-arrow-marker-compact {
+    /* Tip is at (10,4) in a 20×20 SVG → 50% / 20% */
+    transform-origin: 50% 20%;
 }
 
-.signs-location-sign-status-planned {
-    background: #e9ecef;
-    color: #495057;
+.signs-arrow-marker-compact svg {
+    width: 20px;
+    height: 20px;
 }
 
-.signs-location-sign-status-installed {
-    background: #d1e7dd;
-    color: #0f5132;
+.signs-arrow-marker-compact .signs-arrow-handle {
+    display: none;
 }
 
-.signs-location-sign-status-removed {
-    background: #f8d7da;
-    color: #842029;
-}
+/* ── Rotation handle at the arrow tip ──────────────────────────── */
 
-.signs-location-sub {
-    font-size: 0.75rem;
-    color: var(--bs-secondary-color, #6c757d);
-    margin-top: 0.15rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.signs-location-empty {
-    font-size: 0.78rem;
-    color: var(--bs-secondary-color, #6c757d);
-    font-style: italic;
-}
-
-/* ── Attachment list in editor (drag-to-reorder) ───────────────── */
-
-.signs-attachment-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-}
-
-.signs-attachment-row {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.4rem 0.5rem;
-    background: var(--bs-tertiary-bg, #f8f9fa);
-    border: 1px solid var(--bs-border-color, #dee2e6);
-    border-radius: 0.4rem;
-    font-size: 0.85rem;
-    transition: background 0.1s ease, box-shadow 0.1s ease;
-}
-
-.signs-attachment-row.signs-attachment-dragging {
-    background: #e7f1ff;
-    border-color: #0d6efd;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    opacity: 0.9;
-}
-
-.signs-attachment-drag-handle {
+.signs-arrow-handle {
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
     cursor: grab;
-    color: var(--bs-secondary-color, #6c757d);
-    padding: 0.2rem;
-    flex-shrink: 0;
-    font-size: 0.8rem;
+    pointer-events: auto;
+    border: 2px solid transparent;
+    transition: border-color 0.15s, background 0.15s;
 }
 
-.signs-attachment-drag-handle:active {
+.signs-arrow-handle:hover {
+    border-color: rgba(0, 212, 255, 0.5);
+    background: rgba(0, 212, 255, 0.12);
+}
+
+/* Cursor overrides when Shift is held */
+.signs-map-shift-held .signs-arrow-marker {
+    cursor: move;
+}
+
+.signs-map-shift-held .signs-arrow-handle {
+    cursor: grab;
+}
+
+/* While actively rotating */
+.signs-arrow-rotating .signs-arrow-handle {
     cursor: grabbing;
 }
 
-.signs-attachment-info {
-    flex: 1;
-    min-width: 0;
+body.signs-arrow-rotating {
+    cursor: grabbing !important;
+    user-select: none;
+}
+
+/* Hover */
+.signs-arrow-marker:hover .signs-arrow-marker-fg {
+    stroke: #40e0ff;
+}
+
+/* ── Highlight glow on linked sign markers ─────────────────────── */
+
+.signs-map-marker-arrow-linked {
+    filter: drop-shadow(0 0 6px rgba(0, 212, 255, 0.7));
+}
+
+/* ── Arrow link list in editor ─────────────────────────────────── */
+
+.signs-arrow-link-item {
     display: flex;
     align-items: center;
-    gap: 0.35rem;
+    justify-content: space-between;
+    padding: 0.35rem 0.5rem;
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 0.375rem;
+    margin-bottom: 0.35rem;
+    font-size: 0.85rem;
+    background: var(--bs-body-bg, #fff);
 }
 
-.signs-attachment-name {
-    font-weight: 600;
-    white-space: nowrap;
+.signs-arrow-link-item-text {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
     overflow: hidden;
-    text-overflow: ellipsis;
 }
 
-.signs-attachment-arrow {
-    font-weight: 900;
+.signs-arrow-link-item-text .sign-preview {
     flex-shrink: 0;
+    transform: scale(0.65);
+    transform-origin: left center;
 }
 
-.signs-attachment-face {
-    font-size: 0.68rem;
-    font-weight: 500;
-    color: #6c757d;
-    background: #e9ecef;
-    padding: 0.05rem 0.3rem;
-    border-radius: 3px;
-    flex-shrink: 0;
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
-}
-
-.signs-attachment-status-btn {
-    font-size: 0.65rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    padding: 0.1rem 0.4rem;
-    border-radius: 999px;
-    border: 1px solid transparent;
-    cursor: pointer;
-    flex-shrink: 0;
-    transition: background 0.1s ease;
-}
-
-.signs-attachment-status-planned {
-    background: #e9ecef;
-    color: #495057;
-    border-color: #ced4da;
-}
-
-.signs-attachment-status-installed {
-    background: #d1e7dd;
-    color: #0f5132;
-    border-color: #a3cfbb;
-}
-
-.signs-attachment-status-removed {
-    background: #f8d7da;
-    color: #842029;
-    border-color: #f1aeb5;
-}
-
-.signs-attachment-status-btn:hover {
-    filter: brightness(0.92);
-}
-
-.signs-attachment-remove-btn {
-    background: none;
+.signs-arrow-link-remove-btn {
     border: none;
-    color: var(--bs-secondary-color, #6c757d);
+    background: none;
+    padding: 0.15rem 0.35rem;
+    color: var(--bs-secondary, #6c757d);
     cursor: pointer;
-    padding: 0.15rem 0.3rem;
+    border-radius: 0.25rem;
+    transition: color 0.1s, background 0.1s;
     flex-shrink: 0;
-    font-size: 0.75rem;
-    border-radius: 3px;
-    transition: color 0.1s ease, background 0.1s ease;
 }
 
-.signs-attachment-remove-btn:hover {
+.signs-arrow-link-remove-btn:hover {
     color: var(--bs-danger, #dc3545);
     background: #fff1f2;
 }
 
-/* ── Drag-over placeholder ─────────────────────────────────────── */
+/* ── Mobile: hide handle and block drag on touch ───────────────── */
 
-.signs-attachment-drop-indicator {
-    height: 2px;
-    background: #0d6efd;
-    border-radius: 2px;
-    margin: -0.15rem 0;
-    transition: opacity 0.1s ease;
-}
-
-/* ── Hide overlays during location drag ────────────────────────── */
-
-.signs-map-dragging .signs-info-sheet,
-.signs-map-dragging .signs-info-sheet-backdrop,
-.signs-map-dragging .signs-tooltip,
-.signs-map-dragging .signs-ctx-menu {
-    display: none !important;
-}
-
-@media (max-width: 991.98px) {
-    .signs-location-list {
-        max-height: none;
+@media (pointer: coarse) {
+    .signs-arrow-marker {
+        cursor: default;
     }
+
+    .signs-arrow-handle {
+        display: none;
+    }
+}
+
+/* ── Hide arrow markers during drag operations ─────────────────── */
+
+.signs-map-dragging .signs-arrow-marker {
+    pointer-events: none;
 }

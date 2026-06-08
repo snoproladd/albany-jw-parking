@@ -281,10 +281,6 @@ palette, and mount type icons.
 
 ##### Coming soon
 
-- **A-frame face support** — front/back face assignment with bearing
-  handle and split marker rendering.
-- **Traffic arrows** — road-surface directional indicators linked to
-  specific sign attachments, with bidirectional highlighting on click.
 - **Geofencing** — proximity-based alerts when near a sign location
   (temporarily removed, pending adaptation to the new location model).
 - **Street View** and **Placement Composer** — temporarily removed,
@@ -292,11 +288,13 @@ palette, and mount type icons.
 - **Publish to Downloads** — generate a PDF snapshot and upload to the
   Maps downloads page.
 
-- **Zoomed out (below threshold):** compact 32px coloured discs showing
-  the sign abbreviation with an arrow-direction badge in the corner.
-  Status or custom colour determines the disc background.
-- **Zoomed in (at or above threshold):** full sign-preview blocks with
-  text and arrow, matching the Sign Builder's live preview style.
+- **Zoomed out (below zoom 19):** compact 32px coloured discs showing a
+  mount-type icon (cone, a-frame, or telephone pole) with a count badge
+  for attached signs. Hovering a compact marker for 250 ms expands it to
+  the full sign stack (desktop only); moving away collapses it after
+  150 ms. Status or custom colour determines the disc background.
+- **Zoomed in (zoom 19+):** full sign-preview blocks with text, arrow,
+  and a mount-type label below the stack.
 
 The zoom threshold defaults to 19 and is adjustable via the control pill
 at the bottom-left of the map (shows current zoom level and a Detail ≥

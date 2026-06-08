@@ -112,6 +112,9 @@
                                 <button type="button" class="btn btn-primary btn-sm flex-fill" id="addLocationBtn">
                                     <i class="fa-solid fa-plus me-1"></i>Add location
                                 </button>
+                                <button type="button" class="btn btn-outline-primary btn-sm flex-fill" id="addArrowBtn">
+                                    <i class="fa-solid fa-diamond-turn-right me-1"></i>Add arrow
+                                </button>
                                 <button type="button" class="btn btn-outline-secondary btn-sm" id="geotagNewBtn"
                                         title="Place at my current GPS location">
                                     <i class="fa-solid fa-location-crosshairs"></i>
@@ -121,6 +124,11 @@
                                 <i class="fa-solid fa-circle-info me-1"></i>
                                 Click anywhere on the map to drop a location.
                                 <button type="button" class="btn btn-link btn-sm p-0 ms-1" id="cancelAddBtn">Cancel</button>
+                            </p>
+                            <p class="small text-muted mb-3" id="addArrowHelp" hidden>
+                                <i class="fa-solid fa-circle-info me-1"></i>
+                                Click on the road to place a traffic arrow.
+                                <button type="button" class="btn btn-link btn-sm p-0 ms-1" id="cancelAddArrowBtn">Cancel</button>
                             </p>
                         <% } %>
 
@@ -176,6 +184,14 @@
                                 <span class="signs-legend-swatch signs-legend-swatch-pink"   title="Pink"></span>
                             </div>
 
+                            <p class="small text-muted mb-1 fw-semibold">Traffic arrows</p>
+                            <ul class="signs-legend-list mb-2">
+                                <li>
+                                    <i class="fa-solid fa-diamond-turn-right me-2" style="color:#00d4ff;width:1rem;text-align:center"></i>
+                                    Direction of travel
+                                </li>
+                            </ul>
+
                             <p class="small text-muted mb-1 fw-semibold">Mount types</p>
                             <ul class="signs-legend-list mb-0">
                                 <li><i class="fa-solid fa-signs-post me-2 text-muted" style="width:1rem;text-align:center"></i>Pole</li>
@@ -213,6 +229,11 @@
                             </div>
                         </div>
                     <% } %>
+                    <div class="signs-zoom-indicator" id="zoomIndicator">
+                        <span class="signs-zoom-badge" id="zoomLevelBadge">Z 17</span>
+                        <input type="number" class="signs-zoom-input" id="zoomLevelInput"
+                               min="1" max="22" step="0.1" title="Set zoom level" />
+                    </div>
                 </section>
             </div>
 
@@ -482,9 +503,109 @@
         </div>
     </div>
 
+    <%# ──────────────────────────────────────────────────────────
+        OFFCANVAS: traffic arrow editor
+    ────────────────────────────────────────────────────────── %>
+    <div class="offcanvas offcanvas-end signs-placement-offcanvas"
+         tabindex="-1"
+         id="arrowEditor"
+         aria-labelledby="arrowEditorTitle">
+        <div class="offcanvas-header">
+            <h2 class="offcanvas-title h5 mb-0" id="arrowEditorTitle">
+                <i class="fa-solid fa-diamond-turn-right me-2"></i>Traffic Arrow
+            </h2>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+
+            <%# ── Bearing ────────────────────────────────────── %>
+            <div class="mb-3">
+                <label for="arrowEditorBearing" class="form-label">
+                    Bearing <span class="text-muted small">(0–360°)</span>
+                </label>
+                <input type="number" min="0" max="360" step="1" class="form-control"
+                       id="arrowEditorBearing" placeholder="e.g. 90 = eastbound"
+                       <%= canManage ? '' : 'readonly' %> />
+                <div class="form-text">Compass direction the driver is heading.</div>
+            </div>
+
+            <%# ── Label ──────────────────────────────────────── %>
+            <div class="mb-3">
+                <label for="arrowEditorLabel" class="form-label">Label</label>
+                <input type="text" class="form-control" id="arrowEditorLabel"
+                       maxlength="100" placeholder="e.g. Northbound on Main St"
+                       <%= canManage ? '' : 'readonly' %> />
+            </div>
+
+            <%# ── Coordinates ────────────────────────────────── %>
+            <div class="row g-2 mb-3">
+                <div class="col-6">
+                    <label for="arrowEditorLat" class="form-label small">Latitude</label>
+                    <input type="number" step="0.0000001" class="form-control form-control-sm"
+                           id="arrowEditorLat" <%= canManage ? '' : 'readonly' %> />
+                </div>
+                <div class="col-6">
+                    <label for="arrowEditorLng" class="form-label small">Longitude</label>
+                    <input type="number" step="0.0000001" class="form-control form-control-sm"
+                           id="arrowEditorLng" <%= canManage ? '' : 'readonly' %> />
+                </div>
+            </div>
+
+            <%# ── Linked signs ───────────────────────────────── %>
+            <div class="mb-3 border-top pt-3">
+                <label class="form-label fw-semibold d-flex align-items-center justify-content-between">
+                    <span><i class="fa-solid fa-link me-1"></i>Linked Signs</span>
+                    <span class="badge bg-secondary" id="arrowLinkCount">0</span>
+                </label>
+                <div id="arrowLinkList">
+                    <%# JS populates %>
+                </div>
+                <% if (canManage) { %>
+                    <div class="mt-2" id="addArrowLinkWrap">
+                        <button type="button" class="btn btn-outline-primary btn-sm w-100" id="addArrowLinkToggle">
+                            <i class="fa-solid fa-plus me-1"></i>Link a sign
+                        </button>
+                        <div class="collapse mt-2" id="addArrowLinkForm">
+                            <div class="card card-body p-2">
+                                <select class="form-select form-select-sm mb-2" id="addArrowLinkSelect">
+                                    <option value="">Pick a sign attachment…</option>
+                                    <%# JS populates options dynamically %>
+                                </select>
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-primary btn-sm flex-fill" id="addArrowLinkSaveBtn">
+                                        <i class="fa-solid fa-plus me-1"></i>Link
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="addArrowLinkCancelBtn">Cancel</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                <% } %>
+            </div>
+
+            <%# ── Actions ────────────────────────────────────── %>
+            <% if (canManage) { %>
+                <div class="d-flex flex-wrap gap-2 pt-2 border-top">
+                    <button type="button" class="btn btn-primary" id="arrowEditorSaveBtn">
+                        <i class="fa-solid fa-floppy-disk me-1"></i>Save
+                    </button>
+                    <button type="button" class="btn btn-outline-danger ms-auto" id="arrowEditorDeleteBtn">
+                        <i class="fa-solid fa-trash me-1"></i>Delete
+                    </button>
+                </div>
+                <p class="small mt-2" id="arrowEditorFeedback"></p>
+            <% } else { %>
+                <p class="small text-muted mt-2 mb-0">
+                    <i class="fa-solid fa-eye me-1"></i>View only. OVERSEER+ can edit arrows.
+                </p>
+            <% } %>
+
+        </div>
+    </div>
+
     <%# Inline JSON bootstrap %>
     <script id="signsMapBootstrap" type="application/json"><%-
-        JSON.stringify({ signs, locations })
+        JSON.stringify({ signs, locations, arrows })
     %></script>
 
     <%- include('../partials/footer') %>

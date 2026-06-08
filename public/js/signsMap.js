@@ -38,6 +38,76 @@
 
   const STATUS_CYCLE = ["planned", "installed", "removed"];
 
+  /** Inline SVG icons for mount types (compact markers + full-detail label). */
+  const MOUNT_ICONS = {
+    cone: '<svg class="signs-mount-icon" viewBox="0 0 16 16" aria-hidden="true"><polygon points="8,2 13,14 3,14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><line x1="2" y1="14" x2="14" y2="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    "a-frame":
+      '<svg class="signs-mount-icon" viewBox="0 0 16 16" aria-hidden="true"><polyline points="3,14 8,2 13,14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/><line x1="5" y1="10" x2="11" y2="10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    "existing-structure":
+      '<svg class="signs-mount-icon" viewBox="0 0 16 16" aria-hidden="true"><line x1="8" y1="3" x2="8" y2="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="4" y1="5" x2="12" y2="5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    pole: '<svg class="signs-mount-icon" viewBox="0 0 16 16" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  };
+
+  /** Delay (ms) before a hovered compact marker expands to full detail. */
+  const HOVER_EXPAND_DELAY = 250;
+
+  /** Delay (ms) before a full-detail hover-expanded marker collapses. */
+  const HOVER_COLLAPSE_DELAY = 150;
+
+  /** Minimum ms since last drag/pan before a marker click is honoured. */
+  const CLICK_AFTER_DRAG_THRESHOLD = 300;
+
+  /**
+   * Attach the Shift+zoom drag gate to a location marker's content.
+   * Blocks Maps' built-in drag unless Shift is held at sufficient zoom.
+   * No-op on coarse-pointer devices or if the user lacks manage rights.
+   *
+   * @param {HTMLElement} content
+   */
+  function attachLocationShiftGate(content) {
+    if (!canManage || isCoarsePointer) return;
+    content.addEventListener(
+      "pointerdown",
+      (e) => {
+        if (!shiftHeld || !canDragAtCurrentZoom()) {
+          e.stopImmediatePropagation();
+        }
+      },
+      true,
+    );
+  }
+
+  /**
+   * Attach the Shift+zoom drag gate to an arrow marker's content.
+   * Same as the location gate, but also intercepts the rotation
+   * handle so Shift+drag on the handle starts bearing adjustment
+   * instead of a Maps drag.
+   *
+   * @param {HTMLElement} content
+   * @param {number} arrowId
+   */
+  function attachArrowShiftGate(content, arrowId) {
+    if (!canManage || isCoarsePointer) return;
+    content.addEventListener(
+      "pointerdown",
+      (e) => {
+        const onHandle = e.target.closest(".signs-arrow-handle");
+        if (!shiftHeld || !canDragAtCurrentZoom()) {
+          e.stopImmediatePropagation();
+          if (shiftHeld && onHandle) {
+            beginArrowRotation(arrowId, e);
+          }
+          return;
+        }
+        if (onHandle) {
+          e.stopImmediatePropagation();
+          beginArrowRotation(arrowId, e);
+        }
+      },
+      true,
+    );
+  }
+
   // ============================================================
   // MODULE STATE
   // ============================================================
@@ -55,6 +125,44 @@
   let editorOffcanvas = null;
   let photoCacheBuster = 0;
   let isDraggingMarker = false;
+
+  /** @type {Map<number, number>} location_id → setTimeout ID for hover expand/collapse */
+  const hoverTimers = new Map();
+
+  /** @type {Set<number>} Location IDs currently hover-expanded to full detail */
+  const hoverExpanded = new Set();
+
+  /** Timestamp of last drag/pan end — used to suppress accidental clicks. */
+  let lastDragEndTime = 0;
+
+  /** @type {Array<object>} */
+  let arrows = [];
+  /** @type {Map<number, google.maps.marker.AdvancedMarkerElement>} */
+  const arrowMarkers = new Map();
+  let selectedArrowId = null;
+  let isPlacingArrow = false;
+  let arrowEditorOffcanvas = null;
+  let shiftHeld = false;
+  let isRotatingArrow = false;
+  let rotatingArrowId = null;
+  const isCoarsePointer = window.matchMedia("(pointer: coarse)").matches;
+
+  /** Minimum zoom level at which Shift+drag movement is allowed. */
+  const MIN_ZOOM_FOR_DRAG = 17;
+
+  /**
+   * Zoom level at and above which markers render at full detail.
+   * Below this, locations show as compact abbreviation discs and
+   * arrows show as small dots.
+   */
+  const ZOOM_FULL_DETAIL = 19;
+
+  /**
+   * Current marker detail level. Cached so we only swap content
+   * when the level crosses the threshold, not on every zoom_changed.
+   * @type {'compact'|'full'}
+   */
+  let currentDetailLevel = "full";
 
   // ============================================================
   // HELPERS
@@ -88,6 +196,11 @@
     return signs.find((s) => s.sign_id === id) || null;
   }
 
+  /** @param {number} id */
+  function findArrow(id) {
+    return arrows.find((a) => a.arrow_id === id) || null;
+  }
+
   /**
    * @param {string|null} dir
    * @returns {string}
@@ -96,6 +209,14 @@
     if (!dir) return "";
     if (dir === "destination") return "";
     return ARROW_GLYPHS[dir] || "";
+  }
+
+  /**
+   * Whether the current zoom level permits marker/arrow dragging.
+   * @returns {boolean}
+   */
+  function canDragAtCurrentZoom() {
+    return mapRef ? mapRef.getZoom() >= MIN_ZOOM_FOR_DRAG : false;
   }
 
   function formatDateDMY(d) {
@@ -166,15 +287,58 @@
     // Click-to-place
     if (canManage) {
       mapRef.addListener("click", (e) => {
+        if (isPlacingArrow) {
+          beginNewArrow(e.latLng.lat(), e.latLng.lng());
+          return;
+        }
         if (!isPlacing) return;
         beginNewLocation(e.latLng.lat(), e.latLng.lng());
       });
     }
 
+    // Track map pan end for click-after-drag suppression
+    mapRef.addListener("dragend", () => {
+      lastDragEndTime = Date.now();
+    });
+
+    // Seed detail level from initial zoom
+    currentDetailLevel = detailLevelForZoom(mapRef.getZoom());
+
     // Add markers
     locations.forEach((loc) => addMarkerForLocation(loc));
+    arrows.forEach((arrow) => addMarkerForArrow(arrow));
     applyFilters();
     renderLocationList();
+
+    // Zoom indicator + detail level switching
+    updateZoomIndicator(mapRef.getZoom());
+    mapRef.addListener("zoom_changed", () => {
+      const zoom = mapRef.getZoom();
+      updateZoomIndicator(zoom);
+
+      const newLevel = detailLevelForZoom(zoom);
+      if (newLevel !== currentDetailLevel) {
+        currentDetailLevel = newLevel;
+        applyDetailLevelToAll(newLevel);
+      }
+    });
+  }
+
+  // ============================================================
+  // ZOOM INDICATOR
+  // ============================================================
+
+  /**
+   * Update the zoom level badge and sync the input field.
+   *
+   * @param {number} zoom
+   */
+  function updateZoomIndicator(zoom) {
+    const rounded = Math.round(zoom * 10) / 10;
+    const badge = document.getElementById("zoomLevelBadge");
+    const input = document.getElementById("zoomLevelInput");
+    if (badge) badge.textContent = `Z ${rounded}`;
+    if (input) input.value = rounded;
   }
 
   // ============================================================
@@ -247,15 +411,31 @@
     }
 
     wrapper.appendChild(stack);
+
+    // Mount-type label below the sign stack
+    if (loc.mount_type && MOUNT_ICONS[loc.mount_type]) {
+      const label = document.createElement("div");
+      label.className = "signs-map-marker-mount-label";
+      label.innerHTML = MOUNT_ICONS[loc.mount_type];
+      const text = document.createElement("span");
+      text.textContent = MOUNT_LABELS[loc.mount_type] || loc.mount_type;
+      label.appendChild(text);
+      wrapper.appendChild(label);
+    }
+
     return wrapper;
   }
 
   /**
    * Create an AdvancedMarkerElement for a location.
+   * Movement requires Shift+drag at zoom >= MIN_ZOOM_FOR_DRAG
+   * (desktop only). Completely blocked on coarse-pointer devices.
+   *
    * @param {object} loc
    */
   function addMarkerForLocation(loc) {
     const content = buildMarkerContent(loc);
+    const draggable = canManage && !isCoarsePointer;
     const marker = new google.maps.marker.AdvancedMarkerElement({
       map: mapRef,
       position: { lat: Number(loc.latitude), lng: Number(loc.longitude) },
@@ -263,17 +443,20 @@
       title:
         (loc.attachments || []).map((a) => a.sign_text).join(", ") ||
         "Empty location",
-      gmpDraggable: canManage,
+      gmpDraggable: draggable,
     });
 
-    // Click → select + open editor
+    // Click → select + open editor (suppressed briefly after drag/pan)
     marker.addListener("click", () => {
+      if (Date.now() - lastDragEndTime < CLICK_AFTER_DRAG_THRESHOLD) return;
       selectMarker(loc.location_id);
       openEditor(loc.location_id);
     });
 
-    // Drag
-    if (canManage) {
+    // Shift-gate: block Maps drag unless Shift held + zoomed in
+    if (draggable) {
+      attachLocationShiftGate(content);
+
       marker.addListener("dragstart", () => {
         isDraggingMarker = true;
         document.body.classList.add("signs-map-dragging");
@@ -283,6 +466,7 @@
 
       marker.addListener("dragend", () => {
         isDraggingMarker = false;
+        lastDragEndTime = Date.now();
         document.body.classList.remove("signs-map-dragging");
         const pos = marker.position;
         const lat = typeof pos.lat === "function" ? pos.lat() : pos.lat;
@@ -290,6 +474,9 @@
         persistDrag(loc.location_id, lat, lng);
       });
     }
+
+    // Hover-to-expand for compact markers (desktop only)
+    attachHoverExpand(loc, marker, content);
 
     markers.set(loc.location_id, marker);
   }
@@ -302,10 +489,41 @@
     const loc = findLocation(locationId);
     const marker = markers.get(locationId);
     if (!loc || !marker) return;
-    marker.content = buildMarkerContent(loc);
+
+    const useFullDetail =
+      currentDetailLevel === "full" || hoverExpanded.has(locationId);
+    const content = useFullDetail
+      ? buildMarkerContent(loc)
+      : buildCompactLocationContent(loc);
+
+    // Re-attach shift-gate on new content
+    attachLocationShiftGate(content);
+
+    if (selectedId === locationId) {
+      content.classList.add("signs-map-marker-selected");
+    }
+
+    marker.content = content;
     marker.title =
       (loc.attachments || []).map((a) => a.sign_text).join(", ") ||
       "Empty location";
+
+    // Re-attach hover behavior for compact mode
+    if (currentDetailLevel === "compact") {
+      if (hoverExpanded.has(locationId)) {
+        content.addEventListener("mouseleave", () => {
+          clearTimeout(hoverTimers.get(locationId));
+          hoverTimers.set(
+            locationId,
+            setTimeout(() => {
+              collapseMarkerOnHover(loc, marker);
+            }, HOVER_COLLAPSE_DELAY),
+          );
+        });
+      } else {
+        attachHoverExpand(loc, marker, content);
+      }
+    }
   }
 
   // ============================================================
@@ -313,6 +531,16 @@
   // ============================================================
 
   function selectMarker(locationId) {
+    // Deselect any selected arrow
+    if (selectedArrowId !== null) {
+      const prevArrow = arrowMarkers.get(selectedArrowId);
+      if (prevArrow?.content)
+        prevArrow.content.classList.remove("signs-arrow-marker-selected");
+      clearArrowHighlights();
+      selectedArrowId = null;
+    }
+    dismissArrowEditorIfOpen();
+
     // Deselect previous
     if (selectedId !== null && selectedId !== locationId) {
       const prev = markers.get(selectedId);
@@ -333,6 +561,912 @@
         Number(row.dataset.locationId) === locationId,
       );
     });
+  }
+
+  // ============================================================
+  // TRAFFIC ARROW MARKERS
+  // ============================================================
+
+  /**
+   * Build the SVG arrow element for a traffic arrow marker.
+   * The arrow points "up" (north = 0°) by default; the wrapper
+   * is rotated by the arrow's bearing. Includes a rotation handle
+   * at the tip for Shift+drag bearing adjustment (desktop only).
+   *
+   * @param {object} arrow
+   * @returns {HTMLDivElement}
+   */
+  function buildArrowMarkerContent(arrow) {
+    const wrapper = document.createElement("div");
+    const selCls =
+      selectedArrowId === arrow.arrow_id ? " signs-arrow-marker-selected" : "";
+    wrapper.className = `signs-arrow-marker${selCls}`;
+    wrapper.style.transform = `translateY(26px) rotate(${arrow.bearing || 0}deg)`;
+
+    wrapper.innerHTML = `<svg viewBox="0 0 40 64" xmlns="http://www.w3.org/2000/svg">
+      <line class="signs-arrow-marker-outline" x1="20" y1="56" x2="20" y2="26" />
+      <line class="signs-arrow-marker-fg" x1="20" y1="56" x2="20" y2="26" />
+      <polyline class="signs-arrow-marker-outline" points="8,30 20,6 32,30" />
+      <polyline class="signs-arrow-marker-fg" points="8,30 20,6 32,30" />
+    </svg>`;
+
+    // Rotation handle at the tip (desktop only)
+    if (canManage && !isCoarsePointer) {
+      const handle = document.createElement("div");
+      handle.className = "signs-arrow-handle";
+      wrapper.appendChild(handle);
+    }
+
+    return wrapper;
+  }
+
+  /**
+   * Place a traffic arrow on the map as an AdvancedMarkerElement.
+   * Movement requires Shift+drag (desktop only). Rotation is
+   * triggered by Shift+drag on the tip handle. Both are completely
+   * blocked on coarse-pointer (mobile/tablet) devices.
+   *
+   * @param {object} arrow
+   */
+  function addMarkerForArrow(arrow) {
+    const content = buildArrowMarkerContent(arrow);
+    const draggable = canManage && !isCoarsePointer;
+    const marker = new google.maps.marker.AdvancedMarkerElement({
+      map: mapRef,
+      position: { lat: Number(arrow.latitude), lng: Number(arrow.longitude) },
+      content,
+      title: arrow.label || "Traffic arrow",
+      gmpDraggable: draggable,
+      zIndex: 10,
+    });
+
+    marker.addListener("click", () => {
+      if (Date.now() - lastDragEndTime < CLICK_AFTER_DRAG_THRESHOLD) return;
+      selectArrow(arrow.arrow_id);
+      openArrowEditor(arrow.arrow_id);
+    });
+
+    if (draggable) {
+      attachArrowShiftGate(content, arrow.arrow_id);
+
+      marker.addListener("dragstart", () => {
+        isDraggingMarker = true;
+        document.body.classList.add("signs-map-dragging");
+        dismissInfoSheet(true);
+      });
+
+      marker.addListener("dragend", () => {
+        isDraggingMarker = false;
+        lastDragEndTime = Date.now();
+        document.body.classList.remove("signs-map-dragging");
+        const pos = marker.position;
+        const lat = typeof pos.lat === "function" ? pos.lat() : pos.lat;
+        const lng = typeof pos.lng === "function" ? pos.lng() : pos.lng;
+        persistArrowDrag(arrow.arrow_id, lat, lng);
+      });
+    }
+
+    arrowMarkers.set(arrow.arrow_id, marker);
+  }
+
+  /**
+   * Rebuild an arrow marker's DOM after data changes.
+   *
+   * @param {number} arrowId
+   */
+  function refreshArrowMarker(arrowId) {
+    const arrow = findArrow(arrowId);
+    const marker = arrowMarkers.get(arrowId);
+    if (!arrow || !marker) return;
+    marker.content = buildArrowMarkerContent(arrow);
+    marker.title = arrow.label || "Traffic arrow";
+  }
+
+  // ============================================================
+  // COMPACT MARKERS (low-zoom rendering)
+  // ============================================================
+
+  /**
+   * Build a compact 32px disc marker for a location — shows the
+   * mount-type icon (cone, a-frame, pole) with a count badge for
+   * the number of attached signs.
+   *
+   * @param {object} loc
+   * @returns {HTMLDivElement}
+   */
+  function buildCompactLocationContent(loc) {
+    const status = deriveStatus(loc);
+    const colorCls = loc.marker_color
+      ? ` signs-map-marker-color-${loc.marker_color}`
+      : "";
+    const wrapper = document.createElement("div");
+    wrapper.className = `signs-map-marker signs-map-marker-compact signs-map-marker-${status}${colorCls}`;
+
+    const disc = document.createElement("div");
+    disc.className = "signs-map-marker-disc";
+
+    const atts = (loc.attachments || [])
+      .slice()
+      .sort((a, b) => a.sort_order - b.sort_order);
+
+    // Mount-type icon or fallback bullet
+    if (loc.mount_type && MOUNT_ICONS[loc.mount_type]) {
+      const iconWrap = document.createElement("span");
+      iconWrap.className = "signs-map-marker-mount-icon-wrap";
+      iconWrap.innerHTML = MOUNT_ICONS[loc.mount_type];
+      disc.appendChild(iconWrap);
+    } else {
+      const abbr = document.createElement("span");
+      abbr.className = "signs-map-marker-abbr";
+      abbr.textContent = "\u2022";
+      disc.appendChild(abbr);
+    }
+    wrapper.appendChild(disc);
+
+    // Count badge (1+ attachments; empty locations have no badge)
+    if (atts.length >= 1) {
+      const badge = document.createElement("span");
+      badge.className = "signs-map-marker-count";
+      badge.textContent = atts.length;
+      wrapper.appendChild(badge);
+    }
+
+    return wrapper;
+  }
+
+  /**
+   * Build compact arrow content — a small directional dot.
+   *
+   * @param {object} arrow
+   * @returns {HTMLDivElement}
+   */
+  function buildCompactArrowContent(arrow) {
+    const wrapper = document.createElement("div");
+    const selCls =
+      selectedArrowId === arrow.arrow_id ? " signs-arrow-marker-selected" : "";
+    wrapper.className = `signs-arrow-marker signs-arrow-marker-compact${selCls}`;
+    wrapper.style.transform = `translateY(6px) rotate(${arrow.bearing || 0}deg)`;
+    wrapper.innerHTML = `<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+      <polyline class="signs-arrow-marker-outline" points="4,16 10,4 16,16"
+                stroke-width="4" />
+      <polyline class="signs-arrow-marker-fg" points="4,16 10,4 16,16"
+                stroke-width="2.5" />
+    </svg>`;
+    return wrapper;
+  }
+
+  // ============================================================
+  // HOVER-TO-EXPAND (compact markers, desktop only)
+  // ============================================================
+
+  /**
+   * Attach mouseenter/mouseleave listeners to a compact marker
+   * that temporarily expand it to full detail on hover. No-op
+   * when the detail level is 'full' or on coarse-pointer devices.
+   *
+   * @param {object} loc
+   * @param {google.maps.marker.AdvancedMarkerElement} marker
+   * @param {HTMLElement} content
+   */
+  function attachHoverExpand(loc, marker, content) {
+    if (isCoarsePointer || currentDetailLevel !== "compact") return;
+
+    content.addEventListener("mouseenter", () => {
+      clearTimeout(hoverTimers.get(loc.location_id));
+      hoverTimers.set(
+        loc.location_id,
+        setTimeout(() => {
+          expandMarkerOnHover(loc, marker);
+        }, HOVER_EXPAND_DELAY),
+      );
+    });
+
+    content.addEventListener("mouseleave", () => {
+      clearTimeout(hoverTimers.get(loc.location_id));
+      if (hoverExpanded.has(loc.location_id)) {
+        hoverTimers.set(
+          loc.location_id,
+          setTimeout(() => {
+            collapseMarkerOnHover(loc, marker);
+          }, HOVER_COLLAPSE_DELAY),
+        );
+      }
+    });
+  }
+
+  /**
+   * Expand a compact marker to full detail on hover.
+   *
+   * @param {object} loc
+   * @param {google.maps.marker.AdvancedMarkerElement} marker
+   */
+  function expandMarkerOnHover(loc, marker) {
+    if (currentDetailLevel !== "compact") return;
+    hoverExpanded.add(loc.location_id);
+
+    const content = buildMarkerContent(loc);
+    if (selectedId === loc.location_id) {
+      content.classList.add("signs-map-marker-selected");
+    }
+    attachLocationShiftGate(content);
+    // Collapse when the mouse leaves the expanded content
+    content.addEventListener("mouseleave", () => {
+      clearTimeout(hoverTimers.get(loc.location_id));
+      hoverTimers.set(
+        loc.location_id,
+        setTimeout(() => {
+          collapseMarkerOnHover(loc, marker);
+        }, HOVER_COLLAPSE_DELAY),
+      );
+    });
+    marker.content = content;
+  }
+
+  /**
+   * Collapse a hover-expanded marker back to compact.
+   *
+   * @param {object} loc
+   * @param {google.maps.marker.AdvancedMarkerElement} marker
+   */
+  function collapseMarkerOnHover(loc, marker) {
+    if (currentDetailLevel !== "compact") return;
+    hoverExpanded.delete(loc.location_id);
+
+    const content = buildCompactLocationContent(loc);
+    if (selectedId === loc.location_id) {
+      content.classList.add("signs-map-marker-selected");
+    }
+    attachLocationShiftGate(content);
+    attachHoverExpand(loc, marker, content);
+    marker.content = content;
+  }
+
+  /**
+   * Map a zoom level to the detail level.
+   *
+   * @param {number} zoom
+   * @returns {'compact'|'full'}
+   */
+  function detailLevelForZoom(zoom) {
+    return zoom >= ZOOM_FULL_DETAIL ? "full" : "compact";
+  }
+
+  /**
+   * Swap all markers to match the new detail level. Preserves
+   * selection highlighting on rebuilt content.
+   *
+   * @param {'compact'|'full'} level
+   */
+  function applyDetailLevelToAll(level) {
+    // Clear all hover-expand state on level change
+    hoverTimers.forEach((timerId) => clearTimeout(timerId));
+    hoverTimers.clear();
+    hoverExpanded.clear();
+
+    // Location markers
+    locations.forEach((loc) => {
+      const marker = markers.get(loc.location_id);
+      if (!marker) return;
+      const content =
+        level === "full"
+          ? buildMarkerContent(loc)
+          : buildCompactLocationContent(loc);
+      if (selectedId === loc.location_id) {
+        content.classList.add("signs-map-marker-selected");
+      }
+
+      attachLocationShiftGate(content);
+
+      marker.content = content;
+
+      // Attach hover-to-expand for compact mode
+      if (level === "compact") {
+        attachHoverExpand(loc, marker, content);
+      }
+    });
+
+    // Arrow markers
+    arrows.forEach((arrow) => {
+      const marker = arrowMarkers.get(arrow.arrow_id);
+      if (!marker) return;
+      const content =
+        level === "full"
+          ? buildArrowMarkerContent(arrow)
+          : buildCompactArrowContent(arrow);
+      if (selectedArrowId === arrow.arrow_id) {
+        content.classList.add("signs-arrow-marker-selected");
+      }
+
+      attachArrowShiftGate(content, arrow.arrow_id);
+
+      marker.content = content;
+    });
+  }
+
+  /**
+   * Select a traffic arrow, deselecting any previous arrow and
+   * any selected location marker. Highlights linked sign markers.
+   *
+   * @param {number} arrowId
+   */
+  function selectArrow(arrowId) {
+    // Deselect previous location
+    if (selectedId !== null) {
+      const prev = markers.get(selectedId);
+      if (prev?.content)
+        prev.content.classList.remove("signs-map-marker-selected");
+      selectedId = null;
+    }
+
+    // Deselect previous arrow
+    if (selectedArrowId !== null && selectedArrowId !== arrowId) {
+      const prev = arrowMarkers.get(selectedArrowId);
+      if (prev?.content)
+        prev.content.classList.remove("signs-arrow-marker-selected");
+      clearArrowHighlights();
+    }
+
+    selectedArrowId = arrowId;
+    const m = arrowMarkers.get(arrowId);
+    if (m?.content) {
+      m.content.classList.add("signs-arrow-marker-selected");
+      mapRef?.panTo(m.position);
+    }
+
+    // Highlight linked sign markers
+    highlightLinkedMarkers(arrowId);
+  }
+
+  /**
+   * Add a highlight glow to sign markers linked to the given arrow.
+   *
+   * @param {number} arrowId
+   */
+  function highlightLinkedMarkers(arrowId) {
+    clearArrowHighlights();
+    const arrow = findArrow(arrowId);
+    if (!arrow) return;
+
+    (arrow.links || []).forEach((attId) => {
+      // Find which location owns this attachment
+      const loc = locations.find((l) =>
+        (l.attachments || []).some((a) => a.attachment_id === attId),
+      );
+      if (!loc) return;
+      const marker = markers.get(loc.location_id);
+      if (marker?.content)
+        marker.content.classList.add("signs-map-marker-arrow-linked");
+    });
+  }
+
+  /**
+   * Remove all arrow-linked highlight classes from sign markers.
+   */
+  function clearArrowHighlights() {
+    markers.forEach((marker) => {
+      if (marker?.content)
+        marker.content.classList.remove("signs-map-marker-arrow-linked");
+    });
+  }
+
+  /**
+   * Persist an arrow position after a drag.
+   *
+   * @param {number} arrowId
+   * @param {number} lat
+   * @param {number} lng
+   */
+  async function persistArrowDrag(arrowId, lat, lng) {
+    const arrow = findArrow(arrowId);
+    if (!arrow) return;
+
+    try {
+      const res = await fetch(`/signs/arrows/${arrowId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "CSRF-Token": getCsrfToken(),
+        },
+        body: JSON.stringify({
+          latitude: lat,
+          longitude: lng,
+          bearing: arrow.bearing,
+          label: arrow.label,
+          color: arrow.color,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        arrow.latitude = lat;
+        arrow.longitude = lng;
+      } else {
+        // Snap back
+        const marker = arrowMarkers.get(arrowId);
+        if (marker)
+          marker.position = {
+            lat: Number(arrow.latitude),
+            lng: Number(arrow.longitude),
+          };
+      }
+    } catch (err) {
+      console.error("Arrow drag persist failed:", err);
+    }
+  }
+
+  // ============================================================
+  // TRAFFIC ARROW ROTATION
+  // ============================================================
+
+  /**
+   * Begin rotating an arrow's bearing via pointer drag.
+   * Computes the angle from the arrow marker's screen centre
+   * to the pointer position and maps it to a compass bearing.
+   *
+   * @param {number} arrowId
+   * @param {PointerEvent} startEvent
+   */
+  function beginArrowRotation(arrowId, startEvent) {
+    isRotatingArrow = true;
+    rotatingArrowId = arrowId;
+    const marker = arrowMarkers.get(arrowId);
+    if (!marker?.content) return;
+
+    document.body.classList.add("signs-arrow-rotating");
+
+    /**
+     * Get the screen-centre of the arrow marker element.
+     * @returns {{ cx: number, cy: number }}
+     */
+    function markerCenter() {
+      const rect = marker.content.getBoundingClientRect();
+      return { cx: rect.left + rect.width / 2, cy: rect.top + rect.height / 2 };
+    }
+
+    /** @param {PointerEvent} e */
+    function onMove(e) {
+      const { cx, cy } = markerCenter();
+      const dx = e.clientX - cx;
+      const dy = e.clientY - cy;
+      // atan2 gives angle from positive-X axis (east); convert to
+      // compass bearing (0 = north, clockwise).
+      const angleDeg = Math.atan2(dx, -dy) * (180 / Math.PI);
+      const bearing = ((angleDeg % 360) + 360) % 360;
+      const rounded = Math.round(bearing * 10) / 10;
+
+      // Live-update the marker rotation (preserve the tip-anchor offset)
+      const yOff = marker.content.classList.contains(
+        "signs-arrow-marker-compact",
+      )
+        ? 6
+        : 26;
+      marker.content.style.transform = `translateY(${yOff}px) rotate(${rounded}deg)`;
+
+      // Update in-memory state for persistence on pointerup
+      const arrow = findArrow(arrowId);
+      if (arrow) arrow.bearing = rounded;
+    }
+
+    /** @param {PointerEvent} e */
+    function onUp(e) {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.body.classList.remove("signs-arrow-rotating");
+      isRotatingArrow = false;
+      rotatingArrowId = null;
+
+      // Persist
+      const arrow = findArrow(arrowId);
+      if (arrow) {
+        persistArrowDrag(arrowId, arrow.latitude, arrow.longitude);
+        // Update the bearing field if the editor is open
+        const bearingInput = document.getElementById("arrowEditorBearing");
+        const editorEl = document.getElementById("arrowEditor");
+        if (bearingInput && Number(editorEl?.dataset.arrowId) === arrowId) {
+          bearingInput.value = arrow.bearing;
+        }
+      }
+    }
+
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+  }
+
+  // ============================================================
+  // TRAFFIC ARROW PLACING MODE
+  // ============================================================
+
+  /**
+   * Enter arrow-placing mode. Click on the map to drop an arrow.
+   */
+  function enterArrowPlacingMode() {
+    exitPlacingMode();
+    isPlacingArrow = true;
+    const help = document.getElementById("addArrowHelp");
+    if (help) help.hidden = false;
+    const locHelp = document.getElementById("addLocationHelp");
+    if (locHelp) locHelp.hidden = true;
+    if (mapRef) mapRef.getDiv().style.cursor = "crosshair";
+  }
+
+  /**
+   * Exit arrow-placing mode.
+   */
+  function exitArrowPlacingMode() {
+    isPlacingArrow = false;
+    const help = document.getElementById("addArrowHelp");
+    if (help) help.hidden = true;
+    if (mapRef) mapRef.getDiv().style.cursor = "";
+  }
+
+  /**
+   * Create a new traffic arrow at the clicked position.
+   *
+   * @param {number} lat
+   * @param {number} lng
+   */
+  async function beginNewArrow(lat, lng) {
+    exitArrowPlacingMode();
+
+    try {
+      const res = await fetch("/signs/arrows", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "CSRF-Token": getCsrfToken(),
+        },
+        body: JSON.stringify({ latitude: lat, longitude: lng, bearing: 0 }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        console.error("Create arrow failed:", data.error);
+        return;
+      }
+
+      const arrow = {
+        arrow_id: data.arrowId,
+        latitude: lat,
+        longitude: lng,
+        bearing: 0,
+        label: null,
+        color: null,
+        links: [],
+      };
+      arrows.push(arrow);
+      addMarkerForArrow(arrow);
+      selectArrow(arrow.arrow_id);
+      openArrowEditor(arrow.arrow_id);
+    } catch (err) {
+      console.error("Create arrow error:", err);
+    }
+  }
+
+  // ============================================================
+  // TRAFFIC ARROW EDITOR
+  // ============================================================
+
+  /**
+   * Open the arrow editor offcanvas for the given arrow.
+   *
+   * @param {number} arrowId
+   */
+  function openArrowEditor(arrowId) {
+    // Close location editor if open
+    dismissEditorIfOpen();
+
+    const arrow = findArrow(arrowId);
+    if (!arrow) return;
+
+    const el = document.getElementById("arrowEditor");
+    if (!el) return;
+
+    // Populate fields
+    document.getElementById("arrowEditorBearing").value = arrow.bearing ?? "";
+    document.getElementById("arrowEditorLabel").value = arrow.label || "";
+    document.getElementById("arrowEditorLat").value = arrow.latitude;
+    document.getElementById("arrowEditorLng").value = arrow.longitude;
+
+    renderArrowLinks(arrow);
+
+    if (!arrowEditorOffcanvas) {
+      arrowEditorOffcanvas = new bootstrap.Offcanvas(el);
+    }
+    arrowEditorOffcanvas.show();
+    el.dataset.arrowId = arrowId;
+  }
+
+  /**
+   * Save the arrow editor form.
+   */
+  async function saveArrowEditor() {
+    const el = document.getElementById("arrowEditor");
+    const arrowId = Number(el?.dataset.arrowId);
+    const arrow = findArrow(arrowId);
+    if (!arrow) return;
+
+    const bearing = parseFloat(
+      document.getElementById("arrowEditorBearing").value,
+    );
+    const label =
+      document.getElementById("arrowEditorLabel").value.trim() || null;
+    const lat = parseFloat(document.getElementById("arrowEditorLat").value);
+    const lng = parseFloat(document.getElementById("arrowEditorLng").value);
+
+    if (isNaN(bearing) || isNaN(lat) || isNaN(lng)) {
+      showArrowEditorFeedback("Invalid bearing or coordinates.", true);
+      return;
+    }
+
+    try {
+      const res = await fetch(`/signs/arrows/${arrowId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "CSRF-Token": getCsrfToken(),
+        },
+        body: JSON.stringify({
+          latitude: lat,
+          longitude: lng,
+          bearing,
+          label,
+          color: arrow.color,
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        showArrowEditorFeedback(data.error || "Save failed.", true);
+        return;
+      }
+
+      arrow.latitude = lat;
+      arrow.longitude = lng;
+      arrow.bearing = bearing;
+      arrow.label = label;
+
+      const marker = arrowMarkers.get(arrowId);
+      if (marker) {
+        marker.position = { lat, lng };
+      }
+      refreshArrowMarker(arrowId);
+      highlightLinkedMarkers(arrowId);
+      showArrowEditorFeedback("Saved.");
+    } catch (err) {
+      console.error("Arrow save error:", err);
+      showArrowEditorFeedback("Network error.", true);
+    }
+  }
+
+  /**
+   * Delete the arrow currently open in the editor.
+   */
+  async function deleteArrowEditor() {
+    const el = document.getElementById("arrowEditor");
+    const arrowId = Number(el?.dataset.arrowId);
+    if (!arrowId || !confirm("Delete this traffic arrow?")) return;
+
+    try {
+      const res = await fetch(`/signs/arrows/${arrowId}`, {
+        method: "DELETE",
+        headers: { "CSRF-Token": getCsrfToken() },
+      });
+      const data = await res.json();
+      if (!data.success) {
+        showArrowEditorFeedback(data.error || "Delete failed.", true);
+        return;
+      }
+
+      // Remove from state
+      arrows = arrows.filter((a) => a.arrow_id !== arrowId);
+      const marker = arrowMarkers.get(arrowId);
+      if (marker) marker.map = null;
+      arrowMarkers.delete(arrowId);
+      clearArrowHighlights();
+      selectedArrowId = null;
+
+      arrowEditorOffcanvas?.hide();
+    } catch (err) {
+      console.error("Arrow delete error:", err);
+      showArrowEditorFeedback("Network error.", true);
+    }
+  }
+
+  /**
+   * Show feedback text in the arrow editor.
+   *
+   * @param {string} msg
+   * @param {boolean} [isError=false]
+   */
+  function showArrowEditorFeedback(msg, isError) {
+    const el = document.getElementById("arrowEditorFeedback");
+    if (!el) return;
+    el.textContent = msg;
+    el.className = `small mt-2 ${isError ? "text-danger" : "text-success"}`;
+    if (!isError) {
+      setTimeout(() => {
+        if (el.textContent === msg) el.textContent = "";
+      }, 3000);
+    }
+  }
+
+  // ============================================================
+  // ARROW LINK MANAGEMENT
+  // ============================================================
+
+  /**
+   * Render the linked-signs list in the arrow editor.
+   *
+   * @param {object} arrow
+   */
+  function renderArrowLinks(arrow) {
+    const list = document.getElementById("arrowLinkList");
+    const countBadge = document.getElementById("arrowLinkCount");
+    if (!list) return;
+    list.replaceChildren();
+
+    const links = arrow.links || [];
+    if (countBadge) countBadge.textContent = links.length;
+
+    if (links.length === 0) {
+      const empty = document.createElement("p");
+      empty.className = "small text-muted mb-0";
+      empty.textContent = "No signs linked yet.";
+      list.appendChild(empty);
+    } else {
+      links.forEach((attId) => {
+        const row = buildArrowLinkRow(arrow.arrow_id, attId);
+        if (row) list.appendChild(row);
+      });
+    }
+
+    // Populate the "add link" dropdown with unlinked attachments
+    populateArrowLinkPicker(arrow);
+  }
+
+  /**
+   * Build a single row for the linked-signs list.
+   *
+   * @param {number} arrowId
+   * @param {number} attachmentId
+   * @returns {HTMLDivElement|null}
+   */
+  function buildArrowLinkRow(arrowId, attachmentId) {
+    // Find attachment across all locations
+    let att = null;
+    let loc = null;
+    for (const l of locations) {
+      const a = (l.attachments || []).find(
+        (x) => x.attachment_id === attachmentId,
+      );
+      if (a) {
+        att = a;
+        loc = l;
+        break;
+      }
+    }
+    if (!att) return null;
+
+    const row = document.createElement("div");
+    row.className = "signs-arrow-link-item";
+
+    const text = document.createElement("div");
+    text.className = "signs-arrow-link-item-text";
+    text.innerHTML = `<span class="fw-semibold">${att.sign_text}</span>
+      <span class="text-muted small">(loc #${loc.location_id})</span>`;
+    row.appendChild(text);
+
+    if (canManage) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "signs-arrow-link-remove-btn";
+      btn.title = "Unlink";
+      btn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+      btn.addEventListener("click", () =>
+        removeArrowLink(arrowId, attachmentId),
+      );
+      row.appendChild(btn);
+    }
+
+    return row;
+  }
+
+  /**
+   * Populate the add-link dropdown with attachments not yet linked.
+   *
+   * @param {object} arrow
+   */
+  function populateArrowLinkPicker(arrow) {
+    const select = document.getElementById("addArrowLinkSelect");
+    if (!select) return;
+    select.replaceChildren();
+
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Pick a sign attachment\u2026";
+    select.appendChild(placeholder);
+
+    const linked = new Set(arrow.links || []);
+
+    locations.forEach((loc) => {
+      (loc.attachments || []).forEach((att) => {
+        if (linked.has(att.attachment_id)) return;
+        const opt = document.createElement("option");
+        opt.value = att.attachment_id;
+        opt.textContent = `${att.sign_text} (loc #${loc.location_id})`;
+        select.appendChild(opt);
+      });
+    });
+  }
+
+  /**
+   * Link a selected attachment to the current arrow.
+   */
+  async function addArrowLink() {
+    const el = document.getElementById("arrowEditor");
+    const arrowId = Number(el?.dataset.arrowId);
+    const select = document.getElementById("addArrowLinkSelect");
+    const attachmentId = Number(select?.value);
+    if (!arrowId || !attachmentId) return;
+
+    try {
+      const res = await fetch(`/signs/arrows/${arrowId}/links`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "CSRF-Token": getCsrfToken(),
+        },
+        body: JSON.stringify({ attachmentId }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        showArrowEditorFeedback(data.error || "Link failed.", true);
+        return;
+      }
+
+      const arrow = findArrow(arrowId);
+      if (arrow) {
+        arrow.links.push(attachmentId);
+        renderArrowLinks(arrow);
+        highlightLinkedMarkers(arrowId);
+      }
+
+      // Collapse the form
+      const form = document.getElementById("addArrowLinkForm");
+      if (form) bootstrap.Collapse.getOrCreateInstance(form).hide();
+    } catch (err) {
+      console.error("Add arrow link error:", err);
+      showArrowEditorFeedback("Network error.", true);
+    }
+  }
+
+  /**
+   * Unlink an attachment from the current arrow.
+   *
+   * @param {number} arrowId
+   * @param {number} attachmentId
+   */
+  async function removeArrowLink(arrowId, attachmentId) {
+    try {
+      const res = await fetch(
+        `/signs/arrows/${arrowId}/links/${attachmentId}`,
+        {
+          method: "DELETE",
+          headers: { "CSRF-Token": getCsrfToken() },
+        },
+      );
+      const data = await res.json();
+      if (!data.success) {
+        showArrowEditorFeedback(data.error || "Unlink failed.", true);
+        return;
+      }
+
+      const arrow = findArrow(arrowId);
+      if (arrow) {
+        arrow.links = arrow.links.filter((id) => id !== attachmentId);
+        renderArrowLinks(arrow);
+        highlightLinkedMarkers(arrowId);
+      }
+    } catch (err) {
+      console.error("Remove arrow link error:", err);
+    }
   }
 
   // ============================================================
@@ -490,10 +1624,24 @@
   }
 
   /**
+   * Hide the arrow editor offcanvas if it is currently visible.
+   */
+  function dismissArrowEditorIfOpen() {
+    if (arrowEditorOffcanvas) {
+      try {
+        arrowEditorOffcanvas.hide();
+      } catch (_) {
+        /* noop */
+      }
+    }
+  }
+
+  /**
    * Open the location editor for an existing or new location.
    * @param {number|null} locationId — null for new (unsaved) location
    */
   function openEditor(locationId) {
+    dismissArrowEditorIfOpen();
     const loc = locationId ? findLocation(locationId) : null;
     editingLocationId = locationId || null;
 
@@ -1090,6 +2238,7 @@
   // ============================================================
 
   function enterPlacingMode() {
+    exitArrowPlacingMode();
     isPlacing = true;
     const mapEl = document.getElementById("googleMap");
     if (mapEl) mapEl.classList.add("signs-map-placing");
@@ -1485,9 +2634,99 @@
       });
     }
 
+    // ── Arrow buttons ──────────────────────────────────────────
+    const addArrowBtn = document.getElementById("addArrowBtn");
+    if (addArrowBtn)
+      addArrowBtn.addEventListener("click", () => enterArrowPlacingMode());
+
+    const cancelAddArrowBtn = document.getElementById("cancelAddArrowBtn");
+    if (cancelAddArrowBtn)
+      cancelAddArrowBtn.addEventListener("click", () => exitArrowPlacingMode());
+
+    // Arrow editor save
+    const arrowSaveBtn = document.getElementById("arrowEditorSaveBtn");
+    if (arrowSaveBtn)
+      arrowSaveBtn.addEventListener("click", () => saveArrowEditor());
+
+    // Arrow editor delete
+    const arrowDelBtn = document.getElementById("arrowEditorDeleteBtn");
+    if (arrowDelBtn)
+      arrowDelBtn.addEventListener("click", () => deleteArrowEditor());
+
+    // Arrow link toggle
+    const arrowLinkToggle = document.getElementById("addArrowLinkToggle");
+    const arrowLinkForm = document.getElementById("addArrowLinkForm");
+    if (arrowLinkToggle && arrowLinkForm) {
+      arrowLinkToggle.addEventListener("click", () => {
+        bootstrap.Collapse.getOrCreateInstance(arrowLinkForm).toggle();
+      });
+    }
+
+    // Arrow link save
+    const arrowLinkSaveBtn = document.getElementById("addArrowLinkSaveBtn");
+    if (arrowLinkSaveBtn)
+      arrowLinkSaveBtn.addEventListener("click", () => addArrowLink());
+
+    // Arrow link cancel
+    const arrowLinkCancelBtn = document.getElementById("addArrowLinkCancelBtn");
+    if (arrowLinkCancelBtn) {
+      arrowLinkCancelBtn.addEventListener("click", () => {
+        if (arrowLinkForm)
+          bootstrap.Collapse.getOrCreateInstance(arrowLinkForm).hide();
+      });
+    }
+
+    // Arrow editor offcanvas close → clean up
+    const arrowEditorEl = document.getElementById("arrowEditor");
+    if (arrowEditorEl) {
+      arrowEditorEl.addEventListener("hidden.bs.offcanvas", () => {
+        clearArrowHighlights();
+      });
+    }
+
+    // Zoom level input
+    const zoomInput = document.getElementById("zoomLevelInput");
+    if (zoomInput) {
+      zoomInput.addEventListener("change", () => {
+        const z = parseFloat(zoomInput.value);
+        if (!isNaN(z) && z >= 1 && z <= 22 && mapRef) {
+          mapRef.setZoom(z);
+        }
+      });
+      zoomInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          zoomInput.blur();
+        }
+        e.stopPropagation();
+      });
+    }
+
+    // Shift key tracking for arrow drag-gate / rotation
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Shift") {
+        shiftHeld = true;
+        mapRef?.getDiv().classList.add("signs-map-shift-held");
+      }
+    });
+    document.addEventListener("keyup", (e) => {
+      if (e.key === "Shift") {
+        shiftHeld = false;
+        mapRef?.getDiv().classList.remove("signs-map-shift-held");
+      }
+    });
+    window.addEventListener("blur", () => {
+      shiftHeld = false;
+      mapRef?.getDiv().classList.remove("signs-map-shift-held");
+    });
+
     // Escape key → deselect / exit placing mode
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
+        if (isPlacingArrow) {
+          exitArrowPlacingMode();
+          return;
+        }
         if (isPlacing) {
           clearPendingMarker();
           exitPlacingMode();
@@ -1516,6 +2755,7 @@
         const parsed = JSON.parse(dataEl.textContent || "{}");
         signs = Array.isArray(parsed.signs) ? parsed.signs : [];
         locations = Array.isArray(parsed.locations) ? parsed.locations : [];
+        arrows = Array.isArray(parsed.arrows) ? parsed.arrows : [];
       } catch (err) {
         console.error("Failed to parse signsMapBootstrap JSON:", err);
       }
@@ -1531,9 +2771,9 @@
       .catch((err) => console.error("Google Maps load failed:", err));
   }
 
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", init);
-    } else {
-      init();
-    }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
 })();

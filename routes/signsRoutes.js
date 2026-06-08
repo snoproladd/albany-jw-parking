@@ -34,6 +34,13 @@
  *   POST   /signs/locations/:locationId/photo   — Upload photo
  *   GET    /signs/locations/:locationId/photo    — Stream photo
  *   DELETE /signs/locations/:locationId/photo    — Delete photo
+ *
+ * Traffic arrow endpoints:
+ *   POST   /signs/arrows                                 — Create arrow
+ *   PUT    /signs/arrows/:arrowId                        — Update arrow
+ *   DELETE /signs/arrows/:arrowId                        — Delete arrow
+ *   POST   /signs/arrows/:arrowId/links                  — Link attachment
+ *   DELETE /signs/arrows/:arrowId/links/:attachmentId    — Unlink attachment
  */
 
 import express from "express";
@@ -57,6 +64,12 @@ import {
   updateSignAttachmentStatus,
   deleteSignAttachment,
   reorderSignAttachments,
+  getTrafficArrows,
+  createTrafficArrow,
+  updateTrafficArrow,
+  deleteTrafficArrow,
+  createTrafficArrowLink,
+  deleteTrafficArrowLink,
 } from "../lib/dbSync.js";
 import {
   uploadSignPhoto,
@@ -245,9 +258,10 @@ export function signsRouter({
     csrfProtection,
     async (req, res) => {
       try {
-        const [signs, locations] = await Promise.all([
+        const [signs, locations, arrows] = await Promise.all([
           getSigns(),
           getSignLocations(),
+          getTrafficArrows(),
         ]);
 
         if (!googleMapsApiKey) {
@@ -258,6 +272,7 @@ export function signsRouter({
           csrfToken: req.csrfToken(),
           signs,
           locations,
+          arrows,
           placements: [],
           googleMapsApiKey: googleMapsApiKey || "",
           defaultMapCenter,
@@ -290,9 +305,10 @@ export function signsRouter({
     csrfProtection,
     async (req, res) => {
       try {
-        const [signs, locations] = await Promise.all([
+        const [signs, locations, arrows] = await Promise.all([
           getSigns(),
           getSignLocations(),
+          getTrafficArrows(),
         ]);
 
         if (!googleMapsApiKey) {
@@ -1105,6 +1121,166 @@ export function signsRouter({
       }
     },
   );
+// ═══════════════════════════════════════════════════════════════
+  //  TRAFFIC ARROWS
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * POST /signs/arrows
+   * Create a new traffic arrow. Requires manageSigns.
+   */
+  router.post(
+    "/signs/arrows",
+    requireAuth,
+    requirePermission("manageSigns"),
+    csrfProtection,
+    async (req, res) => {
+      try {
+        const lat = parseFloat(req.body.latitude);
+        const lng = parseFloat(req.body.longitude);
+        const bearing = parseFloat(req.body.bearing);
+        if (isNaN(lat) || isNaN(lng) || isNaN(bearing)) {
+          return res.status(400).json({ success: false, error: "Invalid coordinates or bearing." });
+        }
+        const label = req.body.label ? String(req.body.label).trim().slice(0, 100) : null;
+        const color = req.body.color ? String(req.body.color).trim().toLowerCase() : null;
+
+        const arrowId = await createTrafficArrow(
+          { latitude: lat, longitude: lng, bearing, label, color },
+          req.session.userEmail || "admin",
+        );
+
+        return res.json({ success: true, arrowId });
+      } catch (err) {
+        log("signs/arrows POST error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * PUT /signs/arrows/:arrowId
+   * Update a traffic arrow's position, bearing, label, or colour.
+   */
+  router.put(
+    "/signs/arrows/:arrowId",
+    requireAuth,
+    requirePermission("manageSigns"),
+    csrfProtection,
+    async (req, res) => {
+      const arrowId = Number(req.params.arrowId);
+      if (!arrowId) {
+        return res.status(400).json({ success: false, error: "Invalid arrow id." });
+      }
+
+      try {
+        const lat = parseFloat(req.body.latitude);
+        const lng = parseFloat(req.body.longitude);
+        const bearing = parseFloat(req.body.bearing);
+        if (isNaN(lat) || isNaN(lng) || isNaN(bearing)) {
+          return res.status(400).json({ success: false, error: "Invalid coordinates or bearing." });
+        }
+        const label = req.body.label ? String(req.body.label).trim().slice(0, 100) : null;
+        const color = req.body.color ? String(req.body.color).trim().toLowerCase() : null;
+
+        const ok = await updateTrafficArrow(arrowId, {
+          latitude: lat, longitude: lng, bearing, label, color,
+        });
+
+        if (!ok) {
+          return res.status(404).json({ success: false, error: "Arrow not found." });
+        }
+        return res.json({ success: true });
+      } catch (err) {
+        log("signs/arrows PUT error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * DELETE /signs/arrows/:arrowId
+   * Delete a traffic arrow and its links.
+   */
+  router.delete(
+    "/signs/arrows/:arrowId",
+    requireAuth,
+    requirePermission("manageSigns"),
+    csrfProtection,
+    async (req, res) => {
+      const arrowId = Number(req.params.arrowId);
+      if (!arrowId) {
+        return res.status(400).json({ success: false, error: "Invalid arrow id." });
+      }
+
+      try {
+        const ok = await deleteTrafficArrow(arrowId);
+        if (!ok) {
+          return res.status(404).json({ success: false, error: "Arrow not found." });
+        }
+        return res.json({ success: true });
+      } catch (err) {
+        log("signs/arrows DELETE error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * POST /signs/arrows/:arrowId/links
+   * Link an attachment to a traffic arrow.
+   */
+  router.post(
+    "/signs/arrows/:arrowId/links",
+    requireAuth,
+    requirePermission("manageSigns"),
+    csrfProtection,
+    async (req, res) => {
+      const arrowId = Number(req.params.arrowId);
+      const attachmentId = Number(req.body.attachmentId);
+      if (!arrowId || !attachmentId) {
+        return res.status(400).json({ success: false, error: "Invalid arrow or attachment id." });
+      }
+
+      try {
+        const linkId = await createTrafficArrowLink(arrowId, attachmentId);
+        return res.json({ success: true, linkId });
+      } catch (err) {
+        log("signs/arrows/:id/links POST error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * DELETE /signs/arrows/:arrowId/links/:attachmentId
+   * Unlink an attachment from a traffic arrow.
+   */
+  router.delete(
+    "/signs/arrows/:arrowId/links/:attachmentId",
+    requireAuth,
+    requirePermission("manageSigns"),
+    csrfProtection,
+    async (req, res) => {
+      const arrowId = Number(req.params.arrowId);
+      const attachmentId = Number(req.params.attachmentId);
+      if (!arrowId || !attachmentId) {
+        return res.status(400).json({ success: false, error: "Invalid arrow or attachment id." });
+      }
+
+      try {
+        const ok = await deleteTrafficArrowLink(arrowId, attachmentId);
+        if (!ok) {
+          return res.status(404).json({ success: false, error: "Link not found." });
+        }
+        return res.json({ success: true });
+      } catch (err) {
+        log("signs/arrows/:id/links DELETE error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
 
   return router;
 }
+

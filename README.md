@@ -456,12 +456,14 @@ The first ADMIN must be granted directly in the database.
   clobbered by bearing updates).
 - **MSSQL TIME columns** return as epoch-anchored `Date` objects — always use
   `getUTCHours()`/`getUTCMinutes()`
-- **Sign Map architecture (2.40.0):** locations → attachments model. Each map marker
+- **Sign Map architecture (2.41.0):** locations → attachments model. Each map marker
   represents a physical mounting point with one or more attached signs rendered as a
-  vertical stack. Markers use `gmpDraggable: true` (no Shift gate); all overlays
-  (info sheet, context menu) are dismissed during drag via the `signs-map-dragging`
-  body class. Geofencing, Street View, and the placement composer are temporarily
-  removed pending adaptation to the new model.
+  vertical stack. `gmpDraggable: true` with Shift-gate via `attachLocationShiftGate` /
+  `attachArrowShiftGate` helpers (capture-phase `pointerdown`, blocks unless
+  `Shift` held at zoom ≥ `MIN_ZOOM_FOR_DRAG`). Compact markers (zoom < 19) show
+  mount-type SVG icons with count badge; hover-to-expand with 250/150 ms debounce
+  (desktop only). Click-after-drag suppression (300 ms threshold) prevents accidental
+  editor opens. Traffic arrows anchor at the tip (`transform-origin: 50% 9.375%`).
 - **Printable sign map** (`/signs/map/print`): WYSIWYG page preview at letter-portrait
   proportions (7 in × 7 in map area). Markers show the top sign's abbreviation + arrow.
   Legend maps abbreviations to full names. `@media print` hides toolbar/nav and fills
