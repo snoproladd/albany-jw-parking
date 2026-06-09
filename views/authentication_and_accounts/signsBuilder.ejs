@@ -42,7 +42,16 @@
                         <%# ── Live preview ──────────────────────────────── %>
                         <div class="mb-4 text-center">
                             <p class="text-muted small mb-2">Preview</p>
-                            <div class="sign-preview sign-preview-lg mx-auto" id="signBuilderPreview">
+                            <div class="sign-preview sign-preview-lg mx-auto<%= sign && sign.sign_category ? ` sign-preview-category-${sign.sign_category}` : '' %>" id="signBuilderPreview">
+                                <span class="sign-category-icon-slot" id="previewIcon">
+                                    <% if (sign && sign.sign_category === 'parking') { %>
+                                        <span class="sign-category-icon sign-category-icon-parking">P</span>
+                                    <% } else if (sign && sign.sign_category === 'accessible') { %>
+                                        <i class="fa-solid fa-wheelchair sign-category-icon" aria-hidden="true"></i>
+                                    <% } else if (sign && sign.sign_category === 'dropoff') { %>
+                                        <i class="fa-solid fa-person-walking-luggage sign-category-icon" aria-hidden="true"></i>
+                                    <% } %>
+                                </span>
                                 <span class="sign-preview-text" id="previewText">
                                     <%= sign ? sign.sign_text : 'YOUR TEXT' %>
                                 </span>
@@ -93,7 +102,26 @@
                                     Leave blank to auto-generate from the sign text.
                                 </div>
                             </div>
-                                  <%# Description ── %>
+                                  <%# Category ── %>
+                            <div class="col-12 col-md-6">
+                                <label for="signCategoryInput" class="form-label">
+                                    Category
+                                    <span class="text-muted small">(optional)</span>
+                                </label>
+                                <select class="form-select" id="signCategoryInput">
+                                    <option value="">None</option>
+                                    <option value="parking"    <%= sign && sign.sign_category === 'parking'    ? 'selected' : '' %>>Parking</option>
+                                    <option value="accessible" <%= sign && sign.sign_category === 'accessible' ? 'selected' : '' %>>Accessible</option>
+                                    <option value="dropoff"    <%= sign && sign.sign_category === 'dropoff'    ? 'selected' : '' %>>Drop-off / Pick-up</option>
+                                    <option value="info"       <%= sign && sign.sign_category === 'info'       ? 'selected' : '' %>>Info</option>
+                                    <option value="warning"    <%= sign && sign.sign_category === 'warning'    ? 'selected' : '' %>>Warning / Hazard</option>
+                                </select>
+                                <div class="form-text">
+                                    Determines the icon shown on map markers.
+                                </div>
+                            </div>
+
+                            <%# Description ── %>
                                   <div class="col-12">
                                 <label for="signDescriptionInput" class="form-label">
                                     Description (optional)

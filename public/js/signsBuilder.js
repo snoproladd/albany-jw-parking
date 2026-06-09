@@ -252,6 +252,7 @@
             signText,
             arrowDirection: arrowDirection || null,
             abbreviation: abbreviation || null,
+            signCategory: document.getElementById("signCategoryInput")?.value || null,
             description: description || null,
           }),
         });
@@ -276,9 +277,64 @@
     });
   }
 
+  /**
+   * Build the HTML for a category icon element.
+   *
+   * @param {string|null} category - 'parking', 'accessible', 'dropoff', or falsy
+   * @returns {string} HTML string
+   */
+  function categoryIconHTML(category) {
+    if (category === "parking") {
+      return '<span class="sign-category-icon sign-category-icon-parking">P</span>';
+    }
+    if (category === "accessible") {
+      return '<i class="fa-solid fa-wheelchair sign-category-icon" aria-hidden="true"></i>';
+    }
+    if (category === "dropoff") {
+      return '<i class="fa-solid fa-person-walking-luggage sign-category-icon" aria-hidden="true"></i>';
+    }
+    if (category === "info") {
+      return '<i class="fa-solid fa-circle-info sign-category-icon" aria-hidden="true"></i>';
+    }
+    if (category === "warning") {
+      return '<i class="fa-solid fa-triangle-exclamation sign-category-icon" aria-hidden="true"></i>';
+    }
+    return "";
+  }
+
+  /**
+   * Sync the builder preview's category icon and parking border
+   * with the current value of the category dropdown.
+   */
+  function syncCategoryPreview() {
+    const catInput = document.getElementById("signCategoryInput");
+    const iconSlot = document.getElementById("previewIcon");
+    const preview = document.getElementById("signBuilderPreview");
+    if (!catInput || !iconSlot || !preview) return;
+
+    const cat = catInput.value || null;
+    iconSlot.innerHTML = categoryIconHTML(cat);
+
+    // Remove any previous category class, then add the current one
+    preview.className = preview.className.replace(/\bsign-preview-category-\S+/g, "").trim();
+    if (cat) {
+      preview.classList.add(`sign-preview-category-${cat}`);
+    }
+  }
+
+  /**
+   * Wire the category dropdown to refresh the preview on change.
+   */
+  function initCategoryInput() {
+    const catInput = document.getElementById("signCategoryInput");
+    if (!catInput) return;
+    catInput.addEventListener("change", syncCategoryPreview);
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
     initTextInput();
     initAbbreviationInput();
+    initCategoryInput();
     initSaveButton();
   });
 })();

@@ -118,7 +118,7 @@ const VALID_STATUSES = ["planned", "installed", "removed"];
 /** Valid mount types for a placement. Null means "not specified". */
 const VALID_MOUNT_TYPES = ["pole", "cone", "a-frame", "existing-structure"];
 
-/** Valid marker colour keys for placements. Null means "default (status)". */
+/** Valid marker color keys for placements. Null means "default (status)". */
 const VALID_MARKER_COLORS = [
   "red",
   "orange",
@@ -131,7 +131,7 @@ const VALID_MARKER_COLORS = [
 ];
 
 /**
- * Normalise a marker colour key. Null/empty = "default". Throws if
+ * Normalise a marker color key. Null/empty = "default". Throws if
  * the value is non-empty but not in the allowed palette.
  *
  * @param {any} val
@@ -141,7 +141,7 @@ function normaliseMarkerColor(val) {
   if (val === null || val === undefined || val === "") return null;
   const v = String(val).trim().toLowerCase();
   if (!VALID_MARKER_COLORS.includes(v)) {
-    throw new Error(`Invalid marker colour: ${v}`);
+    throw new Error(`Invalid marker color: ${v}`);
   }
   return v;
 }
@@ -400,8 +400,13 @@ export function signsRouter({
     requirePermission("manageSigns"),
     csrfProtection,
     async (req, res) => {
-      const { signText, arrowDirection, abbreviation, description } =
-        req.body || {};
+      const {
+        signText,
+        arrowDirection,
+        abbreviation,
+        signCategory,
+        description,
+      } = req.body || {};
 
       if (!signText?.trim()) {
         return res.status(400).json({
@@ -438,11 +443,15 @@ export function signsRouter({
       }
 
       try {
+        const validCategories = ['parking', 'accessible', 'dropoff', 'info', 'warning'];
+        const cat = validCategories.includes(signCategory) ? signCategory : null;
+
         const id = await createSign(
           {
             signText: signText.trim(),
             arrowDirection: arrow,
             abbreviation: abbr || null,
+            signCategory: cat,
             description: description?.trim() || null,
           },
           req.session.userEmail || "admin",
@@ -474,7 +483,7 @@ export function signsRouter({
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
-      const { signText, arrowDirection, abbreviation, description } =
+      const { signText, arrowDirection, abbreviation, signCategory, description } =
         req.body || {};
 
       if (!id) {
@@ -516,11 +525,15 @@ export function signsRouter({
         });
       }
 
+      const validCategories = ['parking', 'accessible', 'dropoff', 'info', 'warning'];
+      const cat = validCategories.includes(signCategory) ? signCategory : null;
+
       try {
         const ok = await updateSign(id, {
           signText: signText.trim(),
           arrowDirection: arrow,
           abbreviation: abbr || null,
+          signCategory: cat,
           description: description?.trim() || null,
         });
         if (!ok) {
@@ -658,7 +671,7 @@ export function signsRouter({
 
   /**
    * PUT /signs/locations/:locationId
-   * Update a location's metadata (coords, mount type, notes, colour).
+   * Update a location's metadata (coords, mount type, notes, color).
    *
    * @requires manageSigns permission
    */
@@ -1160,7 +1173,7 @@ export function signsRouter({
 
   /**
    * PUT /signs/arrows/:arrowId
-   * Update a traffic arrow's position, bearing, label, or colour.
+   * Update a traffic arrow's position, bearing, label, or color.
    */
   router.put(
     "/signs/arrows/:arrowId",

@@ -118,7 +118,7 @@
     color: #fff;
 }
 
-/* Crew-coloured active states */
+/* Crew-colored active states */
 .crew-filter-btn--lag.active  { background: var(--bs-success);  border-color: var(--bs-success);  color: #fff; }
 .crew-filter-btn--sgn.active  { background: var(--bs-primary);  border-color: var(--bs-primary);  color: #fff; }
 .crew-filter-btn--sec.active  { background: var(--bs-danger);   border-color: var(--bs-danger);   color: #fff; }

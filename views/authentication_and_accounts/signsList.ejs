@@ -104,7 +104,18 @@
 
                                     <%# Preview %>
                                     <div class="sign-preview-block">
-                                        <div class="sign-preview">
+                                        <div class="sign-preview<%= s.sign_category ? ` sign-preview-category-${s.sign_category}` : '' %>">
+                                            <% if (s.sign_category === 'parking') { %>
+                                                <span class="sign-category-icon sign-category-icon-parking">P</span>
+                                            <% } else if (s.sign_category === 'accessible') { %>
+                                                <i class="fa-solid fa-wheelchair sign-category-icon" aria-hidden="true"></i>
+                                            <% } else if (s.sign_category === 'dropoff') { %>
+                                                <i class="fa-solid fa-person-walking-luggage sign-category-icon" aria-hidden="true"></i>
+                                            <% } else if (s.sign_category === 'info') { %>
+                                                <i class="fa-solid fa-circle-info sign-category-icon" aria-hidden="true"></i>
+                                            <% } else if (s.sign_category === 'warning') { %>
+                                                <i class="fa-solid fa-triangle-exclamation sign-category-icon" aria-hidden="true"></i>
+                                            <% } %>
                                             <span class="sign-preview-text"><%= s.sign_text %></span>
                                             <% if (isDestination) { %>
                                                 <span class="sign-preview-arrow"><i class="fa-solid fa-location-dot" aria-hidden="true"></i></span>

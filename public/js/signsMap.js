@@ -47,6 +47,32 @@
     "existing-structure": '<i class="fa-solid fa-building signs-mount-icon" aria-hidden="true"></i>',
   };
 
+  /**
+   * Build a DOM element for a sign category icon.
+   *
+   * @param {string|null} category - 'parking', 'accessible', 'dropoff', or falsy
+   * @returns {HTMLElement|null} The icon element, or null for uncategorised signs
+   */
+  function buildCategoryIcon(category) {
+    if (!category) return null;
+    if (category === "parking") {
+      const span = document.createElement("span");
+      span.className = "sign-category-icon sign-category-icon-parking";
+      span.textContent = "P";
+      return span;
+    }
+    const i = document.createElement("i");
+    i.setAttribute("aria-hidden", "true");
+    if (category === "accessible") {
+      i.className = "fa-solid fa-wheelchair sign-category-icon";
+    } else if (category === "dropoff") {
+      i.className = "fa-solid fa-person-walking-luggage sign-category-icon";
+    } else {
+      return null;
+    }
+    return i;
+  }
+
   /** Delay (ms) before a hovered compact marker expands to full detail. */
   const HOVER_EXPAND_DELAY = 250;
 
@@ -441,6 +467,13 @@
           sign.style.setProperty("border-color", "#198754");
         }
 
+        // Category styling (parking = blue border, accessible = inverted blue)
+        if (att.sign_category) {
+          sign.classList.add(`sign-preview-category-${att.sign_category}`);
+        }
+        const catIcon = buildCategoryIcon(att.sign_category);
+        if (catIcon) sign.appendChild(catIcon);
+
         const text = document.createElement("span");
         text.className = "sign-preview-text";
         text.textContent = att.sign_text || "";
@@ -622,7 +655,7 @@
       const prevArrow = arrowMarkers.get(selectedArrowId);
       if (prevArrow?.content)
         prevArrow.content.classList.remove("signs-arrow-marker-selected");
-      clearArrowHighlights();
+      clearLinkedSignHighlight();
       selectedArrowId = null;
     }
     dismissArrowEditorIfOpen();
@@ -803,7 +836,9 @@
     const arrow = findArrow(arrowId);
     const marker = arrowMarkers.get(arrowId);
     if (!arrow || !marker) return;
-    marker.content = buildArrowMarkerContent(arrow);
+    const content = buildArrowMarkerContent(arrow);
+    attachArrowShiftGate(content, arrowId);
+    marker.content = content;
     marker.title = arrow.label || "Traffic arrow";
   }
 
@@ -1059,7 +1094,7 @@
       const prev = arrowMarkers.get(selectedArrowId);
       if (prev?.content)
         prev.content.classList.remove("signs-arrow-marker-selected");
-      clearArrowHighlights();
+      clearLinkedSignHighlight();
     }
 
     selectedArrowId = arrowId;
@@ -1070,40 +1105,10 @@
     }
 
     // Highlight linked sign markers
-    highlightLinkedMarkers(arrowId);
+    highlightArrowLinks(arrowId);
   }
 
-  /**
-   * Add a highlight glow to sign markers linked to the given arrow.
-   *
-   * @param {number} arrowId
-   */
-  function highlightLinkedMarkers(arrowId) {
-    clearArrowHighlights();
-    const arrow = findArrow(arrowId);
-    if (!arrow) return;
 
-    (arrow.links || []).forEach((attId) => {
-      // Find which location owns this attachment
-      const loc = locations.find((l) =>
-        (l.attachments || []).some((a) => a.attachment_id === attId),
-      );
-      if (!loc) return;
-      const marker = markers.get(loc.location_id);
-      if (marker?.content)
-        marker.content.classList.add("signs-map-marker-arrow-linked");
-    });
-  }
-
-  /**
-   * Remove all arrow-linked highlight classes from sign markers.
-   */
-  function clearArrowHighlights() {
-    markers.forEach((marker) => {
-      if (marker?.content)
-        marker.content.classList.remove("signs-map-marker-arrow-linked");
-    });
-  }
   /**
    * Track markers expanded specifically for the link-highlight feature
    * (distinct from hover-expand) so we can collapse them on clear.
@@ -1207,7 +1212,10 @@
       const card = marker.content?.querySelector(
         `.sign-preview[data-attachment-id="${attId}"]`,
       );
-      if (card) card.classList.add("signs-map-marker-sign-highlighted");
+      if (card) {
+        card.classList.add("signs-map-marker-sign-highlighted");
+        marker.content.classList.add("signs-map-marker-has-highlight");
+      }
     });
   }
   /**
@@ -1215,11 +1223,16 @@
    * expanded specifically for the link-highlight (not hover-expanded).
    */
   function clearLinkedSignHighlight() {
-    // Remove highlight class from all sign cards
+    // Remove highlight class from all sign cards and parent markers
     document
       .querySelectorAll(".signs-map-marker-sign-highlighted")
       .forEach((el) =>
         el.classList.remove("signs-map-marker-sign-highlighted"),
+      );
+    document
+      .querySelectorAll(".signs-map-marker-has-highlight")
+      .forEach((el) =>
+        el.classList.remove("signs-map-marker-has-highlight"),
       );
 
     // Collapse markers we expanded for the link-highlight
@@ -1695,7 +1708,7 @@
         marker.position = { lat, lng };
       }
       refreshArrowMarker(arrowId);
-      highlightLinkedMarkers(arrowId);
+      highlightArrowLinks(arrowId);
       showArrowEditorFeedback("Saved.");
     } catch (err) {
       console.error("Arrow save error:", err);
@@ -1727,7 +1740,7 @@
       const marker = arrowMarkers.get(arrowId);
       if (marker) marker.map = null;
       arrowMarkers.delete(arrowId);
-      clearArrowHighlights();
+      clearLinkedSignHighlight();
       selectedArrowId = null;
 
       arrowEditorOffcanvas?.hide();
@@ -1962,7 +1975,7 @@
       if (arrow) {
         arrow.links.push(attachmentId);
         renderArrowLinks(arrow);
-        highlightLinkedMarkers(arrowId);
+        highlightArrowLinks(arrowId);
       }
 
       // No form to collapse — dropdown auto-closes on click
@@ -1997,7 +2010,7 @@
       if (arrow) {
         arrow.links = arrow.links.filter((id) => id !== attachmentId);
         renderArrowLinks(arrow);
-        highlightLinkedMarkers(arrowId);
+        highlightArrowLinks(arrowId);
       }
     } catch (err) {
       console.error("Remove arrow link error:", err);
@@ -2208,7 +2221,7 @@
       mt._wired = true;
     }
 
-    // Marker colour
+    // Marker color
     document
       .querySelectorAll("#editorColorSwatches .signs-color-swatch")
       .forEach((btn) => {
@@ -2761,6 +2774,7 @@
           sign_id: signId,
           sign_text: sign?.sign_text || "",
           abbreviation: sign?.abbreviation || "",
+          sign_category: sign?.sign_category || null,
           template_arrow_direction: sign?.arrow_direction || null,
           face,
           sort_order: sortOrder,
@@ -3060,7 +3074,7 @@
       const prev = arrowMarkers.get(selectedArrowId);
       if (prev?.content)
         prev.content.classList.remove("signs-arrow-marker-selected");
-      clearArrowHighlights();
+      clearLinkedSignHighlight();
       selectedArrowId = null;
     }
     // Clear sidebar highlight
@@ -3518,7 +3532,7 @@
     const delBtn = document.getElementById("editorDeleteBtn");
     if (delBtn) delBtn.addEventListener("click", () => deleteFromEditor());
 
-    // Editor colour swatches
+    // Editor color swatches
     document
       .querySelectorAll("#editorColorSwatches .signs-color-swatch")
       .forEach((btn) => {
@@ -3644,7 +3658,7 @@
     const arrowEditorEl = document.getElementById("arrowEditor");
     if (arrowEditorEl) {
       arrowEditorEl.addEventListener("hidden.bs.offcanvas", () => {
-        clearArrowHighlights();
+        clearLinkedSignHighlight();
         clearLinkedSignHighlight();
       });
     }

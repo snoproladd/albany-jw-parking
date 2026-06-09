@@ -466,9 +466,14 @@ The first ADMIN must be granted directly in the database.
   (desktop only). Click-after-drag suppression (300 ms threshold) prevents accidental
   editor opens. Traffic arrows anchor at the tip (`transform-origin: 50% 9.375%`).
 - **Printable sign map** (`/signs/map/print`): WYSIWYG page preview at letter-portrait
-  proportions (7 in × 7 in map area). Markers show the top sign's abbreviation + arrow.
-  Legend maps abbreviations to full names. `@media print` hides toolbar/nav and fills
-  the page. New files: `signsMapPrint.ejs`, `signsMapPrint.js`, `signsPrint.css`.
+  proportions (7 in × 7 in map area). Markers show a compact 2-column grid of category
+  icon + arrow pills for every attachment. Legend shows sign types (colored pills),
+  status dots, and location count. `@media print` hides toolbar/nav and fills the page.
+  Files: `signsMapPrint.ejs`, `signsMapPrint.js`, `signsPrint.css`.
+- **Sign categories:** `sign_category` column on `signs` (parking / accessible / dropoff /
+  info / warning). Each category maps to a FontAwesome icon and color treatment on map
+  markers, print markers, library cards, and the builder preview. Category picker in the
+  Sign Builder form.
 
 ---
 
@@ -497,7 +502,7 @@ Schema highlights:
 - `convention_days → sessions → shifts` — scheduling hierarchy
   - `shifts.department` — department key for scheduler grid grouping
   - `schedule_assignments.vol_min / vol_max` — flanking `volunteer_need`
-    (vol_ideal) for slot sizing and colour-coding
+    (vol_ideal) for slot sizing and color-coding
   - `shift_slot_assignments` — live scheduler assignments (volunteer → slot);
     one row per slot, cascades on schedule_assignment delete
 - `oversight_structure` — oversight structure tree (`volunteer_id`, `parent_id`,

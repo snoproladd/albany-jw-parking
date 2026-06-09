@@ -3,6 +3,57 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.44.0] - 2026-06-09
+
+### Added
+- **Sign categories.** New `sign_category` column on `signs` table with five
+  values: `parking` (blue **P**, blue border), `accessible` (♿, white-on-blue
+  inverted), `dropoff` (🧳 person-walking-luggage), `info` (ⓘ, white-on-black
+  inverted), and `warning` (⚠, black-on-yellow inverted). Category icons
+  appear on map markers, print markers, the sign library, and the builder
+  preview. Category picker dropdown added to the Sign Builder form.
+- **Sign types legend.** Both the interactive map sidebar legend and the print
+  map legend now include a "Sign types" section showing colored icon pills
+  for each category.
+- **Arrow link highlight.** Hovering or selecting an arrow highlights only the
+  specific linked signs at each location (per-attachment targeting via
+  `data-attachment-id`). Non-linked signs at the same location are hidden
+  during the highlight. Replaced the old whole-marker glow with individual
+  sign card scale + cyan glow treatment.
+
+### Changed
+- **Status colors.** Planned → orange (`#e67700`), installed → vivid green
+  (`#2b8a3e`), removed → solid red (`#dc3545`). Applied consistently across
+  full-size markers, compact markers, legend dots, inline JS borders, and
+  print legend dots.
+- **Print markers.** Each attachment rendered as a compact icon + arrow pill
+  in a 2-column grid (replacing the single top-sign abbreviation). Category
+  colors applied per pill.
+- **Print legend.** Removed abbreviation-based Sign Key section and Marker
+  Colors section. Added static Sign Types section with colored pills.
+  Location count retained.
+- **Sign preview text.** Removed `max-width: 20ch` truncation on map markers
+  so full sign names display.
+
+### Removed
+- **Marker color picker** from the location editor (swatches UI removed).
+- **Marker colors legend** from both the interactive map sidebar and print
+  map legends.
+- **Sign ID numbers** from all template filter dropdowns (interactive map,
+  print map, and add-sign dropdown in the location editor).
+
+### Fixed
+- **Arrow rotation after editor save.** `refreshArrowMarker` now re-calls
+  `attachArrowShiftGate` on the new content element, restoring the rotation
+  handle listener that was lost when `marker.content` was replaced.
+- **`getSignById` SQL error.** Added missing `INNER JOIN dbo.signs s2` to
+  the attachment sub-query (fixes `s2.sign_text could not be bound`).
+- **`placement_count` alias.** Renamed the `attachment_count` SQL alias in
+  `getSigns` to `placement_count` to match what `signsList.ejs` reads.
+- **`createSign` / `updateSign` duplication.** Restored the `createSign`
+  function with its INSERT statement after it was accidentally overwritten
+  with a copy of `updateSign`.
+
 ## [2.43.0] - 2026-06-09
 
 ### Added
@@ -187,13 +238,13 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
   placement data and photos are removed.*
 - **Stacked sign markers.** Map markers now render as a vertical stack of
   sign-preview blocks, one per attachment sorted by `sort_order`. Empty
-  locations show a dashed placeholder. Per-attachment status colours
+  locations show a dashed placeholder. Per-attachment status colors
   (border tint) are visible within the stack.
 - **Location-based sidebar.** The sidebar list groups by location with
   nested sign rows showing sign name, arrow direction, and status badge.
   Mount type and location notes shown as a sub-line.
 - **Offcanvas editor redesigned** for location + attachment management:
-  location fields (coordinates, mount type, a-frame bearing, marker colour,
+  location fields (coordinates, mount type, a-frame bearing, marker color,
   notes, photo) at the top, followed by a draggable attachment list with
   status cycling (click badge to cycle planned → installed → removed),
   remove buttons, and an inline "Add sign" form with template picker,
@@ -211,7 +262,7 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
   letter-portrait page preview. Users pan/zoom to frame their view, then
   print — what they see is what they get. Toolbar with Road/Hybrid toggle,
   status + template filters, fit-to-markers button, and print button.
-  Legend below the map with sign key, status dots, and colour swatches.
+  Legend below the map with sign key, status dots, and color swatches.
   Print button added to the main sign map sidebar header.
   New files: `signsMapPrint.ejs`, `signsMapPrint.js`, `signsPrint.css`.
 - `pole` added to valid mount types.
@@ -272,7 +323,7 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
   Edit Volunteer page. Accordion sections in edit mode (`data-editing="true"`)
   receive a blue left-accent shadow and a light background tint. Unchecked
   checkboxes gain a darker border so they are clearly visible against the
-  background. Active text inputs and selects gain a primary-colour border.
+  background. Active text inputs and selects gain a primary-color border.
   Locked-mode form controls are slightly muted to reinforce read-only state.
 
 ### Changed
@@ -660,7 +711,7 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 - A **Legend & Shortcuts** section at the bottom of the sidebar sidebar panel
   (collapsed by default) shows:
   - Status dots (Planned / Installed / Removed) with labels.
-  - Marker colour palette swatches.
+  - Marker color palette swatches.
   - Keyboard shortcut reference (arrow keys = 0.5m nudge,
     Shift+Arrow = 5m nudge, Esc = deselect, Right-click = context menu).
 - Bootstrap collapse with an animated chevron toggle button.
@@ -697,13 +748,13 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 - Sign Builder exposes an optional override field; leaving it blank uses
   the heuristic. Compact map markers display the abbreviation.
 
-#### Per-placement marker colours
+#### Per-placement marker colors
 - New `marker_color NVARCHAR(20) NULL` column on `sign_placements`.
-- Eight-colour preset palette (red, orange, yellow, green, teal, blue,
+- Eight-color preset palette (red, orange, yellow, green, teal, blue,
   purple, pink) with a swatch picker in the offcanvas editor.
-- **Bulk apply** button sets colour on every placement of a sign template
+- **Bulk apply** button sets color on every placement of a sign template
   in one click via `PATCH /signs/:id/placements/color`.
-- Custom colour overrides the status-based colour on both compact discs
+- Custom color overrides the status-based color on both compact discs
   and full marker borders; status remains visible in the sidebar dot.
 
 #### Arrow direction moved to placements
@@ -1596,7 +1647,7 @@ Street View overlay; Phase 2b will add photo upload via Azure Blob Storage.
   so it can inject dashboard data for authenticated users without touching
   `registrationRoutes.js`.
 - **`getVolunteerShiftsForDay`** return now includes `dept_key` alongside
-  `dept_name` so the client-side JS can apply department colour pills.
+  `dept_name` so the client-side JS can apply department color pills.
 
 ---
 
@@ -1814,10 +1865,10 @@ Street View overlay; Phase 2b will add photo upload via Azure Blob Storage.
 - **Schedule report — phone numbers**: KM and KA rows now display the
   volunteer’s phone number right-aligned on the same line
   (`schedulerReport.ejs`, `schedulerReport.css`, `dbSync.js`).
-- **Scheduler time bands**: all bands showing as one colour because
+- **Scheduler time bands**: all bands showing as one color because
   gap-detection found no gaps between back-to-back sessions. Now uses
   session label keywords (Pre / Morning / Lunch / Afternoon / Post) for
-  colour classification; gap-detection kept as fallback
+  color classification; gap-detection kept as fallback
   (`schedulerDomActions.js`).
 - **Scheduler time-band dividers**: midpoint dividers now placed at the
   boundary between contiguous same-class sessions (Morning A→B,
@@ -1875,7 +1926,7 @@ Street View overlay; Phase 2b will add photo upload via Azure Blob Storage.
     report. **Print / Save PDF** button opens the browser print dialog.
   - Faithful to the crew-schedule format used in prior-year workbooks.
 - **Scheduler: time-band label classification** — session bands are now
-  coloured by label keyword ("Pre", "Morning", "Lunch", "Afternoon",
+  colored by label keyword ("Pre", "Morning", "Lunch", "Afternoon",
   "Post") rather than gap-detection. Falls back to gap-detection for
   sessions whose labels don’t match any keyword.
 - **Scheduler: midpoint dividers** — a dashed line appears between

@@ -1612,7 +1612,7 @@ export async function initDomActions() {
   /**
    * Build and append a dropzone area into a shift block.
    * KM/KA leadership slots are prepended (except for mobile_support),
-   * followed by regular volunteer slots colour-coded by min/ideal/max tier.
+   * followed by regular volunteer slots color-coded by min/ideal/max tier.
    *
    * @param {HTMLElement} block
    * @param {boolean}     isMS         - True for mobile_support (skip KM/KA slots).

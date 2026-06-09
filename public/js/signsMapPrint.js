@@ -38,6 +38,50 @@
     { key: "pink", hex: "#d63384" },
   ];
 
+  /**
+   * Build a DOM element for a sign category icon.
+   *
+   * @param {string|null} category - 'parking', 'accessible', 'dropoff', or falsy
+   * @returns {HTMLElement|null} The icon element, or null for uncategorised signs
+   */
+  function buildCategoryIcon(category) {
+    if (!category) return null;
+    if (category === "parking") {
+      const span = document.createElement("span");
+      span.className = "sign-category-icon sign-category-icon-parking";
+      span.textContent = "P";
+      return span;
+    }
+    const i = document.createElement("i");
+    i.setAttribute("aria-hidden", "true");
+    if (category === "accessible") {
+      i.className = "fa-solid fa-wheelchair sign-category-icon";
+    } else if (category === "dropoff") {
+      i.className = "fa-solid fa-person-walking-luggage sign-category-icon";
+    } else if (category === "info") {
+      i.className = "fa-solid fa-circle-info sign-category-icon";
+    } else if (category === "warning") {
+      i.className = "fa-solid fa-triangle-exclamation sign-category-icon";
+    } else {
+      return null;
+    }
+    return i;
+  }
+
+  /**
+   * Get the category of a location's top attachment.
+   *
+   * @param {object} loc
+   * @returns {string|null}
+   */
+  function getTopCategory(loc) {
+    const atts = (loc.attachments || [])
+      .slice()
+      .sort((a, b) => a.sort_order - b.sort_order);
+    if (atts.length === 0) return null;
+    return atts[0].sign_category || null;
+  }
+
   // ============================================================
   // MODULE STATE
   // ============================================================
@@ -181,7 +225,7 @@
 
   /**
    * Build print marker content for a location.
-   * Shows the top sign's abbreviation + arrow.
+   * Shows a compact icon + arrow pill for every attachment.
    *
    * @param {object} loc
    * @returns {HTMLDivElement}
@@ -194,36 +238,43 @@
     const wrapper = document.createElement("div");
     wrapper.className = `signs-map-marker signs-map-marker-print signs-map-marker-${status}${colorCls}`;
 
-    const sign = document.createElement("div");
-    sign.className = "sign-preview signs-map-marker-sign";
+    const row = document.createElement("div");
+    row.className = "signs-print-marker-row";
 
-    const text = document.createElement("span");
-    text.className = "sign-preview-text";
-    text.textContent = getTopAbbreviation(loc);
-    sign.appendChild(text);
+    const atts = (loc.attachments || [])
+      .slice()
+      .sort((a, b) => a.sort_order - b.sort_order);
 
-    const dir = getTopArrow(loc);
-    const arrow = document.createElement("span");
-    arrow.className = "sign-preview-arrow";
-    if (dir === "destination") {
-      const icon = document.createElement("i");
-      icon.className = "fa-solid fa-location-dot";
-      icon.setAttribute("aria-hidden", "true");
-      arrow.appendChild(icon);
-    } else if (dir && ARROW_GLYPHS[dir]) {
-      arrow.textContent = ARROW_GLYPHS[dir];
-    }
-    sign.appendChild(arrow);
+    atts.forEach((att) => {
+      const pill = document.createElement("div");
+      pill.className = "sign-preview signs-print-marker-pill";
 
-    // Stacked badge if multiple attachments
-    if ((loc.attachments || []).length > 1) {
-      const badge = document.createElement("span");
-      badge.className = "signs-print-marker-count";
-      badge.textContent = `×${loc.attachments.length}`;
-      wrapper.appendChild(badge);
-    }
+      if (att.sign_category) {
+        pill.classList.add(`sign-preview-category-${att.sign_category}`);
+      }
 
-    wrapper.appendChild(sign);
+      const catIcon = buildCategoryIcon(att.sign_category);
+      if (catIcon) pill.appendChild(catIcon);
+
+      const dir = att.arrow_direction;
+      if (dir) {
+        const arrow = document.createElement("span");
+        arrow.className = "sign-preview-arrow";
+        if (dir === "destination") {
+          const icon = document.createElement("i");
+          icon.className = "fa-solid fa-location-dot";
+          icon.setAttribute("aria-hidden", "true");
+          arrow.appendChild(icon);
+        } else if (ARROW_GLYPHS[dir]) {
+          arrow.textContent = ARROW_GLYPHS[dir];
+        }
+        pill.appendChild(arrow);
+      }
+
+      row.appendChild(pill);
+    });
+
+    wrapper.appendChild(row);
     return wrapper;
   }
 
@@ -345,20 +396,19 @@
 
     locations.forEach((loc) => {
       (loc.attachments || []).forEach((att) => {
-        const abbr =
-          att.abbreviation || (att.sign_text || "?").slice(0, 4).toUpperCase();
-        if (!seen.has(abbr)) {
-          seen.set(abbr, {
+        const key = String(att.sign_id);
+        if (!seen.has(key)) {
+          seen.set(key, {
             text: att.sign_text || "",
             arrow: att.arrow_direction || "",
+            category: att.sign_category || null,
           });
         }
       });
     });
 
-    return Array.from(seen.entries())
-      .map(([abbr, v]) => ({ abbr, text: v.text, arrow: v.arrow }))
-      .sort((a, b) => a.abbr.localeCompare(b.abbr));
+    return Array.from(seen.values())
+      .sort((a, b) => a.text.localeCompare(b.text));
   }
 
   /**
@@ -369,50 +419,38 @@
     if (!container) return;
     container.replaceChildren();
 
-    // Sign Key
-    const keySection = document.createElement("div");
-    keySection.className = "signs-print-legend-section";
-    const keyLabel = document.createElement("div");
-    keyLabel.className = "signs-print-legend-label";
-    keyLabel.textContent = "Sign Key";
-    keySection.appendChild(keyLabel);
+    // Sign Types
+    const typesSection = document.createElement("div");
+    typesSection.className = "signs-print-legend-section";
+    const typesLabel = document.createElement("div");
+    typesLabel.className = "signs-print-legend-label";
+    typesLabel.textContent = "Sign Types";
+    typesSection.appendChild(typesLabel);
 
-    const keyList = document.createElement("div");
-    keyList.className = "signs-print-legend-key-list";
+[
+  { category: "parking", label: "Parking" },
+  { category: "accessible", label: "Accessible" },
+  { category: "dropoff", label: "Drop-off / Pick-up" },
+  { category: "info", label: "Info" },
+  { category: "warning", label: "Warning / Hazard" },
+].forEach((t) => {
+  const row = document.createElement("div");
+  row.className = "signs-print-legend-row";
 
-    collectSignKey().forEach((entry) => {
-      const row = document.createElement("div");
-      row.className = "signs-print-legend-key-row";
+  const pill = document.createElement("span");
+  pill.className = "sign-preview signs-legend-category-pill";
+  if (t.category) {
+    pill.classList.add(`sign-preview-category-${t.category}`);
+  }
+  const icon = buildCategoryIcon(t.category);
+  if (icon) pill.appendChild(icon);
+  row.appendChild(pill);
 
-      const abbrSpan = document.createElement("span");
-      abbrSpan.className = "signs-print-legend-key-abbr";
-      abbrSpan.textContent = entry.abbr;
-      row.appendChild(abbrSpan);
-
-      if (entry.arrow) {
-        const arrowSpan = document.createElement("span");
-        arrowSpan.className = "signs-print-legend-key-arrow";
-        if (entry.arrow === "destination") {
-          arrowSpan.textContent = "\uD83D\uDCCD";
-        } else if (ARROW_GLYPHS[entry.arrow]) {
-          arrowSpan.textContent = ARROW_GLYPHS[entry.arrow];
-        }
-        row.appendChild(arrowSpan);
-      }
-
-      const sep = document.createElement("span");
-      sep.className = "signs-print-legend-key-sep";
-      sep.textContent = "\u2014";
-      row.appendChild(sep);
-
-      const nameSpan = document.createElement("span");
-      nameSpan.className = "signs-print-legend-key-name";
-      nameSpan.textContent = entry.text;
-      row.appendChild(nameSpan);
-
-      keyList.appendChild(row);
-    });
-    keySection.appendChild(keyList);
+  const lbl = document.createElement("span");
+  lbl.textContent = t.label;
+  row.appendChild(lbl);
+  typesSection.appendChild(row);
+});
 
     // Status
     const statusSection = document.createElement("div");
@@ -438,34 +476,18 @@
       statusSection.appendChild(row);
     });
 
-    // Colours + Count
-    const colourSection = document.createElement("div");
-    colourSection.className = "signs-print-legend-section";
-    const colourLabel = document.createElement("div");
-    colourLabel.className = "signs-print-legend-label";
-    colourLabel.textContent = "Marker Colours";
-    colourSection.appendChild(colourLabel);
-
-    const swatches = document.createElement("div");
-    swatches.className = "signs-print-legend-swatches";
-    MARKER_COLORS.forEach((c) => {
-      const swatch = document.createElement("span");
-      swatch.className = "signs-print-legend-swatch";
-      swatch.style.setProperty("background", c.hex);
-      swatch.title = c.key.charAt(0).toUpperCase() + c.key.slice(1);
-      swatches.appendChild(swatch);
-    });
-    colourSection.appendChild(swatches);
-
+    // Count
+    const countSection = document.createElement("div");
+    countSection.className = "signs-print-legend-section";
     const countRow = document.createElement("div");
     countRow.className = "signs-print-legend-count";
     countRow.id = "legendCount";
     countRow.textContent = "0 locations";
-    colourSection.appendChild(countRow);
+    countSection.appendChild(countRow);
 
-    container.appendChild(keySection);
+    container.appendChild(typesSection);
     container.appendChild(statusSection);
-    container.appendChild(colourSection);
+    container.appendChild(countSection);
   }
 
   // ============================================================

@@ -543,24 +543,24 @@ document.addEventListener("DOMContentLoaded", () => {
    * Set the status cell for a create row.
    * @param {number} idx
    * @param {string} html
-   * @param {'muted'|'danger'|'success'|'warning'} [colour]
+   * @param {'muted'|'danger'|'success'|'warning'} [color]
    */
-  function setCreateRowStatus(idx, html, colour = "muted") {
+  function setCreateRowStatus(idx, html, color = "muted") {
     const el = document.getElementById(`create-status-${idx}`);
     if (el) {
       el.innerHTML = html;
-      el.className = `small text-${colour}`;
+      el.className = `small text-${color}`;
     }
   }
 
   /**
    * Highlight the card border for a create row.
    * @param {number} idx
-   * @param {'success'|'danger'|'warning'} colour
+   * @param {'success'|'danger'|'warning'} color
    */
-  function setCreateRowBorder(idx, colour) {
+  function setCreateRowBorder(idx, color) {
     const el = document.getElementById(`create-row-${idx}`);
-    if (el) el.className = `card mb-2 border-${colour}`;
+    if (el) el.className = `card mb-2 border-${color}`;
   }
 
   createAllBtn.addEventListener("click", async () => {

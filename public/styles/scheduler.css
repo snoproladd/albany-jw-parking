@@ -524,7 +524,7 @@
     display: none;
 }
 /* Conflict warning badge — shift overlap (amber). Uses explicit hex so the
-   colour is never inherited from a red DZ parent (e.g. dz-required). */
+   color is never inherited from a red DZ parent (e.g. dz-required). */
 .pill-conflict-badge {
     display: inline-flex;
     align-items: center;

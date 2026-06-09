@@ -110,7 +110,7 @@ managed in three layers:
   Created in the Sign Builder.
 - **Locations** — physical mounting points on the map (a pole, cone,
   a-frame, or existing structure). Each location has GPS coordinates,
-  notes, a photo, and a marker colour.
+  notes, and a photo.
 - **Attachments** — a sign template mounted on a location. Multiple signs
   can be stacked on one location (e.g. three signs vertically stacked on
   a telephone pole). Each attachment has its own status (planned / installed /
@@ -159,9 +159,11 @@ variants as separate placements.
 - **Live preview** at the top shows exactly what the sign will look like
   as you type.
 - **Sign text** — up to 100 characters. Required.
-- **Abbreviation** — optional compact label (up to 6 characters) shown on
-  the map when zoomed out. Leave blank to auto-generate from the sign text
-  (e.g. "Parking Lot A" → "PLA", "Section 4" → "S4").
+- **Category** — optional. Determines the icon shown on map markers:
+  Parking (blue **P**), Accessible (♿ white-on-blue), Drop-off / Pick-up
+  (🧳), Info (ⓘ white-on-black), or Warning / Hazard (⚠ black-on-yellow).
+- **Abbreviation** — optional compact label (up to 6 characters). No longer
+  displayed on the map but retained in the database for reference.
 - **Description** — optional notes about when or where this sign is used,
   up to 500 characters. Visible on the library card.
 - **Create sign / Save changes** — saves and redirects back to the library.
@@ -192,14 +194,14 @@ Two filter controls narrow both the map markers and the sidebar list:
 
 Each marker renders the attached signs as a vertical stack of sign-preview
 blocks (sign text + arrow direction), with status indicated by the border
-colour of each sign in the stack:
+color of each sign in the stack:
 
-- Gray border = planned
+- Orange border = planned
 - Green border = installed
-- Red border + opacity = removed
+- Red border = removed
 
 Empty locations (no attachments yet) show a dashed "empty" placeholder.
-Custom marker colours override the default status-based colouring and
+Custom marker colors override the default status-based coloring and
 apply to the outer marker wrapper.
 
 ##### Adding a location *(OVERSEER+)*
@@ -208,7 +210,7 @@ apply to the outer marker wrapper.
 2. The cursor becomes a crosshair and a hint appears.
 3. Click the spot on the map — a blue dashed "New" marker appears and the
    editor slides in from the right.
-4. Set the mount type, marker colour, location notes, then click **Save**.
+4. Set the mount type, location notes, then click **Save**.
 5. Once saved, the **Attached Signs** section appears — add signs to the
    location using the inline form.
 
@@ -245,7 +247,7 @@ right-click context menu. The editor has two sections:
 - Mount type (Pole / Cone / A-frame / Existing structure)
 - A-frame bearing (shown only for a-frames — the compass direction the
   front face points toward; back = front + 180°)
-- Marker colour palette
+- Marker color palette
 - Location notes
 - Photo section (Take Photo / Upload / Replace / Remove)
 
@@ -283,11 +285,12 @@ Click the **printer icon** (🖨) in the sidebar header to open a
 print-optimised view in a new tab.
 
 The print page shows a WYSIWYG preview sized for letter-portrait paper
-(7 in × 7 in map area). Markers display each location's top sign
-abbreviation + arrow. A legend below the map shows:
-- **Sign Key** — abbreviation → full name mapping
-- **Status** — dot colours for planned/installed/removed
-- **Marker colours** — the palette swatches
+(7 in × 7 in map area). Markers display a compact 2-column grid of
+category icon + arrow pills for every attachment at each location. A
+legend below the map shows:
+- **Sign Types** — colored icon pills for each category
+- **Status** — dot colors for planned (orange) / installed (green) /
+  removed (red)
 
 Toolbar controls (Road / Hybrid toggle, status and template filters, fit
 button) let you frame the view. Click **Print** to open the browser print
@@ -296,8 +299,7 @@ dialog — what you see on screen is what prints.
 ##### Legend
 
 A collapsible **Legend** section sits at the bottom of the sidebar
-(collapsed by default). It shows status dot colours, the marker colour
-palette, and mount type icons.
+(collapsed by default). It shows sign type icons (colored pills), the status dot colors, and mount type icons.
 
 ##### Geofencing — proximity tracking *(OVERSEER+)*
 
@@ -322,11 +324,11 @@ Geofencing requires the browser's geolocation permission.
 - **Publish to Downloads** — generate a PDF snapshot and upload to the
   Maps downloads page.
 
-- **Zoomed out (below zoom 19):** compact 32px coloured discs showing a
+- **Zoomed out (below zoom 19):** compact 32px colored discs showing a
   mount-type icon (cone, a-frame, or telephone pole) with a count badge
   for attached signs. Hovering a compact marker for 250 ms expands it to
   the full sign stack (desktop only); moving away collapses it after
-  150 ms. Status or custom colour determines the disc background.
+  150 ms. Status or custom color determines the disc background.
 - **Zoomed in (zoom 19+):** full sign-preview blocks with text, arrow,
   and a mount-type label below the stack.
 
@@ -334,11 +336,11 @@ The zoom threshold defaults to 19 and is adjustable via the control pill
 at the bottom-left of the map (shows current zoom level and a Detail ≥
 input). The preference persists across sessions.
 
-**Marker colours:** by default, markers are coloured by status (gray =
+**Marker colors:** by default, markers are colored by status (gray =
 planned, green = installed, faded red = removed). OVERSEER+ users can
-assign a custom colour from a palette of eight (red, orange, yellow,
+assign a custom color from a palette of eight (red, orange, yellow,
 green, teal, blue, purple, pink) via the offcanvas editor. A "Bulk
-apply" button sets the chosen colour on every placement of the same
+apply" button sets the chosen color on every placement of the same
 template in one click.
 
 **Layout:** sidebar on the left with a "Filter placements" section and
@@ -364,8 +366,8 @@ Two filter controls in the sidebar narrow both the markers on the map
    the right.
 5. Pick the sign template from the dropdown, set the arrow direction
    (pre-filled from the template's default but overridable), status,
-   mount type (Cone / A-frame / Existing structure), marker colour,
-   heading, and location notes, then click **Save**.
+   mount type (Cone / A-frame / Existing structure), heading, and
+   location notes, then click **Save**.
 
 You can fine-tune the location at any point during this process by
 dragging the blue **NEW** marker around on the map — the lat/lng in the
@@ -376,7 +378,7 @@ editor updates automatically.
 - **Click any marker** on the map (or any row in the sidebar list) to
   open the editor offcanvas.
 - Edit any field: arrow direction, status (planned/installed/removed),
-  mount type, marker colour, heading, location notes.
+  mount type, heading, location notes.
 - **Photo section:** two buttons — **Take Photo** (opens the device
   camera directly on mobile) and **Upload** (opens the gallery or file
   picker). When a photo already exists, **Retake** and **Replace**
@@ -545,8 +547,8 @@ Dismiss the menu by clicking anywhere outside it or pressing Escape.
 
 A collapsible **Legend & Shortcuts** section sits at the bottom of the
 left sidebar (collapsed by default — click the chevron to expand).
-It shows the status dot colours, the full marker colour palette, and a
-keyboard shortcut reference card.
+It shows sign type icons (colored pills matching the map markers),
+status dot colors, and a keyboard shortcut reference card.
 
 Key shortcuts (OVERSEER+, desktop):
 
@@ -892,7 +894,7 @@ Expand a session to manage its shifts. Each shift has:
 - **Volunteer need** — how many volunteers are required
 - **Schedule Assignments** — locations attached to this shift, each with
   **Min**, **Target**, and **Max** volunteer counts. These drive slot
-  colour-coding in the Scheduler (red = below min, grey = up to target,
+  color-coding in the Scheduler (red = below min, grey = up to target,
   faded = up to max).
 - **Invitable toggle** — the envelope button marks a shift as available for
   invitations in the Messaging Center. Yellow = invitable.
@@ -921,7 +923,7 @@ from the grid.
 
 Schedule assignments on those shifts should also have **Min** and **Max**
 set alongside the Target (volunteer need) in Timelines so the slot
-colour-coding renders correctly.
+color-coding renders correctly.
 
 #### Using the Scheduler
 
@@ -935,7 +937,7 @@ colour-coding renders correctly.
    - Filter by **Department** to show only volunteers with the matching crew flag.
    - Filter by **Sort** to order the pool by last name, rank, or department.
 3. **Drag** a name pill from the pool onto any highlighted drop zone in the grid.
-   - Drop zones are colour-coded: red = required slots (below vol_min), grey =
+   - Drop zones are color-coded: red = required slots (below vol_min), grey =
      ideal slots (up to vol_target), faded = extra slots (up to vol_max).
    - **KM** slots (blue) require KEYMAN or above. **KA** slots (teal) accept
      any rank.

@@ -101,7 +101,7 @@
                             <select class="form-select form-select-sm" id="signTemplateFilter">
                                 <option value="">All templates</option>
                                 <% signs.forEach(s => { %>
-                                    <option value="<%= s.sign_id %>"><%= s.sign_text %> (#<%= s.sign_id %>)</option>
+                                    <option value="<%= s.sign_id %>"><%= s.sign_text %></option>
                                 <% }); %>
                             </select>
                         </div>
@@ -171,18 +171,39 @@
                                 </li>
                             </ul>
 
-                            <p class="small text-muted mb-1 fw-semibold">Marker colours</p>
-                            <div class="signs-legend-swatches mb-2">
-                                <span class="signs-legend-swatch" style="background:#6c757d" title="Default (status)"></span>
-                                <span class="signs-legend-swatch signs-legend-swatch-red"    title="Red"></span>
-                                <span class="signs-legend-swatch signs-legend-swatch-orange" title="Orange"></span>
-                                <span class="signs-legend-swatch signs-legend-swatch-yellow" title="Yellow"></span>
-                                <span class="signs-legend-swatch signs-legend-swatch-green"  title="Green"></span>
-                                <span class="signs-legend-swatch signs-legend-swatch-teal"   title="Teal"></span>
-                                <span class="signs-legend-swatch signs-legend-swatch-blue"   title="Blue"></span>
-                                <span class="signs-legend-swatch signs-legend-swatch-purple" title="Purple"></span>
-                                <span class="signs-legend-swatch signs-legend-swatch-pink"   title="Pink"></span>
-                            </div>
+                            <p class="small text-muted mb-1 fw-semibold">Sign types</p>
+                            <ul class="signs-legend-list mb-2">
+                                <li>
+                                    <span class="sign-preview signs-legend-category-pill sign-preview-category-parking">
+                                        <span class="sign-category-icon sign-category-icon-parking">P</span>
+                                    </span>
+                                    Parking
+                                </li>
+                                <li>
+                                    <span class="sign-preview signs-legend-category-pill sign-preview-category-accessible">
+                                        <i class="fa-solid fa-wheelchair sign-category-icon" aria-hidden="true"></i>
+                                    </span>
+                                    Accessible
+                                </li>
+                                <li>
+                                    <span class="sign-preview signs-legend-category-pill">
+                                        <i class="fa-solid fa-person-walking-luggage sign-category-icon" aria-hidden="true"></i>
+                                    </span>
+                                    Drop-off / Pick-up
+                                </li>
+                                <li>
+                                    <span class="sign-preview signs-legend-category-pill sign-preview-category-info">
+                                        <i class="fa-solid fa-circle-info sign-category-icon" aria-hidden="true"></i>
+                                    </span>
+                                    Info
+                                </li>
+                                <li>
+                                    <span class="sign-preview signs-legend-category-pill sign-preview-category-warning">
+                                        <i class="fa-solid fa-triangle-exclamation sign-category-icon" aria-hidden="true"></i>
+                                    </span>
+                                    Warning / Hazard
+                                </li>
+                            </ul>
 
                             <p class="small text-muted mb-1 fw-semibold">Traffic arrows</p>
                             <ul class="signs-legend-list mb-2">
@@ -338,27 +359,6 @@
                 <div class="form-text">Compass direction the front face points toward. Back = front + 180°.</div>
             </div>
 
-            <%# ── Marker colour ──────────────────────────────── %>
-            <% if (canManage) { %>
-                <div class="mb-3">
-                    <label class="form-label">Marker colour</label>
-                    <div class="signs-color-swatches" id="editorColorSwatches">
-                        <button type="button" class="signs-color-swatch signs-color-swatch-default active"
-                                data-color="" title="Default (status)">
-                            <i class="fa-solid fa-ban" aria-hidden="true"></i>
-                        </button>
-                        <button type="button" class="signs-color-swatch signs-color-swatch-red"    data-color="red"    title="Red"></button>
-                        <button type="button" class="signs-color-swatch signs-color-swatch-orange" data-color="orange" title="Orange"></button>
-                        <button type="button" class="signs-color-swatch signs-color-swatch-yellow" data-color="yellow" title="Yellow"></button>
-                        <button type="button" class="signs-color-swatch signs-color-swatch-green"  data-color="green"  title="Green"></button>
-                        <button type="button" class="signs-color-swatch signs-color-swatch-teal"   data-color="teal"   title="Teal"></button>
-                        <button type="button" class="signs-color-swatch signs-color-swatch-blue"   data-color="blue"   title="Blue"></button>
-                        <button type="button" class="signs-color-swatch signs-color-swatch-purple" data-color="purple" title="Purple"></button>
-                        <button type="button" class="signs-color-swatch signs-color-swatch-pink"   data-color="pink"   title="Pink"></button>
-                    </div>
-                </div>
-            <% } %>
-
             <%# ── Location notes ─────────────────────────────── %>
             <div class="mb-3">
                 <label for="editorNotes" class="form-label">Location notes</label>
@@ -455,7 +455,7 @@
                                             <option value="<%= s.sign_id %>"
                                                     data-text="<%= s.sign_text %>"
                                                     data-arrow="<%= s.arrow_direction || '' %>">
-                                                <%= s.sign_text %> (#<%= s.sign_id %>)
+                                                <%= s.sign_text %>
                                             </option>
                                         <% }); %>
                                     </select>

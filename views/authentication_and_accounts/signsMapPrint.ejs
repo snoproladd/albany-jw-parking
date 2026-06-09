@@ -90,7 +90,23 @@
                         const glyph = arrowGlyphForOption(s.arrow_direction);
                         const arrowPart = glyph ? ` ${glyph}` : '';
                     %>
-                    <option value="<%= s.sign_id %>"><%= s.sign_text %><%= arrowPart %> (#<%= s.sign_id %>)</option>
+                    <p class="small text-muted mb-1 fw-semibold">Sign types</p>
+                            <ul class="signs-legend-list mb-2">
+                                <li>
+                                    <span class="sign-category-icon sign-category-icon-parking signs-legend-category-icon">P</span>
+                                    Parking
+                                </li>
+                                <li>
+                                    <i class="fa-solid fa-wheelchair signs-legend-category-icon" aria-hidden="true"></i>
+                                    Accessible
+                                </li>
+                                <li>
+                                    <i class="fa-solid fa-person-walking-luggage signs-legend-category-icon" aria-hidden="true"></i>
+                                    Drop-off / Pick-up
+                                </li>
+                            </ul>
+
+                            <p class="small text-muted mb-1 fw-semibold">Traffic arrows</p>
                 <% }); %>
             </select>
         </div>
