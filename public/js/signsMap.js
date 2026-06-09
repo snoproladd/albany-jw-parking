@@ -64,17 +64,36 @@
    *
    * @param {HTMLElement} content
    */
-  function attachLocationShiftGate(content) {
+  /**
+   * Location drag guard — now handled by dynamic gmpDraggable
+   * toggle in updateDraggableState().  Retained as a no-op so
+   * existing call sites (refreshMarker, applyDetailLevelToAll)
+   * don't need modification.
+   *
+   * @param {HTMLElement} _content
+   */
+  function attachLocationShiftGate(_content) {
+    // no-op — see updateDraggableState()
+  }
+
+  /**
+   * Toggle gmpDraggable on every marker based on the current
+   * Shift-key and zoom state.  Called from keydown/keyup/blur
+   * and zoom_changed so the Maps API never starts a drag
+   * unless conditions are met.
+   */
+  function updateDraggableState() {
     if (!canManage || isCoarsePointer) return;
-    content.addEventListener(
-      "pointerdown",
-      (e) => {
-        if (!shiftHeld || !canDragAtCurrentZoom()) {
-          e.stopImmediatePropagation();
-        }
-      },
-      true,
-    );
+    const allowed = shiftHeld && canDragAtCurrentZoom();
+    markers.forEach((marker) => {
+      marker.gmpDraggable = allowed;
+    });
+    arrowMarkers.forEach((marker) => {
+      marker.gmpDraggable = allowed;
+    });
+    if (pendingMarker) {
+      pendingMarker.gmpDraggable = allowed;
+    }
   }
 
   /**
@@ -86,20 +105,22 @@
    * @param {HTMLElement} content
    * @param {number} arrowId
    */
+  /**
+   * Attach the rotation-handle interceptor to an arrow marker.
+   * When Shift is held at sufficient zoom, clicking the handle
+   * starts rotation instead of a Maps drag.  Drag gating itself
+   * is handled by dynamic gmpDraggable in updateDraggableState().
+   *
+   * @param {HTMLElement} content
+   * @param {number} arrowId
+   */
   function attachArrowShiftGate(content, arrowId) {
     if (!canManage || isCoarsePointer) return;
     content.addEventListener(
       "pointerdown",
       (e) => {
         const onHandle = e.target.closest(".signs-arrow-handle");
-        if (!shiftHeld || !canDragAtCurrentZoom()) {
-          e.stopImmediatePropagation();
-          if (shiftHeld && onHandle) {
-            beginArrowRotation(arrowId, e);
-          }
-          return;
-        }
-        if (onHandle) {
+        if (onHandle && shiftHeld && canDragAtCurrentZoom()) {
           e.stopImmediatePropagation();
           beginArrowRotation(arrowId, e);
         }
@@ -225,6 +246,24 @@
     const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
     return `${dd}/${mm}/${dt.getUTCFullYear()}`;
   }
+  /**
+   * Approximate distance in feet between two lat/lng points.
+   * Flat-earth approximation — accurate for distances under a mile.
+   *
+   * @param {number} lat1
+   * @param {number} lng1
+   * @param {number} lat2
+   * @param {number} lng2
+   * @returns {number}
+   */
+  function approxDistanceFt(lat1, lng1, lat2, lng2) {
+    const FT_PER_DEG_LAT = 364567;
+    const avgLat = (((lat1 + lat2) / 2) * Math.PI) / 180;
+    const FT_PER_DEG_LNG = FT_PER_DEG_LAT * Math.cos(avgLat);
+    const dy = (lat2 - lat1) * FT_PER_DEG_LAT;
+    const dx = (lng2 - lng1) * FT_PER_DEG_LNG;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
 
   // ============================================================
   // GOOGLE MAPS LOADER
@@ -315,6 +354,7 @@
     mapRef.addListener("zoom_changed", () => {
       const zoom = mapRef.getZoom();
       updateZoomIndicator(zoom);
+      updateDraggableState();
 
       const newLevel = detailLevelForZoom(zoom);
       if (newLevel !== currentDetailLevel) {
@@ -380,6 +420,7 @@
       atts.forEach((att) => {
         const sign = document.createElement("div");
         sign.className = "sign-preview signs-map-marker-sign";
+        sign.dataset.attachmentId = att.attachment_id;
 
         // Per-attachment status border override
         if (att.status === "removed") {
@@ -434,7 +475,10 @@
    * @param {object} loc
    */
   function addMarkerForLocation(loc) {
-    const content = buildMarkerContent(loc);
+    const content =
+      currentDetailLevel === "compact"
+        ? buildCompactLocationContent(loc)
+        : buildMarkerContent(loc);
     const draggable = canManage && !isCoarsePointer;
     const marker = new google.maps.marker.AdvancedMarkerElement({
       map: mapRef,
@@ -443,10 +487,9 @@
       title:
         (loc.attachments || []).map((a) => a.sign_text).join(", ") ||
         "Empty location",
-      gmpDraggable: draggable,
+      gmpDraggable: false,
     });
 
-    // Click → select + open editor (suppressed briefly after drag/pan)
     marker.addListener("click", () => {
       if (Date.now() - lastDragEndTime < CLICK_AFTER_DRAG_THRESHOLD) return;
       selectMarker(loc.location_id);
@@ -581,21 +624,35 @@
     const selCls =
       selectedArrowId === arrow.arrow_id ? " signs-arrow-marker-selected" : "";
     wrapper.className = `signs-arrow-marker${selCls}`;
-    wrapper.style.transform = `translateY(26px) rotate(${arrow.bearing || 0}deg)`;
+    wrapper.dataset.bearing = arrow.bearing || 0;
+    wrapper.style.transform = "translateY(58px)";
 
+    const b = arrow.bearing || 0;
     wrapper.innerHTML = `<svg viewBox="0 0 40 64" xmlns="http://www.w3.org/2000/svg">
-      <line class="signs-arrow-marker-outline" x1="20" y1="56" x2="20" y2="26" />
-      <line class="signs-arrow-marker-fg" x1="20" y1="56" x2="20" y2="26" />
-      <polyline class="signs-arrow-marker-outline" points="8,30 20,6 32,30" />
-      <polyline class="signs-arrow-marker-fg" points="8,30 20,6 32,30" />
+      <g transform="rotate(${b}, 20, 6)">
+        <line class="signs-arrow-marker-outline" x1="20" y1="56" x2="20" y2="26" />
+        <line class="signs-arrow-marker-fg" x1="20" y1="56" x2="20" y2="26" />
+        <polyline class="signs-arrow-marker-outline" points="8,30 20,6 32,30" />
+        <polyline class="signs-arrow-marker-fg" points="8,30 20,6 32,30" />
+      </g>
     </svg>`;
 
-    // Rotation handle at the tip (desktop only)
+    // Interactive zones — rotate with the arrow visual
+    const zones = document.createElement("div");
+    zones.className = "signs-arrow-zones";
+    zones.style.transform = `rotate(${b}deg)`;
+
+    const bodyZone = document.createElement("div");
+    bodyZone.className = "signs-arrow-body-zone";
+    zones.appendChild(bodyZone);
+
     if (canManage && !isCoarsePointer) {
       const handle = document.createElement("div");
       handle.className = "signs-arrow-handle";
-      wrapper.appendChild(handle);
+      zones.appendChild(handle);
     }
+
+    wrapper.appendChild(zones);
 
     return wrapper;
   }
@@ -609,14 +666,17 @@
    * @param {object} arrow
    */
   function addMarkerForArrow(arrow) {
-    const content = buildArrowMarkerContent(arrow);
+    const content =
+      currentDetailLevel === "compact"
+        ? buildCompactArrowContent(arrow)
+        : buildArrowMarkerContent(arrow);
     const draggable = canManage && !isCoarsePointer;
     const marker = new google.maps.marker.AdvancedMarkerElement({
       map: mapRef,
       position: { lat: Number(arrow.latitude), lng: Number(arrow.longitude) },
       content,
       title: arrow.label || "Traffic arrow",
-      gmpDraggable: draggable,
+      gmpDraggable: false,
       zIndex: 10,
     });
 
@@ -645,6 +705,14 @@
         persistArrowDrag(arrow.arrow_id, lat, lng);
       });
     }
+
+    // Hover → highlight linked signs on the map
+    marker.element.addEventListener("mouseenter", () => {
+      highlightArrowLinks(arrow.arrow_id);
+    });
+    marker.element.addEventListener("mouseleave", () => {
+      clearLinkedSignHighlight();
+    });
 
     arrowMarkers.set(arrow.arrow_id, marker);
   }
@@ -725,12 +793,16 @@
     const selCls =
       selectedArrowId === arrow.arrow_id ? " signs-arrow-marker-selected" : "";
     wrapper.className = `signs-arrow-marker signs-arrow-marker-compact${selCls}`;
-    wrapper.style.transform = `translateY(6px) rotate(${arrow.bearing || 0}deg)`;
+    wrapper.style.transform = "translateY(16px)";
+
+    const b = arrow.bearing || 0;
     wrapper.innerHTML = `<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-      <polyline class="signs-arrow-marker-outline" points="4,16 10,4 16,16"
-                stroke-width="4" />
-      <polyline class="signs-arrow-marker-fg" points="4,16 10,4 16,16"
-                stroke-width="2.5" />
+      <g transform="rotate(${b}, 10, 4)">
+        <polyline class="signs-arrow-marker-outline" points="4,16 10,4 16,16"
+                  stroke-width="4" />
+        <polyline class="signs-arrow-marker-fg" points="4,16 10,4 16,16"
+                  stroke-width="2.5" />
+      </g>
     </svg>`;
     return wrapper;
   }
@@ -756,21 +828,19 @@
       hoverTimers.set(
         loc.location_id,
         setTimeout(() => {
-          expandMarkerOnHover(loc, marker);
+          // Pass the persistent host (gmp-advanced-marker) so collapse can
+          // bind to it rather than the swappable content.
+          expandMarkerOnHover(loc, marker, content.parentElement);
         }, HOVER_EXPAND_DELAY),
       );
     });
 
+    // Only cancels a pending expand if the cursor leaves before it fires.
+    // Collapse of an already-expanded marker is handled by the host's
+    // mouseleave (bound in expandMarkerOnHover) — a content swap under a
+    // stationary cursor suppresses mouseenter/mouseleave on the new element.
     content.addEventListener("mouseleave", () => {
       clearTimeout(hoverTimers.get(loc.location_id));
-      if (hoverExpanded.has(loc.location_id)) {
-        hoverTimers.set(
-          loc.location_id,
-          setTimeout(() => {
-            collapseMarkerOnHover(loc, marker);
-          }, HOVER_COLLAPSE_DELAY),
-        );
-      }
     });
   }
 
@@ -780,7 +850,7 @@
    * @param {object} loc
    * @param {google.maps.marker.AdvancedMarkerElement} marker
    */
-  function expandMarkerOnHover(loc, marker) {
+  function expandMarkerOnHover(loc, marker, host) {
     if (currentDetailLevel !== "compact") return;
     hoverExpanded.add(loc.location_id);
 
@@ -789,17 +859,26 @@
       content.classList.add("signs-map-marker-selected");
     }
     attachLocationShiftGate(content);
-    // Collapse when the mouse leaves the expanded content
-    content.addEventListener("mouseleave", () => {
-      clearTimeout(hoverTimers.get(loc.location_id));
-      hoverTimers.set(
-        loc.location_id,
-        setTimeout(() => {
-          collapseMarkerOnHover(loc, marker);
-        }, HOVER_COLLAPSE_DELAY),
-      );
-    });
     marker.content = content;
+
+    // Bind collapse to the persistent host element (gmp-advanced-marker), not
+    // the swapped content. Swapping marker.content under a stationary cursor
+    // never fires mouseenter on the new element, so a mouseleave bound to it
+    // would not fire until the cursor re-entered. The host is never replaced,
+    // so its mouseleave is reliable. Bound once per host via a dataset guard.
+    if (host && host.dataset.hoverCollapseBound !== "1") {
+      host.dataset.hoverCollapseBound = "1";
+      host.addEventListener("mouseleave", () => {
+        clearTimeout(hoverTimers.get(loc.location_id));
+        if (!hoverExpanded.has(loc.location_id)) return;
+        hoverTimers.set(
+          loc.location_id,
+          setTimeout(() => {
+            collapseMarkerOnHover(loc, marker);
+          }, HOVER_COLLAPSE_DELAY),
+        );
+      });
+    }
   }
 
   /**
@@ -948,6 +1027,140 @@
         marker.content.classList.remove("signs-map-marker-arrow-linked");
     });
   }
+  /**
+   * Track markers expanded specifically for the link-highlight feature
+   * (distinct from hover-expand) so we can collapse them on clear.
+   * @type {Set<number>}
+   */
+  const linkExpandedMarkers = new Set();
+
+  /**
+   * Highlight a single sign card on the map for the given attachment.
+   * Expands the parent marker if compact, and pans the map only if
+   * the marker is outside the current viewport.
+   *
+   * @param {number} attachmentId
+   */
+  function highlightLinkedSign(attachmentId) {
+    clearLinkedSignHighlight();
+    if (!attachmentId) return;
+
+    // Find the location that owns this attachment
+    let loc = null;
+    for (const l of locations) {
+      if ((l.attachments || []).some((a) => a.attachment_id === attachmentId)) {
+        loc = l;
+        break;
+      }
+    }
+    if (!loc) return;
+
+    const marker = markers.get(loc.location_id);
+    if (!marker) return;
+
+    // If compact, expand the marker so individual signs are visible
+    if (
+      currentDetailLevel === "compact" &&
+      !hoverExpanded.has(loc.location_id)
+    ) {
+      linkExpandedMarkers.add(loc.location_id);
+      const content = buildMarkerContent(loc);
+      if (selectedId === loc.location_id) {
+        content.classList.add("signs-map-marker-selected");
+      }
+      attachLocationShiftGate(content);
+      marker.content = content;
+    }
+
+    // Find and highlight the specific sign card
+    const card = marker.content?.querySelector(
+      `.sign-preview[data-attachment-id="${attachmentId}"]`,
+    );
+    if (card) card.classList.add("signs-map-marker-sign-highlighted");
+
+    // Pan only if the marker is outside the current viewport
+    if (mapRef) {
+      const pos = marker.position;
+      const latLng =
+        typeof pos.lat === "function"
+          ? pos
+          : new google.maps.LatLng(pos.lat, pos.lng);
+      if (!mapRef.getBounds()?.contains(latLng)) {
+        mapRef.panTo(latLng);
+      }
+    }
+  }
+
+  /**
+   * Highlight all signs linked to the given arrow. Used when hovering
+   * an arrow marker on the map to show which signs it's associated with.
+   *
+   * @param {number} arrowId
+   */
+  function highlightArrowLinks(arrowId) {
+    clearLinkedSignHighlight();
+    const arrow = findArrow(arrowId);
+    if (!arrow || !arrow.links?.length) return;
+
+    arrow.links.forEach((attId) => {
+      const loc = locations.find((l) =>
+        (l.attachments || []).some((a) => a.attachment_id === attId),
+      );
+      if (!loc) return;
+
+      const marker = markers.get(loc.location_id);
+      if (!marker) return;
+
+      // Expand compact marker if needed (tracked separately from hover-expand)
+      if (
+        currentDetailLevel === "compact" &&
+        !hoverExpanded.has(loc.location_id) &&
+        !linkExpandedMarkers.has(loc.location_id)
+      ) {
+        linkExpandedMarkers.add(loc.location_id);
+        const content = buildMarkerContent(loc);
+        if (selectedId === loc.location_id) {
+          content.classList.add("signs-map-marker-selected");
+        }
+        attachLocationShiftGate(content);
+        marker.content = content;
+      }
+
+      // Highlight the specific sign card
+      const card = marker.content?.querySelector(
+        `.sign-preview[data-attachment-id="${attId}"]`,
+      );
+      if (card) card.classList.add("signs-map-marker-sign-highlighted");
+    });
+  }
+  /**
+   * Remove all per-sign highlights and collapse any markers that were
+   * expanded specifically for the link-highlight (not hover-expanded).
+   */
+  function clearLinkedSignHighlight() {
+    // Remove highlight class from all sign cards
+    document
+      .querySelectorAll(".signs-map-marker-sign-highlighted")
+      .forEach((el) =>
+        el.classList.remove("signs-map-marker-sign-highlighted"),
+      );
+
+    // Collapse markers we expanded for the link-highlight
+    linkExpandedMarkers.forEach((locId) => {
+      const loc = findLocation(locId);
+      const marker = markers.get(locId);
+      if (!loc || !marker || currentDetailLevel !== "compact") return;
+
+      const content = buildCompactLocationContent(loc);
+      if (selectedId === locId) {
+        content.classList.add("signs-map-marker-selected");
+      }
+      attachLocationShiftGate(content);
+      attachHoverExpand(loc, marker, content);
+      marker.content = content;
+    });
+    linkExpandedMarkers.clear();
+  }
 
   /**
    * Persist an arrow position after a drag.
@@ -1037,10 +1250,12 @@
       const yOff = marker.content.classList.contains(
         "signs-arrow-marker-compact",
       )
-        ? 6
-        : 26;
-      marker.content.style.transform = `translateY(${yOff}px) rotate(${rounded}deg)`;
-
+        ? 16
+        : 58;
+      const g = marker.content.querySelector("svg > g");
+      if (g) g.setAttribute("transform", `rotate(${rounded}, 20, 6)`);
+      const zones = marker.content.querySelector(".signs-arrow-zones");
+      if (zones) zones.style.transform = `rotate(${rounded}deg)`;
       // Update in-memory state for persistence on pointerup
       const arrow = findArrow(arrowId);
       if (arrow) arrow.bearing = rounded;
@@ -1053,17 +1268,12 @@
       document.body.classList.remove("signs-arrow-rotating");
       isRotatingArrow = false;
       rotatingArrowId = null;
+      lastDragEndTime = Date.now();
 
       // Persist
       const arrow = findArrow(arrowId);
       if (arrow) {
         persistArrowDrag(arrowId, arrow.latitude, arrow.longitude);
-        // Update the bearing field if the editor is open
-        const bearingInput = document.getElementById("arrowEditorBearing");
-        const editorEl = document.getElementById("arrowEditor");
-        if (bearingInput && Number(editorEl?.dataset.arrowId) === arrowId) {
-          bearingInput.value = arrow.bearing;
-        }
       }
     }
 
@@ -1085,7 +1295,8 @@
     if (help) help.hidden = false;
     const locHelp = document.getElementById("addLocationHelp");
     if (locHelp) locHelp.hidden = true;
-    if (mapRef) mapRef.getDiv().style.cursor = "crosshair";
+    const mapEl = document.getElementById("googleMap");
+    if (mapEl) mapEl.classList.add("signs-map-placing-arrow");
   }
 
   /**
@@ -1095,7 +1306,8 @@
     isPlacingArrow = false;
     const help = document.getElementById("addArrowHelp");
     if (help) help.hidden = true;
-    if (mapRef) mapRef.getDiv().style.cursor = "";
+    const mapEl = document.getElementById("googleMap");
+    if (mapEl) mapEl.classList.remove("signs-map-placing-arrow");
   }
 
   /**
@@ -1160,7 +1372,7 @@
     if (!el) return;
 
     // Populate fields
-    document.getElementById("arrowEditorBearing").value = arrow.bearing ?? "";
+
     document.getElementById("arrowEditorLabel").value = arrow.label || "";
     document.getElementById("arrowEditorLat").value = arrow.latitude;
     document.getElementById("arrowEditorLng").value = arrow.longitude;
@@ -1183,9 +1395,7 @@
     const arrow = findArrow(arrowId);
     if (!arrow) return;
 
-    const bearing = parseFloat(
-      document.getElementById("arrowEditorBearing").value,
-    );
+    const bearing = arrow.bearing ?? 0;
     const label =
       document.getElementById("arrowEditorLabel").value.trim() || null;
     const lat = parseFloat(document.getElementById("arrowEditorLat").value);
@@ -1348,9 +1558,8 @@
     row.className = "signs-arrow-link-item";
 
     const text = document.createElement("div");
-    text.className = "signs-arrow-link-item-text";
-    text.innerHTML = `<span class="fw-semibold">${att.sign_text}</span>
-      <span class="text-muted small">(loc #${loc.location_id})</span>`;
+    text.className = "signs-arrow-link-item-text fw-semibold";
+    text.textContent = att.sign_text;
     row.appendChild(text);
 
     if (canManage) {
@@ -1365,6 +1574,14 @@
       row.appendChild(btn);
     }
 
+    // Highlight this specific sign on the map while hovering the row
+    row.addEventListener("mouseenter", () => {
+      highlightLinkedSign(attachmentId);
+    });
+    row.addEventListener("mouseleave", () => {
+      clearLinkedSignHighlight();
+    });
+
     return row;
   }
 
@@ -1373,38 +1590,100 @@
    *
    * @param {object} arrow
    */
+  /**
+   * Populate the add-link dropdown with unlinked attachments within
+   * 300 ft of the arrow, sorted closest-first.
+   *
+   * @param {object} arrow
+   */
   function populateArrowLinkPicker(arrow) {
-    const select = document.getElementById("addArrowLinkSelect");
-    if (!select) return;
-    select.replaceChildren();
-
-    const placeholder = document.createElement("option");
-    placeholder.value = "";
-    placeholder.textContent = "Pick a sign attachment\u2026";
-    select.appendChild(placeholder);
+    const menu = document.getElementById("addArrowLinkMenu");
+    if (!menu) return;
+    menu.replaceChildren();
 
     const linked = new Set(arrow.links || []);
+    const arrowLat = Number(arrow.latitude);
+    const arrowLng = Number(arrow.longitude);
+    const MAX_LINK_RADIUS_FT = 300;
 
+    // Build candidates with distance, filter, sort
+    const candidates = [];
     locations.forEach((loc) => {
+      const dist = approxDistanceFt(
+        arrowLat,
+        arrowLng,
+        Number(loc.latitude),
+        Number(loc.longitude),
+      );
       (loc.attachments || []).forEach((att) => {
         if (linked.has(att.attachment_id)) return;
-        const opt = document.createElement("option");
-        opt.value = att.attachment_id;
-        opt.textContent = `${att.sign_text} (loc #${loc.location_id})`;
-        select.appendChild(opt);
+        candidates.push({ att, loc, dist });
       });
     });
+
+    const nearby = candidates
+      .filter((c) => c.dist <= MAX_LINK_RADIUS_FT)
+      .sort((a, b) => a.dist - b.dist);
+
+    if (nearby.length === 0) {
+      const li = document.createElement("li");
+      const span = document.createElement("span");
+      span.className = "dropdown-item-text text-muted small";
+      span.textContent =
+        candidates.length === 0
+          ? "All nearby signs already linked to this arrow."
+          : "No unlinked signs within 300 ft.";
+      li.appendChild(span);
+      menu.appendChild(li);
+    }
+
+    nearby.forEach(({ att, dist }) => {
+      const li = document.createElement("li");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className =
+        "dropdown-item d-flex justify-content-between align-items-center";
+      btn.dataset.attachmentId = att.attachment_id;
+
+      const name = document.createElement("span");
+      name.textContent = att.sign_text;
+      btn.appendChild(name);
+
+      const badge = document.createElement("span");
+      badge.className = "text-muted small ms-2";
+      badge.textContent = `${Math.round(dist)} ft`;
+      btn.appendChild(badge);
+
+      btn.addEventListener("mouseenter", () => {
+        highlightLinkedSign(att.attachment_id);
+      });
+      btn.addEventListener("mouseleave", () => {
+        clearLinkedSignHighlight();
+      });
+      btn.addEventListener("click", () => {
+        addArrowLink(arrow.arrow_id, att.attachment_id);
+      });
+
+      li.appendChild(btn);
+      menu.appendChild(li);
+    });
+
+    const toggle = document.getElementById("addArrowLinkToggle");
+    if (toggle) toggle.disabled = nearby.length === 0;
   }
 
   /**
    * Link a selected attachment to the current arrow.
    */
-  async function addArrowLink() {
-    const el = document.getElementById("arrowEditor");
-    const arrowId = Number(el?.dataset.arrowId);
-    const select = document.getElementById("addArrowLinkSelect");
-    const attachmentId = Number(select?.value);
+  /**
+   * Link an attachment to the given arrow.
+   *
+   * @param {number} arrowId
+   * @param {number} attachmentId
+   */
+  async function addArrowLink(arrowId, attachmentId) {
     if (!arrowId || !attachmentId) return;
+    clearLinkedSignHighlight();
 
     try {
       const res = await fetch(`/signs/arrows/${arrowId}/links`, {
@@ -1428,9 +1707,7 @@
         highlightLinkedMarkers(arrowId);
       }
 
-      // Collapse the form
-      const form = document.getElementById("addArrowLinkForm");
-      if (form) bootstrap.Collapse.getOrCreateInstance(form).hide();
+      // No form to collapse — dropdown auto-closes on click
     } catch (err) {
       console.error("Add arrow link error:", err);
       showArrowEditorFeedback("Network error.", true);
@@ -2288,8 +2565,9 @@
       map: mapRef,
       position: { lat, lng },
       content,
-      gmpDraggable: true,
+      gmpDraggable: false,
     });
+    updateDraggableState();
 
     pendingMarker.addListener("dragend", () => {
       const pos = pendingMarker.position;
@@ -2653,34 +2931,15 @@
     if (arrowDelBtn)
       arrowDelBtn.addEventListener("click", () => deleteArrowEditor());
 
-    // Arrow link toggle
-    const arrowLinkToggle = document.getElementById("addArrowLinkToggle");
-    const arrowLinkForm = document.getElementById("addArrowLinkForm");
-    if (arrowLinkToggle && arrowLinkForm) {
-      arrowLinkToggle.addEventListener("click", () => {
-        bootstrap.Collapse.getOrCreateInstance(arrowLinkForm).toggle();
-      });
-    }
-
-    // Arrow link save
-    const arrowLinkSaveBtn = document.getElementById("addArrowLinkSaveBtn");
-    if (arrowLinkSaveBtn)
-      arrowLinkSaveBtn.addEventListener("click", () => addArrowLink());
-
-    // Arrow link cancel
-    const arrowLinkCancelBtn = document.getElementById("addArrowLinkCancelBtn");
-    if (arrowLinkCancelBtn) {
-      arrowLinkCancelBtn.addEventListener("click", () => {
-        if (arrowLinkForm)
-          bootstrap.Collapse.getOrCreateInstance(arrowLinkForm).hide();
-      });
-    }
+    // Arrow link picker — items are wired in populateArrowLinkPicker()
+    // (Bootstrap dropdown toggle is handled via data-bs-toggle attribute)
 
     // Arrow editor offcanvas close → clean up
     const arrowEditorEl = document.getElementById("arrowEditor");
     if (arrowEditorEl) {
       arrowEditorEl.addEventListener("hidden.bs.offcanvas", () => {
         clearArrowHighlights();
+        clearLinkedSignHighlight();
       });
     }
 
@@ -2707,17 +2966,20 @@
       if (e.key === "Shift") {
         shiftHeld = true;
         mapRef?.getDiv().classList.add("signs-map-shift-held");
+        updateDraggableState();
       }
     });
     document.addEventListener("keyup", (e) => {
       if (e.key === "Shift") {
         shiftHeld = false;
         mapRef?.getDiv().classList.remove("signs-map-shift-held");
+        updateDraggableState();
       }
     });
     window.addEventListener("blur", () => {
       shiftHeld = false;
       mapRef?.getDiv().classList.remove("signs-map-shift-held");
+      updateDraggableState();
     });
 
     // Escape key → deselect / exit placing mode

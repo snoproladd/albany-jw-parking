@@ -518,16 +518,7 @@
         </div>
         <div class="offcanvas-body">
 
-            <%# ── Bearing ────────────────────────────────────── %>
-            <div class="mb-3">
-                <label for="arrowEditorBearing" class="form-label">
-                    Bearing <span class="text-muted small">(0–360°)</span>
-                </label>
-                <input type="number" min="0" max="360" step="1" class="form-control"
-                       id="arrowEditorBearing" placeholder="e.g. 90 = eastbound"
-                       <%= canManage ? '' : 'readonly' %> />
-                <div class="form-text">Compass direction the driver is heading.</div>
-            </div>
+            
 
             <%# ── Label ──────────────────────────────────────── %>
             <div class="mb-3">
@@ -562,22 +553,14 @@
                 </div>
                 <% if (canManage) { %>
                     <div class="mt-2" id="addArrowLinkWrap">
-                        <button type="button" class="btn btn-outline-primary btn-sm w-100" id="addArrowLinkToggle">
-                            <i class="fa-solid fa-plus me-1"></i>Link a sign
-                        </button>
-                        <div class="collapse mt-2" id="addArrowLinkForm">
-                            <div class="card card-body p-2">
-                                <select class="form-select form-select-sm mb-2" id="addArrowLinkSelect">
-                                    <option value="">Pick a sign attachment…</option>
-                                    <%# JS populates options dynamically %>
-                                </select>
-                                <div class="d-flex gap-2">
-                                    <button type="button" class="btn btn-primary btn-sm flex-fill" id="addArrowLinkSaveBtn">
-                                        <i class="fa-solid fa-plus me-1"></i>Link
-                                    </button>
-                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="addArrowLinkCancelBtn">Cancel</button>
-                                </div>
-                            </div>
+                        <div class="dropdown mt-2" id="addArrowLinkWrap">
+                            <button type="button" class="btn btn-outline-primary btn-sm w-100 dropdown-toggle"
+                                    id="addArrowLinkToggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fa-solid fa-plus me-1"></i>Link a sign
+                            </button>
+                            <ul class="dropdown-menu signs-arrow-link-picker" id="addArrowLinkMenu">
+                                <li><span class="dropdown-item-text text-muted small">No signs available.</span></li>
+                            </ul>
                         </div>
                     </div>
                 <% } %>

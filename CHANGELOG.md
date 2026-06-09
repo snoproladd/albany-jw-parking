@@ -3,6 +3,93 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.42.0] - 2026-06-09
+
+### Changed — Sign Map: arrow geometry, cursors, and interaction zones
+
+- **Arrow tip pinning.** Arrow rotation moved from CSS `transform: rotate()`
+  on the wrapper to SVG `<g transform="rotate(B, cx, cy)">` inside the
+  viewBox. The wrapper stays a stable 40×64 / 20×20 layout box so the
+  GMP-ADVANCED-MARKER element no longer dynamically resizes to the rotated
+  bounding box — `translate(-50%, -100%)` percentages are now constant.
+  `translateY(58px)` (full) / `translateY(16px)` (compact) bridges the tip
+  to the bottom-center anchor. SVG `overflow: visible` prevents clipping
+  when the rotated tail extends beyond the viewBox.
+- **Interactive zones.** Arrow markers now use explicit hit zones instead of
+  relying on the SVG shape. A `.signs-arrow-zones` container rotates with
+  the arrow visual and holds two children: a 50px body zone at the arrow
+  midpoint (move/hover target) and the 36px rotation handle at the tip.
+  The SVG remains `pointer-events: none`. Zones survive all rotations
+  with predictable hit areas.
+- **Cursor system overhaul.** Custom `--cursor-rotate` CSS variable (SVG
+  data URI with white outline for satellite-tile visibility). Cursor rules:
+  normal = default; placement mode = crosshair (CSS class, not inline
+  style); Shift+hover on location markers = move; Shift+hover on arrow
+  body zone = move; Shift+hover on rotation handle = rotation cursor.
+  Active rotation and active drag cursors forced on `body *` to override
+  Google Maps' internal `.gm-style` cursor styles.
+- **Arrow placement crosshair.** `enterArrowPlacingMode` now uses CSS
+  class `.signs-map-placing-arrow` (matching the `.signs-map-placing`
+  pattern) instead of `mapRef.getDiv().style.cursor`, fixing the cursor
+  being overridden by Google Maps' internal `.gm-style` divs.
+- **Rotation handle hover hint.** `.signs-map-shift-held .signs-arrow-handle:hover`
+  shows a cyan border circle with a rotation icon background-image (SVG).
+- **Drag guard overhaul.** Replaced `stopImmediatePropagation` shift-gate
+  with dynamic `gmpDraggable` toggling via `updateDraggableState()`.
+  All markers start `gmpDraggable: false`; toggled to `true` only when
+  Shift is held and zoom ≥ `MIN_ZOOM_FOR_DRAG`. Called from keydown/keyup,
+  `zoom_changed`, and `window blur`. `attachLocationShiftGate` is now a
+  no-op; `attachArrowShiftGate` reduced to rotation-only interception.
+- **Rotation zoom guard.** Arrow rotation now requires
+  `canDragAtCurrentZoom()` — blocked at low zoom levels.
+- **Click handler.** Markers use `marker.addListener("click")` (Maps API
+  method) for reliable click tracking after drag operations.
+- **`lastDragEndTime` on rotation end.** Suppresses accidental click
+  immediately after completing a rotation.
+- **Bearing input removed.** The heading number field is removed from the
+  arrow editor — the rotation handle is the primary UX. `saveArrowEditor`
+  reads `arrow.bearing` directly from in-memory state.
+- **Initial detail level.** `addMarkerForLocation` and `addMarkerForArrow`
+  now respect `currentDetailLevel` at creation, building compact content
+  when the page loads below zoom 19 instead of always building full-detail.
+
+### Fixed
+
+- **Hover-expand collapse.** Compact location markers that expand on hover
+  now collapse reliably when the mouse leaves. The `mouseleave` listener
+  is bound to the persistent GMP host element (`gmp-advanced-marker`) via
+  `content.parentElement`, not the swapped content element. A content swap
+  under a stationary cursor suppresses `mouseenter` on the new element, so
+  a `mouseleave` bound to it would never fire until re-entry. The host is
+  never replaced, so its hover tracking is continuous. Dataset guard
+  `hoverCollapseBound` prevents duplicate binding across expand/collapse
+  cycles.
+
+### Added
+
+- **Per-sign highlight on arrow link hover.** Hovering a linked-sign row
+  in the arrow editor or browsing the link picker highlights the specific
+  sign card on the map with `signs-map-marker-sign-highlighted` (cyan
+  border + glow). If the target sign is on a compact marker, it is
+  temporarily expanded. Markers expanded for link highlighting are tracked
+  separately (`linkExpandedMarkers` Set) and collapsed on clear. Map pans
+  to the sign only if outside the current viewport.
+- **Arrow hover → linked signs glow.** Hovering an arrow marker on the
+  map highlights all associated sign cards via `highlightArrowLinks()`.
+  Listeners attached to `marker.element` (persistent GMP host) so they
+  survive content swaps.
+- **Bootstrap dropdown link picker.** Replaced the native `<select>` in
+  the arrow link form with a Bootstrap dropdown menu. Each item fires
+  `mouseenter` → `highlightLinkedSign` for live feedback as you browse.
+  Click to link, dropdown auto-closes. Items sorted by distance
+  (closest first) and filtered to within 300 ft of the arrow. Distance
+  badge shown on each item. Empty state messages distinguish "all linked"
+  from "none within range." Location IDs removed from display.
+- **`approxDistanceFt` utility.** Flat-earth approximation for short
+  distances; used by the link picker to sort and filter candidates.
+- **`data-attachment-id`** attribute added to sign cards in
+  `buildMarkerContent` for per-sign DOM targeting.
+
 ## [2.41.0] - 2026-06-08
 
 ### Changed — Sign Map UX refinements
