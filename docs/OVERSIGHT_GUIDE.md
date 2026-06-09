@@ -215,10 +215,30 @@ apply to the outer marker wrapper.
 The GPS button next to "Add location" drops a new location at your current
 device position without needing to tap the map.
 
+##### Interacting with markers
+
+**Single click** a marker or sidebar row to open a read-only **info sheet**
+showing the location's signs, status, mount type, notes, photo, and
+coordinates. For OVERSEER+ users an **Edit** button in the info sheet
+opens the full editor.
+
+**Double-click** a marker to jump straight to the editor (OVERSEER+).
+
+**Right-click** a marker for a context menu with **Edit** and **Delete**
+(OVERSEER+).
+
+**Hover** a traffic arrow marker to see a repeating **direction pulse** —
+five ghost arrows flash tail-to-head in orange showing the direction of
+travel.
+
+Clicking empty map space deselects the active marker and dismisses all
+overlays. **Escape** cascades: dismiss context menu → exit placement mode
+→ deselect.
+
 ##### Editing a location *(OVERSEER+)*
 
-Click any marker on the map (or any row in the sidebar list) to open the
-editor offcanvas. The editor has two sections:
+Open the editor via double-click, the info sheet's Edit button, or the
+right-click context menu. The editor has two sections:
 
 **Location fields:**
 - Coordinates (lat/lng) with an "Update to my location" GPS button
@@ -279,10 +299,24 @@ A collapsible **Legend** section sits at the bottom of the sidebar
 (collapsed by default). It shows status dot colours, the marker colour
 palette, and mount type icons.
 
+##### Geofencing — proximity tracking *(OVERSEER+)*
+
+The floating GPS button in the bottom-right of the map toggles continuous
+location tracking. When active:
+
+- A **blue pulsing dot** shows your live position on the map.
+- When you come within **~250 feet** of a sign location, a **proximity bar**
+  slides up showing the location's signs, live distance in feet, a photo
+  thumbnail (tap to expand), and one-tap **Planned / Installed / Removed**
+  status buttons that update all attachments at once.
+- The **× dismiss button** hides the bar for that location until you leave
+  and re-enter its radius or a different location becomes nearest.
+- Tap the GPS button again to **stop tracking**.
+
+Geofencing requires the browser's geolocation permission.
+
 ##### Coming soon
 
-- **Geofencing** — proximity-based alerts when near a sign location
-  (temporarily removed, pending adaptation to the new location model).
 - **Street View** and **Placement Composer** — temporarily removed,
   returning in a future phase adapted for the location/attachment model.
 - **Publish to Downloads** — generate a PDF snapshot and upload to the

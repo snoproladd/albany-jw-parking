@@ -348,6 +348,7 @@ parking/
 │   │   ├── signsBuilder.js            # Sign template builder
 │   │   ├── signsList.js               # Sign library grid
 │   │   ├── signsMap.js                # Sign Map — Google Maps + stacked markers + location/attachment editor
+│   │   ├── signsGeofence.js           # Geofencing companion (GPS tracking + proximity alerts)
 │   │   ├── signsMapPrint.js           # Print-optimised map (WYSIWYG letter-portrait)
 │   │   │
 │   │   └── tours/                     # Shepherd.js guided tour modules

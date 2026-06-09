@@ -255,6 +255,34 @@
     <div class="signs-info-sheet-backdrop d-none" id="signsInfoSheetBackdrop"></div>
 
     <%# ──────────────────────────────────────────────────────────
+        GEOFENCING: FAB + proximity bar (signsGeofence.js)
+    ────────────────────────────────────────────────────────── %>
+    <% if (canManage) { %>
+        <button type="button" class="signs-geofence-fab d-none" id="signsGeofenceFab"
+                aria-label="Track my location" aria-pressed="false">
+            <i class="fa-solid fa-location-crosshairs" aria-hidden="true"></i>
+        </button>
+
+        <div class="signs-proximity-bar d-none" id="signsProximityBar">
+            <div class="signs-proximity-bar-inner">
+                <div class="signs-proximity-bar-info" id="signsProximityInfo">
+                    <%# JS populates %>
+                </div>
+                <div class="signs-proximity-bar-photo d-none" id="signsProximityPhoto">
+                    <%# JS populates %>
+                </div>
+                <div class="signs-proximity-bar-actions" id="signsProximityActions">
+                    <%# JS populates %>
+                </div>
+            </div>
+            <button type="button" class="signs-proximity-bar-dismiss" id="signsProximityDismiss"
+                    aria-label="Dismiss">
+                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+            </button>
+        </div>
+    <% } %>
+
+    <%# ──────────────────────────────────────────────────────────
         OFFCANVAS: location editor (slides in from the right)
     ────────────────────────────────────────────────────────── %>
     <div class="offcanvas offcanvas-end signs-placement-offcanvas"
@@ -594,5 +622,8 @@
     <%- include('../partials/footer') %>
     <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
     <script src="/js/signsMap.js"></script>
+    <% if (canManage) { %>
+        <script src="/js/signsGeofence.js"></script>
+    <% } %>
 </body>
 </html>

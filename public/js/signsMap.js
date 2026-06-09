@@ -39,13 +39,12 @@
   const STATUS_CYCLE = ["planned", "installed", "removed"];
 
   /** Inline SVG icons for mount types (compact markers + full-detail label). */
+  /** FontAwesome mount-type icons — matches the legend in the sidebar. */
   const MOUNT_ICONS = {
-    cone: '<svg class="signs-mount-icon" viewBox="0 0 16 16" aria-hidden="true"><polygon points="8,2 13,14 3,14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><line x1="2" y1="14" x2="14" y2="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
-    "a-frame":
-      '<svg class="signs-mount-icon" viewBox="0 0 16 16" aria-hidden="true"><polyline points="3,14 8,2 13,14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/><line x1="5" y1="10" x2="11" y2="10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
-    "existing-structure":
-      '<svg class="signs-mount-icon" viewBox="0 0 16 16" aria-hidden="true"><line x1="8" y1="3" x2="8" y2="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="4" y1="5" x2="12" y2="5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
-    pole: '<svg class="signs-mount-icon" viewBox="0 0 16 16" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+    pole: '<i class="fa-solid fa-signs-post signs-mount-icon" aria-hidden="true"></i>',
+    cone: '<i class="fa-solid fa-triangle-exclamation signs-mount-icon" aria-hidden="true"></i>',
+    "a-frame": '<i class="fa-solid fa-tent signs-mount-icon" aria-hidden="true"></i>',
+    "existing-structure": '<i class="fa-solid fa-building signs-mount-icon" aria-hidden="true"></i>',
   };
 
   /** Delay (ms) before a hovered compact marker expands to full detail. */
@@ -156,6 +155,9 @@
   /** Timestamp of last drag/pan end — used to suppress accidental clicks. */
   let lastDragEndTime = 0;
 
+  /** @type {number|null} Timer ID for single/double-click disambiguation. */
+  let singleClickTimer = null;
+
   /** @type {Array<object>} */
   let arrows = [];
   /** @type {Map<number, google.maps.marker.AdvancedMarkerElement>} */
@@ -167,6 +169,15 @@
   let isRotatingArrow = false;
   let rotatingArrowId = null;
   const isCoarsePointer = window.matchMedia("(pointer: coarse)").matches;
+
+  /** @type {Array<google.maps.marker.AdvancedMarkerElement>} Active ghost arrows from a direction pulse. */
+  let activeGhosts = [];
+
+  /** @type {number|null} Cleanup timer for the current pulse animation. */
+  let pulseTimer = null;
+
+  /** @type {number|null} Arrow ID currently being pulsed (used as stale-timer guard). */
+  let pulsingArrowId = null;
 
   /** Minimum zoom level at which Shift+drag movement is allowed. */
   const MIN_ZOOM_FOR_DRAG = 17;
@@ -323,17 +334,18 @@
       disableDoubleClickZoom: true,
     });
 
-    // Click-to-place
-    if (canManage) {
-      mapRef.addListener("click", (e) => {
-        if (isPlacingArrow) {
-          beginNewArrow(e.latLng.lat(), e.latLng.lng());
-          return;
-        }
-        if (!isPlacing) return;
-        beginNewLocation(e.latLng.lat(), e.latLng.lng());
-      });
-    }
+    // Click on empty map → deselect active marker / dismiss menus.
+    // Placement-mode handling follows for canManage users.
+    mapRef.addListener("click", (e) => {
+      deselectAll();
+      if (!canManage) return;
+      if (isPlacingArrow) {
+        beginNewArrow(e.latLng.lat(), e.latLng.lng());
+        return;
+      }
+      if (!isPlacing) return;
+      beginNewLocation(e.latLng.lat(), e.latLng.lng());
+    });
 
     // Track map pan end for click-after-drag suppression
     mapRef.addListener("dragend", () => {
@@ -490,11 +502,41 @@
       gmpDraggable: false,
     });
 
-    marker.addListener("click", () => {
+    // Single click → select + info sheet; double-click → editor (canManage).
+    // Uses marker.element (the persistent gmp-advanced-marker host) so
+    // listeners survive marker.content swaps on zoom transitions AND
+    // survive post-drag click suppression by the Maps API.
+    marker.element.addEventListener("click", () => {
       if (Date.now() - lastDragEndTime < CLICK_AFTER_DRAG_THRESHOLD) return;
-      selectMarker(loc.location_id);
-      openEditor(loc.location_id);
+      clearTimeout(singleClickTimer);
+      singleClickTimer = setTimeout(() => {
+        selectMarker(loc.location_id);
+        openInfoSheet(loc.location_id);
+      }, 220);
     });
+
+    if (canManage) {
+      marker.element.addEventListener("dblclick", (e) => {
+        clearTimeout(singleClickTimer);
+        singleClickTimer = null;
+        e.stopPropagation();
+        e.preventDefault();
+        selectMarker(loc.location_id);
+        openEditor(loc.location_id);
+      });
+
+      marker.element.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        if (Date.now() - lastDragEndTime < CLICK_AFTER_DRAG_THRESHOLD) return;
+        selectMarker(loc.location_id);
+        showContextMenu(e.clientX, e.clientY, "location", loc.location_id);
+      });
+    }
+
+    // No-op Maps API listener keeps the marker "clickable" so clicks
+    // don't fall through to the map's click handler.  Actual click
+    // logic lives on marker.element.addEventListener above.
+    marker.addListener("click", () => {});
 
     // Shift-gate: block Maps drag unless Shift held + zoomed in
     if (draggable) {
@@ -504,6 +546,7 @@
         isDraggingMarker = true;
         document.body.classList.add("signs-map-dragging");
         dismissInfoSheet(true);
+        dismissContextMenu();
         dismissEditorIfOpen();
       });
 
@@ -573,7 +616,7 @@
   // SELECTION
   // ============================================================
 
-  function selectMarker(locationId) {
+  function selectMarker(locationId, opts) {
     // Deselect any selected arrow
     if (selectedArrowId !== null) {
       const prevArrow = arrowMarkers.get(selectedArrowId);
@@ -594,8 +637,7 @@
     const m = markers.get(locationId);
     if (m?.content) {
       m.content.classList.add("signs-map-marker-selected");
-      // Pan to marker
-      mapRef?.panTo(m.position);
+      if (!opts?.noPan) mapRef?.panTo(m.position);
     }
     // Highlight sidebar row
     document.querySelectorAll(".signs-location-row").forEach((row) => {
@@ -680,11 +722,41 @@
       zIndex: 10,
     });
 
-    marker.addListener("click", () => {
+    // Single click → select + info sheet; double-click → editor (canManage).
+    marker.element.addEventListener("click", () => {
       if (Date.now() - lastDragEndTime < CLICK_AFTER_DRAG_THRESHOLD) return;
-      selectArrow(arrow.arrow_id);
-      openArrowEditor(arrow.arrow_id);
+      clearTimeout(singleClickTimer);
+      singleClickTimer = setTimeout(() => {
+        selectArrow(arrow.arrow_id);
+        const fresh = findArrow(arrow.arrow_id);
+        if (fresh && (fresh.links || []).length > 0) {
+          openArrowInfoSheet(arrow.arrow_id);
+        } else {
+          pulseArrowDirection(arrow.arrow_id);
+        }
+      }, 220);
     });
+
+    if (canManage) {
+      marker.element.addEventListener("dblclick", (e) => {
+        clearTimeout(singleClickTimer);
+        singleClickTimer = null;
+        e.stopPropagation();
+        e.preventDefault();
+        selectArrow(arrow.arrow_id);
+        openArrowEditor(arrow.arrow_id);
+      });
+
+      marker.element.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        if (Date.now() - lastDragEndTime < CLICK_AFTER_DRAG_THRESHOLD) return;
+        selectArrow(arrow.arrow_id);
+        showContextMenu(e.clientX, e.clientY, "arrow", arrow.arrow_id);
+      });
+    }
+
+    // No-op Maps API listener — see location marker equivalent.
+    marker.addListener("click", () => {});
 
     if (draggable) {
       attachArrowShiftGate(content, arrow.arrow_id);
@@ -693,6 +765,7 @@
         isDraggingMarker = true;
         document.body.classList.add("signs-map-dragging");
         dismissInfoSheet(true);
+        dismissContextMenu();
       });
 
       marker.addListener("dragend", () => {
@@ -706,12 +779,16 @@
       });
     }
 
-    // Hover → highlight linked signs on the map
+    // Hover → highlight linked signs + direction pulse
     marker.element.addEventListener("mouseenter", () => {
       highlightArrowLinks(arrow.arrow_id);
+      if (!isCoarsePointer && !isDraggingMarker && !isRotatingArrow) {
+        pulseArrowDirection(arrow.arrow_id);
+      }
     });
     marker.element.addEventListener("mouseleave", () => {
       clearLinkedSignHighlight();
+      cancelPulse();
     });
 
     arrowMarkers.set(arrow.arrow_id, marker);
@@ -1160,6 +1237,187 @@
       marker.content = content;
     });
     linkExpandedMarkers.clear();
+  }
+
+  // ============================================================
+  // TRAFFIC ARROW DIRECTION PULSE
+  // ============================================================
+
+  /**
+   * Compute a destination lat/lng from an origin, bearing, and distance.
+   *
+   * @param {number} lat  - Origin latitude in degrees
+   * @param {number} lng  - Origin longitude in degrees
+   * @param {number} bearing - Compass bearing in degrees (0 = north, clockwise)
+   * @param {number} distM - Distance in metres
+   * @returns {{ lat: number, lng: number }}
+   */
+  function destPoint(lat, lng, bearing, distM) {
+    const R = 6371000;
+    const toRad = (d) => (d * Math.PI) / 180;
+    const toDeg = (r) => (r * 180) / Math.PI;
+    const lat1 = toRad(lat);
+    const lng1 = toRad(lng);
+    const brng = toRad(bearing);
+    const d = distM / R;
+
+    const lat2 = Math.asin(
+      Math.sin(lat1) * Math.cos(d) +
+        Math.cos(lat1) * Math.sin(d) * Math.cos(brng),
+    );
+    const lng2 =
+      lng1 +
+      Math.atan2(
+        Math.sin(brng) * Math.sin(d) * Math.cos(lat1),
+        Math.cos(d) - Math.sin(lat1) * Math.sin(lat2),
+      );
+
+    return { lat: toDeg(lat2), lng: toDeg(lng2) };
+  }
+
+  /**
+   * Build a lightweight ghost arrow element for the direction pulse.
+   * Matches the real arrow's SVG but has no interactive zones.
+   *
+   * @param {number} bearing - Compass bearing in degrees
+   * @returns {HTMLDivElement}
+   */
+  function buildGhostArrowContent(bearing) {
+    const wrapper = document.createElement("div");
+    wrapper.className = "signs-arrow-ghost";
+    wrapper.style.cssText =
+      "transform:translateY(58px);opacity:0;pointer-events:none";
+
+    const b = bearing || 0;
+    wrapper.innerHTML = `<svg viewBox="0 0 40 64" xmlns="http://www.w3.org/2000/svg">
+      <g transform="rotate(${b}, 20, 6)">
+        <line class="signs-arrow-marker-outline" x1="20" y1="56" x2="20" y2="26" />
+        <line class="signs-arrow-marker-fg" x1="20" y1="56" x2="20" y2="26" />
+        <polyline class="signs-arrow-marker-outline" points="8,30 20,6 32,30" />
+        <polyline class="signs-arrow-marker-fg" points="8,30 20,6 32,30" />
+      </g>
+    </svg>`;
+    return wrapper;
+  }
+
+  /**
+   * Flash a repeating sequence of ghost arrows behind a traffic arrow
+   * to visualise its direction of travel. Five ghost arrows pulse
+   * tail-to-head like runway approach lights, ending with a glow
+   * on the real arrow, then the cycle repeats until cancelPulse().
+   *
+   * @param {number} arrowId
+   */
+  function pulseArrowDirection(arrowId) {
+    cancelPulse();
+
+    const arrow = findArrow(arrowId);
+    if (!arrow) return;
+
+    pulsingArrowId = arrowId;
+    const bearing = arrow.bearing ?? 0;
+    const reverseBearing = (bearing + 180) % 360;
+    const originLat = Number(arrow.latitude);
+    const originLng = Number(arrow.longitude);
+
+    const SPACING = 12;
+    const GHOST_COUNT = 5;
+
+    for (let i = 1; i <= GHOST_COUNT; i++) {
+      const pos = destPoint(
+        originLat,
+        originLng,
+        reverseBearing,
+        SPACING * i,
+      );
+      const content = buildGhostArrowContent(bearing);
+      const ghostMarker = new google.maps.marker.AdvancedMarkerElement({
+        map: mapRef,
+        position: { lat: pos.lat, lng: pos.lng },
+        content,
+        zIndex: 5,
+      });
+      activeGhosts.push(ghostMarker);
+    }
+
+    runPulseCycle();
+  }
+
+  /**
+   * Run one pulse cycle (farthest → nearest → real arrow glow),
+   * then schedule the next. Stops automatically when pulsingArrowId
+   * is cleared by cancelPulse().
+   */
+  function runPulseCycle() {
+    if (pulsingArrowId === null || !activeGhosts.length) return;
+
+    const STEP_DELAY = 200;
+    const count = activeGhosts.length;
+    const arrowId = pulsingArrowId;
+
+    // Reset all ghosts to invisible
+    activeGhosts.forEach((ghost) => {
+      if (ghost.content) {
+        ghost.content.style.transition = "none";
+        ghost.content.style.opacity = "0";
+      }
+    });
+
+    // Sequential pulse: farthest ghost first → nearest
+    activeGhosts
+      .slice()
+      .reverse()
+      .forEach((ghost, i) => {
+        setTimeout(() => {
+          if (pulsingArrowId !== arrowId) return;
+          const el = ghost.content;
+          if (!el) return;
+          el.style.transition = "opacity 0.15s ease-in";
+          el.style.opacity = "0.85";
+          setTimeout(() => {
+            if (pulsingArrowId !== arrowId) return;
+            el.style.transition = "opacity 0.2s ease-out";
+            el.style.opacity = "0";
+          }, 180);
+        }, i * STEP_DELAY);
+      });
+
+    // Glow the real arrow at the end
+    setTimeout(() => {
+      if (pulsingArrowId !== arrowId) return;
+      const realMarker = arrowMarkers.get(arrowId);
+      if (realMarker?.content) {
+        realMarker.content.classList.add("signs-arrow-pulse-highlight");
+        setTimeout(() => {
+          if (pulsingArrowId !== arrowId) return;
+          realMarker.content.classList.remove("signs-arrow-pulse-highlight");
+        }, 300);
+      }
+    }, count * STEP_DELAY);
+
+    // Schedule next cycle
+    pulseTimer = setTimeout(
+      () => runPulseCycle(),
+      (count + 1) * STEP_DELAY + 200,
+    );
+  }
+
+  /**
+   * Cancel any running direction pulse and remove ghost arrows.
+   */
+  function cancelPulse() {
+    pulsingArrowId = null;
+    if (pulseTimer) {
+      clearTimeout(pulseTimer);
+      pulseTimer = null;
+    }
+    activeGhosts.forEach((ghost) => {
+      ghost.map = null;
+    });
+    activeGhosts = [];
+    document
+      .querySelectorAll(".signs-arrow-pulse-highlight")
+      .forEach((el) => el.classList.remove("signs-arrow-pulse-highlight"));
   }
 
   /**
@@ -1876,10 +2134,10 @@
 
       row.appendChild(body);
 
-      // Click → select + fly to + open editor
+      // Click → select + fly to + info sheet
       row.addEventListener("click", () => {
         selectMarker(loc.location_id);
-        openEditor(loc.location_id);
+        openInfoSheet(loc.location_id);
       });
 
       list.appendChild(row);
@@ -2387,6 +2645,41 @@
   }
 
   /**
+   * Set every attachment on a location to the same status.
+   * Used by the geofence proximity bar for one-tap status changes.
+   *
+   * @param {number} locationId
+   * @param {string} newStatus  One of 'planned', 'installed', 'removed'.
+   */
+  async function quickSetLocationStatus(locationId, newStatus) {
+    const loc = findLocation(locationId);
+    if (!loc) return;
+    const atts = loc.attachments || [];
+    if (!atts.length) return;
+
+    const token = getCsrfToken();
+    for (const att of atts) {
+      if (att.status === newStatus) continue;
+      try {
+        const res = await fetch(`/signs/attachments/${att.attachment_id}/status`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "CSRF-Token": token,
+          },
+          body: JSON.stringify({ status: newStatus }),
+        });
+        const data = await res.json();
+        if (data.success) att.status = newStatus;
+      } catch (err) {
+        console.error("quickSetLocationStatus error:", err);
+      }
+    }
+    refreshMarker(locationId);
+    applyFilters();
+  }
+
+  /**
    * Remove an attachment from its location.
    * @param {number} attachmentId
    */
@@ -2747,20 +3040,433 @@
   }
 
   // ============================================================
-  // INFO SHEET (mobile)
+  // INFO SHEET
   // ============================================================
 
+  /**
+   * Deselect all markers and arrows, dismiss info sheet and context menu.
+   */
+  function deselectAll() {
+    clearTimeout(singleClickTimer);
+    singleClickTimer = null;
+
+    if (selectedId !== null) {
+      const prev = markers.get(selectedId);
+      if (prev?.content)
+        prev.content.classList.remove("signs-map-marker-selected");
+      selectedId = null;
+    }
+    if (selectedArrowId !== null) {
+      const prev = arrowMarkers.get(selectedArrowId);
+      if (prev?.content)
+        prev.content.classList.remove("signs-arrow-marker-selected");
+      clearArrowHighlights();
+      selectedArrowId = null;
+    }
+    // Clear sidebar highlight
+    document.querySelectorAll(".signs-location-row.border-primary").forEach(
+      (row) => row.classList.remove("border-primary"),
+    );
+    dismissInfoSheet(true);
+    dismissContextMenu();
+    cancelPulse();
+  }
+
+  /**
+   * Dismiss the info sheet.
+   *
+   * @param {boolean} [immediate] - Skip the slide-out transition.
+   */
   function dismissInfoSheet(immediate) {
     const sheet = document.getElementById("signsInfoSheet");
     const backdrop = document.getElementById("signsInfoSheetBackdrop");
     if (sheet) {
       sheet.classList.remove("signs-info-sheet-open");
-      sheet.classList.add("d-none");
+      if (immediate) {
+        sheet.classList.add("d-none");
+      } else {
+        sheet.addEventListener(
+          "transitionend",
+          () => sheet.classList.add("d-none"),
+          { once: true },
+        );
+      }
     }
     if (backdrop) {
       backdrop.classList.remove("signs-info-sheet-backdrop-visible");
-      backdrop.classList.add("d-none");
+      if (immediate) {
+        backdrop.classList.add("d-none");
+      } else {
+        backdrop.addEventListener(
+          "transitionend",
+          () => backdrop.classList.add("d-none"),
+          { once: true },
+        );
+      }
     }
+  }
+
+  /**
+   * Populate and show the info sheet for a sign location.
+   *
+   * @param {number} locationId
+   */
+  function openInfoSheet(locationId) {
+    dismissContextMenu();
+    dismissEditorIfOpen();
+    dismissArrowEditorIfOpen();
+
+    const loc = findLocation(locationId);
+    if (!loc) return;
+
+    const header = document.getElementById("signsInfoSheetHeader");
+    const body = document.getElementById("signsInfoSheetBody");
+    if (!header || !body) return;
+
+    // ── Header ─────────────────────────────────────────────────
+    header.innerHTML = "";
+
+    const preview = document.createElement("div");
+    preview.className = "signs-info-sheet-preview-group";
+
+    const atts = loc.attachments || [];
+    const status = deriveStatus(loc);
+    const titleText = atts.length
+      ? atts.map((a) => a.sign_text || "—").join(", ")
+      : "Empty location";
+
+    const titleEl = document.createElement("strong");
+    titleEl.textContent = titleText;
+    preview.appendChild(titleEl);
+
+    const badge = document.createElement("span");
+    badge.className = `badge rounded-pill bg-${status === "installed" ? "success" : status === "removed" ? "danger" : "secondary"} ms-2`;
+    badge.textContent = status;
+    preview.appendChild(badge);
+
+    header.appendChild(preview);
+
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "signs-info-sheet-close";
+    closeBtn.setAttribute("aria-label", "Close");
+    closeBtn.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
+    closeBtn.addEventListener("click", () => dismissInfoSheet());
+    header.appendChild(closeBtn);
+
+    // ── Body ───────────────────────────────────────────────────
+    body.innerHTML = "";
+
+    // Photo thumbnail
+    if (loc.photo_url) {
+      const thumb = document.createElement("img");
+      thumb.className = "signs-info-sheet-thumb";
+      thumb.alt = "Location photo";
+      thumb.src = `/signs/locations/${loc.location_id}/photo?v=${photoCacheBuster}`;
+      body.appendChild(thumb);
+    }
+
+    // Details grid
+    const dl = document.createElement("dl");
+    dl.className = "signs-info-sheet-details";
+
+    const addDetail = (label, value) => {
+      if (!value) return;
+      const dt = document.createElement("dt");
+      dt.textContent = label;
+      dl.appendChild(dt);
+      const dd = document.createElement("dd");
+      dd.textContent = value;
+      dl.appendChild(dd);
+    };
+
+    addDetail("Mount", MOUNT_LABELS[loc.mount_type] || loc.mount_type || "—");
+    addDetail("Signs", atts.length ? `${atts.length} attached` : "None");
+    addDetail("Notes", loc.location_notes);
+    addDetail(
+      "Coords",
+      `${Number(loc.latitude).toFixed(6)}, ${Number(loc.longitude).toFixed(6)}`,
+    );
+
+    if (dl.children.length) body.appendChild(dl);
+
+    // Attachment list
+    if (atts.length) {
+      atts.forEach((att) => {
+        const row = document.createElement("div");
+        row.className = "d-flex align-items-center gap-2 mb-1";
+
+        const text = document.createElement("span");
+        text.className = "flex-grow-1 text-truncate";
+        text.style.cssText = "font-size:0.85rem";
+        text.textContent = att.sign_text || "—";
+        row.appendChild(text);
+
+        const dir = att.arrow_direction;
+        if (dir) {
+          const ar = document.createElement("span");
+          ar.className = "text-muted";
+          ar.style.cssText = "font-size:0.8rem";
+          if (dir === "destination") {
+            ar.innerHTML = '<i class="fa-solid fa-location-dot"></i>';
+          } else if (ARROW_GLYPHS[dir]) {
+            ar.textContent = ARROW_GLYPHS[dir];
+          }
+          row.appendChild(ar);
+        }
+
+        const statusBadge = document.createElement("span");
+        statusBadge.className = `badge rounded-pill bg-${att.status === "installed" ? "success" : att.status === "removed" ? "danger" : "secondary"}`;
+        statusBadge.style.cssText = "font-size:0.7rem";
+        statusBadge.textContent = att.status;
+        row.appendChild(statusBadge);
+
+        body.appendChild(row);
+      });
+    }
+
+    // Action buttons
+    if (canManage) {
+      const actions = document.createElement("div");
+      actions.className = "signs-info-sheet-actions mt-3";
+
+      const editBtn = document.createElement("button");
+      editBtn.type = "button";
+      editBtn.className = "signs-info-sheet-action-btn signs-info-sheet-action-btn-primary";
+      editBtn.innerHTML = '<i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Edit location';
+      editBtn.addEventListener("click", () => {
+        dismissInfoSheet(true);
+        openEditor(locationId);
+      });
+      actions.appendChild(editBtn);
+
+      body.appendChild(actions);
+    }
+
+    // ── Show ───────────────────────────────────────────────────
+    showInfoSheetElement();
+  }
+
+  /**
+   * Populate and show the info sheet for a traffic arrow.
+   *
+   * @param {number} arrowId
+   */
+  function openArrowInfoSheet(arrowId) {
+    dismissContextMenu();
+    dismissEditorIfOpen();
+    dismissArrowEditorIfOpen();
+
+    const arrow = findArrow(arrowId);
+    if (!arrow) return;
+
+    const header = document.getElementById("signsInfoSheetHeader");
+    const body = document.getElementById("signsInfoSheetBody");
+    if (!header || !body) return;
+
+    // ── Header ─────────────────────────────────────────────────
+    header.innerHTML = "";
+
+    const preview = document.createElement("div");
+    preview.className = "signs-info-sheet-preview-group";
+
+    const titleEl = document.createElement("strong");
+    titleEl.textContent = arrow.label || "Traffic arrow";
+    preview.appendChild(titleEl);
+
+    header.appendChild(preview);
+
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "signs-info-sheet-close";
+    closeBtn.setAttribute("aria-label", "Close");
+    closeBtn.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
+    closeBtn.addEventListener("click", () => dismissInfoSheet());
+    header.appendChild(closeBtn);
+
+    // ── Body ───────────────────────────────────────────────────
+    body.innerHTML = "";
+
+    const dl = document.createElement("dl");
+    dl.className = "signs-info-sheet-details";
+
+    const addDetail = (label, value) => {
+      if (!value && value !== 0) return;
+      const dt = document.createElement("dt");
+      dt.textContent = label;
+      dl.appendChild(dt);
+      const dd = document.createElement("dd");
+      dd.textContent = value;
+      dl.appendChild(dd);
+    };
+
+    addDetail("Label", arrow.label);
+    addDetail("Bearing", `${arrow.bearing ?? 0}°`);
+    addDetail(
+      "Coords",
+      `${Number(arrow.latitude).toFixed(6)}, ${Number(arrow.longitude).toFixed(6)}`,
+    );
+
+    const links = arrow.links || [];
+    if (links.length) {
+      const linkedNames = links
+        .map((attId) => {
+          for (const loc of locations) {
+            const att = (loc.attachments || []).find(
+              (a) => a.attachment_id === attId,
+            );
+            if (att) return att.sign_text || "—";
+          }
+          return null;
+        })
+        .filter(Boolean);
+      if (linkedNames.length) {
+        addDetail("Linked signs", linkedNames.join(", "));
+      }
+    }
+
+    if (dl.children.length) body.appendChild(dl);
+
+    // Action buttons
+    if (canManage) {
+      const actions = document.createElement("div");
+      actions.className = "signs-info-sheet-actions mt-3";
+
+      const editBtn = document.createElement("button");
+      editBtn.type = "button";
+      editBtn.className = "signs-info-sheet-action-btn signs-info-sheet-action-btn-primary";
+      editBtn.innerHTML = '<i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Edit arrow';
+      editBtn.addEventListener("click", () => {
+        dismissInfoSheet(true);
+        openArrowEditor(arrowId);
+      });
+      actions.appendChild(editBtn);
+
+      body.appendChild(actions);
+    }
+
+    // ── Show ───────────────────────────────────────────────────
+    showInfoSheetElement();
+  }
+
+  /**
+   * Animate the info sheet into view.
+   */
+  function showInfoSheetElement() {
+    const sheet = document.getElementById("signsInfoSheet");
+    const backdrop = document.getElementById("signsInfoSheetBackdrop");
+
+    if (sheet) {
+      sheet.classList.remove("d-none");
+      requestAnimationFrame(() => {
+        sheet.classList.add("signs-info-sheet-open");
+      });
+    }
+    if (backdrop) {
+      backdrop.classList.remove("d-none");
+      requestAnimationFrame(() => {
+        backdrop.classList.add("signs-info-sheet-backdrop-visible");
+      });
+      // Backdrop click dismisses info sheet
+      backdrop.onclick = () => dismissInfoSheet();
+    }
+  }
+
+  // ============================================================
+  // CONTEXT MENU
+  // ============================================================
+
+  /**
+   * Show a floating context menu at the given screen coordinates.
+   * The menu is appended to document.body to avoid Google Maps'
+   * .gm-style all:revert CSS reset.
+   *
+   * @param {number} x - clientX
+   * @param {number} y - clientY
+   * @param {'location'|'arrow'} type
+   * @param {number} id - location_id or arrow_id
+   */
+  function showContextMenu(x, y, type, id) {
+    dismissContextMenu();
+    dismissInfoSheet(true);
+
+    const menu = document.createElement("div");
+    menu.id = "signsContextMenu";
+    menu.className = "signs-context-menu";
+
+    /**
+     * Add an item to the context menu.
+     *
+     * @param {string} icon - FontAwesome class
+     * @param {string} label
+     * @param {Function} handler
+     * @param {string} [variant] - Optional CSS modifier class
+     */
+    const addItem = (icon, label, handler, variant) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "signs-context-menu-item" +
+        (variant ? ` signs-context-menu-item-${variant}` : "");
+      btn.innerHTML =
+        `<i class="${icon}" aria-hidden="true"></i> ${label}`;
+      btn.addEventListener("click", () => {
+        dismissContextMenu();
+        handler();
+      });
+      menu.appendChild(btn);
+    };
+
+    if (type === "location") {
+      addItem("fa-solid fa-pen-to-square", "Edit", () => openEditor(id));
+      addItem(
+        "fa-solid fa-trash-can",
+        "Delete",
+        () => {
+          if (confirm("Delete this location and all its attachments?")) {
+            editingLocationId = id;
+            deleteFromEditor();
+          }
+        },
+        "danger",
+      );
+    } else {
+      addItem("fa-solid fa-pen-to-square", "Edit", () => openArrowEditor(id));
+      addItem(
+        "fa-solid fa-trash-can",
+        "Delete",
+        () => {
+          if (confirm("Delete this traffic arrow?")) {
+            const el = document.getElementById("arrowEditor");
+            if (el) el.dataset.arrowId = id;
+            deleteArrowEditor();
+          }
+        },
+        "danger",
+      );
+    }
+
+    // Position — keep within viewport
+    document.body.appendChild(menu);
+    const rect = menu.getBoundingClientRect();
+    const posX = Math.min(x, window.innerWidth - rect.width - 8);
+    const posY = Math.min(y, window.innerHeight - rect.height - 8);
+    menu.style.setProperty("left", `${Math.max(0, posX)}px`);
+    menu.style.setProperty("top", `${Math.max(0, posY)}px`);
+
+    // Dismiss on next click anywhere or scroll
+    requestAnimationFrame(() => {
+      document.addEventListener("click", dismissContextMenu, { once: true });
+      document.addEventListener("scroll", dismissContextMenu, {
+        once: true,
+        capture: true,
+      });
+    });
+  }
+
+  /**
+   * Remove the context menu if it exists.
+   */
+  function dismissContextMenu() {
+    const existing = document.getElementById("signsContextMenu");
+    if (existing) existing.remove();
   }
 
   // ============================================================
@@ -2982,9 +3688,10 @@
       updateDraggableState();
     });
 
-    // Escape key → deselect / exit placing mode
+    // Escape key → dismiss menus / exit placing mode / deselect
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
+        dismissContextMenu();
         if (isPlacingArrow) {
           exitArrowPlacingMode();
           return;
@@ -2992,7 +3699,9 @@
         if (isPlacing) {
           clearPendingMarker();
           exitPlacingMode();
+          return;
         }
+        deselectAll();
       }
     });
   }
@@ -3025,6 +3734,17 @@
 
     wireUi();
     renderLocationList();
+
+    // Expose a minimal API for companion modules (e.g. signsGeofence.js).
+    window.signsMapApi = {
+      getLocations: () => locations,
+      findLocation,
+      deriveStatus,
+      selectMarker,
+      quickSetLocationStatus,
+      canManage: () => canManage,
+      getMapRef: () => mapRef,
+    };
 
     if (!apiKey) return;
 

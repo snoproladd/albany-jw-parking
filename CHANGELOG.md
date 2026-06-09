@@ -3,6 +3,57 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.43.0] - 2026-06-09
+
+### Added
+- **Sign Map: click interaction overhaul.** Single click on a location or
+  arrow marker opens a read-only info sheet (slide-up panel); double-click
+  opens the editor (OVERSEER+); right-click opens a context menu with Edit
+  and Delete (OVERSEER+). Clicking empty map space deselects the active
+  marker and dismisses all overlays. Sidebar list rows now open the info
+  sheet instead of the editor. Escape key cascades: dismiss context menu →
+  exit placement mode → deselect all.
+- **Context menu.** Floating right-click menu on location and arrow markers
+  with Edit and Delete actions (OVERSEER+). Positioned at cursor, dismissed
+  on click-away, scroll, or Escape. Appended to `document.body` to avoid
+  Google Maps' `all: revert` CSS reset.
+- **Geofencing reinstated.** `signsGeofence.js` rewritten for the
+  locations/attachments data model. `window.signsMapApi` re-exposed from
+  `signsMap.js` with `getLocations`, `findLocation`, `deriveStatus`,
+  `selectMarker`, `quickSetLocationStatus`, `canManage`, and `getMapRef`.
+  Proximity distance displayed in feet. `quickSetLocationStatus` sets all
+  attachments on a location to the chosen status in one tap. FAB placed in
+  Google Maps control stack with inline styles. Auto-follow removed to
+  prevent vector-tile style corruption on pan.
+- **Arrow direction pulse.** Hovering any traffic arrow marker fires a
+  repeating approach-light animation: five ghost arrows pulse tail-to-head
+  in bright orange, ending with a glow on the real arrow. Repeats until the
+  cursor leaves. Single-clicking an unlinked arrow also triggers the pulse.
+  Linked arrows show the info sheet on click instead.
+- **`selectMarker` `noPan` option.** Geofence proximity detection selects
+  markers without panning, preventing vector-tile reloads that corrupt
+  cloud-based map styling.
+
+### Changed
+- **Mount type icons** in map markers switched from hand-drawn SVGs to
+  FontAwesome icons (`fa-signs-post`, `fa-triangle-exclamation`, `fa-tent`,
+  `fa-building`), matching the sidebar legend.
+- **Marker click handlers** switched from `marker.addListener("click")`
+  (Maps API synthetic event) to `marker.element.addEventListener("click")`
+  (native DOM on the persistent host element). Survives both post-drag
+  click suppression and `marker.content` swaps on zoom transitions. A
+  no-op `marker.addListener("click", () => {})` keeps markers clickable
+  in the Maps API so clicks don't fall through to the map.
+
+### Fixed
+- **Proximity bar race condition.** `hideProximityBar` now uses a tracked
+  `transitionend` handler that `showProximityBar` explicitly cancels,
+  preventing a stale listener from re-adding `d-none` after a rapid
+  hide → show sequence.
+- **Duplicate geofence CSS.** Removed ~290 lines of duplicate FAB, blue dot,
+  and proximity bar styles that were injected mid-rule during an earlier
+  edit, breaking the `.signs-composer-status` rule.
+
 ## [2.42.0] - 2026-06-09
 
 ### Changed — Sign Map: arrow geometry, cursors, and interaction zones

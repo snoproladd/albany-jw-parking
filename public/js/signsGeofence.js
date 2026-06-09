@@ -2,7 +2,7 @@
  * @file public/js/signsGeofence.js
  * @description Geofencing companion for the Sign Map page. Adds continuous
  *   GPS tracking with proximity alerts and quick status toggles when the
- *   user is within range of a sign placement.
+ *   user is within range of a sign location.
  *
  *   Requires the API surface exposed by signsMap.js at window.signsMapApi.
  *   Only activates for users with manageSigns permission.
@@ -10,9 +10,9 @@
  * Activation flow:
  *   1. User taps the floating "Track my location" button (FAB).
  *   2. watchPosition starts; a blue dot appears on the map.
- *   3. When within PROXIMITY_RADIUS_M of a placement, a proximity bar
+ *   3. When within PROXIMITY_RADIUS_M of a location, a proximity bar
  *      slides up with the sign info and one-tap status buttons.
- *   4. Tapping a status button fires quickSetStatus via the signsMap API.
+ *   4. Tapping a status button fires quickSetLocationStatus via the API.
  *   5. Tapping the FAB again stops tracking and cleans up.
  *
  * Public surface: none (all state is private to the IIFE).
@@ -25,8 +25,11 @@
   // CONSTANTS
   // ================================================================
 
-  /** Proximity trigger radius in metres. */
+  /** Proximity trigger radius in metres (≈ 246 ft). */
   const PROXIMITY_RADIUS_M = 75;
+
+  /** Metres-to-feet conversion factor. */
+  const M_TO_FT = 3.28084;
 
   /**
    * Delay (ms) before re-enabling auto-pan after the user manually
@@ -78,11 +81,11 @@
   /** Last known position: { lat, lng, accuracy } or null. */
   let userPos = null;
 
-  /** placement_id of the nearest in-range placement, or null. */
+  /** location_id of the nearest in-range location, or null. */
   let activeProxId = null;
 
   /**
-   * Set of placement_ids the user has dismissed during this tracking
+   * Set of location_ids the user has dismissed during this tracking
    * session. Cleared when tracking stops or restarts.
    */
   const dismissedIds = new Set();
@@ -95,6 +98,9 @@
 
   /** Safety timeout handle from hideProximityBar, cleared on re-show. */
   let hideBarTimer = null;
+
+  /** Named transitionend handler from hideProximityBar, cleared on re-show. */
+  let hideEndHandler = null;
 
   /** Interval handle for periodic proximity rechecks between GPS updates. */
   let proximityInterval = null;
@@ -144,14 +150,27 @@
   }
 
   /**
-   * Format a distance in metres as a human-readable string.
+   * Format a distance (in metres) as a human-readable string in feet.
    *
    * @param {number} m  Distance in metres.
-   * @returns {string}  e.g. "42 m" or "1.2 km".
+   * @returns {string}  e.g. "142 ft".
    */
   function fmtDist(m) {
-    if (m < 1000) return `${Math.round(m)} m`;
-    return `${(m / 1000).toFixed(1)} km`;
+    const ft = Math.round(m * M_TO_FT);
+    return `${ft} ft`;
+  }
+
+  /**
+   * Derive a display label for a location from its attachments.
+   *
+   * @param {object} loc
+   * @returns {string}
+   */
+  function locationLabel(loc) {
+    const atts = loc.attachments || [];
+    if (!atts.length) return "Empty location";
+    const first = atts[0].sign_text || "—";
+    return atts.length > 1 ? `${first} (+${atts.length - 1})` : first;
   }
 
   // ================================================================
@@ -187,8 +206,7 @@
 
   /**
    * Create or reposition the blue-dot marker at the user's current
-   * GPS position. Uses AdvancedMarkerElement with custom DOM content
-   * to match the existing marker architecture in signsMap.js.
+   * GPS position.
    */
   function updateUserMarker() {
     const map = api.getMapRef();
@@ -232,13 +250,13 @@
   // ================================================================
 
   /**
-   * Build and show the proximity bar for a placement that just entered
+   * Build and show the proximity bar for a location that just entered
    * the detection radius.
    *
-   * @param {object} placement  In-memory placement object from the API.
-   * @param {number} distanceM  Current distance in metres.
+   * @param {object} loc       In-memory location object from the API.
+   * @param {number} distanceM Current distance in metres.
    */
-  function showProximityBar(placement, distanceM) {
+  function showProximityBar(loc, distanceM) {
     if (!proxBar || !proxInfo || !proxActions) return;
 
     // ── Info row: sign preview + distance ──────────────────────
@@ -249,10 +267,12 @@
 
     const textSpan = document.createElement("span");
     textSpan.className = "sign-preview-text";
-    textSpan.textContent = placement.sign_text || "";
+    textSpan.textContent = locationLabel(loc);
     preview.appendChild(textSpan);
 
-    const dir = placement.arrow_direction;
+    // Show arrow glyph from first attachment if present
+    const firstAtt = (loc.attachments || [])[0];
+    const dir = firstAtt?.arrow_direction;
     if (dir) {
       const arrowSpan = document.createElement("span");
       arrowSpan.className = "sign-preview-arrow";
@@ -275,18 +295,22 @@
     proxInfo.appendChild(distEl);
 
     // ── Photo thumbnail ────────────────────────────────────────
-    buildProximityPhoto(placement);
+    buildProximityPhoto(loc);
 
     // ── Status buttons ─────────────────────────────────────────
-    buildStatusButtons(placement);
+    buildStatusButtons(loc);
 
     // ── Raise the FAB above the bar ────────────────────────────
     if (fabBtn) fabBtn.classList.add("signs-geofence-fab-raised");
 
-    // ── Cancel any pending hide timer from a prior hideProximityBar call
+    // ── Cancel any pending hide cleanup from a prior call
     if (hideBarTimer !== null) {
       clearTimeout(hideBarTimer);
       hideBarTimer = null;
+    }
+    if (hideEndHandler) {
+      proxBar.removeEventListener("transitionend", hideEndHandler);
+      hideEndHandler = null;
     }
 
     // ── Slide in ───────────────────────────────────────────────
@@ -296,15 +320,16 @@
   }
 
   /**
-   * Build the three status toggle buttons inside the proximity bar's
-   * action area. Can be called repeatedly to re-render after a status
-   * change without rebuilding the entire bar.
+   * Build the three status toggle buttons inside the proximity bar.
+   * Can be called repeatedly to re-render after a status change.
    *
-   * @param {object} placement  In-memory placement object.
+   * @param {object} loc  In-memory location object.
    */
-  function buildStatusButtons(placement) {
+  function buildStatusButtons(loc) {
     if (!proxActions) return;
     proxActions.replaceChildren();
+
+    const currentStatus = api.deriveStatus(loc);
 
     const defs = [
       { status: "planned", icon: "fa-solid fa-circle-dot", label: "Planned" },
@@ -320,7 +345,7 @@
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = `signs-proximity-status-btn signs-proximity-status-btn-${status}`;
-      if (placement.status === status) {
+      if (currentStatus === status) {
         btn.classList.add("signs-proximity-status-btn-active");
       }
 
@@ -331,12 +356,10 @@
       btn.appendChild(document.createTextNode(label));
 
       btn.addEventListener("click", async () => {
-        if (placement.status === status) return;
+        if (currentStatus === status) return;
         try {
-          await api.quickSetStatus(placement.placement_id, status);
-          // quickSetStatus mutates the in-memory placement,
-          // so re-render the buttons to reflect the new state.
-          buildStatusButtons(placement);
+          await api.quickSetLocationStatus(loc.location_id, status);
+          buildStatusButtons(loc);
         } catch (err) {
           console.error("Proximity status update error:", err);
         }
@@ -347,24 +370,23 @@
   }
 
   /**
-   * Build the photo thumbnail inside the proximity bar. Shows a small
-   * preview that expands on tap with a chevron to collapse.
+   * Build the photo thumbnail inside the proximity bar.
    *
-   * @param {object} placement  In-memory placement object.
+   * @param {object} loc  In-memory location object.
    */
-  function buildProximityPhoto(placement) {
+  function buildProximityPhoto(loc) {
     if (!proxPhoto) return;
     proxPhoto.replaceChildren();
 
-    if (!placement.photo_url) {
+    if (!loc.photo_url) {
       proxPhoto.classList.add("d-none");
       return;
     }
 
     const thumb = document.createElement("img");
     thumb.className = "signs-proximity-photo-thumb";
-    thumb.alt = "Sign placement photo";
-    thumb.src = `/signs/placements/${placement.placement_id}/photo?t=${Date.now()}`;
+    thumb.alt = "Location photo";
+    thumb.src = `/signs/locations/${loc.location_id}/photo?t=${Date.now()}`;
 
     const collapseBtn = document.createElement("button");
     collapseBtn.type = "button";
@@ -395,7 +417,7 @@
   /**
    * Update only the distance readout in an already-visible bar.
    *
-   * @param {number} distanceM
+   * @param {number} distanceM  Distance in metres (converted to ft for display).
    */
   function updateProximityDistance(distanceM) {
     const el = document.getElementById("signsProximityDist");
@@ -408,23 +430,21 @@
   function hideProximityBar() {
     if (!proxBar) return;
 
-    // Lower the FAB back to its default position
     if (fabBtn) fabBtn.classList.remove("signs-geofence-fab-raised");
 
     proxBar.classList.remove("signs-proximity-bar-open");
 
-    /**
-     * After the transition finishes, hide the element from the
-     * layout entirely. A safety timeout ensures d-none is applied
-     * even if transitionend doesn't fire (e.g. element was already
-     * at translateY(100%) and no transition occurred).
-     */
-    const onEnd = () => {
+    // Track the listener so showProximityBar can cancel it if
+    // the bar re-opens before the transition completes.
+    hideEndHandler = () => {
       proxBar.classList.add("d-none");
-      proxBar.removeEventListener("transitionend", onEnd);
+      hideEndHandler = null;
     };
-    proxBar.addEventListener("transitionend", onEnd, { once: true });
-    hideBarTimer = setTimeout(() => proxBar.classList.add("d-none"), 350);
+    proxBar.addEventListener("transitionend", hideEndHandler, { once: true });
+    hideBarTimer = setTimeout(() => {
+      proxBar.classList.add("d-none");
+      hideEndHandler = null;
+    }, 350);
   }
 
   // ================================================================
@@ -432,42 +452,39 @@
   // ================================================================
 
   /**
-   * Scan all placements and show / update / hide the proximity bar
+   * Scan all locations and show / update / hide the proximity bar
    * depending on which (if any) are within the detection radius.
    */
   function checkProximity() {
     if (!userPos) return;
-    const placements = api.getPlacements();
+    const locs = api.getLocations();
 
     let nearest = null;
     let nearestDist = Infinity;
 
-    for (const p of placements) {
-      if (dismissedIds.has(p.placement_id)) continue;
+    for (const loc of locs) {
+      if (dismissedIds.has(loc.location_id)) continue;
       const dist = haversineM(
         userPos.lat,
         userPos.lng,
-        Number(p.latitude),
-        Number(p.longitude),
+        Number(loc.latitude),
+        Number(loc.longitude),
       );
       if (dist < PROXIMITY_RADIUS_M && dist < nearestDist) {
-        nearest = p;
+        nearest = loc;
         nearestDist = dist;
       }
     }
 
     if (nearest) {
-      if (activeProxId !== nearest.placement_id) {
-        // New placement entered range — select it and show the bar
-        activeProxId = nearest.placement_id;
-        api.selectMarker(nearest.placement_id);
+      if (activeProxId !== nearest.location_id) {
+        activeProxId = nearest.location_id;
+        api.selectMarker(nearest.location_id, { noPan: true });
         showProximityBar(nearest, nearestDist);
       } else {
-        // Same placement still nearest — just update distance
         updateProximityDistance(nearestDist);
       }
     } else if (activeProxId !== null) {
-      // User left all proximity zones
       activeProxId = null;
       hideProximityBar();
     }
@@ -476,20 +493,6 @@
   // ================================================================
   // FOLLOW MODE
   // ================================================================
-
-  /**
-   * Called when the user manually interacts with the map (pan, zoom).
-   * Temporarily disables auto-pan so the map doesn't fight the user,
-   * then re-enables after FOLLOW_RESUME_MS of inactivity.
-   */
-  function onMapInteraction() {
-    if (!tracking) return;
-    followMode = false;
-    clearFollowTimer();
-    followTimer = setTimeout(() => {
-      followMode = true;
-    }, FOLLOW_RESUME_MS);
-  }
 
   /**
    * Cancel the pending follow-resume timer.
@@ -506,8 +509,7 @@
   // ================================================================
 
   /**
-   * Success callback for watchPosition. Updates the blue dot,
-   * checks proximity, and optionally pans the map.
+   * Success callback for watchPosition.
    *
    * @param {GeolocationPosition} pos
    */
@@ -520,16 +522,10 @@
 
     updateUserMarker();
     checkProximity();
-
-    if (followMode) {
-      const map = api.getMapRef();
-      if (map) map.panTo({ lat: userPos.lat, lng: userPos.lng });
-    }
   }
 
   /**
-   * Error callback for watchPosition. Logs the error and stops
-   * tracking if permission was denied.
+   * Error callback for watchPosition.
    *
    * @param {GeolocationPositionError} err
    */
@@ -556,7 +552,7 @@
     }
 
     tracking = true;
-    followMode = true;
+    followMode = false;
     dismissedIds.clear();
     activeProxId = null;
     updateFabState();
@@ -567,8 +563,6 @@
       GEO_OPTIONS,
     );
 
-    // Periodic recheck so placement moves made while tracking are
-    // detected without waiting for the next GPS position update.
     proximityInterval = setInterval(checkProximity, 4000);
   }
 
@@ -611,42 +605,39 @@
     proxBar = document.getElementById("signsProximityBar");
     proxInfo = document.getElementById("signsProximityInfo");
     proxActions = document.getElementById("signsProximityActions");
-    proxPhoto   = document.getElementById("signsProximityPhoto");
+    proxPhoto = document.getElementById("signsProximityPhoto");
     proxDismiss = document.getElementById("signsProximityDismiss");
 
     if (!fabBtn) return;
 
-    // Once the map is available, move the FAB into the Google Maps
-    // control stack so it sits above the zoom / Street View controls
-    // instead of overlapping them. Poll briefly since the map loads
-    // asynchronously after bootstrap().
+    // Push the FAB into Google Maps' control stack so it sits
+    // above the zoom controls without overlapping. Inline styles
+    // are required because Maps applies all:revert on control
+    // containers, which collapses class-based sizing.
     const attachToMap = () => {
       const map = api.getMapRef();
       if (!map) {
         setTimeout(attachToMap, 500);
         return;
       }
-      // Google Maps applies all:revert on custom control containers,
-      // which collapses class-based sizing. Inline styles survive
-      // the reset because they have highest specificity.
       const s = fabBtn.style;
-      s.width         = "52px";
-      s.height        = "52px";
-      s.minWidth      = "52px";
-      s.minHeight     = "52px";
-      s.borderRadius  = "50%";
-      s.border        = "none";
-      s.background    = "#fff";
-      s.boxShadow     = "0 2px 8px rgba(0,0,0,0.25)";
-      s.color         = "#6c757d";
-      s.fontSize      = "1.25rem";
-      s.display       = "flex";
-      s.alignItems    = "center";
+      s.width = "52px";
+      s.height = "52px";
+      s.minWidth = "52px";
+      s.minHeight = "52px";
+      s.borderRadius = "50%";
+      s.border = "none";
+      s.background = "#fff";
+      s.boxShadow = "0 2px 8px rgba(0,0,0,0.25)";
+      s.color = "#6c757d";
+      s.fontSize = "1.25rem";
+      s.display = "flex";
+      s.alignItems = "center";
       s.justifyContent = "center";
-      s.cursor        = "pointer";
-      s.padding       = "0";
-      s.margin        = "0 10px 10px 0";
-      s.position      = "relative";
+      s.cursor = "pointer";
+      s.padding = "0";
+      s.margin = "0 10px 10px 0";
+      s.position = "relative";
 
       const wrapper = document.createElement("div");
       wrapper.appendChild(fabBtn);
@@ -655,19 +646,15 @@
     };
     attachToMap();
 
-    // Toggle tracking on FAB click
     fabBtn.addEventListener("click", () => {
       if (tracking) {
         stopTracking();
       } else {
         startTracking();
       }
-      // Release focus so keyboard events (Shift+drag, arrow nudge)
-      // aren't swallowed by the Maps control container.
       fabBtn.blur();
     });
 
-    // Dismiss bar for the current placement; re-check for others
     if (proxDismiss) {
       proxDismiss.addEventListener("click", () => {
         if (activeProxId !== null) {
@@ -679,14 +666,6 @@
       });
     }
 
-    // Pause follow mode when the user manually pans or zooms
-    const mapEl = document.getElementById("googleMap");
-    if (mapEl) {
-      mapEl.addEventListener("pointerdown", onMapInteraction);
-      mapEl.addEventListener("wheel", onMapInteraction);
-    }
-
-    // Clean up on page unload
     window.addEventListener("beforeunload", stopTracking);
   }
 
