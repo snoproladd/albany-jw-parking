@@ -176,6 +176,11 @@ A Google Map showing every sign location as a stacked marker. Each marker
 displays the signs attached to that location as a vertical column of
 sign-preview blocks. The map starts centred on MVP Arena at street-level zoom.
 
+Key convention buildings (MVP Arena, MVP Parking, OGS East Garage) are
+highlighted with colored polygon outlines on both the interactive and
+print maps. Building outlines are sourced from a KML file and update
+without a code change — just drop in a new export from Google My Maps.
+
 **Layout:** sidebar on the left with filters and the location list; Google
 Maps on the right. A printer icon in the sidebar header opens the
 printable map view in a new tab.
@@ -287,10 +292,14 @@ print-optimised view in a new tab.
 The print page shows a WYSIWYG preview sized for letter-portrait paper
 (7 in × 7 in map area). Markers display a compact 2-column grid of
 category icon + arrow pills for every attachment at each location. A
-legend below the map shows:
+small mount-type icon (cone, a-frame, or existing structure) appears
+below the pills at the marker's geographic anchor point. Convention
+buildings are highlighted with the same colored polygon outlines shown
+on the interactive map. A legend below the map shows:
 - **Sign Types** — colored icon pills for each category
 - **Status** — dot colors for planned (orange) / installed (green) /
   removed (red)
+- **Mount Types** — icons for cone, a-frame, and existing structure
 
 Toolbar controls (Road / Hybrid toggle, status and template filters, fit
 button) let you frame the view. Click **Print** to open the browser print

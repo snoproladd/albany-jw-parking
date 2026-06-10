@@ -214,7 +214,9 @@ parking/
 │   ├── privilegeRules.js      # Registration field incompatibility rules
 │   ├── prodedures.js          # Stored procedure definitions
 │   ├── roles.js               # RBAC permission matrix + middleware
-│   └── sitemap.json           # Page metadata for the role-filtered sitemap
+│   ├── sitemap.json           # Page metadata for the role-filtered sitemap
+│   ├── buildings.kml          # Building polygon outlines (Google My Maps KML export)
+│   └── mapOverlays.js         # KML parser — returns overlay data for sign map bootstrap
 │
 ├── views/
 │   ├── index.ejs              # Home / dashboard page
@@ -348,6 +350,7 @@ parking/
 │   │   ├── signsBuilder.js            # Sign template builder
 │   │   ├── signsList.js               # Sign library grid
 │   │   ├── signsMap.js                # Sign Map — Google Maps + stacked markers + location/attachment editor
+│   │   ├── signsMapOverlays.js        # Shared building polygon overlay renderer (used by map + print)
 │   │   ├── signsGeofence.js           # Geofencing companion (GPS tracking + proximity alerts)
 │   │   ├── signsMapPrint.js           # Print-optimised map (WYSIWYG letter-portrait)
 │   │   │
