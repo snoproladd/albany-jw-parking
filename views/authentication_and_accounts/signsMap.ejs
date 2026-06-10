@@ -614,8 +614,37 @@
         </div>
     </div>
 
+    <%# ── Street View overlay ──────────────────────────────── %>
+    <div class="signs-sv-overlay d-none" id="streetViewOverlay">
+        <div class="signs-sv-header">
+            <div class="signs-sv-header-info">
+                <span class="signs-sv-title" id="svTitle"></span>
+                <span class="signs-sv-heading-badge d-none" id="svBearingBadge"></span>
+                <span class="signs-sv-heading-hint d-none" id="svBearingHint">No bearing set — rotate manually</span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <% if (canManage) { %>
+                    <button type="button" class="btn btn-sm btn-warning signs-sv-save-photo-btn d-none" id="svSavePhotoBtn">
+                        <i class="fa-solid fa-camera me-1"></i>Save as Photo
+                    </button>
+                    <button type="button" class="btn btn-sm btn-info signs-sv-save-photo-btn d-none" id="svSaveViewBtn">
+                        <i class="fa-solid fa-floppy-disk me-1"></i>Save View
+                    </button>
+                <% } %>
+                <button type="button" class="signs-sv-close" id="svCloseBtn" aria-label="Close Street View">
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                </button>
+            </div>
+        </div>
+        <div class="signs-sv-pane" id="streetViewPane"></div>
+        <div class="signs-sv-footer d-none" id="svNoImageryMsg">
+            No Street View imagery available here.
+            <a id="svGoogleMapsLink" href="#" target="_blank" rel="noopener">Open in Google Maps</a>
+        </div>
+    </div>
+
     <%# Inline JSON bootstrap %>
-    <script id="signsMapBootstrap" type="application/json"><%-
+    <script id="signsMapBootstrap" type="application/json"><%- 
         JSON.stringify({ signs, locations, arrows })
     %></script>
 

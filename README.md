@@ -524,6 +524,7 @@ Schema highlights:
   - `front_bearing` `DECIMAL(5,1)` — a-frame only: compass bearing the front face points toward (back = front + 180°)
   - `marker_color` — optional palette key (red, orange, yellow, green, teal, blue, purple, pink) for visual grouping
   - `photo_url` — blob name in Azure Storage `sign-photos` container; served via `GET /signs/locations/:id/photo`
+  - `sv_pano_id`, `sv_heading`, `sv_pitch`, `sv_fov` — persisted Street View camera state; restored when the panorama is reopened
   - No status column — effective status is derived from attachments (any installed → installed, otherwise planned/removed)
 - `sign_attachments` — a sign template mounted on a location, with its own status
   - `location_id` FK → `sign_locations` (ON DELETE CASCADE)
@@ -532,7 +533,10 @@ Schema highlights:
   - `sort_order` — stacking priority (lower = higher on the post); drag-to-reorder in the editor
   - `arrow_direction` — the arrow printed on the physical sign (per-attachment override)
   - `status` (`planned` / `installed` / `removed`) with install/remove audit trail per attachment
-- `traffic_arrows` — road-surface directional indicators (Phase 3, tables created)
+- `sign_traffic_arrows` — road-surface directional indicators pointing drivers toward sign locations
+  - `bearing` `DECIMAL(5,1)` — compass bearing the arrow points toward
+  - `sv_pano_id`, `sv_heading`, `sv_pitch`, `sv_fov` — persisted Street View camera state for arrow-specific approach views
+  - `sign_traffic_arrow_links` junction table links arrows to `sign_attachments`
   - `bearing` `DECIMAL(5,1)` — direction traffic flows (0–360°)
   - Separate from sign markers; placed on the road near intersections
 - `traffic_arrow_signs` — links traffic arrows to specific attachments

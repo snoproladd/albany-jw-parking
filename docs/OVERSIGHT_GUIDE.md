@@ -319,8 +319,8 @@ Geofencing requires the browser's geolocation permission.
 
 ##### Coming soon
 
-- **Street View** and **Placement Composer** — temporarily removed,
-  returning in a future phase adapted for the location/attachment model.
+- **Placement Composer** — temporarily removed, returning in a future
+  phase adapted for the location/attachment model.
 - **Publish to Downloads** — generate a PDF snapshot and upload to the
   Maps downloads page.
 
@@ -425,38 +425,49 @@ camera forward.
 
 ##### Street View
 
-Click **Street View** in the offcanvas editor (visible on saved placements
-only) or **View in Street View** in the right-click context menu to open
-the Street View overlay.
+Street View is available on both **locations** and **traffic arrows**.
+Open it from the single-click info sheet ("Street View" button), the
+right-click context menu, or — for locations — from the editor's action
+buttons.
 
-The overlay is full-screen and covers the map. When a direction of travel
-is set, the camera is automatically positioned **~20m behind the sign** along
-the approach path and pointed forward — so you see the sign the way a driver
-approaching it would. When no direction is set, the panorama opens at the
-placement's coordinates facing north with a hint to rotate manually.
+The overlay is full-screen and covers the map. The header bar shows the
+sign names (or arrow label), a bearing badge when a bearing is available,
+the appropriate save button (OVERSEER+ only), and a × close button.
 
-The header bar shows the sign name, a bearing badge (`Xdeg direction of
-travel`) when set, a **Save as Photo** button (OVERSEER+ only), and a ×
-close button.
+**From a location:** when a direction of travel (front bearing) is set,
+the camera is automatically positioned **~20 m behind the sign** along
+the approach path and pointed forward — so you see the sign the way a
+driver approaching it would. When no bearing is set, the panorama opens
+at the location's coordinates facing north with a hint to rotate
+manually. If a previous Street View position was saved (via "Save as
+Photo"), the panorama restores to that exact frame instead.
 
-**Save as Photo:** navigate the Street View panorama to the exact vantage
-point you want — the auto-calculated position may land across the street or
-at a bad angle depending on where Google's coverage was captured, so use the
-navigation controls to walk to a better spot if needed. When the view is
-right, click **Save as Photo**. The button captures your exact panorama
-position, heading, pitch, and zoom, then the server fetches a matching
-image from the Google Street View Static API and stores it as the
-placement's photo. If the placement already has a photo, a confirmation
-dialog asks before replacing it.
+**From a traffic arrow:** the camera uses the **arrow's own bearing**
+for the approach direction, targeting the linked location's coordinates
+(or the arrow's own coordinates if it has no links). This means
+different arrows pointing to the same location produce different
+approach views. If a previous view was saved (via "Save View"), the
+panorama restores to that exact frame instead.
 
-The panorama position is also saved alongside the photo. The next time
-Street View is opened for this placement it will reopen at the exact frame
-and camera angle you used — rather than recalculating the approach position
-from the placement coordinates — so the view is consistent for anyone who
-opens it later.
+**Save as Photo** *(locations only, OVERSEER+):* navigate the panorama
+to the vantage point you want — the auto-calculated position may land
+across the street or at a bad angle depending on where Google's coverage
+was captured, so use the navigation controls to walk to a better spot if
+needed. When the view is right, click **Save as Photo**. The server
+fetches a matching static image from the Google Street View Static API
+and stores it as the location's photo. The panorama position is also
+saved — the next time Street View is opened for this location it
+reopens at the exact frame and camera angle rather than recalculating
+from the bearing.
 
-If no Street View imagery is available at that location, a red footer bar
-appears with an **Open in Google Maps** link as a fallback.
+**Save View** *(arrows only, OVERSEER+):* persists the current panorama
+position (pano ID, heading, pitch, zoom) on the arrow without capturing
+a photo. The next time anyone opens Street View from this arrow it
+restores to the saved view instead of computing an approach position
+from the arrow's bearing.
+
+If no Street View imagery is available, a footer bar appears with an
+**Open in Google Maps** link as a fallback.
 
 **Keyboard:** Escape closes the Street View overlay. A second Escape
 deselects the map marker.

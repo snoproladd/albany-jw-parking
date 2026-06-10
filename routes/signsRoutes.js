@@ -70,6 +70,7 @@ import {
   deleteTrafficArrow,
   createTrafficArrowLink,
   deleteTrafficArrowLink,
+  setTrafficArrowSvState,
 } from "../lib/dbSync.js";
 import {
   uploadSignPhoto,
@@ -1134,6 +1135,110 @@ export function signsRouter({
       }
     },
   );
+
+  /**
+   * POST /signs/locations/:locationId/street-view-photo
+   * Capture the current Street View panorama as the location photo.
+   *
+   * The client sends the panorama camera state (panoId, heading, pitch,
+   * fov).  The server fetches the corresponding static image from the
+   * Google Street View Static API, uploads it to blob storage, and
+   * persists the camera state so the panorama can be restored later.
+   *
+   * Body (JSON): { panoId, heading, pitch, fov }
+   * Response:    { success, photo_url, sv_pano_id, sv_heading,
+   *               sv_pitch, sv_fov, photo_taken_by, photo_taken_at }
+   *
+   * @requires manageSigns permission
+   */
+  router.post(
+    "/signs/locations/:locationId/street-view-photo",
+    requireAuth,
+    requirePermission("manageSigns"),
+    csrfProtection,
+    async (req, res) => {
+      const locationId = Number(req.params.locationId);
+      if (!locationId) {
+        return res.status(400).json({ success: false, error: "Invalid location id." });
+      }
+
+      const { panoId, heading, pitch, fov } = req.body || {};
+      if (!panoId || heading == null || pitch == null || fov == null) {
+        return res.status(400).json({
+          success: false,
+          error: "Missing Street View state (panoId, heading, pitch, fov).",
+        });
+      }
+
+      if (!googleMapsApiKey) {
+        return res.status(500).json({
+          success: false,
+          error: "Google Maps API key is not configured.",
+        });
+      }
+
+      try {
+        const existing = await getSignLocationById(locationId);
+        if (!existing) {
+          return res.status(404).json({ success: false, error: "Location not found." });
+        }
+
+        // Fetch the static Street View image from Google.
+        const svUrl =
+          `https://maps.googleapis.com/maps/api/streetview` +
+          `?size=640x480` +
+          `&pano=${encodeURIComponent(panoId)}` +
+          `&heading=${Number(heading)}` +
+          `&pitch=${Number(pitch)}` +
+          `&fov=${Number(fov)}` +
+          `&key=${encodeURIComponent(googleMapsApiKey)}`;
+
+        const svRes = await fetch(svUrl);
+        if (!svRes.ok) {
+          log("Street View Static API error:", svRes.status, await svRes.text());
+          return res.status(502).json({
+            success: false,
+            error: "Failed to fetch Street View image from Google.",
+          });
+        }
+
+        const buffer = Buffer.from(await svRes.arrayBuffer());
+        const actorName = [req.session.firstName, req.session.lastName]
+          .filter(Boolean)
+          .join(" ") || null;
+
+        const newBlobName = await uploadSignPhoto(locationId, buffer);
+        const svState = {
+          panoId: String(panoId),
+          heading: Number(heading),
+          pitch: Number(pitch),
+          fov: Number(fov),
+        };
+        await setSignLocationPhoto(locationId, newBlobName, actorName, svState);
+
+        // Best-effort delete of the previous blob.
+        if (existing.photo_url && existing.photo_url !== newBlobName) {
+          try { await deleteSignPhoto(existing.photo_url); }
+          catch (err) { log("Warning: failed to delete old photo blob:", err); }
+        }
+
+        return res.json({
+          success: true,
+          photo_url: newBlobName,
+          sv_pano_id: svState.panoId,
+          sv_heading: svState.heading,
+          sv_pitch: svState.pitch,
+          sv_fov: svState.fov,
+          photo_taken_by: actorName,
+          photo_taken_at: new Date().toISOString(),
+        });
+      } catch (err) {
+        log("signs/locations/:id/street-view-photo POST error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
 // ═══════════════════════════════════════════════════════════════
   //  TRAFFIC ARROWS
   // ═══════════════════════════════════════════════════════════════
@@ -1289,6 +1394,61 @@ export function signsRouter({
         return res.json({ success: true });
       } catch (err) {
         log("signs/arrows/:id/links DELETE error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * PATCH /signs/arrows/:arrowId/street-view-state
+   * Persist the Street View camera state on a traffic arrow.
+   *
+   * Saves the panorama position so the view is restored when Street
+   * View is next opened from this arrow.  Does not capture a photo —
+   * only stores the four camera fields.
+   *
+   * Body (JSON): { panoId, heading, pitch, fov }
+   * Response:    { success, sv_pano_id, sv_heading, sv_pitch, sv_fov }
+   *
+   * @requires manageSigns permission
+   */
+  router.patch(
+    "/signs/arrows/:arrowId/street-view-state",
+    requireAuth,
+    requirePermission("manageSigns"),
+    csrfProtection,
+    async (req, res) => {
+      const arrowId = Number(req.params.arrowId);
+      if (!arrowId) {
+        return res.status(400).json({ success: false, error: "Invalid arrow id." });
+      }
+
+      const { panoId, heading, pitch, fov } = req.body || {};
+      if (!panoId || heading == null || pitch == null || fov == null) {
+        return res.status(400).json({
+          success: false,
+          error: "Missing Street View state (panoId, heading, pitch, fov).",
+        });
+      }
+
+      try {
+        const svState = {
+          panoId: String(panoId),
+          heading: Number(heading),
+          pitch: Number(pitch),
+          fov: Number(fov),
+        };
+        await setTrafficArrowSvState(arrowId, svState);
+
+        return res.json({
+          success: true,
+          sv_pano_id: svState.panoId,
+          sv_heading: svState.heading,
+          sv_pitch: svState.pitch,
+          sv_fov: svState.fov,
+        });
+      } catch (err) {
+        log("signs/arrows/:id/street-view-state PATCH error:", err);
         return res.status(500).json({ success: false, error: "Server error." });
       }
     },

@@ -3,6 +3,28 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## 2.45.0 — Street View
+
+### Added
+- **Street View overlay** for sign locations and traffic arrows.
+  - Single-click info sheet and right-click context menu both offer a "Street View" button on locations and arrows.
+  - Locations: camera approaches from 20 m behind the sign using `front_bearing`; restores saved panorama state if previously saved.
+  - Arrows: camera uses the arrow's own bearing for approach direction, targeting the linked location's coordinates (or the arrow's own if unlinked); restores saved arrow panorama state if available.
+  - "Save as Photo" (locations only, canManage): captures a static image from Google Street View Static API and saves it as the location photo, persisting the camera state for future restoration.
+  - "Save View" (arrows only, canManage): persists the panorama camera state (panoId, heading, pitch, fov) on the arrow without capturing a photo.
+  - Escape key dismisses the overlay (checked before existing Escape cascade).
+  - No-imagery detection with fallback link to Google Maps.
+  - Full CSS for the overlay was already in place from pre-2.40 work; no style changes needed.
+- **DB: `sv_pano_id`, `sv_heading`, `sv_pitch`, `sv_fov`** columns on both `sign_locations` and `sign_traffic_arrows`.
+- **Route: `POST /signs/locations/:locationId/street-view-photo`** — server-side Google SV Static API fetch, blob upload, and DB persist.
+- **Route: `PATCH /signs/arrows/:arrowId/street-view-state`** — persist arrow panorama camera state.
+- **`setTrafficArrowSvState()`** in dbSync for arrow SV persistence.
+- **`setSignLocationPhoto()`** now accepts optional `svState` parameter; `clearSignLocationPhoto()` clears SV columns.
+
+### Migrations
+- `sign_locations_sv_state.sql` / `sign_locations_sv_state_demo.sql`
+- `sign_arrows_sv_state.sql` / `sign_arrows_sv_state_demo.sql`
+
 ## [2.44.0] - 2026-06-09
 
 ### Added

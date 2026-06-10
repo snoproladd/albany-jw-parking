@@ -38,13 +38,18 @@
 
   const STATUS_CYCLE = ["planned", "installed", "removed"];
 
+  /** Distance in meters to offset the Street View camera behind the sign. */
+  const SV_APPROACH_DISTANCE_METERS = 20;
+
   /** Inline SVG icons for mount types (compact markers + full-detail label). */
   /** FontAwesome mount-type icons — matches the legend in the sidebar. */
   const MOUNT_ICONS = {
     pole: '<i class="fa-solid fa-signs-post signs-mount-icon" aria-hidden="true"></i>',
     cone: '<i class="fa-solid fa-triangle-exclamation signs-mount-icon" aria-hidden="true"></i>',
-    "a-frame": '<i class="fa-solid fa-tent signs-mount-icon" aria-hidden="true"></i>',
-    "existing-structure": '<i class="fa-solid fa-building signs-mount-icon" aria-hidden="true"></i>',
+    "a-frame":
+      '<i class="fa-solid fa-tent signs-mount-icon" aria-hidden="true"></i>',
+    "existing-structure":
+      '<i class="fa-solid fa-building signs-mount-icon" aria-hidden="true"></i>',
   };
 
   /**
@@ -204,6 +209,13 @@
 
   /** @type {number|null} Arrow ID currently being pulsed (used as stale-timer guard). */
   let pulsingArrowId = null;
+
+  /** @type {google.maps.StreetViewPanorama|null} Active panorama, or null when closed. */
+  let streetViewPanorama = null;
+  /** location_id the Street View overlay is currently showing, or null. */
+  let streetViewForId = null;
+  /** arrow_id when SV was opened from an arrow, or null. */
+  let streetViewFromArrowId = null;
 
   /** Minimum zoom level at which Shift+drag movement is allowed. */
   const MIN_ZOOM_FOR_DRAG = 17;
@@ -1108,7 +1120,6 @@
     highlightArrowLinks(arrowId);
   }
 
-
   /**
    * Track markers expanded specifically for the link-highlight feature
    * (distinct from hover-expand) so we can collapse them on clear.
@@ -1231,9 +1242,7 @@
       );
     document
       .querySelectorAll(".signs-map-marker-has-highlight")
-      .forEach((el) =>
-        el.classList.remove("signs-map-marker-has-highlight"),
-      );
+      .forEach((el) => el.classList.remove("signs-map-marker-has-highlight"));
 
     // Collapse markers we expanded for the link-highlight
     linkExpandedMarkers.forEach((locId) => {
@@ -1337,12 +1346,7 @@
     const GHOST_COUNT = 5;
 
     for (let i = 1; i <= GHOST_COUNT; i++) {
-      const pos = destPoint(
-        originLat,
-        originLng,
-        reverseBearing,
-        SPACING * i,
-      );
+      const pos = destPoint(originLat, originLng, reverseBearing, SPACING * i);
       const content = buildGhostArrowContent(bearing);
       const ghostMarker = new google.maps.marker.AdvancedMarkerElement({
         map: mapRef,
@@ -2674,14 +2678,17 @@
     for (const att of atts) {
       if (att.status === newStatus) continue;
       try {
-        const res = await fetch(`/signs/attachments/${att.attachment_id}/status`, {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            "CSRF-Token": token,
+        const res = await fetch(
+          `/signs/attachments/${att.attachment_id}/status`,
+          {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              "CSRF-Token": token,
+            },
+            body: JSON.stringify({ status: newStatus }),
           },
-          body: JSON.stringify({ status: newStatus }),
-        });
+        );
         const data = await res.json();
         if (data.success) att.status = newStatus;
       } catch (err) {
@@ -3052,7 +3059,425 @@
       { enableHighAccuracy: true, timeout: 10000 },
     );
   }
+  // ============================================================
+  // STREET VIEW
+  // ============================================================
 
+  /**
+   * Show the appropriate save button based on Street View context.
+   *
+   * "Save as Photo" is shown when opened from a location.
+   * "Save View" is shown when opened from an arrow.
+   * Both are hidden when canManage is false (they won't exist in the DOM).
+   *
+   * @param {'location'|'arrow'} context
+   */
+  function showSvSaveButton(context) {
+    const photoBtn = document.getElementById("svSavePhotoBtn");
+    const viewBtn = document.getElementById("svSaveViewBtn");
+    if (photoBtn) photoBtn.classList.toggle("d-none", context !== "location");
+    if (viewBtn) viewBtn.classList.toggle("d-none", context !== "arrow");
+  }
+
+  /**
+   * Open the Street View overlay for a location.
+   *
+   * If the location has saved SV camera state (sv_pano_id) and no
+   * override bearing is supplied, the panorama is restored to that
+   * exact view.  Otherwise the camera is positioned
+   * SV_APPROACH_DISTANCE_METERS behind the target along the reverse
+   * of the approach bearing, looking forward.  If no bearing is
+   * available the panorama opens at the target facing north.
+   *
+   * @param {number|null} locationId
+   * @param {{
+   *   approachBearing?: number|null,
+   *   titleOverride?: string|null,
+   *   coordsOverride?: { lat: number, lng: number }|null,
+   *   savedSvState?: { panoId: string, heading: number, pitch: number, fov: number }|null,
+   *   context?: 'location'|'arrow',
+   * }} [opts]
+   */
+  function openStreetView(locationId, opts) {
+    const loc = locationId ? findLocation(locationId) : null;
+    const {
+      approachBearing,
+      titleOverride,
+      coordsOverride,
+      savedSvState,
+      context = "location",
+    } = opts || {};
+
+    // We need at least a location or override coords
+    if (!loc && !coordsOverride) return;
+
+    streetViewForId = locationId;
+    showSvSaveButton(context);
+
+    const overlay = document.getElementById("streetViewOverlay");
+    const pane = document.getElementById("streetViewPane");
+    const titleEl = document.getElementById("svTitle");
+    const badgeEl = document.getElementById("svBearingBadge");
+    const hintEl = document.getElementById("svBearingHint");
+    const noImgEl = document.getElementById("svNoImageryMsg");
+    const mapsLink = document.getElementById("svGoogleMapsLink");
+    if (!overlay || !pane) return;
+
+    // ── Populate header ───────────────────────────────────────
+    let titleText;
+    if (titleOverride) {
+      titleText = titleOverride;
+    } else if (loc) {
+      const atts = loc.attachments || [];
+      titleText = atts.length
+        ? atts.map((a) => a.sign_text || "—").join(", ")
+        : "Location";
+    } else {
+      titleText = "Street View";
+    }
+    if (titleEl) titleEl.textContent = titleText;
+
+    // Determine the effective bearing for display and approach
+    const effectiveBearing =
+      approachBearing != null
+        ? Number(approachBearing)
+        : loc?.front_bearing != null && loc.front_bearing !== ""
+          ? Number(loc.front_bearing)
+          : null;
+    const hasBearing = effectiveBearing != null;
+
+    if (badgeEl) {
+      if (hasBearing) {
+        badgeEl.textContent = `${Math.round(effectiveBearing)}°`;
+        badgeEl.classList.remove("d-none");
+      } else {
+        badgeEl.classList.add("d-none");
+      }
+    }
+    if (hintEl) hintEl.classList.toggle("d-none", hasBearing);
+
+    // ── Target coordinates ────────────────────────────────────
+    const targetLat = coordsOverride?.lat ?? Number(loc.latitude);
+    const targetLng = coordsOverride?.lng ?? Number(loc.longitude);
+
+    // ── Reset no-imagery footer ───────────────────────────────
+    if (noImgEl) noImgEl.classList.add("d-none");
+    if (mapsLink) {
+      mapsLink.href =
+        `https://www.google.com/maps/@${targetLat},${targetLng},3a,75y,` +
+        `${hasBearing ? Math.round(effectiveBearing) : 0}h,90t/data=!3m1!1e1`;
+    }
+
+    // ── Determine initial panorama position ───────────────────
+    let panoOptions;
+
+    // Priority: explicit saved state (arrow), then location sv_pano_id
+    // (only when opened directly for the location), then bearing approach.
+    const svState =
+      savedSvState ||
+      (!approachBearing && loc?.sv_pano_id
+        ? {
+            panoId: loc.sv_pano_id,
+            heading: loc.sv_heading,
+            pitch: loc.sv_pitch,
+            fov: loc.sv_fov,
+          }
+        : null);
+
+    if (svState?.panoId) {
+      const fov = svState.fov || 90;
+      panoOptions = {
+        pano: svState.panoId,
+        pov: {
+          heading: Number(svState.heading) || 0,
+          pitch: Number(svState.pitch) || 0,
+        },
+        zoom: Math.log2(180 / fov),
+      };
+    } else if (hasBearing) {
+      // Compute approach position: offset behind the target
+      const reverseBearingRad =
+        ((effectiveBearing + 180) % 360) * (Math.PI / 180);
+      const metersPerDegreeLat = 111320;
+      const metersPerDegreeLng = 111320 * Math.cos(targetLat * (Math.PI / 180));
+      const approachLat =
+        targetLat +
+        (SV_APPROACH_DISTANCE_METERS * Math.cos(reverseBearingRad)) /
+          metersPerDegreeLat;
+      const approachLng =
+        targetLng +
+        (SV_APPROACH_DISTANCE_METERS * Math.sin(reverseBearingRad)) /
+          metersPerDegreeLng;
+
+      panoOptions = {
+        position: { lat: approachLat, lng: approachLng },
+        pov: { heading: effectiveBearing, pitch: 0 },
+        zoom: 1,
+      };
+    } else {
+      // No bearing — open at target, facing north
+      panoOptions = {
+        position: { lat: targetLat, lng: targetLng },
+        pov: { heading: 0, pitch: 0 },
+        zoom: 1,
+      };
+    }
+
+    // ── Create panorama ───────────────────────────────────────
+    streetViewPanorama = new google.maps.StreetViewPanorama(pane, {
+      ...panoOptions,
+      addressControl: false,
+      fullscreenControl: false,
+      enableCloseButton: false,
+      motionTracking: false,
+      motionTrackingControl: false,
+    });
+
+    // Detect no-imagery
+    streetViewPanorama.addListener("status_changed", () => {
+      const status = streetViewPanorama.getStatus();
+      if (noImgEl) {
+        noImgEl.classList.toggle(
+          "d-none",
+          status === google.maps.StreetViewStatus.OK,
+        );
+      }
+    });
+
+    // ── Show overlay with fade ────────────────────────────────
+    overlay.classList.remove("d-none");
+    requestAnimationFrame(() => {
+      overlay.classList.add("signs-sv-overlay-visible");
+    });
+  }
+
+  /**
+   * Close the Street View overlay and destroy the panorama.
+   */
+  function closeStreetView() {
+    const overlay = document.getElementById("streetViewOverlay");
+    if (!overlay) return;
+
+    overlay.classList.remove("signs-sv-overlay-visible");
+
+    const cleanup = () => {
+      overlay.removeEventListener("transitionend", cleanup);
+      overlay.classList.add("d-none");
+
+      if (streetViewPanorama) {
+        google.maps.event.clearInstanceListeners(streetViewPanorama);
+        streetViewPanorama = null;
+      }
+      const pane = document.getElementById("streetViewPane");
+      if (pane) pane.innerHTML = "";
+
+      streetViewForId = null;
+      streetViewFromArrowId = null;
+    };
+
+    overlay.addEventListener("transitionend", cleanup, { once: true });
+
+    // Safety net — if transitionend doesn't fire, clean up after 300 ms
+    setTimeout(() => {
+      if (streetViewPanorama) cleanup();
+    }, 300);
+  }
+
+  /**
+   * Open Street View from a traffic arrow's perspective.
+   *
+   * Follows the arrow's links to find the destination location (for
+   * coordinates). Uses the arrow's own bearing for the camera approach
+   * direction — not the location's front_bearing. If the arrow has
+   * saved SV state, restores that exact view instead.
+   *
+   * If the arrow has no links, falls back to the arrow's own coordinates.
+   *
+   * @param {number} arrowId
+   */
+  function openStreetViewForArrow(arrowId) {
+    const arrow = findArrow(arrowId);
+    if (!arrow) return;
+
+    streetViewFromArrowId = arrowId;
+
+    // Build saved state object if arrow has one
+    const arrowSv = arrow.sv_pano_id
+      ? {
+          panoId: arrow.sv_pano_id,
+          heading: arrow.sv_heading,
+          pitch: arrow.sv_pitch,
+          fov: arrow.sv_fov,
+        }
+      : null;
+
+    // Resolve linked location — first link wins
+    let linkedLoc = null;
+    for (const attId of arrow.links || []) {
+      for (const loc of locations) {
+        if ((loc.attachments || []).some((a) => a.attachment_id === attId)) {
+          linkedLoc = loc;
+          break;
+        }
+      }
+      if (linkedLoc) break;
+    }
+
+    const title = arrow.label || "Traffic arrow";
+
+    if (linkedLoc) {
+      openStreetView(linkedLoc.location_id, {
+        approachBearing: arrowSv ? null : arrow.bearing,
+        titleOverride: title,
+        savedSvState: arrowSv,
+        context: "arrow",
+      });
+    } else {
+      openStreetView(null, {
+        approachBearing: arrowSv ? null : arrow.bearing,
+        titleOverride: title,
+        savedSvState: arrowSv,
+        coordsOverride: {
+          lat: Number(arrow.latitude),
+          lng: Number(arrow.longitude),
+        },
+        context: "arrow",
+      });
+    }
+  }
+
+  /**
+   * Capture the current Street View camera state and save as the
+   * location's photo via the server-side static image fetch.
+   * Only available when SV was opened from a location.
+   */
+  async function saveStreetViewAsPhoto() {
+    if (!streetViewPanorama || !streetViewForId) return;
+
+    const btn = document.getElementById("svSavePhotoBtn");
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Saving…';
+    }
+
+    try {
+      const pov = streetViewPanorama.getPov();
+      const pano = streetViewPanorama.getPano();
+      const zoom = streetViewPanorama.getZoom();
+      const fov = 180 / Math.pow(2, zoom);
+
+      const res = await fetch(
+        `/signs/locations/${streetViewForId}/street-view-photo`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "CSRF-Token": getCsrfToken(),
+          },
+          body: JSON.stringify({
+            panoId: pano,
+            heading: pov.heading,
+            pitch: pov.pitch,
+            fov,
+          }),
+        },
+      );
+
+      const data = await res.json();
+      if (!data.success) {
+        alert(data.error || "Failed to save Street View photo.");
+        return;
+      }
+
+      // Update in-memory location
+      const loc = findLocation(streetViewForId);
+      if (loc) {
+        loc.photo_url = data.photo_url;
+        loc.photo_taken_by = data.photo_taken_by;
+        loc.photo_taken_at = data.photo_taken_at;
+        loc.sv_pano_id = data.sv_pano_id;
+        loc.sv_heading = data.sv_heading;
+        loc.sv_pitch = data.sv_pitch;
+        loc.sv_fov = data.sv_fov;
+      }
+
+      photoCacheBuster++;
+
+      // If the editor is open for this location, refresh the photo display
+      if (editingLocationId === streetViewForId) {
+        renderEditorPhoto(loc);
+      }
+    } catch (err) {
+      console.error("saveStreetViewAsPhoto error:", err);
+      alert("Failed to save Street View photo.");
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-camera me-1"></i>Save as Photo';
+      }
+    }
+  }
+
+  /**
+   * Persist the current Street View camera state on the active arrow.
+   * Only available when SV was opened from an arrow.
+   */
+  async function saveArrowStreetViewState() {
+    if (!streetViewPanorama || !streetViewFromArrowId) return;
+
+    const btn = document.getElementById("svSaveViewBtn");
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Saving…';
+    }
+
+    try {
+      const pov = streetViewPanorama.getPov();
+      const pano = streetViewPanorama.getPano();
+      const zoom = streetViewPanorama.getZoom();
+      const fov = 180 / Math.pow(2, zoom);
+
+      const res = await fetch(
+        `/signs/arrows/${streetViewFromArrowId}/street-view-state`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "CSRF-Token": getCsrfToken(),
+          },
+          body: JSON.stringify({
+            panoId: pano,
+            heading: pov.heading,
+            pitch: pov.pitch,
+            fov,
+          }),
+        },
+      );
+
+      const data = await res.json();
+      if (!data.success) {
+        alert(data.error || "Failed to save view.");
+        return;
+      }
+
+      // Update in-memory arrow
+      const arrow = findArrow(streetViewFromArrowId);
+      if (arrow) {
+        arrow.sv_pano_id = data.sv_pano_id;
+        arrow.sv_heading = data.sv_heading;
+        arrow.sv_pitch = data.sv_pitch;
+        arrow.sv_fov = data.sv_fov;
+      }
+    } catch (err) {
+      console.error("saveArrowStreetViewState error:", err);
+      alert("Failed to save view.");
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-floppy-disk me-1"></i>Save View';
+      }
+    }
+  }
   // ============================================================
   // INFO SHEET
   // ============================================================
@@ -3078,9 +3503,9 @@
       selectedArrowId = null;
     }
     // Clear sidebar highlight
-    document.querySelectorAll(".signs-location-row.border-primary").forEach(
-      (row) => row.classList.remove("border-primary"),
-    );
+    document
+      .querySelectorAll(".signs-location-row.border-primary")
+      .forEach((row) => row.classList.remove("border-primary"));
     dismissInfoSheet(true);
     dismissContextMenu();
     cancelPulse();
@@ -3243,10 +3668,23 @@
       const actions = document.createElement("div");
       actions.className = "signs-info-sheet-actions mt-3";
 
+      const svBtn = document.createElement("button");
+      svBtn.type = "button";
+      svBtn.className = "signs-info-sheet-action-btn";
+      svBtn.innerHTML =
+        '<i class="fa-solid fa-street-view" aria-hidden="true"></i> Street View';
+      svBtn.addEventListener("click", () => {
+        dismissInfoSheet(true);
+        openStreetView(locationId);
+      });
+      actions.appendChild(svBtn);
+
       const editBtn = document.createElement("button");
       editBtn.type = "button";
-      editBtn.className = "signs-info-sheet-action-btn signs-info-sheet-action-btn-primary";
-      editBtn.innerHTML = '<i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Edit location';
+      editBtn.className =
+        "signs-info-sheet-action-btn signs-info-sheet-action-btn-primary";
+      editBtn.innerHTML =
+        '<i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Edit location';
       editBtn.addEventListener("click", () => {
         dismissInfoSheet(true);
         openEditor(locationId);
@@ -3344,10 +3782,23 @@
       const actions = document.createElement("div");
       actions.className = "signs-info-sheet-actions mt-3";
 
+      const svBtn = document.createElement("button");
+      svBtn.type = "button";
+      svBtn.className = "signs-info-sheet-action-btn";
+      svBtn.innerHTML =
+        '<i class="fa-solid fa-street-view" aria-hidden="true"></i> Street View';
+      svBtn.addEventListener("click", () => {
+        dismissInfoSheet(true);
+        openStreetViewForArrow(arrowId);
+      });
+      actions.appendChild(svBtn);
+
       const editBtn = document.createElement("button");
       editBtn.type = "button";
-      editBtn.className = "signs-info-sheet-action-btn signs-info-sheet-action-btn-primary";
-      editBtn.innerHTML = '<i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Edit arrow';
+      editBtn.className =
+        "signs-info-sheet-action-btn signs-info-sheet-action-btn-primary";
+      editBtn.innerHTML =
+        '<i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Edit arrow';
       editBtn.addEventListener("click", () => {
         dismissInfoSheet(true);
         openArrowEditor(arrowId);
@@ -3417,10 +3868,10 @@
     const addItem = (icon, label, handler, variant) => {
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.className = "signs-context-menu-item" +
+      btn.className =
+        "signs-context-menu-item" +
         (variant ? ` signs-context-menu-item-${variant}` : "");
-      btn.innerHTML =
-        `<i class="${icon}" aria-hidden="true"></i> ${label}`;
+      btn.innerHTML = `<i class="${icon}" aria-hidden="true"></i> ${label}`;
       btn.addEventListener("click", () => {
         dismissContextMenu();
         handler();
@@ -3429,6 +3880,9 @@
     };
 
     if (type === "location") {
+      addItem("fa-solid fa-street-view", "Street View", () =>
+        openStreetView(id),
+      );
       addItem("fa-solid fa-pen-to-square", "Edit", () => openEditor(id));
       addItem(
         "fa-solid fa-trash-can",
@@ -3442,6 +3896,9 @@
         "danger",
       );
     } else {
+      addItem("fa-solid fa-street-view", "Street View", () =>
+        openStreetViewForArrow(id),
+      );
       addItem("fa-solid fa-pen-to-square", "Edit", () => openArrowEditor(id));
       addItem(
         "fa-solid fa-trash-can",
@@ -3587,6 +4044,17 @@
     if (photoDeleteBtn)
       photoDeleteBtn.addEventListener("click", () => deleteEditorPhoto());
 
+    // Street View overlay
+    const svCloseBtn = document.getElementById("svCloseBtn");
+    if (svCloseBtn)
+      svCloseBtn.addEventListener("click", () => closeStreetView());
+    const svSavePhotoBtn = document.getElementById("svSavePhotoBtn");
+    if (svSavePhotoBtn)
+      svSavePhotoBtn.addEventListener("click", () => saveStreetViewAsPhoto());
+    const svSaveViewBtn = document.getElementById("svSaveViewBtn");
+    if (svSaveViewBtn)
+      svSaveViewBtn.addEventListener("click", () => saveArrowStreetViewState());
+
     // Add attachment toggle
     const addAttToggle = document.getElementById("addAttachmentToggle");
     const addAttForm = document.getElementById("addAttachmentForm");
@@ -3702,9 +4170,13 @@
       updateDraggableState();
     });
 
-    // Escape key → dismiss menus / exit placing mode / deselect
+    // Escape key → dismiss SV overlay / menus / exit placing mode / deselect
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
+        if (streetViewForId !== null) {
+          closeStreetView();
+          return;
+        }
         dismissContextMenu();
         if (isPlacingArrow) {
           exitArrowPlacingMode();
