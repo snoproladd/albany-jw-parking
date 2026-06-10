@@ -172,10 +172,11 @@
     </div>
 
     <%# ── Bootstrap JSON ───────────────────────────────────────── %>
-    <script id="signsMapBootstrap" type="application/json"><%- JSON.stringify({ signs, locations }) %></script>
+    <script id="signsMapBootstrap" type="application/json"><%- JSON.stringify({ signs, locations, mapOverlays: mapOverlays || [] }) %></script>
 
     <%- include('../partials/footer') %>
     <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/signsMapOverlays.js"></script>
     <script src="/js/signsMapPrint.js"></script>
 </body>
 </html>

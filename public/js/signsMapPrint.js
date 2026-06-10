@@ -39,6 +39,31 @@
   ];
 
   /**
+   * FontAwesome mount-type icons — matches the legend in the sidebar
+   * of the main sign map.
+   *
+   * @type {Object<string, string>}
+   */
+  const MOUNT_ICONS = {
+    pole: "fa-solid fa-signs-post",
+    cone: "fa-solid fa-triangle-exclamation",
+    "a-frame": "fa-solid fa-tent",
+    "existing-structure": "fa-solid fa-building",
+  };
+
+  /**
+   * Human-readable labels for mount types.
+   *
+   * @type {Object<string, string>}
+   */
+  const MOUNT_LABELS = {
+    pole: "Pole",
+    cone: "Cone",
+    "a-frame": "A-frame",
+    "existing-structure": "Existing structure",
+  };
+
+  /**
    * Build a DOM element for a sign category icon.
    *
    * @param {string|null} category - 'parking', 'accessible', 'dropoff', or falsy
@@ -90,6 +115,7 @@
   let mapRef = null;
   let signs = [];
   let locations = [];
+  let mapOverlays = [];
   const markerEntries = new Map();
   let tilesReady = false;
 
@@ -214,9 +240,18 @@
       if (mapRef) google.maps.event.trigger(mapRef, "resize");
     });
 
+    mapOverlays.forEach((overlay) => {
+      if (overlay.type === "marker") {
+        addMarkerForLocation(overlay.location);
+      }
+    });
     locations.forEach((loc) => addMarkerForLocation(loc));
     buildLegend();
     applyFilters();
+
+    if (window.signsMapOverlays) {
+      window.signsMapOverlays.render(mapRef, mapOverlays);
+    }
   }
 
   // ============================================================
@@ -275,6 +310,17 @@
     });
 
     wrapper.appendChild(row);
+
+    if (loc.mount_type && MOUNT_ICONS[loc.mount_type]) {
+      const mount = document.createElement("div");
+      mount.className = "signs-print-marker-mount";
+      const icon = document.createElement("i");
+      icon.className = `${MOUNT_ICONS[loc.mount_type]} signs-print-marker-mount-icon`;
+      icon.setAttribute("aria-hidden", "true");
+      mount.appendChild(icon);
+      wrapper.appendChild(mount);
+    }
+
     return wrapper;
   }
 
@@ -476,6 +522,31 @@
       statusSection.appendChild(row);
     });
 
+    // Mount Types
+    const mountSection = document.createElement("div");
+    mountSection.className = "signs-print-legend-section";
+    const mountLabel = document.createElement("div");
+    mountLabel.className = "signs-print-legend-label";
+    mountLabel.textContent = "Mount Types";
+    mountSection.appendChild(mountLabel);
+
+    [
+      { key: "cone", label: "Cone" },
+      { key: "a-frame", label: "A-frame" },
+      { key: "existing-structure", label: "Existing structure" },
+    ].forEach((m) => {
+      const row = document.createElement("div");
+      row.className = "signs-print-legend-row";
+      const icon = document.createElement("i");
+      icon.className = `${MOUNT_ICONS[m.key]} signs-print-legend-mount-icon`;
+      icon.setAttribute("aria-hidden", "true");
+      row.appendChild(icon);
+      const lbl = document.createElement("span");
+      lbl.textContent = m.label;
+      row.appendChild(lbl);
+      mountSection.appendChild(row);
+    });
+
     // Count
     const countSection = document.createElement("div");
     countSection.className = "signs-print-legend-section";
@@ -487,6 +558,7 @@
 
     container.appendChild(typesSection);
     container.appendChild(statusSection);
+    container.appendChild(mountSection);
     container.appendChild(countSection);
   }
 
@@ -540,6 +612,7 @@
         const parsed = JSON.parse(dataEl.textContent || "{}");
         signs = Array.isArray(parsed.signs) ? parsed.signs : [];
         locations = Array.isArray(parsed.locations) ? parsed.locations : [];
+        mapOverlays = Array.isArray(parsed.mapOverlays) ? parsed.mapOverlays : [];
       } catch (err) {
         console.error("Failed to parse signsMapBootstrap JSON:", err);
       }

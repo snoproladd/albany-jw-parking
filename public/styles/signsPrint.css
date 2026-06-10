@@ -137,6 +137,27 @@
     filter: none;
     cursor: default;
     touch-action: auto;
+    /*
+     * Override the base translateY(-50%) from .signs-map-marker.
+     * AdvancedMarkerElement anchors at center-bottom — the element's
+     * bottom edge is placed at the geographic point. With no transform
+     * the content's bottom (mount-type icon) sits at the geo point
+     * and the pills float above it.
+     */
+    transform: none;
+}
+
+/* Mount-type icon below the pill row — sits at the marker anchor point */
+.signs-print-marker-mount {
+    display: flex;
+    justify-content: center;
+    margin-top: 1px;
+    line-height: 1;
+}
+
+.signs-print-marker-mount-icon {
+    font-size: 9px;
+    color: #555;
 }
 
 .signs-map-marker-print .sign-preview {
@@ -186,7 +207,7 @@
 
 .signs-print-legend {
     display: grid;
-    grid-template-columns: 1fr auto auto;
+    grid-template-columns: 1fr auto auto auto;
     gap: 0.1rem 1rem;
     align-items: start;
     margin-top: 0.4rem;
@@ -276,6 +297,14 @@
 
 .signs-print-legend-dot-removed {
     background: #dc3545;
+}
+
+.signs-print-legend-mount-icon {
+    width: 12px;
+    text-align: center;
+    font-size: 0.68rem;
+    color: #555;
+    flex-shrink: 0;
 }
 
 /* Color swatches */

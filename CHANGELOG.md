@@ -3,6 +3,41 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## 2.46.0 — Print Mount Icons & Building Overlays
+
+### Added
+- **Print marker mount-type icons.** Each print marker now shows a small
+  FontAwesome icon (cone, a-frame, existing-structure) below the pill grid,
+  visually indicating the physical mounting method. A "Mount Types" section
+  was added to the print legend alongside the existing Sign Types and Status
+  sections.
+- **Print marker anchor fix.** Print markers now use `transform: none`,
+  letting AdvancedMarkerElement's native center-bottom anchor place the
+  mount-type icon at the exact geographic point. Previous percentage- and
+  pixel-based transforms caused vertical drift across zoom levels.
+- **Building polygon overlays.** Three convention-area buildings (MVP Arena,
+  MVP Parking, OGS East Garage) are highlighted with semi-transparent
+  colored polygon outlines on both the interactive and print sign maps.
+  Outlines are traced in Google My Maps, exported as KML, and parsed
+  per-request from `src/config/buildings.kml`. Colors and IDs are mapped
+  via `OVERLAY_STYLES` in `src/config/mapOverlays.js`.
+- **Shared overlay renderer** (`public/js/signsMapOverlays.js`). Both
+  `signsMap.js` and `signsMapPrint.js` call `window.signsMapOverlays.render()`
+  after map initialisation. Labels use `collisionBehavior:
+  OPTIONAL_AND_HIDES_LOWER_PRIORITY` to yield to sign markers when space
+  is tight.
+
+### Changed
+- Print legend grid expanded from 3 to 4 columns to accommodate the new
+  Mount Types section.
+- `signsRoutes.js` now imports `getMapOverlays()` and passes the parsed
+  overlay array in bootstrap JSON for both map routes.
+
+### New Files
+- `src/config/buildings.kml` — KML polygon data exported from Google My Maps.
+- `src/config/mapOverlays.js` — KML parser with style lookup.
+- `public/js/signsMapOverlays.js` — shared polygon + label renderer.
+
 ## 2.45.0 — Street View
 
 ### Added

@@ -77,6 +77,7 @@ import {
   streamSignPhotoToResponse,
   deleteSignPhoto,
 } from "../lib/blobStorage.js";
+import { getMapOverlays } from "../src/config/mapOverlays.js";
 
 /** Multer config: in-memory upload limited to 12 MB. */
 const photoUpload = multer({
@@ -277,6 +278,7 @@ export function signsRouter({
           placements: [],
           googleMapsApiKey: googleMapsApiKey || "",
           defaultMapCenter,
+          mapOverlays: getMapOverlays(),
         });
       } catch (err) {
         log("signs/map GET error:", err);
@@ -322,6 +324,7 @@ export function signsRouter({
           locations,
           googleMapsApiKey: googleMapsApiKey || "",
           defaultMapCenter,
+          mapOverlays: getMapOverlays(),
         });
       } catch (err) {
         log("signs/map/print GET error:", err);

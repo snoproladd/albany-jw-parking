@@ -645,12 +645,14 @@
 
     <%# Inline JSON bootstrap %>
     <script id="signsMapBootstrap" type="application/json"><%- 
-        JSON.stringify({ signs, locations, arrows })
+        JSON.stringify({ signs, locations, arrows, mapOverlays: mapOverlays || [] })
     %></script>
 
     <%- include('../partials/footer') %>
     <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
     <script src="/js/signsMap.js"></script>
+        <script src="/js/signsMapOverlays.js"></script>
+
     <% if (canManage) { %>
         <script src="/js/signsGeofence.js"></script>
     <% } %>

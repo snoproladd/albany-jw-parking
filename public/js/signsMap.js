@@ -167,6 +167,7 @@
   let mapRef = null;
   let locations = [];
   let signs = [];
+  let mapOverlays = [];
   const markers = new Map();
   let selectedId = null;
   let canManage = false;
@@ -4213,6 +4214,7 @@
         signs = Array.isArray(parsed.signs) ? parsed.signs : [];
         locations = Array.isArray(parsed.locations) ? parsed.locations : [];
         arrows = Array.isArray(parsed.arrows) ? parsed.arrows : [];
+        mapOverlays = Array.isArray(parsed.mapOverlays) ? parsed.mapOverlays : [];
       } catch (err) {
         console.error("Failed to parse signsMapBootstrap JSON:", err);
       }
@@ -4235,7 +4237,12 @@
     if (!apiKey) return;
 
     loadGoogleMaps(apiKey)
-      .then(() => initMap({ lat: centerLat, lng: centerLng, zoom: centerZoom }))
+      .then(() => {
+        initMap({ lat: centerLat, lng: centerLng, zoom: centerZoom });
+        if (window.signsMapOverlays) {
+          window.signsMapOverlays.render(mapRef, mapOverlays);
+        }
+      })
       .catch((err) => console.error("Google Maps load failed:", err));
   }
 
