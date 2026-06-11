@@ -3,6 +3,39 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## 2.47.0 — Sign Map Publish to SharePoint + Blob Storage
+
+### Added
+- **Publish sign map as PDF.** OVERSEER+ users can click the "Publish"
+  button on the print view toolbar to generate a PDF snapshot of the
+  current sign map. The PDF is uploaded in parallel to both Azure Blob
+  Storage (`published-files` container) and SharePoint / OneDrive
+  (`Maps/Sign Maps` subfolder), then recorded in a new `published_files`
+  database table. The SharePoint copy appears automatically on the Maps
+  resource page for all volunteers.
+- **Publish toast notification.** A green toast with "Published!" and a
+  direct SharePoint link appears on success, replacing the previous
+  multi-line alert dialog.
+- **`published_files` table.** Generic audit table tracking published
+  file type, filename, blob name, SharePoint URL, publisher, and
+  timestamp. Supports future file types beyond sign maps.
+- **`lib/publishSignMap.js`** — Puppeteer-based PDF generation +
+  dual-destination upload orchestrator.
+- **Blob Storage published-files container** — `uploadPublishedFile()`
+  and `streamPublishedFileToResponse()` functions in `blobStorage.js`.
+- **Map type query parameter** — the print view now accepts `?mapType=`
+  to set Road or Hybrid on load (used by the Puppeteer internal render).
+- **`window.signsMapReady` signal** — set by `signsMapPrint.js` after
+  tiles load and markers are placed, consumed by Puppeteer's
+  `waitForFunction()` to know when the page is ready for PDF capture.
+
+### Changed
+- **`signsRouter` factory** now accepts `serverPort` and `graphConfig`
+  dependencies for the publish pipeline.
+- **Puppeteer request interception** spoofs the `Referer` header on
+  Google Maps API requests so the API key's HTTP referrer restrictions
+  are satisfied when rendering from `127.0.0.1`.
+
 ## 2.46.0 — Print Mount Icons & Building Overlays
 
 ### Added

@@ -78,6 +78,8 @@ import {
   deleteSignPhoto,
 } from "../lib/blobStorage.js";
 import { getMapOverlays } from "../src/config/mapOverlays.js";
+import { PDF_SECRET } from "../lib/publishSchedule.js";
+import { publishSignMap } from "../lib/publishSignMap.js";
 
 /** Multer config: in-memory upload limited to 12 MB. */
 const photoUpload = multer({
@@ -197,6 +199,8 @@ export function signsRouter({
   logError,
   googleMapsApiKey,
   defaultMapCenter = { lat: 42.6485, lng: -73.749, zoom: 17 },
+  serverPort,
+  graphConfig,
 }) {
   const router = express.Router();
   const log = logError || console.error;
@@ -329,6 +333,97 @@ export function signsRouter({
       } catch (err) {
         log("signs/map/print GET error:", err);
         return res.status(500).send("Server error");
+      }
+    },
+  );
+
+  // ===========================
+  // SIGN MAP — INTERNAL PDF RENDER
+  // ===========================
+
+  /**
+   * GET /internal/pdf/signs-map
+   * Renders the print view for Puppeteer with no session requirement.
+   * The ?secret= query param must match PDF_SECRET.
+   * Accepts optional filter params: ?status=, ?template=, ?mapType=
+   */
+  router.get("/internal/pdf/signs-map", async (req, res) => {
+    if (!req.query.secret || req.query.secret !== PDF_SECRET) {
+      return res.status(403).end();
+    }
+    try {
+      const [signs, locations] = await Promise.all([
+        getSigns(),
+        getSignLocations(),
+      ]);
+
+      return res.render("authentication_and_accounts/signsMapPrint", {
+        csrfToken: "",
+        signs,
+        locations,
+        googleMapsApiKey: googleMapsApiKey || "",
+        defaultMapCenter,
+        mapOverlays: getMapOverlays(),
+        // Pass a flag so the template knows this is an internal render
+        internalRender: true,
+      });
+    } catch (err) {
+      log("internal/pdf/signs-map error:", err);
+      return res.status(500).end();
+    }
+  });
+
+  // ===========================
+  // SIGN MAP — PUBLISH
+  // ===========================
+
+  /**
+   * POST /signs/map/publish
+   * Generate a PDF snapshot of the sign map and upload to
+   * Blob Storage + SharePoint.
+   *
+   * Body (JSON): { status?, template?, mapType? }
+   * Response:    { success, blobName, sharePointUrl, filename }
+   *
+   * @requires manageSigns permission
+   */
+  router.post(
+    "/signs/map/publish",
+    requireAuth,
+    requirePermission("manageSigns"),
+    csrfProtection,
+    async (req, res) => {
+      try {
+        const resolvedGraphConfig = graphConfig ?? {
+          tenantId: process.env.GRAPH_TENANT_ID,
+          clientId: process.env.GRAPH_CLIENT_ID,
+          clientSecret: process.env.GRAPH_CLIENT_SECRET,
+          driveUser:
+            process.env.GRAPH_DRIVE_USER ||
+            "jladd@jakeofalltradespropertyserv.onmicrosoft.com",
+          folderPath:
+            process.env.GRAPH_FOLDER_PATH ||
+            "2026 Convention Parking/Documents for Distribution",
+        };
+
+        const result = await publishSignMap({
+          serverPort: serverPort || Number(process.env.PORT) || 3000,
+          publishedBy: req.session.userEmail || "admin",
+          filters: {
+            status: req.body?.status || undefined,
+            template: req.body?.template || undefined,
+            mapType: req.body?.mapType || undefined,
+          },
+          graphConfig: resolvedGraphConfig,
+        });
+
+        return res.json({ success: true, ...result });
+      } catch (err) {
+        log("signs/map/publish POST error:", err);
+        return res.status(500).json({
+          success: false,
+          error: err.message || "Publish failed.",
+        });
       }
     },
   );

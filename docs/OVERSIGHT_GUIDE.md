@@ -305,6 +305,13 @@ Toolbar controls (Road / Hybrid toggle, status and template filters, fit
 button) let you frame the view. Click **Print** to open the browser print
 dialog — what you see on screen is what prints.
 
+**Publishing:** OVERSEER+ users see a **Publish** button next to Print.
+Clicking it generates a PDF snapshot of the current map view (with the
+active filters) and uploads it to both SharePoint and the site's file
+storage. A green toast confirms success with a direct SharePoint link.
+The published PDF appears automatically on the **Maps** resource page
+for all volunteers to download.
+
 ##### Legend
 
 A collapsible **Legend** section sits at the bottom of the sidebar
@@ -328,10 +335,8 @@ Geofencing requires the browser's geolocation permission.
 
 ##### Coming soon
 
-- **Placement Composer** — temporarily removed, returning in a future
-  phase adapted for the location/attachment model.
-- **Publish to Downloads** — generate a PDF snapshot and upload to the
-  Maps downloads page.
+- **Route visualization** — directed bearings per sign, road-traced
+  paths between traffic arrows and sign locations.
 
 - **Zoomed out (below zoom 19):** compact 32px colored discs showing a
   mount-type icon (cone, a-frame, or telephone pole) with a count badge

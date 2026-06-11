@@ -692,6 +692,18 @@ app.use(
     googleMapsApiKey: config.GOOGLE_MAPS_API_KEY,
     // Adjust the default center / zoom here if MVP Arena isn't the right anchor.
     defaultMapCenter: { lat: 42.648638511758264, lng: -73.75487925266984, zoom: 17 },
+    serverPort: PORT,
+    graphConfig: {
+      tenantId: config.GRAPH_TENANT_ID,
+      clientId: config.GRAPH_CLIENT_ID,
+      clientSecret: config.GRAPH_CLIENT_SECRET,
+      driveUser:
+        config.GRAPH_DRIVE_USER ||
+        "jladd@jakeofalltradespropertyserv.onmicrosoft.com",
+      folderPath:
+        config.GRAPH_FOLDER_PATH ||
+        "2026 Convention Parking/Documents for Distribution",
+    },
   }),
 );
 app.use(

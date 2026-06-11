@@ -192,6 +192,7 @@ parking/
 │   ├── messaging.js           # Email + SMS delivery helpers (suppressed in demo context)
 │   ├── passwordVer.js         # PBKDF2 hashing + verification
 │   ├── publishSchedule.js     # PDF schedule generation + OneDrive upload
+│   ├── publishSignMap.js      # Sign map PDF generation + Blob + OneDrive upload
 │   ├── sql.js                 # SQL connection pool management + demo pool routing
 │   └── volunteerStatus.js     # Profile completeness checks
 │
@@ -472,7 +473,9 @@ The first ADMIN must be granted directly in the database.
   proportions (7 in × 7 in map area). Markers show a compact 2-column grid of category
   icon + arrow pills for every attachment. Legend shows sign types (colored pills),
   status dots, and location count. `@media print` hides toolbar/nav and fills the page.
-  Files: `signsMapPrint.ejs`, `signsMapPrint.js`, `signsPrint.css`.
+  OVERSEER+ users can publish a PDF snapshot to SharePoint and Blob Storage via the
+  toolbar Publish button. Files: `signsMapPrint.ejs`, `signsMapPrint.js`,
+  `signsPrint.css`, `publishSignMap.js`.
 - **Sign categories:** `sign_category` column on `signs` (parking / accessible / dropoff /
   info / warning). Each category maps to a FontAwesome icon and color treatment on map
   markers, print markers, library cards, and the builder preview. Category picker in the
@@ -518,6 +521,7 @@ Schema highlights:
 - `departments` — lookup table for future multi-department support (id=1 seeded as Albany Parking)
 - `bug_reports` — full lifecycle bug tracking with resolution fields
 - `schedule_publishes` — audit log for schedule PDF publish events
+- `published_files` — generic published file tracking (sign map PDFs, etc.); stores blob name, SharePoint URL, publisher, and timestamp
 - `signs` — reusable sign templates (text + optional abbreviation); soft-deleted via `is_archived`
   - `abbreviation` `NVARCHAR(6)` — optional compact label for map markers (auto-generated from sign text when NULL)
 - `sign_locations` — physical mounting points (the pin on the map). Multiple signs

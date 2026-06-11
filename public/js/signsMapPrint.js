@@ -213,10 +213,13 @@
     if (!mapEl) return;
     mapEl.replaceChildren();
 
+    const params = new URLSearchParams(window.location.search);
+    const initialMapType = params.get("mapType") === "hybrid" ? "hybrid" : "roadmap";
+
     mapRef = new google.maps.Map(mapEl, {
       center: { lat: center.lat, lng: center.lng },
       zoom: center.zoom,
-      mapTypeId: "roadmap",
+      mapTypeId: initialMapType,
       mapId: "6261df670165b61fc3ae73a4",
       tilt: 0,
       disableDefaultUI: true,
@@ -231,6 +234,11 @@
       if (printBtn) printBtn.disabled = false;
       const fitBtn = document.getElementById("fitBtn");
       if (fitBtn) fitBtn.disabled = false;
+      const publishBtn = document.getElementById("publishBtn");
+      if (publishBtn) publishBtn.disabled = false;
+
+      // Signal for Puppeteer PDF generation
+      window.signsMapReady = true;
     });
 
     window.addEventListener("beforeprint", () => {
@@ -401,6 +409,13 @@
     if (templateParam) {
       const sel = document.getElementById("templateFilter");
       if (sel) sel.value = templateParam;
+    }
+    const mapTypeParam = params.get("mapType");
+    if (mapTypeParam) {
+      const radio = document.getElementById(
+        mapTypeParam === "hybrid" ? "mapTypeHybrid" : "mapTypeRoadmap",
+      );
+      if (radio) radio.checked = true;
     }
   }
 
@@ -590,6 +605,96 @@
         if (!tilesReady) return;
         window.print();
       });
+    }
+
+    const publishBtn = document.getElementById("publishBtn");
+    if (publishBtn) {
+      publishBtn.addEventListener("click", () => handlePublish());
+    }
+  }
+
+  /**
+   * Gather current filter state and POST to the publish endpoint.
+   * Shows a confirmation dialog first, then displays the result.
+   */
+  async function handlePublish() {
+    if (!tilesReady) return;
+
+    const ok = confirm(
+      "Publish the current sign map as a PDF?\n\n" +
+        "This will upload to SharePoint and Blob Storage.",
+    );
+    if (!ok) return;
+
+    const publishBtn = document.getElementById("publishBtn");
+    if (publishBtn) {
+      publishBtn.disabled = true;
+      publishBtn.innerHTML =
+        '<span class="spinner-border spinner-border-sm me-1"></span>Publishing…';
+    }
+
+    // Gather current filter state
+    const checkedStatuses = [];
+    document.querySelectorAll(".signs-print-filter-cb").forEach((cb) => {
+      if (cb.checked) checkedStatuses.push(cb.value);
+    });
+    const templateSel = document.getElementById("templateFilter");
+    const templateVal = templateSel ? templateSel.value : "";
+    const mapTypeRadio = document.querySelector(
+      'input[name="mapType"]:checked',
+    );
+    const mapTypeVal = mapTypeRadio ? mapTypeRadio.value : "roadmap";
+
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    const csrfToken = csrfMeta ? csrfMeta.getAttribute("content") : "";
+
+    try {
+      const res = await fetch("/signs/map/publish", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "CSRF-Token": csrfToken,
+        },
+        body: JSON.stringify({
+          status: checkedStatuses.join(","),
+          template: templateVal || undefined,
+          mapType: mapTypeVal,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        const toast = document.createElement("div");
+        toast.className = "signs-publish-toast";
+        toast.innerHTML = [
+          '<i class="fa-solid fa-circle-check me-2"></i>',
+          "<strong>Published!</strong> ",
+          data.filename,
+          data.sharePointUrl
+            ? ' &mdash; <a href="' +
+              data.sharePointUrl +
+              '" target="_blank" rel="noopener noreferrer">Open in SharePoint</a>'
+            : "",
+        ].join("");
+        document.body.appendChild(toast);
+        requestAnimationFrame(() => toast.classList.add("signs-publish-toast--visible"));
+        setTimeout(() => {
+          toast.classList.remove("signs-publish-toast--visible");
+          setTimeout(() => toast.remove(), 400);
+        }, 8000);
+      } else {
+        alert("Publish failed: " + (data.error || "Unknown error."));
+      }
+    } catch (err) {
+      console.error("Publish error:", err);
+      alert("Publish failed: " + err.message);
+    } finally {
+      if (publishBtn) {
+        publishBtn.disabled = false;
+        publishBtn.innerHTML =
+          '<i class="fa-solid fa-cloud-arrow-up me-1"></i>Publish';
+      }
     }
   }
 

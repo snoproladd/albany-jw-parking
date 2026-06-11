@@ -442,4 +442,42 @@
         padding-top: 0.2rem;
         border-top: 1px solid #999;
     }
+}/* ── Publish toast ──────────────────────────────────────── */
+.signs-publish-toast {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #2b8a3e;
+    color: #fff;
+    padding: 0.75rem 1.25rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    font-size: 0.9rem;
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    pointer-events: none;
+    max-width: 90vw;
+}
+
+.signs-publish-toast--visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    pointer-events: auto;
+}
+
+.signs-publish-toast a {
+    color: #d4edda;
+    text-decoration: underline;
+}
+
+.signs-publish-toast a:hover {
+    color: #fff;
+}
+
+@media print {
+    .signs-publish-toast {
+        display: none;
+    }
 }
