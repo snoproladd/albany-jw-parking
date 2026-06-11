@@ -22,7 +22,7 @@
     "dev": "nodemon --require ./set-local-env.js index.js"
   },
   "overrides": {
-    "@azure/msal-common": "15.13.3"
+    
   },
   "dependencies": {
     "@azure/identity": "^4.5.0",
