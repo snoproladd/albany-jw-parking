@@ -1125,12 +1125,18 @@
     const rects = [content.getBoundingClientRect()];
     const overlay = content.querySelector?.(".signs-facing-hover-overlay");
     if (overlay) rects.push(overlay.getBoundingClientRect());
+    // Pad the rects so the cursor must move clearly away from the
+    // marker before the safety net schedules a collapse. Without
+    // padding, a cursor right on the pill edge bounces between
+    // inside/outside the tight 110×110 border-box on every
+    // sub-pixel mousemove, causing rapid expand → collapse cycles.
+    const PAD = 15;
     return rects.some(
       (r) =>
-        e.clientX >= r.left &&
-        e.clientX <= r.right &&
-        e.clientY >= r.top &&
-        e.clientY <= r.bottom,
+        e.clientX >= r.left - PAD &&
+        e.clientX <= r.right + PAD &&
+        e.clientY >= r.top - PAD &&
+        e.clientY <= r.bottom + PAD,
     );
   }
   /**
