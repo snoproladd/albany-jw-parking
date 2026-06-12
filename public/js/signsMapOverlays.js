@@ -54,7 +54,17 @@
         map,
         position: center,
         content: labelEl,
-        zIndex: -1,
+        /*
+         * Markers created WITHOUT an explicit zIndex are auto-assigned
+         * small negative values by the Maps API (latitude-derived depth
+         * ordering, observed around -200 to -300). A label zIndex of -1
+         * therefore painted ABOVE nearly every sign marker. -100000 sits
+         * far below the auto range, so labels render above only the map
+         * and polygons. All labels share the value, so their collision
+         * priority relationship (the declutter behavior below) is
+         * unchanged.
+         */
+        zIndex: -100000,
         collisionBehavior:
           google.maps.CollisionBehavior.OPTIONAL_AND_HIDES_LOWER_PRIORITY,
       });

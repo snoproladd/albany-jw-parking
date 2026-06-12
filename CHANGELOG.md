@@ -3,6 +3,40 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## 2.49.0
+
+### Signs Map — Hover, Layers & Placement IDs
+
+**Hover collapse fix**
+- Consolidated three divergent collapse bindings into a single `bindHoverCollapse` helper
+- Added map-level `mousemove` safety net that catches stuck-expanded markers when `mouseleave` fails after content swaps
+- Fixed re-hover regression where `mouseenter` cancel clobbered the expand timer
+
+**Group-level hover (sign facing)**
+- Each facing pill now expands to show only its own group's signs, not the full location
+- Center disc hover still shows all signs
+- Expanded overlay rows include a leading chevron rotated to the sign's facing bearing
+
+**Facing layout fixes**
+- Fixed marker anchor drift: neutralized inherited `translateY(-50%)` with `transform: none`; centering now uses `margin-bottom: -55px` only
+- Fixed neighbor occlusion: facing wrapper is `pointer-events: none`; only pills, center disc, and overlay restore `pointer-events: auto`
+- Pill radius reduced from 42px to 34px to keep pills inside the 110×110 border-box event-delivery zone
+- Added `--facing-zoom-scale` CSS custom property driven by `zoom_changed`; pill offsets scale smoothly so they track a constant ground distance instead of drifting apart when zoomed out
+- Removed duplicate `.signs-facing-center` CSS block
+
+**Overlay label z-index**
+- Overlay building labels dropped to `zIndex: -100000` so they render behind all sign and arrow markers
+
+**Placement IDs**
+- Added `placement_number` (dense rank by `location_id`) computed in the `getSignLocations` query — gapless, shifts on delete, no migration needed
+- `P1`, `P2`, … badges on full, compact, and facing markers at 135° (SE) from center
+- Sign count badge repositioned to 45° (NE) from center
+- Both toggleable via new sidebar layer switches (Sign count, Placement ID)
+- Facing mode auto-disables count/placement toggles since badges don't apply
+
+**Misc**
+- Added `insertPublishedFile` export to dbSync.js (matched to existing `published_files` table schema)
+
 ## 2.48.0 — Map Layer Toggles, Sidebar Restructure & Sign Facing Indicators
 
 ### Added

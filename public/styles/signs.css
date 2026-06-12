@@ -1375,8 +1375,21 @@
     position: relative;
     width: 110px;
     height: 110px;
-    margin-left: -55px;
-    margin-top: -55px;
+    /* Anchor correction — verified empirically against the map projection
+       (delta 0,0 on live markers). AdvancedMarkerElement anchors the host's
+       MARGIN-BOX bottom-center at the latLng. The bottom-only negative
+       margin of half the height shrinks the host to the top half of this
+       box, so bottom-center anchoring lands the visual center on the point.
+       transform: none is REQUIRED with it — the inherited .signs-map-marker
+       translateY(-50%) is a competing centering mechanism, and stacking the
+       two shifts the layout 55px up. Never use margin-left/margin-top here:
+       both corrections must stay bottom-anchored or the marker drifts. */
+    margin-bottom: -55px;
+    transform: none;
+    /* Transparent box must not eat pointer events — at low zoom it
+       overlaps neighboring markers and blocks their hover. Interactive
+       children restore pointer-events themselves. */
+    pointer-events: none;
 }
 
 .signs-facing-center {
@@ -1385,7 +1398,7 @@
     top: 50%;
     transform: translate(-50%, -50%) scale(0.6);
     z-index: 3;
-    pointer-events: none;
+    pointer-events: auto;
 }
 
 
@@ -1394,20 +1407,29 @@
     position: absolute;
     left: 50%;
     top: 50%;
-    transform: translate(calc(-50% + var(--facing-x, 0px)),
-            calc(-50% + var(--facing-y, 0px)));
+    transform: translate(calc(-50% + var(--facing-x, 0px) * var(--facing-zoom-scale, 1)),
+            calc(-50% + var(--facing-y, 0px) * var(--facing-zoom-scale, 1)));
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 2px;
     z-index: 2;
     white-space: nowrap;
+    pointer-events: auto;
 }
 
 .signs-facing-chevron {
     color: #6f42c1;
     font-size: 0.5rem;
     transform: rotate(var(--facing-deg, 0deg));
+}
+
+/* Inline variant — leading direction chevron inside an expanded
+   hover-overlay sign row. Same rotation mechanism as the radial
+   chevron, sized to sit in the flex row without wrapping. */
+.signs-facing-chevron-inline {
+    margin-right: 0.15rem;
+    flex-shrink: 0;
 }
 
 /* ── Facing hover overlay ───────────────────────────────────────── */
@@ -1425,6 +1447,7 @@
     transform: translateX(-50%);
     z-index: 10;
     width: max-content;
+    pointer-events: auto;
 }
 
 .signs-facing-hover-overlay .signs-map-marker-stack {
@@ -1443,15 +1466,6 @@
 
 .signs-facing-hover-overlay .sign-category-icon {
     font-size: 0.55rem;
-}
-
-.signs-facing-center {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%) scale(0.6);
-    z-index: 3;
-    pointer-events: none;
 }
 
 .signs-facing-hitbox {
@@ -2868,11 +2882,36 @@
     pointer-events: none;
 }
 
-/* Compact stacked marker: disc with count badge */
+/* ── Placement ID badge (user-facing cross-reference, e.g. P12) ───── */
+
+/* ── Placement ID badge (P12 — user-facing cross-reference) ───────── */
+
+.signs-placement-badge {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    /* 135° (SE from center): sin(135°)≈0.71, cos(135°)≈−0.71 */
+    transform: translate(4px, 4px);
+    z-index: 5;
+    background: #fff;
+    color: #212529;
+    border: 1px solid #495057;
+    border-radius: 3px;
+    padding: 0 0.2rem;
+    font-size: 0.55rem;
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+    pointer-events: none;
+}
+/* Compact stacked marker: disc with count badge at 45° (NE) */
 .signs-map-marker-compact .signs-map-marker-count {
     position: absolute;
-    bottom: -4px;
-    right: -6px;
+    top: 50%;
+    left: 50%;
+    /* 45° (NE from center): offset right and up by the badge's
+       own height so bottom-left corner sits near center. */
+    transform: translate(4px, calc(-100% - 4px));
     width: 16px;
     height: 16px;
     border-radius: 50%;
@@ -2886,6 +2925,15 @@
     justify-content: center;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
     pointer-events: none;
+}
+/* ── Badge layer visibility (toggled via map container class) ─────── */
+
+.signs-map-hide-sign-count .signs-map-marker-count {
+    display: none;
+}
+
+.signs-map-hide-placement-id .signs-placement-badge {
+    display: none;
 }
 
 /*

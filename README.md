@@ -461,14 +461,35 @@ The first ADMIN must be granted directly in the database.
   clobbered by bearing updates).
 - **MSSQL TIME columns** return as epoch-anchored `Date` objects — always use
   `getUTCHours()`/`getUTCMinutes()`
-- **Sign Map architecture (2.41.0):** locations → attachments model. Each map marker
+- **Sign Map architecture (2.41.0+):** locations → attachments model. Each map marker
   represents a physical mounting point with one or more attached signs rendered as a
   vertical stack. `gmpDraggable: true` with Shift-gate via `attachLocationShiftGate` /
   `attachArrowShiftGate` helpers (capture-phase `pointerdown`, blocks unless
   `Shift` held at zoom ≥ `MIN_ZOOM_FOR_DRAG`). Compact markers (zoom < 19) show
-  mount-type SVG icons with count badge; hover-to-expand with 250/150 ms debounce
-  (desktop only). Click-after-drag suppression (300 ms threshold) prevents accidental
-  editor opens. Traffic arrows anchor at the tip (`transform-origin: 50% 9.375%`).
+  mount-type FontAwesome icons with count badge (45° NE); hover-to-expand with 250/150 ms
+  debounce (desktop only) via `bindHoverCollapse` helper + map-level `mousemove` safety
+  net. Click-after-drag suppression (300 ms threshold) prevents accidental editor opens.
+  Traffic arrows anchor at the tip (`transform-origin: 50% 9.375%`).
+- **Map layers (2.49.0):** four toggleable layers in the sidebar (Filters & Layers):
+  Traffic arrows (on by default), Sign facing (off), Sign count (on), Placement ID (on).
+  Count and Placement ID toggles are auto-disabled when Sign facing is active (facing
+  mode has its own per-pill counts). Layer state is tracked in `layerState` and exposed
+  via `signsMapApi.toggleLayer()` / `isLayerVisible()`.
+- **Sign facing (2.49.0):** when enabled, location markers at zoom ≥ 17 display radial
+  chevron pills indicating which direction each group of signs faces (bearing derived
+  from linked traffic arrows). The 110×110 facing layout uses `margin-bottom: -55px` +
+  `transform: none` for anchor centering (the inherited `translateY(-50%)` is neutralized).
+  The wrapper is `pointer-events: none` with `auto` on pills, center disc, and hover
+  overlay to prevent neighbor occlusion. Pill offsets scale smoothly with zoom via the
+  `--facing-zoom-scale` CSS custom property (`2^(zoom − 19)`, clamped `[0.5, 1.0]`).
+  Group-level hover: hovering a pill shows only that bearing's signs; hovering the center
+  disc shows all. Each sign row includes an inline facing chevron.
+- **Placement IDs (2.49.0):** each location receives a user-facing ID (`P1`, `P2`, …)
+  computed as `DENSE_RANK() OVER (ORDER BY location_id)` in `getSignLocations()` — no
+  stored column; numbering is always gapless and shifts on delete. Badges render at 135°
+  (SE) from marker center on compact, full, and facing markers.
+- **Overlay labels:** building/landmark polygon labels (`signsMapOverlays.js`) render at
+  `zIndex: -100000`, well below all sign and arrow markers.
 - **Printable sign map** (`/signs/map/print`): WYSIWYG page preview at letter-portrait
   proportions (7 in × 7 in map area). Markers show a compact 2-column grid of category
   icon + arrow pills for every attachment. Legend shows sign types (colored pills),
@@ -533,6 +554,7 @@ Schema highlights:
   - `photo_url` — blob name in Azure Storage `sign-photos` container; served via `GET /signs/locations/:id/photo`
   - `sv_pano_id`, `sv_heading`, `sv_pitch`, `sv_fov` — persisted Street View camera state; restored when the panorama is reopened
   - No status column — effective status is derived from attachments (any installed → installed, otherwise planned/removed)
+  - `placement_number` — not a stored column; computed as `DENSE_RANK() OVER (ORDER BY location_id)` in `getSignLocations()`. Gapless sequential IDs (`P1`, `P2`, …) for field cross-referencing
 - `sign_attachments` — a sign template mounted on a location, with its own status
   - `location_id` FK → `sign_locations` (ON DELETE CASCADE)
   - `sign_id` FK → `signs`; survives template archival

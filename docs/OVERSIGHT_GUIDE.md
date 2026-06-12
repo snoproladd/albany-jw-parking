@@ -197,12 +197,26 @@ Two filter controls narrow both the map markers and the sidebar list:
 Below the filters, layer toggle switches control map overlays:
 
 - **Traffic arrows** (on by default) — shows/hides all traffic arrow
-  markers on the map
+  markers on the map.
 - **Sign facing** (off by default) — when enabled, locations with
   arrow-linked signs display radial chevron pills indicating which
   direction each group of signs faces. Bearing is derived from linked
-  traffic arrows. Hover a facing marker to see category icons and
-  directional arrows for the attached signs.
+  traffic arrows. Hover a single pill to see only the signs facing
+  that direction; hover the center disc to see all signs. Each sign
+  row in the expanded overlay includes a small directional chevron
+  matching its facing bearing. Pills scale smoothly with zoom so they
+  track a roughly constant ground distance.
+- **Sign count** (on by default) — shows a count badge at 45° (NE)
+  of each compact marker indicating how many signs are attached.
+- **Placement ID** (on by default) — shows a "P1", "P2", … badge at
+  135° (SE) of each marker. These sequential IDs are for
+  cross-referencing markers against printed reports or field sheets.
+  Numbering is always gapless — if a location is deleted, all later
+  IDs shift up.
+
+When **Sign facing** is enabled, the **Sign count** and **Placement ID**
+toggles are automatically disabled (dimmed) since facing mode uses its
+own per-pill count and the badges would overlap the radial layout.
 
 ##### Markers
 
@@ -331,8 +345,9 @@ for all volunteers to download.
 
 ##### Legend
 
-A collapsible **Legend** section sits at the bottom of the sidebar
-(collapsed by default). It shows sign type icons (colored pills), the status dot colors, and mount type icons.
+A slide-out **Legend** panel sits on the left edge of the map (click
+the grip tab to open/close). It shows sign type icons (colored pills),
+status dot colors, mount type icons, and a keyboard shortcut reference.
 
 ##### Geofencing — proximity tracking *(OVERSEER+)*
 
@@ -354,12 +369,17 @@ Geofencing requires the browser's geolocation permission.
 
 - **Route visualization** — directed bearings per sign, road-traced
   paths between traffic arrows and sign locations.
+- **Print map layer toggles** — bring the Sign facing, Traffic arrows,
+  Sign count, and Placement ID layer controls to the print view.
+
+**Marker detail levels** (shipped):
 
 - **Zoomed out (below zoom 19):** compact 32px colored discs showing a
   mount-type icon (cone, a-frame, or telephone pole) with a count badge
-  for attached signs. Hovering a compact marker for 250 ms expands it to
-  the full sign stack (desktop only); moving away collapses it after
-  150 ms. Status or custom color determines the disc background.
+  (45° NE) and placement ID badge (135° SE). Hovering a compact marker
+  for 250 ms expands it to the full sign stack (desktop only); moving
+  away collapses it after 150 ms. Status or custom color determines the
+  disc background.
 - **Zoomed in (zoom 19+):** full sign-preview blocks with text, arrow,
   and a mount-type label below the stack.
 

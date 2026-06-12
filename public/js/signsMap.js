@@ -220,6 +220,23 @@
   const ZOOM_FACING_FULL = 19;
 
   /**
+   * Reference zoom for facing pill radius scaling. At this zoom pills
+   * render at their designed pixel radius; zooming out shrinks the
+   * radius by 2^(zoom - ref) so pills track a roughly constant ground
+   * distance instead of appearing to drift away from the location.
+   */
+  const FACING_SCALE_REF_ZOOM = 19;
+
+  /**
+   * Clamp bounds for the facing radius scale. The minimum keeps pills
+   * legible and clear of the center disc when zoomed out; the maximum
+   * keeps pills inside the 110×110 content border-box (the Maps API
+   * pointer-event delivery zone) when zoomed in.
+   */
+  const FACING_SCALE_MIN = 0.5;
+  const FACING_SCALE_MAX = 1;
+
+  /**
    * Current facing detail level, driven by zoom + layer state.
    * @type {'none'|'symbol'|'full'}
    */
@@ -242,9 +259,19 @@
    *
    * @type {{ trafficArrows: boolean, signFacing: boolean }}
    */
+  /**
+   * @type {{
+   *   trafficArrows: boolean,
+   *   signFacing: boolean,
+   *   signCount: boolean,
+   *   placementId: boolean,
+   * }}
+   */
   const layerState = {
     trafficArrows: true,
     signFacing: false,
+    signCount: true,
+    placementId: true,
   };
 
   /** @type {google.maps.StreetViewPanorama|null} Active panorama, or null when closed. */
@@ -427,8 +454,9 @@
       lastDragEndTime = Date.now();
     });
 
-    // Seed detail level from initial zoom
+    // Seed detail level + facing pill scale from initial zoom
     currentDetailLevel = detailLevelForZoom(mapRef.getZoom());
+    updateFacingZoomScale(mapRef.getZoom());
 
     // Add markers
     locations.forEach((loc) => addMarkerForLocation(loc));
@@ -442,6 +470,7 @@
       const zoom = mapRef.getZoom();
       updateZoomIndicator(zoom);
       updateDraggableState();
+      updateFacingZoomScale(zoom);
 
       const newLevel = detailLevelForZoom(zoom);
       const newFacing = facingDetailForZoom(zoom);
@@ -453,6 +482,30 @@
       if (needsRebuild) {
         applyDetailLevelToAll(newLevel);
       }
+    });
+
+    // Hover-collapse safety net. mouseleave alone can fail when
+    // marker.content is swapped under a stationary cursor — the new element
+    // never enters the browser's hover chain, so a fast exit that skips it
+    // fires no mouseleave and the marker sticks expanded. A native delegated
+    // mousemove on the map container always sees the true cursor position:
+    // any move outside an expanded marker's host schedules its collapse,
+    // and moves inside it (including over the hover overlay) cancel.
+    mapRef.getDiv().addEventListener("mousemove", (e) => {
+      if (!hoverExpanded.size) return;
+      hoverExpanded.forEach((locationId) => {
+        const marker = markers.get(locationId);
+        if (!marker?.element) return;
+        clearTimeout(hoverTimers.get(locationId));
+        if (isCursorWithinMarker(e, marker)) return;
+        hoverTimers.set(
+          locationId,
+          setTimeout(() => {
+            const loc = findLocation(locationId);
+            if (loc) collapseMarkerOnHover(loc, marker);
+          }, HOVER_COLLAPSE_DELAY),
+        );
+      });
     });
   }
 
@@ -482,6 +535,23 @@
    * @param {object} loc
    * @returns {HTMLDivElement}
    */
+  /**
+   * Build the user-facing placement ID badge (e.g. "P12") used to
+   * cross-reference a marker against printed location-sign reports.
+   * The number is a dense rank computed by the backend, not the DB id.
+   *
+   * @param {object} loc
+   * @returns {HTMLSpanElement|null} Badge element, or null when the
+   *   location carries no placement_number
+   */
+  function buildPlacementBadge(loc) {
+    if (loc.placement_number == null) return null;
+    const badge = document.createElement("span");
+    badge.className = "signs-placement-badge";
+    badge.textContent = `P${loc.placement_number}`;
+    return badge;
+  }
+
   function buildMarkerContent(loc) {
     const status = deriveStatus(loc);
     const colorCls = loc.marker_color
@@ -490,6 +560,9 @@
 
     const wrapper = document.createElement("div");
     wrapper.className = `signs-map-marker signs-map-marker-${status}${colorCls}`;
+
+    const placementBadge = buildPlacementBadge(loc);
+    if (placementBadge) wrapper.appendChild(placementBadge);
 
     const stack = document.createElement("div");
     stack.className = "signs-map-marker-stack";
@@ -679,15 +752,7 @@
     // Re-attach hover behavior for compact mode
     if (currentDetailLevel === "compact") {
       if (hoverExpanded.has(locationId)) {
-        content.addEventListener("mouseleave", () => {
-          clearTimeout(hoverTimers.get(locationId));
-          hoverTimers.set(
-            locationId,
-            setTimeout(() => {
-              collapseMarkerOnHover(loc, marker);
-            }, HOVER_COLLAPSE_DELAY),
-          );
-        });
+        bindHoverCollapse(loc, marker, content);
       } else {
         attachHoverExpand(loc, marker, content);
       }
@@ -917,6 +982,9 @@
     const wrapper = document.createElement("div");
     wrapper.className = `signs-map-marker signs-map-marker-compact signs-map-marker-${status}${colorCls}`;
 
+    const placementBadge = buildPlacementBadge(loc);
+    if (placementBadge) wrapper.appendChild(placementBadge);
+
     const disc = document.createElement("div");
     disc.className = "signs-map-marker-disc";
 
@@ -992,24 +1060,117 @@
       currentDetailLevel === "compact" || currentFacingLevel === "symbol";
     if (isCoarsePointer || !expandable) return;
 
-    content.addEventListener("mouseenter", () => {
+    /**
+     * Bind a hover trigger element. attachmentIds limits the expanded
+     * overlay to that subset; null shows every attachment.
+     *
+     * @param {HTMLElement} el
+     * @param {number[]|null} attachmentIds
+     */
+    const bindTrigger = (el, attachmentIds) => {
+      el.addEventListener("mouseenter", () => {
+        clearTimeout(hoverTimers.get(loc.location_id));
+        hoverTimers.set(
+          loc.location_id,
+          setTimeout(() => {
+            expandMarkerOnHover(loc, marker, attachmentIds);
+          }, HOVER_EXPAND_DELAY),
+        );
+      });
+
+      // Only cancels a pending expand if the cursor leaves before it
+      // fires. Collapse of an already-expanded marker is handled by
+      // bindHoverCollapse and the map-level safety net.
+      el.addEventListener("mouseleave", () => {
+        if (!hoverExpanded.has(loc.location_id)) {
+          clearTimeout(hoverTimers.get(loc.location_id));
+        }
+      });
+    };
+
+    if (currentFacingLevel === "symbol") {
+      // Facing mode: each pill expands with only its own group's signs;
+      // the center disc expands with all of them. The wrapper itself is
+      // pointer-events: none, so these are the only hoverable surfaces.
+      content.querySelectorAll(".signs-facing-group").forEach((g) => {
+        const ids = (g.dataset.attachmentIds || "")
+          .split(",")
+          .filter(Boolean)
+          .map(Number);
+        bindTrigger(g, ids.length ? ids : null);
+      });
+      const center = content.querySelector(".signs-facing-center");
+      if (center) bindTrigger(center, null);
+      return;
+    }
+
+    bindTrigger(content, null);
+  }
+  /**
+   * Check whether a mouse event's cursor is over a marker's content,
+   * including hover-overlay portions that extend beyond the content's
+   * border-box. DOM containment alone is not enough: the Maps API only
+   * delivers pointer events within the content border-box, so the cursor
+   * can sit visually on an overflowing overlay while e.target reports
+   * the map tiles beneath it.
+   *
+   * @param {MouseEvent} e
+   * @param {google.maps.marker.AdvancedMarkerElement} marker
+   * @returns {boolean}
+   */
+  function isCursorWithinMarker(e, marker) {
+    if (marker.element?.contains(e.target)) return true;
+    const content = marker.content;
+    if (!content?.getBoundingClientRect) return false;
+    const rects = [content.getBoundingClientRect()];
+    const overlay = content.querySelector?.(".signs-facing-hover-overlay");
+    if (overlay) rects.push(overlay.getBoundingClientRect());
+    return rects.some(
+      (r) =>
+        e.clientX >= r.left &&
+        e.clientX <= r.right &&
+        e.clientY >= r.top &&
+        e.clientY <= r.bottom,
+    );
+  }
+  /**
+   * Bind collapse-on-mouseleave (plus mouseenter cancel) to a marker's
+   * current content element. Bound once per element via a dataset guard —
+   * content rebuilt on zoom/filter changes carries a fresh guard, so
+   * rebinding after every swap is safe and never duplicates listeners.
+   *
+   * Binds to the content element rather than the gmp-advanced-marker host:
+   * the host has no border-box of its own, so its mouse events are not
+   * reliably delivered. The map-level mousemove safety net (see initMap)
+   * covers the residual case where swapped content never enters the
+   * browser's hover chain.
+   *
+   * @param {object} loc
+   * @param {google.maps.marker.AdvancedMarkerElement} marker
+   * @param {HTMLElement} el - The marker's current content element
+   */
+  function bindHoverCollapse(loc, marker, el) {
+    if (!el || el.dataset.hoverCollapseBound === "1") return;
+    el.dataset.hoverCollapseBound = "1";
+
+    el.addEventListener("mouseenter", () => {
+      // Cancel only a pending collapse. An unconditional clear here would
+      // clobber the expand timer that attachHoverExpand's mouseenter just
+      // set on this same element, killing every re-hover after the first.
+      if (hoverExpanded.has(loc.location_id)) {
+        clearTimeout(hoverTimers.get(loc.location_id));
+      }
+    });
+
+    el.addEventListener("mouseleave", () => {
       clearTimeout(hoverTimers.get(loc.location_id));
+      if (!hoverExpanded.has(loc.location_id)) return;
       hoverTimers.set(
         loc.location_id,
         setTimeout(() => {
-          // Pass the persistent host (gmp-advanced-marker) so collapse can
-          // bind to it rather than the swappable content.
-          expandMarkerOnHover(loc, marker, content.parentElement);
-        }, HOVER_EXPAND_DELAY),
+          collapseMarkerOnHover(loc, marker);
+        }, HOVER_COLLAPSE_DELAY),
       );
-    });
-
-    // Only cancels a pending expand if the cursor leaves before it fires.
-    // Collapse of an already-expanded marker is handled by the host's
-    // mouseleave (bound in expandMarkerOnHover) — a content swap under a
-    // stationary cursor suppresses mouseenter/mouseleave on the new element.
-    content.addEventListener("mouseleave", () => {
-      clearTimeout(hoverTimers.get(loc.location_id));
     });
   }
 
@@ -1018,8 +1179,10 @@
    *
    * @param {object} loc
    * @param {google.maps.marker.AdvancedMarkerElement} marker
+   * @param {number[]|null} [attachmentIds] - Limit the facing overlay to
+   *   these attachments; null/omitted shows all (compact mode ignores it)
    */
-  function expandMarkerOnHover(loc, marker, host) {
+  function expandMarkerOnHover(loc, marker, attachmentIds = null) {
     const expandable =
       currentDetailLevel === "compact" || currentFacingLevel === "symbol";
     if (!expandable) return;
@@ -1030,27 +1193,16 @@
       const wrapper = marker.content;
       wrapper.classList.add("signs-facing-hover-expanded");
 
-      const overlay = buildFacingHoverContent(loc);
+      const overlay = buildFacingHoverContent(loc, attachmentIds);
       overlay.classList.add("signs-facing-hover-overlay");
       if (selectedId === loc.location_id) {
         overlay.classList.add("signs-map-marker-selected");
       }
       wrapper.appendChild(overlay);
 
-      // Bind collapse to the content element (once)
-      if (wrapper.dataset.hoverCollapseBound !== "1") {
-        wrapper.dataset.hoverCollapseBound = "1";
-        wrapper.addEventListener("mouseleave", () => {
-          clearTimeout(hoverTimers.get(loc.location_id));
-          if (!hoverExpanded.has(loc.location_id)) return;
-          hoverTimers.set(
-            loc.location_id,
-            setTimeout(() => {
-              collapseMarkerOnHover(loc, marker);
-            }, HOVER_COLLAPSE_DELAY),
-          );
-        });
-      }
+      // Collapse binds to the 110×110 facing wrapper — the element whose
+      // border-box the Maps API hit-tests.
+      bindHoverCollapse(loc, marker, wrapper);
       return;
     }
 
@@ -1061,25 +1213,7 @@
     attachLocationShiftGate(content);
     marker.content = content;
 
-    // Bind collapse to the persistent host element (gmp-advanced-marker), not
-    // the swapped content. Swapping marker.content under a stationary cursor
-    // never fires mouseenter on the new element, so a mouseleave bound to it
-    // would not fire until the cursor re-entered. The host is never replaced,
-    // so its mouseleave is reliable. Bound once per host via a dataset guard.
-    const collapseEl = marker.content || host;
-    if (collapseEl && collapseEl.dataset.hoverCollapseBound !== "1") {
-      collapseEl.dataset.hoverCollapseBound = "1";
-      collapseEl.addEventListener("mouseleave", () => {
-        clearTimeout(hoverTimers.get(loc.location_id));
-        if (!hoverExpanded.has(loc.location_id)) return;
-        hoverTimers.set(
-          loc.location_id,
-          setTimeout(() => {
-            collapseMarkerOnHover(loc, marker);
-          }, HOVER_COLLAPSE_DELAY),
-        );
-      });
-    }
+    bindHoverCollapse(loc, marker, content);
   }
 
   /**
@@ -2135,7 +2269,7 @@
   /**
    * Set visibility for a named map layer.
    *
-   * @param {'trafficArrows'|'signFacing'} layerId
+   * @param {'trafficArrows'|'signFacing'|'signCount'|'placementId'} layerId
    * @param {boolean} visible
    */
   function toggleLayer(layerId, visible) {
@@ -2147,6 +2281,21 @@
       const zoom = mapRef?.getZoom() || 17;
       currentFacingLevel = visible ? facingDetailForZoom(zoom) : "none";
       applyDetailLevelToAll(currentDetailLevel);
+
+      // Count and placement badges don't apply in facing mode —
+      // disable their toggles so the sidebar reflects that.
+      ["layerSignCount", "layerPlacementId"].forEach((id) => {
+        const cb = document.getElementById(id);
+        if (cb) cb.disabled = visible;
+      });
+    } else if (layerId === "signCount") {
+      mapRef
+        ?.getDiv()
+        .classList.toggle("signs-map-hide-sign-count", !visible);
+    } else if (layerId === "placementId") {
+      mapRef
+        ?.getDiv()
+        .classList.toggle("signs-map-hide-placement-id", !visible);
     }
   }
 
@@ -2173,7 +2322,7 @@
   /**
    * Check whether a given layer is currently visible.
    *
-   * @param {'trafficArrows'|'signFacing'} layerId
+   * @param {'trafficArrows'|'signFacing'|'signCount'|'placementId'} layerId
    * @returns {boolean}
    */
   function isLayerVisible(layerId) {
@@ -2194,6 +2343,27 @@
     if (!layerState.signFacing) return "none";
     if (zoom >= ZOOM_FACING_SYMBOL) return "symbol";
     return "none";
+  }
+
+  /**
+   * Update the --facing-zoom-scale CSS custom property on the map
+   * container. Facing pill offsets are multiplied by this factor in
+   * CSS (.signs-facing-group transform), so a single property write
+   * rescales every pill smoothly with no marker rebuilds. Custom
+   * properties via setProperty are CSP-safe (no inline style attr).
+   *
+   * @param {number} zoom
+   */
+  function updateFacingZoomScale(zoom) {
+    if (!mapRef) return;
+    const raw = Math.pow(2, zoom - FACING_SCALE_REF_ZOOM);
+    const scale = Math.min(FACING_SCALE_MAX, Math.max(FACING_SCALE_MIN, raw));
+    mapRef
+      .getDiv()
+      .style.setProperty(
+        "--facing-zoom-scale",
+        String(Math.round(scale * 1000) / 1000),
+      );
   }
 
   /**
@@ -2361,7 +2531,19 @@
         count.textContent = atts.length;
         children.push(count);
       }
-      wrapper.appendChild(buildFacingGroup(bearing, 42, children));
+      // Radius 34 keeps the widest pill (chevron + count badge) fully
+      // inside the 110×110 border-box — the Maps API only delivers
+      // pointer events within that box, so anything overhanging it is a
+      // hover dead zone. Do NOT enlarge the box instead: its dimensions
+      // and negative margins are anchor-coupled, and changing them
+      // displaces every facing marker (zoom-dependent drift).
+      const group = buildFacingGroup(bearing, 34, children);
+      // Tag the pill with its group's attachments so hover-expand can
+      // show only the signs facing this bearing.
+      group.dataset.attachmentIds = atts
+        .map((a) => a.attachment_id)
+        .join(",");
+      wrapper.appendChild(group);
     });
 
     return wrapper;
@@ -2379,6 +2561,12 @@
     wrapper.className = `signs-map-marker signs-facing-layout signs-facing-layout-full signs-map-marker-${status}`;
 
     wrapper.appendChild(buildFacingCenter(loc));
+
+    const placementBadge = buildPlacementBadge(loc);
+    if (placementBadge) {
+      placementBadge.classList.add("signs-placement-badge-facing");
+      wrapper.appendChild(placementBadge);
+    }
 
     const { groups, unlinked } = groupAttachmentsByFacing(loc);
 
@@ -2467,9 +2655,11 @@
    * and directional arrows only, no sign text. Matches mount-label sizing.
    *
    * @param {object} loc
+   * @param {number[]|null} [attachmentIds] - Limit the facing overlay to
+   *   these attachments; null/omitted shows all (compact mode ignores it)
    * @returns {HTMLDivElement}
    */
-  function buildFacingHoverContent(loc) {
+  function buildFacingHoverContent(loc, attachmentIds = null) {
     const status = deriveStatus(loc);
     const wrapper = document.createElement("div");
     wrapper.className = `signs-map-marker signs-map-marker-${status}`;
@@ -2477,9 +2667,16 @@
     const stack = document.createElement("div");
     stack.className = "signs-map-marker-stack";
 
-    const atts = (loc.attachments || [])
+    let atts = (loc.attachments || [])
       .slice()
       .sort((a, b) => a.sort_order - b.sort_order);
+
+    // Group-level hover: show only the signs facing the hovered pill's
+    // bearing. Null means show everything (center-disc hover).
+    if (attachmentIds?.length) {
+      const idSet = new Set(attachmentIds);
+      atts = atts.filter((a) => idSet.has(a.attachment_id));
+    }
 
     atts.forEach((att) => {
       const sign = document.createElement("div");
@@ -2494,6 +2691,22 @@
       if (att.sign_category) {
         sign.classList.add(`sign-preview-category-${att.sign_category}`);
       }
+
+      // Preserve the facing direction in the expanded view — a leading
+      // chevron rotated to this sign's facing bearing (derived from its
+      // linked traffic arrows). Unlinked signs get no chevron, matching
+      // the radial layout. Custom property via setProperty is CSP-safe.
+      const facingBearings = getAttachmentBearingMap().get(att.attachment_id);
+      if (facingBearings?.length) {
+        const facingBearing = (facingBearings[0] - 180 + 360) % 360;
+        const chev = document.createElement("i");
+        chev.className =
+          "fa-solid fa-chevron-up signs-facing-chevron signs-facing-chevron-inline";
+        chev.setAttribute("aria-hidden", "true");
+        chev.style.setProperty("--facing-deg", `${facingBearing}deg`);
+        sign.appendChild(chev);
+      }
+
       const catIcon = buildCategoryIcon(att.sign_category);
       if (catIcon) sign.appendChild(catIcon);
 
