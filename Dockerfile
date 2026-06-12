@@ -3,9 +3,14 @@ FROM node:24-bookworm-slim
 WORKDIR /app
 
 # Install system dependencies first — these change rarely so they cache well
+# Chromium is required by Puppeteer for PDF generation (sign maps, schedules)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      curl openssh-server \
+      curl openssh-server chromium \
     && rm -rf /var/lib/apt/lists/*
+
+# Use system Chromium instead of Puppeteer's bundled download
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 # sshd config — baked into image, not /home
 RUN printf "Port 2222\nListenAddress 0.0.0.0\nProtocol 2\nHostKey /home/etc/ssh/ssh_host_rsa_key\nPermitRootLogin prohibit-password\nPasswordAuthentication no\nChallengeResponseAuthentication no\nUsePAM no\nAllowTcpForwarding yes\nGatewayPorts no\nX11Forwarding no\nSubsystem sftp /usr/lib/openssh/sftp-server\n" > /etc/ssh/sshd_config
