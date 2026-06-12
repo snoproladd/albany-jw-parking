@@ -181,13 +181,30 @@ highlighted with colored polygon outlines on both the interactive and
 print maps. Building outlines are sourced from a KML file and update
 without a code change — just drop in a new export from Google My Maps.
 
-**Layout:** sidebar on the left with filters and the location list; Google
-Maps on the right. A printer icon in the sidebar header opens the
-printable map view in a new tab.
+**Layout:** sidebar on the left with filters, layer toggles, and the
+location list; Google Maps on the right. A printer icon in the sidebar
+header opens the printable map view in a new tab. A vertical grip tab
+on the left edge of the map opens a slide-out legend panel.
 
-##### Filters
+##### Filters & Layers
 
 Two filter controls narrow both the map markers and the sidebar list:
+
+- **Status chips** — All / Planned / Installed / Removed
+- **Sign template** — dropdown to see only locations with a specific
+  template attached
+
+Below the filters, layer toggle switches control map overlays:
+
+- **Traffic arrows** (on by default) — shows/hides all traffic arrow
+  markers on the map
+- **Sign facing** (off by default) — when enabled, locations with
+  arrow-linked signs display radial chevron pills indicating which
+  direction each group of signs faces. Bearing is derived from linked
+  traffic arrows. Hover a facing marker to see category icons and
+  directional arrows for the attached signs.
+
+##### Markers
 
 - **Status chips** — All / Planned / Installed / Removed (derived from
   each location's attachments — a location with any installed attachment
@@ -360,15 +377,6 @@ template in one click.
 **Layout:** sidebar on the left with a "Filter placements" section and
 the placement list; Google Maps on the right. The map starts centered
 on MVP Arena at street-level zoom.
-
-##### Filters
-
-Two filter controls in the sidebar narrow both the markers on the map
-*and* the placement list at the same time:
-
-- **Status chips** — All / Planned / Installed / Removed
-- **Sign template** — dropdown to see only placements of one specific
-  template
 
 ##### Adding a placement *(OVERSEER+)*
 

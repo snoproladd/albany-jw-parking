@@ -6,13 +6,13 @@
  * the sign preview block, the arrow picker grid, and the card grid.
  */
 
- /**
+/**
  * Custom rotation cursor — circular arrow with white outline
  * for visibility on satellite/hybrid map tiles.  Hotspot at centre.
  */
- :root {
-     --cursor-rotate: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath d='M10 2a8 8 0 1 1-5.66 2.34' fill='none' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3Cpath d='M8 1L4 4l4 3' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M10 2a8 8 0 1 1-5.66 2.34' fill='none' stroke='%23333' stroke-width='1.5' stroke-linecap='round'/%3E%3Cpath d='M8 1L4 4l4 3' fill='none' stroke='%23333' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") 10 10, auto;
- }
+:root {
+    --cursor-rotate: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath d='M10 2a8 8 0 1 1-5.66 2.34' fill='none' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3Cpath d='M8 1L4 4l4 3' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M10 2a8 8 0 1 1-5.66 2.34' fill='none' stroke='%23333' stroke-width='1.5' stroke-linecap='round'/%3E%3Cpath d='M8 1L4 4l4 3' fill='none' stroke='%23333' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") 10 10, auto;
+}
 
 /* ── Sign card (library grid) ──────────────────────────────────────── */
 
@@ -260,10 +260,10 @@
  */
 .signs-map-placing,
 .signs-map-placing .gm-style,
-.signs-map-placing .gm-style > div,
+.signs-map-placing .gm-style>div,
 .signs-map-placing-arrow,
 .signs-map-placing-arrow .gm-style,
-.signs-map-placing-arrow .gm-style > div {
+.signs-map-placing-arrow .gm-style>div {
     cursor: crosshair !important;
 }
 
@@ -672,14 +672,45 @@
     background: #fff;
 }
 
-.signs-color-swatch-red      { background: #dc3545; border-color: #dc3545; }
-.signs-color-swatch-orange   { background: #fd7e14; border-color: #fd7e14; }
-.signs-color-swatch-yellow   { background: #ffc107; border-color: #ffc107; }
-.signs-color-swatch-green    { background: #198754; border-color: #198754; }
-.signs-color-swatch-teal     { background: #0dcaf0; border-color: #0dcaf0; }
-.signs-color-swatch-blue     { background: #0d6efd; border-color: #0d6efd; }
-.signs-color-swatch-purple   { background: #6f42c1; border-color: #6f42c1; }
-.signs-color-swatch-pink     { background: #d63384; border-color: #d63384; }
+.signs-color-swatch-red {
+    background: #dc3545;
+    border-color: #dc3545;
+}
+
+.signs-color-swatch-orange {
+    background: #fd7e14;
+    border-color: #fd7e14;
+}
+
+.signs-color-swatch-yellow {
+    background: #ffc107;
+    border-color: #ffc107;
+}
+
+.signs-color-swatch-green {
+    background: #198754;
+    border-color: #198754;
+}
+
+.signs-color-swatch-teal {
+    background: #0dcaf0;
+    border-color: #0dcaf0;
+}
+
+.signs-color-swatch-blue {
+    background: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.signs-color-swatch-purple {
+    background: #6f42c1;
+    border-color: #6f42c1;
+}
+
+.signs-color-swatch-pink {
+    background: #d63384;
+    border-color: #d63384;
+}
 
 /* ── Marker custom color overrides ────────────────────────────── */
 
@@ -692,14 +723,47 @@
  */
 
 /* Compact markers — disc background */
-.signs-map-marker-compact.signs-map-marker-color-red    .signs-map-marker-disc  { background: #dc3545; opacity: 1; }
-.signs-map-marker-compact.signs-map-marker-color-orange .signs-map-marker-disc  { background: #fd7e14; opacity: 1; }
-.signs-map-marker-compact.signs-map-marker-color-yellow .signs-map-marker-disc  { background: #ffc107; color: #333; opacity: 1; }
-.signs-map-marker-compact.signs-map-marker-color-green  .signs-map-marker-disc  { background: #198754; opacity: 1; }
-.signs-map-marker-compact.signs-map-marker-color-teal   .signs-map-marker-disc  { background: #0dcaf0; color: #333; opacity: 1; }
-.signs-map-marker-compact.signs-map-marker-color-blue   .signs-map-marker-disc  { background: #0d6efd; opacity: 1; }
-.signs-map-marker-compact.signs-map-marker-color-purple .signs-map-marker-disc  { background: #6f42c1; opacity: 1; }
-.signs-map-marker-compact.signs-map-marker-color-pink   .signs-map-marker-disc  { background: #d63384; opacity: 1; }
+.signs-map-marker-compact.signs-map-marker-color-red .signs-map-marker-disc {
+    background: #dc3545;
+    opacity: 1;
+}
+
+.signs-map-marker-compact.signs-map-marker-color-orange .signs-map-marker-disc {
+    background: #fd7e14;
+    opacity: 1;
+}
+
+.signs-map-marker-compact.signs-map-marker-color-yellow .signs-map-marker-disc {
+    background: #ffc107;
+    color: #333;
+    opacity: 1;
+}
+
+.signs-map-marker-compact.signs-map-marker-color-green .signs-map-marker-disc {
+    background: #198754;
+    opacity: 1;
+}
+
+.signs-map-marker-compact.signs-map-marker-color-teal .signs-map-marker-disc {
+    background: #0dcaf0;
+    color: #333;
+    opacity: 1;
+}
+
+.signs-map-marker-compact.signs-map-marker-color-blue .signs-map-marker-disc {
+    background: #0d6efd;
+    opacity: 1;
+}
+
+.signs-map-marker-compact.signs-map-marker-color-purple .signs-map-marker-disc {
+    background: #6f42c1;
+    opacity: 1;
+}
+
+.signs-map-marker-compact.signs-map-marker-color-pink .signs-map-marker-disc {
+    background: #d63384;
+    opacity: 1;
+}
 
 /* Compact markers — neutral badge when custom color is active */
 .signs-map-marker-compact[class*="signs-map-marker-color-"] .signs-map-marker-badge {
@@ -708,14 +772,37 @@
 }
 
 /* Full markers — border color */
-.signs-map-marker-color-red    .sign-preview { border-color: #dc3545; }
-.signs-map-marker-color-orange .sign-preview { border-color: #fd7e14; }
-.signs-map-marker-color-yellow .sign-preview { border-color: #ffc107; }
-.signs-map-marker-color-green  .sign-preview { border-color: #198754; }
-.signs-map-marker-color-teal   .sign-preview { border-color: #0dcaf0; }
-.signs-map-marker-color-blue   .sign-preview { border-color: #0d6efd; }
-.signs-map-marker-color-purple .sign-preview { border-color: #6f42c1; }
-.signs-map-marker-color-pink   .sign-preview { border-color: #d63384; }
+.signs-map-marker-color-red .sign-preview {
+    border-color: #dc3545;
+}
+
+.signs-map-marker-color-orange .sign-preview {
+    border-color: #fd7e14;
+}
+
+.signs-map-marker-color-yellow .sign-preview {
+    border-color: #ffc107;
+}
+
+.signs-map-marker-color-green .sign-preview {
+    border-color: #198754;
+}
+
+.signs-map-marker-color-teal .sign-preview {
+    border-color: #0dcaf0;
+}
+
+.signs-map-marker-color-blue .sign-preview {
+    border-color: #0d6efd;
+}
+
+.signs-map-marker-color-purple .sign-preview {
+    border-color: #6f42c1;
+}
+
+.signs-map-marker-color-pink .sign-preview {
+    border-color: #d63384;
+}
 
 /* ── Sidebar placement list ──────────────────────────────────────── */
 
@@ -912,9 +999,20 @@
 }
 
 @keyframes signs-map-pulse {
-    0%   { opacity: 0.9; transform: translate(-50%, -50%) scale(0.85); }
-    70%  { opacity: 0;   transform: translate(-50%, -50%) scale(1.2);  }
-    100% { opacity: 0;   transform: translate(-50%, -50%) scale(1.2);  }
+    0% {
+        opacity: 0.9;
+        transform: translate(-50%, -50%) scale(0.85);
+    }
+
+    70% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(1.2);
+    }
+
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(1.2);
+    }
 }
 
 /* ── Photo section in placement editor ─────────────────────────── */
@@ -1207,7 +1305,303 @@
     background: rgba(255, 255, 255, 0.28);
 }
 
-/* ── Legend (collapsible sidebar panel) ──────────────────────────── */
+/* ── Sidebar sections ───────────────────────────────────────────── */
+
+.signs-sidebar-body {
+    padding: 0;
+}
+
+.signs-sidebar-section {
+    padding: 0.65rem 0.75rem;
+    border-bottom: 1px solid var(--bs-border-color-translucent);
+}
+
+.signs-sidebar-section:last-of-type {
+    border-bottom: 0;
+}
+
+.signs-sidebar-section-title {
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--bs-secondary-color);
+    margin-bottom: 0.5rem;
+}
+
+/* ── Layer switches ─────────────────────────────────────────────── */
+
+.signs-layers-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.signs-layer-switch {
+    padding-left: 2.5em;
+}
+
+.signs-layer-switch .form-check-input:checked {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.signs-layer-switch .form-check-label {
+    font-size: 0.82rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    cursor: pointer;
+    user-select: none;
+}
+
+.signs-layer-icon {
+    width: 1rem;
+    text-align: center;
+    font-size: 0.78rem;
+}
+
+.signs-layer-icon-arrows {
+    color: #00d4ff;
+}
+
+.signs-layer-icon-facing {
+    color: #6f42c1;
+}
+
+/* ── Facing radial layout ───────────────────────────────────────── */
+
+.signs-facing-layout {
+    position: relative;
+    width: 110px;
+    height: 110px;
+    margin-left: -55px;
+    margin-top: -55px;
+}
+
+.signs-facing-center {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) scale(0.6);
+    z-index: 3;
+    pointer-events: none;
+}
+
+
+
+.signs-facing-group {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(calc(-50% + var(--facing-x, 0px)),
+            calc(-50% + var(--facing-y, 0px)));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    z-index: 2;
+    white-space: nowrap;
+}
+
+.signs-facing-chevron {
+    color: #6f42c1;
+    font-size: 0.5rem;
+    transform: rotate(var(--facing-deg, 0deg));
+}
+
+/* ── Facing hover overlay ───────────────────────────────────────── */
+
+.signs-facing-hover-expanded .signs-facing-group,
+.signs-facing-hover-expanded .signs-facing-unlinked-badge,
+.signs-facing-hover-expanded .signs-facing-center {
+    visibility: hidden;
+}
+
+.signs-facing-hover-overlay {
+    position: absolute;
+    left: 50%;
+    bottom: 55%;
+    transform: translateX(-50%);
+    z-index: 10;
+    width: max-content;
+}
+
+.signs-facing-hover-overlay .signs-map-marker-stack {
+    gap: 0.15rem;
+}
+
+.signs-facing-hover-overlay .sign-preview {
+    font-size: 0.6rem;
+    padding: 0.1rem 0.25rem;
+    min-width: 0;
+}
+
+.signs-facing-hover-overlay .sign-preview-arrow {
+    font-size: 0.55rem;
+}
+
+.signs-facing-hover-overlay .sign-category-icon {
+    font-size: 0.55rem;
+}
+
+.signs-facing-center {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) scale(0.6);
+    z-index: 3;
+    pointer-events: none;
+}
+
+.signs-facing-hitbox {
+    position: absolute;
+    left: -50px;
+    top: -50px;
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    z-index: 0;
+}
+
+/* ── Symbol tier (zoom 17–19) ───────────────────────────────────── */
+
+.signs-facing-layout-symbol .signs-facing-group {
+    background: rgba(255, 255, 255, 0.92);
+    border: 1.5px solid #6f42c1;
+    border-radius: 999px;
+    padding: 0.15rem 0.25rem;
+    flex-direction: row;
+    gap: 0.15rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    font-size: 0.55rem;
+    line-height: 1;
+}
+
+.signs-facing-count {
+    color: #6f42c1;
+    font-weight: 700;
+    font-size: 0.55rem;
+}
+
+.signs-facing-unlinked-badge {
+    position: absolute;
+    left: 50%;
+    bottom: -14px;
+    transform: translateX(-50%);
+    background: #6c757d;
+    color: #fff;
+    font-size: 0.5rem;
+    font-weight: 700;
+    border-radius: 999px;
+    width: 14px;
+    height: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    z-index: 4;
+}
+
+/* ── Full tier (zoom ≥ 19) ──────────────────────────────────────── */
+
+.signs-facing-layout-full .signs-facing-group {
+    background: rgba(255, 255, 255, 0.95);
+    border: 1.5px solid #6f42c1;
+    border-radius: 0.35rem;
+    padding: 0.25rem 0.35rem;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+.signs-facing-layout-full .signs-facing-group .sign-preview {
+    font-size: 0.72rem;
+}
+
+.signs-facing-group-unlinked {
+    border-color: #adb5bd;
+}
+
+.signs-facing-pill-removed {
+    opacity: 0.5;
+    border-color: #b02a37;
+}
+
+.signs-facing-pill-installed {
+    border-color: #198754;
+}
+
+.signs-facing-mount-label {
+    position: absolute;
+    left: 50%;
+    bottom: -22px;
+    transform: translateX(-50%);
+    z-index: 1;
+}
+
+/* ── Map legend overlay ─────────────────────────────────────────── */
+
+.signs-map-legend-tab {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    z-index: 7;
+    width: 14px;
+    height: 52px;
+    transform: translateY(-50%);
+    border: none;
+    border-radius: 0 4px 4px 0;
+    background: #fff;
+    box-shadow: 1px 0 4px rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #aaa;
+    font-size: 0.6rem;
+    transition: left 0.2s ease, background 0.15s ease, color 0.15s ease, width 0.15s ease;
+}
+
+.signs-map-legend-tab:hover {
+    background: #f0f0f0;
+    color: #666;
+    width: 18px;
+}
+
+.signs-map-legend-tab.signs-map-legend-tab-open {
+    left: 220px;
+}
+
+.signs-map-legend-panel {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 6;
+    width: 220px;
+    height: 100%;
+    background: #fff;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+    border-radius: 0.375rem 0 0 0.375rem;
+    padding: 0.75rem;
+    overflow-y: auto;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+}
+
+.signs-map-legend-panel.signs-map-legend-open {
+    transform: translateX(0);
+}
+
+.signs-map-legend-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.65rem;
+    font-size: 0.88rem;
+}
+
+
+
+/* ── Legend lists (shared between sidebar + map overlay) ─────────── */
 
 .signs-legend-list {
     list-style: none;
@@ -1247,14 +1641,37 @@
     border: 1.5px solid rgba(0, 0, 0, 0.12);
 }
 
-.signs-legend-swatch-red    { background: #dc3545; }
-.signs-legend-swatch-orange { background: #fd7e14; }
-.signs-legend-swatch-yellow { background: #ffc107; }
-.signs-legend-swatch-green  { background: #198754; }
-.signs-legend-swatch-teal   { background: #0dcaf0; }
-.signs-legend-swatch-blue   { background: #0d6efd; }
-.signs-legend-swatch-purple { background: #6f42c1; }
-.signs-legend-swatch-pink   { background: #d63384; }
+.signs-legend-swatch-red {
+    background: #dc3545;
+}
+
+.signs-legend-swatch-orange {
+    background: #fd7e14;
+}
+
+.signs-legend-swatch-yellow {
+    background: #ffc107;
+}
+
+.signs-legend-swatch-green {
+    background: #198754;
+}
+
+.signs-legend-swatch-teal {
+    background: #0dcaf0;
+}
+
+.signs-legend-swatch-blue {
+    background: #0d6efd;
+}
+
+.signs-legend-swatch-purple {
+    background: #6f42c1;
+}
+
+.signs-legend-swatch-pink {
+    background: #d63384;
+}
 
 .signs-legend-shortcuts .signs-legend-keys {
     display: flex;
@@ -1699,22 +2116,48 @@
     font-size: 1.1rem;
 }
 
-.signs-info-sheet-status-btn-planned  { border-color: #6c757d; }
-.signs-info-sheet-status-btn-installed { border-color: #198754; color: #198754; }
-.signs-info-sheet-status-btn-removed  { border-color: #dc3545; color: #dc3545; }
+.signs-info-sheet-status-btn-planned {
+    border-color: #6c757d;
+}
 
-.signs-info-sheet-status-btn-planned:hover  { background: #e9ecef; }
-.signs-info-sheet-status-btn-installed:hover { background: #d1e7dd; }
-.signs-info-sheet-status-btn-removed:hover  { background: #f8d7da; }
+.signs-info-sheet-status-btn-installed {
+    border-color: #198754;
+    color: #198754;
+}
+
+.signs-info-sheet-status-btn-removed {
+    border-color: #dc3545;
+    color: #dc3545;
+}
+
+.signs-info-sheet-status-btn-planned:hover {
+    background: #e9ecef;
+}
+
+.signs-info-sheet-status-btn-installed:hover {
+    background: #d1e7dd;
+}
+
+.signs-info-sheet-status-btn-removed:hover {
+    background: #f8d7da;
+}
 
 .signs-info-sheet-status-btn-active {
     font-weight: 700;
     /* Slightly deeper background to signal "current" without hiding the others */
 }
 
-.signs-info-sheet-status-btn-active.signs-info-sheet-status-btn-planned  { background: #e9ecef; }
-.signs-info-sheet-status-btn-active.signs-info-sheet-status-btn-installed { background: #d1e7dd; }
-.signs-info-sheet-status-btn-active.signs-info-sheet-status-btn-removed  { background: #f8d7da; }
+.signs-info-sheet-status-btn-active.signs-info-sheet-status-btn-planned {
+    background: #e9ecef;
+}
+
+.signs-info-sheet-status-btn-active.signs-info-sheet-status-btn-installed {
+    background: #d1e7dd;
+}
+
+.signs-info-sheet-status-btn-active.signs-info-sheet-status-btn-removed {
+    background: #f8d7da;
+}
 
 /* Backdrop */
 .signs-info-sheet-backdrop {
@@ -1828,7 +2271,8 @@
     display: block;
     width: 100%;
     height: 100%;
-    overflow: visible; /* allow the outline stroke to bleed outside the viewBox */
+    overflow: visible;
+    /* allow the outline stroke to bleed outside the viewBox */
 }
 
 /*
@@ -1887,7 +2331,7 @@
  */
 .signs-map-bearing-drag,
 .signs-map-bearing-drag .gm-style,
-.signs-map-bearing-drag .gm-style > div {
+.signs-map-bearing-drag .gm-style>div {
     cursor: grabbing !important;
 }
 
@@ -1900,6 +2344,7 @@
 .signs-map-shift-held .signs-map-marker * {
     cursor: move !important;
 }
+
 /* ═══════════════════════════════════════════════════════════════════
    PLACEMENT COMPOSER OVERLAY
    Full-screen overlay for composing a planned placement photo.
@@ -2402,6 +2847,7 @@
         transform: translateX(-50%) translateY(0);
     }
 }
+
 /* ═══════════════════════════════════════════════════════════════
    STACKED SIGN MARKERS (location-based, multiple signs per pin)
    ═══════════════════════════════════════════════════════════════ */
@@ -2466,13 +2912,13 @@
 }
 
 /* ── Location sidebar list ─────────────────────────────────────── */
-
 .signs-location-list {
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
     max-height: 40vh;
     overflow-y: auto;
+    padding: 0.5rem 0.75rem;
 }
 
 .signs-location-row {
@@ -2822,8 +3268,15 @@
 }
 
 @keyframes signs-arrow-pulse {
-    0%, 100% { filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.45)); }
-    50%      { filter: drop-shadow(0 0 8px rgba(0, 212, 255, 0.6)); }
+
+    0%,
+    100% {
+        filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.45));
+    }
+
+    50% {
+        filter: drop-shadow(0 0 8px rgba(0, 212, 255, 0.6));
+    }
 }
 
 /* ── Ghost arrows: direction pulse animation ─────────────────── */
@@ -3110,6 +3563,7 @@ body.signs-map-dragging .signs-arrow-marker {
 .signs-context-menu-item-danger:hover {
     background: #fff1f2;
 }
+
 /* ── Building overlay labels ───────────────────────────────────── */
 
 .signs-overlay-label {

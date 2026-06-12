@@ -10,7 +10,7 @@
  */
 
 (() => {
-  "use strict";
+  ("use strict");
 
   // ============================================================
   // CONSTANTS
@@ -211,6 +211,42 @@
   /** @type {number|null} Arrow ID currently being pulsed (used as stale-timer guard). */
   let pulsingArrowId = null;
 
+  /**
+   * Zoom thresholds for facing detail levels (when layer is active).
+   * Below SYMBOL: normal markers. SYMBOL–FULL: radial category icons.
+   * At/above FULL: radial text pills.
+   */
+  const ZOOM_FACING_SYMBOL = 17;
+  const ZOOM_FACING_FULL = 19;
+
+  /**
+   * Current facing detail level, driven by zoom + layer state.
+   * @type {'none'|'symbol'|'full'}
+   */
+  let currentFacingLevel = "none";
+
+  /**
+   * Cached reverse lookup: attachment_id → [arrow bearings].
+   * Invalidated when arrow links change.
+   * @type {Map<number, number[]>|null}
+   */
+  let cachedBearingMap = null;
+
+  // ============================================================
+  // LAYER VISIBILITY STATE
+  // ============================================================
+
+  /**
+   * Tracks which map layers are currently visible.
+   * Keys match the checkbox IDs minus the "layer" prefix (camelCase).
+   *
+   * @type {{ trafficArrows: boolean, signFacing: boolean }}
+   */
+  const layerState = {
+    trafficArrows: true,
+    signFacing: false,
+  };
+
   /** @type {google.maps.StreetViewPanorama|null} Active panorama, or null when closed. */
   let streetViewPanorama = null;
   /** location_id the Street View overlay is currently showing, or null. */
@@ -408,8 +444,13 @@
       updateDraggableState();
 
       const newLevel = detailLevelForZoom(zoom);
-      if (newLevel !== currentDetailLevel) {
-        currentDetailLevel = newLevel;
+      const newFacing = facingDetailForZoom(zoom);
+      const needsRebuild =
+        newLevel !== currentDetailLevel || newFacing !== currentFacingLevel;
+      currentDetailLevel = newLevel;
+      currentFacingLevel = newFacing;
+
+      if (needsRebuild) {
         applyDetailLevelToAll(newLevel);
       }
     });
@@ -533,10 +574,7 @@
    * @param {object} loc
    */
   function addMarkerForLocation(loc) {
-    const content =
-      currentDetailLevel === "compact"
-        ? buildCompactLocationContent(loc)
-        : buildMarkerContent(loc);
+    const content = buildLocationContent(loc);
     const draggable = canManage && !isCoarsePointer;
     const marker = new google.maps.marker.AdvancedMarkerElement({
       map: mapRef,
@@ -622,11 +660,9 @@
     const marker = markers.get(locationId);
     if (!loc || !marker) return;
 
-    const useFullDetail =
-      currentDetailLevel === "full" || hoverExpanded.has(locationId);
-    const content = useFullDetail
+    const content = hoverExpanded.has(locationId)
       ? buildMarkerContent(loc)
-      : buildCompactLocationContent(loc);
+      : buildLocationContent(loc);
 
     // Re-attach shift-gate on new content
     attachLocationShiftGate(content);
@@ -827,6 +863,7 @@
 
     // Hover → highlight linked signs + direction pulse
     marker.element.addEventListener("mouseenter", () => {
+      if (!layerState.trafficArrows) return;
       highlightArrowLinks(arrow.arrow_id);
       if (!isCoarsePointer && !isDraggingMarker && !isRotatingArrow) {
         pulseArrowDirection(arrow.arrow_id);
@@ -838,6 +875,11 @@
     });
 
     arrowMarkers.set(arrow.arrow_id, marker);
+
+    // Respect layer visibility — hide if layer is off
+    if (!layerState.trafficArrows) {
+      marker.map = null;
+    }
   }
 
   /**
@@ -946,7 +988,9 @@
    * @param {HTMLElement} content
    */
   function attachHoverExpand(loc, marker, content) {
-    if (isCoarsePointer || currentDetailLevel !== "compact") return;
+    const expandable =
+      currentDetailLevel === "compact" || currentFacingLevel === "symbol";
+    if (isCoarsePointer || !expandable) return;
 
     content.addEventListener("mouseenter", () => {
       clearTimeout(hoverTimers.get(loc.location_id));
@@ -976,8 +1020,39 @@
    * @param {google.maps.marker.AdvancedMarkerElement} marker
    */
   function expandMarkerOnHover(loc, marker, host) {
-    if (currentDetailLevel !== "compact") return;
+    const expandable =
+      currentDetailLevel === "compact" || currentFacingLevel === "symbol";
+    if (!expandable) return;
     hoverExpanded.add(loc.location_id);
+
+    if (currentFacingLevel === "symbol") {
+      // Overlay compact content on top of facing layout
+      const wrapper = marker.content;
+      wrapper.classList.add("signs-facing-hover-expanded");
+
+      const overlay = buildFacingHoverContent(loc);
+      overlay.classList.add("signs-facing-hover-overlay");
+      if (selectedId === loc.location_id) {
+        overlay.classList.add("signs-map-marker-selected");
+      }
+      wrapper.appendChild(overlay);
+
+      // Bind collapse to the content element (once)
+      if (wrapper.dataset.hoverCollapseBound !== "1") {
+        wrapper.dataset.hoverCollapseBound = "1";
+        wrapper.addEventListener("mouseleave", () => {
+          clearTimeout(hoverTimers.get(loc.location_id));
+          if (!hoverExpanded.has(loc.location_id)) return;
+          hoverTimers.set(
+            loc.location_id,
+            setTimeout(() => {
+              collapseMarkerOnHover(loc, marker);
+            }, HOVER_COLLAPSE_DELAY),
+          );
+        });
+      }
+      return;
+    }
 
     const content = buildMarkerContent(loc);
     if (selectedId === loc.location_id) {
@@ -991,9 +1066,10 @@
     // never fires mouseenter on the new element, so a mouseleave bound to it
     // would not fire until the cursor re-entered. The host is never replaced,
     // so its mouseleave is reliable. Bound once per host via a dataset guard.
-    if (host && host.dataset.hoverCollapseBound !== "1") {
-      host.dataset.hoverCollapseBound = "1";
-      host.addEventListener("mouseleave", () => {
+    const collapseEl = marker.content || host;
+    if (collapseEl && collapseEl.dataset.hoverCollapseBound !== "1") {
+      collapseEl.dataset.hoverCollapseBound = "1";
+      collapseEl.addEventListener("mouseleave", () => {
         clearTimeout(hoverTimers.get(loc.location_id));
         if (!hoverExpanded.has(loc.location_id)) return;
         hoverTimers.set(
@@ -1013,10 +1089,21 @@
    * @param {google.maps.marker.AdvancedMarkerElement} marker
    */
   function collapseMarkerOnHover(loc, marker) {
-    if (currentDetailLevel !== "compact") return;
+    const expandable =
+      currentDetailLevel === "compact" || currentFacingLevel === "symbol";
+    if (!expandable) return;
     hoverExpanded.delete(loc.location_id);
 
-    const content = buildCompactLocationContent(loc);
+    if (currentFacingLevel === "symbol") {
+      // Remove overlay, restore facing pills
+      const wrapper = marker.content;
+      const overlay = wrapper.querySelector(".signs-facing-hover-overlay");
+      if (overlay) overlay.remove();
+      wrapper.classList.remove("signs-facing-hover-expanded");
+      return;
+    }
+
+    const content = buildLocationContent(loc);
     if (selectedId === loc.location_id) {
       content.classList.add("signs-map-marker-selected");
     }
@@ -1051,10 +1138,7 @@
     locations.forEach((loc) => {
       const marker = markers.get(loc.location_id);
       if (!marker) return;
-      const content =
-        level === "full"
-          ? buildMarkerContent(loc)
-          : buildCompactLocationContent(loc);
+      const content = buildLocationContent(loc);
       if (selectedId === loc.location_id) {
         content.classList.add("signs-map-marker-selected");
       }
@@ -1063,8 +1147,8 @@
 
       marker.content = content;
 
-      // Attach hover-to-expand for compact mode
-      if (level === "compact") {
+      // Attach hover-to-expand for compact or facing-symbol mode
+      if (level === "compact" || currentFacingLevel === "symbol") {
         attachHoverExpand(loc, marker, content);
       }
     });
@@ -1251,12 +1335,14 @@
       const marker = markers.get(locId);
       if (!loc || !marker || currentDetailLevel !== "compact") return;
 
-      const content = buildCompactLocationContent(loc);
+      const content = buildLocationContent(loc);
       if (selectedId === locId) {
         content.classList.add("signs-map-marker-selected");
       }
       attachLocationShiftGate(content);
-      attachHoverExpand(loc, marker, content);
+      if (currentDetailLevel === "compact" && currentFacingLevel === "none") {
+        attachHoverExpand(loc, marker, content);
+      }
       marker.content = content;
     });
     linkExpandedMarkers.clear();
@@ -1566,6 +1652,14 @@
    */
   function enterArrowPlacingMode() {
     exitPlacingMode();
+
+    // Auto-enable arrow layer if toggled off
+    if (!layerState.trafficArrows) {
+      const cb = document.getElementById("layerTrafficArrows");
+      if (cb) cb.checked = true;
+      toggleLayer("trafficArrows", true);
+    }
+
     isPlacingArrow = true;
     const help = document.getElementById("addArrowHelp");
     if (help) help.hidden = false;
@@ -1981,6 +2075,10 @@
         arrow.links.push(attachmentId);
         renderArrowLinks(arrow);
         highlightArrowLinks(arrowId);
+        invalidateBearingMap();
+        if (currentFacingLevel !== "none") {
+          applyDetailLevelToAll(currentDetailLevel);
+        }
       }
 
       // No form to collapse — dropdown auto-closes on click
@@ -2016,6 +2114,10 @@
         arrow.links = arrow.links.filter((id) => id !== attachmentId);
         renderArrowLinks(arrow);
         highlightArrowLinks(arrowId);
+        invalidateBearingMap();
+        if (currentFacingLevel !== "none") {
+          applyDetailLevelToAll(currentDetailLevel);
+        }
       }
     } catch (err) {
       console.error("Remove arrow link error:", err);
@@ -2025,6 +2127,423 @@
   // ============================================================
   // FILTERING
   // ============================================================
+
+  // ============================================================
+  // LAYER TOGGLE
+  // ============================================================
+
+  /**
+   * Set visibility for a named map layer.
+   *
+   * @param {'trafficArrows'|'signFacing'} layerId
+   * @param {boolean} visible
+   */
+  function toggleLayer(layerId, visible) {
+    layerState[layerId] = visible;
+
+    if (layerId === "trafficArrows") {
+      applyTrafficArrowLayer(visible);
+    } else if (layerId === "signFacing") {
+      const zoom = mapRef?.getZoom() || 17;
+      currentFacingLevel = visible ? facingDetailForZoom(zoom) : "none";
+      applyDetailLevelToAll(currentDetailLevel);
+    }
+  }
+
+  /**
+   * Show or hide all traffic arrow markers on the map.
+   * When hiding, also dismisses the arrow editor and cancels
+   * any active pulse or placement mode.
+   *
+   * @param {boolean} visible
+   */
+  function applyTrafficArrowLayer(visible) {
+    arrowMarkers.forEach((marker) => {
+      marker.map = visible ? mapRef : null;
+    });
+
+    if (!visible) {
+      cancelPulse();
+      clearLinkedSignHighlight();
+      dismissArrowEditorIfOpen();
+      if (isPlacingArrow) exitArrowPlacingMode();
+    }
+  }
+
+  /**
+   * Check whether a given layer is currently visible.
+   *
+   * @param {'trafficArrows'|'signFacing'} layerId
+   * @returns {boolean}
+   */
+  function isLayerVisible(layerId) {
+    return !!layerState[layerId];
+  }
+
+  // ============================================================
+  // SIGN FACING — RADIAL LAYOUT
+  // ============================================================
+
+  /**
+   * Determine the facing detail level for the current zoom.
+   *
+   * @param {number} zoom
+   * @returns {'none'|'symbol'|'full'}
+   */
+  function facingDetailForZoom(zoom) {
+    if (!layerState.signFacing) return "none";
+    if (zoom >= ZOOM_FACING_SYMBOL) return "symbol";
+    return "none";
+  }
+
+  /**
+   * Invalidate the cached bearing map. Call whenever arrow links
+   * are added or removed.
+   */
+  function invalidateBearingMap() {
+    cachedBearingMap = null;
+  }
+
+  /**
+   * Build (or return cached) reverse lookup from attachment_id
+   * to the bearing(s) of arrows that link to it.
+   *
+   * @returns {Map<number, number[]>}
+   */
+  function getAttachmentBearingMap() {
+    if (cachedBearingMap) return cachedBearingMap;
+    cachedBearingMap = new Map();
+    arrows.forEach((arrow) => {
+      const bearing = Number(arrow.bearing);
+      if (isNaN(bearing)) return;
+      (arrow.links || []).forEach((attId) => {
+        if (!cachedBearingMap.has(attId)) cachedBearingMap.set(attId, []);
+        cachedBearingMap.get(attId).push(bearing);
+      });
+    });
+    return cachedBearingMap;
+  }
+
+  /**
+   * Group a location's attachments by the facing direction derived
+   * from linked traffic arrows. Bearings within ±15° cluster together.
+   *
+   * @param {object} loc
+   * @returns {{ groups: Map<number, object[]>, unlinked: object[] }}
+   */
+  function groupAttachmentsByFacing(loc) {
+    const bearingMap = getAttachmentBearingMap();
+    /** @type {Map<number, object[]>} facingBearing → attachments */
+    const groups = new Map();
+    const unlinked = [];
+
+    const atts = (loc.attachments || [])
+      .slice()
+      .sort((a, b) => a.sort_order - b.sort_order);
+
+    atts.forEach((att) => {
+      const bearings = bearingMap.get(att.attachment_id);
+      if (!bearings?.length) {
+        unlinked.push(att);
+        return;
+      }
+      const facingBearing = (bearings[0] - 180 + 360) % 360;
+      let matched = false;
+      for (const [key] of groups) {
+        const diff = Math.abs(key - facingBearing);
+        if (diff < 15 || diff > 345) {
+          groups.get(key).push(att);
+          matched = true;
+          break;
+        }
+      }
+      if (!matched) {
+        groups.set(facingBearing, [att]);
+      }
+    });
+
+    return { groups, unlinked };
+  }
+
+  /**
+   * Compute pixel x/y offset for a compass bearing at a given distance.
+   * 0° = up (north), 90° = right (east), etc.
+   *
+   * @param {number} bearing - Compass bearing in degrees
+   * @param {number} dist - Distance in pixels
+   * @returns {{ x: number, y: number }}
+   */
+  function facingOffset(bearing, dist) {
+    const rad = (bearing * Math.PI) / 180;
+    return {
+      x: Math.sin(rad) * dist,
+      y: -Math.cos(rad) * dist,
+    };
+  }
+
+  /**
+   * Build the center element shared by all facing layouts.
+   *
+   * @param {object} loc
+   * @returns {HTMLDivElement}
+   */
+  function buildFacingCenter(loc) {
+    const center = document.createElement("div");
+    center.className = "signs-facing-center";
+
+    const disc = document.createElement("div");
+    disc.className = "signs-map-marker-disc";
+
+    if (loc.mount_type && MOUNT_ICONS[loc.mount_type]) {
+      const wrap = document.createElement("span");
+      wrap.className = "signs-map-marker-mount-icon-wrap";
+      wrap.innerHTML = MOUNT_ICONS[loc.mount_type];
+      disc.appendChild(wrap);
+    } else {
+      const dot = document.createElement("span");
+      dot.className = "signs-map-marker-abbr";
+      dot.textContent = "\u2022";
+      disc.appendChild(dot);
+    }
+
+    center.appendChild(disc);
+    return center;
+  }
+
+  /**
+   * Build a facing group element positioned radially from center.
+   *
+   * @param {number} bearing - Facing compass bearing
+   * @param {number} dist - Pixel distance from center
+   * @param {HTMLElement[]} children - Content elements for this group
+   * @returns {HTMLDivElement}
+   */
+  function buildFacingGroup(bearing, dist, children) {
+    const group = document.createElement("div");
+    group.className = "signs-facing-group";
+
+    const offset = facingOffset(bearing, dist);
+    group.style.setProperty("--facing-x", `${Math.round(offset.x)}px`);
+    group.style.setProperty("--facing-y", `${Math.round(offset.y)}px`);
+
+    // Directional chevron
+    const chevron = document.createElement("i");
+    chevron.className = "fa-solid fa-chevron-up signs-facing-chevron";
+    chevron.setAttribute("aria-hidden", "true");
+    chevron.style.setProperty("--facing-deg", `${bearing}deg`);
+    group.appendChild(chevron);
+
+    children.forEach((child) => group.appendChild(child));
+    return group;
+  }
+
+  /**
+   * Build facing layout with category-icon pills (zoom 17–19).
+   *
+   * @param {object} loc
+   * @returns {HTMLDivElement}
+   */
+  function buildFacingSymbolContent(loc) {
+    const status = deriveStatus(loc);
+    const wrapper = document.createElement("div");
+    wrapper.className = `signs-map-marker signs-facing-layout signs-facing-layout-symbol signs-map-marker-${status}`;
+
+    wrapper.appendChild(buildFacingCenter(loc));
+
+    const { groups, unlinked } = groupAttachmentsByFacing(loc);
+
+    groups.forEach((atts, bearing) => {
+      // Chevron-only pill — count badge if multiple signs
+      const children = [];
+      if (atts.length > 1) {
+        const count = document.createElement("span");
+        count.className = "signs-facing-count";
+        count.textContent = atts.length;
+        children.push(count);
+      }
+      wrapper.appendChild(buildFacingGroup(bearing, 42, children));
+    });
+
+    return wrapper;
+  }
+
+  /**
+   * Build facing layout with full sign-preview pills (zoom ≥ 19).
+   *
+   * @param {object} loc
+   * @returns {HTMLDivElement}
+   */
+  function buildFacingFullContent(loc) {
+    const status = deriveStatus(loc);
+    const wrapper = document.createElement("div");
+    wrapper.className = `signs-map-marker signs-facing-layout signs-facing-layout-full signs-map-marker-${status}`;
+
+    wrapper.appendChild(buildFacingCenter(loc));
+
+    const { groups, unlinked } = groupAttachmentsByFacing(loc);
+
+    groups.forEach((atts, bearing) => {
+      const pills = atts.map((att) => {
+        const sign = document.createElement("div");
+        sign.className = "sign-preview signs-map-marker-sign";
+        sign.dataset.attachmentId = att.attachment_id;
+
+        if (att.status === "removed") {
+          sign.classList.add("signs-facing-pill-removed");
+        } else if (att.status === "installed") {
+          sign.classList.add("signs-facing-pill-installed");
+        }
+
+        if (att.sign_category) {
+          sign.classList.add(`sign-preview-category-${att.sign_category}`);
+        }
+        const catIcon = buildCategoryIcon(att.sign_category);
+        if (catIcon) sign.appendChild(catIcon);
+
+        const text = document.createElement("span");
+        text.className = "sign-preview-text";
+        text.textContent = att.sign_text || "";
+        sign.appendChild(text);
+
+        const arrow = document.createElement("span");
+        arrow.className = "sign-preview-arrow";
+        const dir = att.arrow_direction;
+        if (dir === "destination") {
+          const icon = document.createElement("i");
+          icon.className = "fa-solid fa-location-dot";
+          icon.setAttribute("aria-hidden", "true");
+          arrow.appendChild(icon);
+        } else if (dir && ARROW_GLYPHS[dir]) {
+          arrow.textContent = ARROW_GLYPHS[dir];
+        }
+        sign.appendChild(arrow);
+        return sign;
+      });
+
+      wrapper.appendChild(buildFacingGroup(bearing, 40, pills));
+    });
+
+    // Unlinked pills — stack below center
+    if (unlinked.length) {
+      const group = document.createElement("div");
+      group.className = "signs-facing-group signs-facing-group-unlinked";
+      group.style.setProperty("--facing-x", "0px");
+      group.style.setProperty("--facing-y", "30px");
+
+      unlinked.forEach((att) => {
+        const sign = document.createElement("div");
+        sign.className = "sign-preview signs-map-marker-sign";
+        if (att.sign_category) {
+          sign.classList.add(`sign-preview-category-${att.sign_category}`);
+        }
+        const catIcon = buildCategoryIcon(att.sign_category);
+        if (catIcon) sign.appendChild(catIcon);
+        const text = document.createElement("span");
+        text.className = "sign-preview-text";
+        text.textContent = att.sign_text || "";
+        sign.appendChild(text);
+        group.appendChild(sign);
+      });
+
+      wrapper.appendChild(group);
+    }
+
+    // Mount label below center
+    if (loc.mount_type && MOUNT_ICONS[loc.mount_type]) {
+      const label = document.createElement("div");
+      label.className = "signs-map-marker-mount-label signs-facing-mount-label";
+      label.innerHTML = MOUNT_ICONS[loc.mount_type];
+      const text = document.createElement("span");
+      text.textContent = MOUNT_LABELS[loc.mount_type] || loc.mount_type;
+      label.appendChild(text);
+      wrapper.appendChild(label);
+    }
+
+    return wrapper;
+  }
+
+  /**
+   * Build compact hover content for facing markers — category icons
+   * and directional arrows only, no sign text. Matches mount-label sizing.
+   *
+   * @param {object} loc
+   * @returns {HTMLDivElement}
+   */
+  function buildFacingHoverContent(loc) {
+    const status = deriveStatus(loc);
+    const wrapper = document.createElement("div");
+    wrapper.className = `signs-map-marker signs-map-marker-${status}`;
+
+    const stack = document.createElement("div");
+    stack.className = "signs-map-marker-stack";
+
+    const atts = (loc.attachments || [])
+      .slice()
+      .sort((a, b) => a.sort_order - b.sort_order);
+
+    atts.forEach((att) => {
+      const sign = document.createElement("div");
+      sign.className = "sign-preview signs-map-marker-sign";
+
+      if (att.status === "removed") {
+        sign.classList.add("signs-facing-pill-removed");
+      } else if (att.status === "installed") {
+        sign.classList.add("signs-facing-pill-installed");
+      }
+
+      if (att.sign_category) {
+        sign.classList.add(`sign-preview-category-${att.sign_category}`);
+      }
+      const catIcon = buildCategoryIcon(att.sign_category);
+      if (catIcon) sign.appendChild(catIcon);
+
+      const dir = att.arrow_direction;
+      if (dir) {
+        const arrow = document.createElement("span");
+        arrow.className = "sign-preview-arrow";
+        if (dir === "destination") {
+          const icon = document.createElement("i");
+          icon.className = "fa-solid fa-location-dot";
+          icon.setAttribute("aria-hidden", "true");
+          arrow.appendChild(icon);
+        } else if (ARROW_GLYPHS[dir]) {
+          arrow.textContent = ARROW_GLYPHS[dir];
+        }
+        sign.appendChild(arrow);
+      }
+
+      stack.appendChild(sign);
+    });
+
+    wrapper.appendChild(stack);
+
+    // Mount label
+    if (loc.mount_type && MOUNT_ICONS[loc.mount_type]) {
+      const label = document.createElement("div");
+      label.className = "signs-map-marker-mount-label";
+      label.innerHTML = MOUNT_ICONS[loc.mount_type];
+      const text = document.createElement("span");
+      text.textContent = MOUNT_LABELS[loc.mount_type] || loc.mount_type;
+      label.appendChild(text);
+      wrapper.appendChild(label);
+    }
+
+    return wrapper;
+  }
+
+  /**
+   * Unified location marker content builder. Selects the
+   * appropriate builder based on layer state and zoom level.
+   *
+   * @param {object} loc
+   * @returns {HTMLDivElement}
+   */
+  function buildLocationContent(loc) {
+    if (currentFacingLevel === "symbol") return buildFacingSymbolContent(loc);
+    return currentDetailLevel === "full"
+      ? buildMarkerContent(loc)
+      : buildCompactLocationContent(loc);
+  }
 
   function applyFilters() {
     const statusVal =
@@ -3954,6 +4473,26 @@
     if (templateFilter)
       templateFilter.addEventListener("change", () => applyFilters());
 
+    // Legend overlay toggle
+    const legendTab = document.getElementById("mapLegendTab");
+    const legendPanel = document.getElementById("mapLegendPanel");
+    if (legendTab && legendPanel) {
+      legendTab.addEventListener("click", () => {
+        const open = legendPanel.classList.toggle("signs-map-legend-open");
+        legendTab.classList.toggle("signs-map-legend-tab-open", open);
+      });
+    }
+
+    // Layer toggles
+    document.querySelectorAll("[id^='layer']").forEach((cb) => {
+      if (cb.type !== "checkbox") return;
+      cb.addEventListener("change", () => {
+        const id = cb.id.replace(/^layer/, "");
+        const layerId = id.charAt(0).toLowerCase() + id.slice(1);
+        toggleLayer(layerId, cb.checked);
+      });
+    });
+
     // Add location button
     const addBtn = document.getElementById("addLocationBtn");
     if (addBtn) addBtn.addEventListener("click", () => enterPlacingMode());
@@ -4214,7 +4753,9 @@
         signs = Array.isArray(parsed.signs) ? parsed.signs : [];
         locations = Array.isArray(parsed.locations) ? parsed.locations : [];
         arrows = Array.isArray(parsed.arrows) ? parsed.arrows : [];
-        mapOverlays = Array.isArray(parsed.mapOverlays) ? parsed.mapOverlays : [];
+        mapOverlays = Array.isArray(parsed.mapOverlays)
+          ? parsed.mapOverlays
+          : [];
       } catch (err) {
         console.error("Failed to parse signsMapBootstrap JSON:", err);
       }
@@ -4232,6 +4773,8 @@
       quickSetLocationStatus,
       canManage: () => canManage,
       getMapRef: () => mapRef,
+      toggleLayer,
+      isLayerVisible,
     };
 
     if (!apiKey) return;

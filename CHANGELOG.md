@@ -3,6 +3,57 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## 2.48.0 — Map Layer Toggles, Sidebar Restructure & Sign Facing Indicators
+
+### Added
+- **Layer toggle system.** New "Filters & Layers" section in the sidebar
+  with toggle switches for Traffic Arrows and Sign Facing layers. Layers
+  are independently togglable; arrow placement mode auto-enables the
+  arrow layer if toggled off.
+- **Sign facing indicators.** When the "Sign facing" layer is enabled,
+  locations with arrow-linked signs display radial chevron pills showing
+  which direction each group of signs faces. Bearing is derived from
+  linked traffic arrows (arrow bearing − 180°). Nearby bearings (±15°)
+  cluster into the same group. Visible at zoom ≥ 17 as compact directional
+  pills; hovering expands to show category icons and directional arrows.
+- **Legend overlay on map.** The legend moved from the sidebar to a
+  slide-out panel on the left edge of the map canvas. A vertical grip
+  tab toggles the panel open/closed.
+- **`buildFacingHoverContent()`** — lightweight hover overlay builder
+  showing category icons and directional arrows (no sign text) for
+  facing-expanded markers.
+- **`buildLocationContent()`** — unified dispatcher that selects the
+  appropriate marker builder based on facing layer state and zoom level.
+- **`facingDetailForZoom()`**, **`groupAttachmentsByFacing()`**,
+  **`buildFacingGroup()`**, **`buildFacingCenter()`**,
+  **`buildFacingSymbolContent()`** — radial layout system for sign
+  facing indicators.
+- **Cached bearing map** — reverse lookup from attachment ID to arrow
+  bearings, invalidated on link add/remove for efficient facing layout
+  rebuilds.
+
+### Changed
+- **Sidebar restructured.** Replaced the three-panel accordion (Filters /
+  Layers / Legend) with flat titled sections: "Filters & Layers" combines
+  status/template filters with layer toggles; "Add to Map" is a distinct
+  titled section for location and arrow placement buttons.
+- **Sidebar body padding** removed from the card body; each section
+  manages its own padding via `.signs-sidebar-section`.
+- **Location list** padding adjusted to match the new section-based layout.
+- **Legend inline styles replaced** with CSS classes
+  (`.signs-legend-arrow-icon`, `.signs-legend-mount-icon`).
+- **Zoom-change handler** now tracks both `currentDetailLevel` and
+  `currentFacingLevel`, triggering marker rebuilds when either threshold
+  is crossed (17 for facing symbols, 19 for full detail).
+- **Hover-expand system** extended to work on facing-symbol markers at
+  all zoom levels (not just compact mode below zoom 19).
+
+### Known Issues
+- Facing hover overlay shows all signs for a location rather than only
+  the signs linked to the hovered directional group — planned for 2.49.0.
+- The 110×110 px facing layout hitbox can overlap nearby traffic arrow
+  markers at close spacing — z-index refinement planned.
+
 ## 2.47.0 — Sign Map Publish to SharePoint + Blob Storage
 
 ### Added

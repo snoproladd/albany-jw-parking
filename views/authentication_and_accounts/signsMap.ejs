@@ -68,93 +68,142 @@
                         </div>
                     </header>
 
-                    <div class="collapse show" id="sidebarFiltersBody">
-                    <div class="card-body">
+<div class="collapse show" id="sidebarFiltersBody">
+                    <div class="card-body signs-sidebar-body">
 
-                        <%# Filters %>
-                        <h6 class="text-muted mb-2">
-                            <i class="fa-solid fa-filter me-1"></i>Filter locations
-                        </h6>
-                        <div class="mb-3">
-                            <label class="form-label small text-uppercase text-muted mb-1">
-                                Status
-                            </label>
-                            <div class="btn-group btn-group-sm w-100" role="group" aria-label="Status filter">
-                                <input type="radio" class="btn-check" name="statusFilter" id="statusAll" value="" checked />
-                                <label class="btn btn-outline-secondary" for="statusAll">All</label>
+                        <%# ── Filters & Layers ────────────────────────────────── %>
+                        <div class="signs-sidebar-section">
+                            <h6 class="signs-sidebar-section-title">
+                                <i class="fa-solid fa-sliders me-2"></i>Filters & Layers
+                            </h6>
 
-                                <input type="radio" class="btn-check" name="statusFilter" id="statusPlanned" value="planned" />
-                                <label class="btn btn-outline-secondary" for="statusPlanned">Planned</label>
+                            <div class="mb-2">
+                                <label class="form-label small text-uppercase text-muted mb-1">
+                                    Status
+                                </label>
+                                <div class="btn-group btn-group-sm w-100" role="group" aria-label="Status filter">
+                                    <input type="radio" class="btn-check" name="statusFilter" id="statusAll" value="" checked />
+                                    <label class="btn btn-outline-secondary" for="statusAll">All</label>
 
-                                <input type="radio" class="btn-check" name="statusFilter" id="statusInstalled" value="installed" />
-                                <label class="btn btn-outline-secondary" for="statusInstalled">Installed</label>
+                                    <input type="radio" class="btn-check" name="statusFilter" id="statusPlanned" value="planned" />
+                                    <label class="btn btn-outline-secondary" for="statusPlanned">Planned</label>
 
-                                <input type="radio" class="btn-check" name="statusFilter" id="statusRemoved" value="removed" />
-                                <label class="btn btn-outline-secondary" for="statusRemoved">Removed</label>
+                                    <input type="radio" class="btn-check" name="statusFilter" id="statusInstalled" value="installed" />
+                                    <label class="btn btn-outline-secondary" for="statusInstalled">Installed</label>
+
+                                    <input type="radio" class="btn-check" name="statusFilter" id="statusRemoved" value="removed" />
+                                    <label class="btn btn-outline-secondary" for="statusRemoved">Removed</label>
+                                </div>
                             </div>
-                        </div>
 
-                        <div class="mb-3">
-                            <label for="signTemplateFilter" class="form-label small text-uppercase text-muted mb-1">
-                                Sign template
-                            </label>
-                            <select class="form-select form-select-sm" id="signTemplateFilter">
-                                <option value="">All templates</option>
-                                <% signs.forEach(s => { %>
-                                    <option value="<%= s.sign_id %>"><%= s.sign_text %></option>
-                                <% }); %>
-                            </select>
-                        </div>
+                            <div class="mb-3">
+                                <label for="signTemplateFilter" class="form-label small text-uppercase text-muted mb-1">
+                                    Sign template
+                                </label>
+                                <select class="form-select form-select-sm" id="signTemplateFilter">
+                                    <option value="">All templates</option>
+                                    <% signs.forEach(s => { %>
+                                        <option value="<%= s.sign_id %>"><%= s.sign_text %></option>
+                                    <% }); %>
+                                </select>
+                            </div>
 
-                        <% if (canManage) { %>
                             <hr class="my-2" />
-                            <div class="d-flex gap-2 mb-3">
-                                <button type="button" class="btn btn-primary btn-sm flex-fill" id="addLocationBtn">
-                                    <i class="fa-solid fa-plus me-1"></i>Add location
-                                </button>
-                                <button type="button" class="btn btn-outline-primary btn-sm flex-fill" id="addArrowBtn">
-                                    <i class="fa-solid fa-diamond-turn-right me-1"></i>Add arrow
-                                </button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm" id="geotagNewBtn"
-                                        title="Place at my current GPS location">
-                                    <i class="fa-solid fa-location-crosshairs"></i>
-                                </button>
+
+                            <div class="signs-layers-list">
+                                <div class="form-check form-switch signs-layer-switch">
+                                    <input class="form-check-input" type="checkbox"
+                                           role="switch" id="layerTrafficArrows" checked />
+                                    <label class="form-check-label" for="layerTrafficArrows">
+                                        <i class="fa-solid fa-diamond-turn-right signs-layer-icon signs-layer-icon-arrows"></i>
+                                        Traffic arrows
+                                    </label>
+                                </div>
+                                <div class="form-check form-switch signs-layer-switch">
+                                    <input class="form-check-input" type="checkbox"
+                                           role="switch" id="layerSignFacing" />
+                                    <label class="form-check-label" for="layerSignFacing">
+                                        <i class="fa-solid fa-compass signs-layer-icon signs-layer-icon-facing"></i>
+                                        Sign facing
+                                    </label>
+                                </div>
                             </div>
-                            <p class="small text-muted mb-3" id="addLocationHelp" hidden>
-                                <i class="fa-solid fa-circle-info me-1"></i>
-                                Click anywhere on the map to drop a location.
-                                <button type="button" class="btn btn-link btn-sm p-0 ms-1" id="cancelAddBtn">Cancel</button>
-                            </p>
-                            <p class="small text-muted mb-3" id="addArrowHelp" hidden>
-                                <i class="fa-solid fa-circle-info me-1"></i>
-                                Click on the road to place a traffic arrow.
-                                <button type="button" class="btn btn-link btn-sm p-0 ms-1" id="cancelAddArrowBtn">Cancel</button>
-                            </p>
+                        </div>
+
+                        <%# ── Add to Map ───────────────────────────────────────── %>
+                        <% if (canManage) { %>
+                            <div class="signs-sidebar-section">
+                                <h6 class="signs-sidebar-section-title">
+                                    <i class="fa-solid fa-map-pin me-2"></i>Add to Map
+                                </h6>
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-primary btn-sm flex-fill" id="addLocationBtn">
+                                        <i class="fa-solid fa-plus me-1"></i>Add location
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary btn-sm flex-fill" id="addArrowBtn">
+                                        <i class="fa-solid fa-diamond-turn-right me-1"></i>Add arrow
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="geotagNewBtn"
+                                            title="Place at my current GPS location">
+                                        <i class="fa-solid fa-location-crosshairs"></i>
+                                    </button>
+                                </div>
+                                <p class="small text-muted mb-0 mt-2" id="addLocationHelp" hidden>
+                                    <i class="fa-solid fa-circle-info me-1"></i>
+                                    Click anywhere on the map to drop a location.
+                                    <button type="button" class="btn btn-link btn-sm p-0 ms-1" id="cancelAddBtn">Cancel</button>
+                                </p>
+                                <p class="small text-muted mb-0 mt-2" id="addArrowHelp" hidden>
+                                    <i class="fa-solid fa-circle-info me-1"></i>
+                                    Click on the road to place a traffic arrow.
+                                    <button type="button" class="btn btn-link btn-sm p-0 ms-1" id="cancelAddArrowBtn">Cancel</button>
+                                </p>
+                            </div>
                         <% } %>
 
+                        <%# ── Location list (always visible) ───────────────────── %>
                         <div class="signs-location-list" id="locationList">
                             <%# Filled by JS %>
                         </div>
 
-                        <hr class="my-2" />
+                    </div>
+                    </div>
+                </section>
+            </aside>
 
-                        <%# ── Legend (collapsible) ─────────────────────────────── %>
-                        <div class="d-flex align-items-center justify-content-between mb-1">
-                            <span class="small text-uppercase text-muted fw-semibold">
-                                <i class="fa-solid fa-circle-info me-1"></i>Legend
-                            </span>
-                            <button type="button"
-                                    class="btn btn-link btn-sm p-0 text-muted"
-                                    id="legendToggleBtn"
-                                    data-bs-toggle="collapse"
-                                    data-bs-target="#mapLegendPanel"
-                                    aria-expanded="false"
-                                    aria-controls="mapLegendPanel">
-                                <i class="fa-solid fa-chevron-down signs-legend-chevron"></i>
-                            </button>
+            <%# ──────────────────────────────────────────────────────────
+                RIGHT COLUMN: the map
+            ────────────────────────────────────────────────────────── %>
+            <div class="col-12 col-lg-8 col-xl-9">
+                <section class="card shadow-sm admin-console-card signs-map-wrapper">
+                    <% if (!googleMapsApiKey) { %>
+                        <div class="signs-map-missing-key p-5 text-center">
+                            <i class="fa-solid fa-key fa-2x mb-3 text-warning"></i>
+                            <h2 class="h5">Google Maps API key not configured</h2>
+                            <p class="text-muted mb-0">
+                                Set <code>GOOGLE_MAPS_API_KEY</code> in the environment
+                                (or <code>GoogleMapsApiKey</code> in Key Vault) and restart.
+                            </p>
+                        </div>
+                    <% } else { %>
+                        <div id="googleMap" class="signs-map-canvas">
+                            <div class="signs-map-loading">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading…</span>
+                                </div>
+                            </div>
                         </div>
 
-                        <div class="collapse" id="mapLegendPanel">
+                        <%# ── Map legend overlay (left edge) ───────────────────── %>
+                        <button type="button" class="signs-map-legend-tab" id="mapLegendTab"
+                                aria-label="Toggle legend" title="Legend">
+                            <i class="fa-solid fa-grip-lines-vertical" aria-hidden="true"></i>
+                        </button>
+                        <div class="signs-map-legend-panel" id="mapLegendPanel">
+                            <div class="signs-map-legend-header">
+                                <span class="fw-semibold">Legend</span>
+                            </div>
+
                             <p class="small text-muted mb-1 fw-semibold">Status</p>
                             <ul class="signs-legend-list mb-2">
                                 <li>
@@ -208,46 +257,18 @@
                             <p class="small text-muted mb-1 fw-semibold">Traffic arrows</p>
                             <ul class="signs-legend-list mb-2">
                                 <li>
-                                    <i class="fa-solid fa-diamond-turn-right me-2" style="color:#00d4ff;width:1rem;text-align:center"></i>
+                                    <i class="fa-solid fa-diamond-turn-right me-2 signs-legend-arrow-icon"></i>
                                     Direction of travel
                                 </li>
                             </ul>
 
                             <p class="small text-muted mb-1 fw-semibold">Mount types</p>
                             <ul class="signs-legend-list mb-0">
-                                <li><i class="fa-solid fa-signs-post me-2 text-muted" style="width:1rem;text-align:center"></i>Pole</li>
-                                <li><i class="fa-solid fa-triangle-exclamation me-2 text-muted" style="width:1rem;text-align:center"></i>Cone</li>
-                                <li><i class="fa-solid fa-tent me-2 text-muted" style="width:1rem;text-align:center"></i>A-frame</li>
-                                <li><i class="fa-solid fa-building me-2 text-muted" style="width:1rem;text-align:center"></i>Existing structure</li>
+                                <li><i class="fa-solid fa-signs-post me-2 text-muted signs-legend-mount-icon"></i>Pole</li>
+                                <li><i class="fa-solid fa-triangle-exclamation me-2 text-muted signs-legend-mount-icon"></i>Cone</li>
+                                <li><i class="fa-solid fa-tent me-2 text-muted signs-legend-mount-icon"></i>A-frame</li>
+                                <li><i class="fa-solid fa-building me-2 text-muted signs-legend-mount-icon"></i>Existing structure</li>
                             </ul>
-                        </div>
-
-                    </div>
-                    </div>
-                </section>
-            </aside>
-
-            <%# ──────────────────────────────────────────────────────────
-                RIGHT COLUMN: the map
-            ────────────────────────────────────────────────────────── %>
-            <div class="col-12 col-lg-8 col-xl-9">
-                <section class="card shadow-sm admin-console-card signs-map-wrapper">
-                    <% if (!googleMapsApiKey) { %>
-                        <div class="signs-map-missing-key p-5 text-center">
-                            <i class="fa-solid fa-key fa-2x mb-3 text-warning"></i>
-                            <h2 class="h5">Google Maps API key not configured</h2>
-                            <p class="text-muted mb-0">
-                                Set <code>GOOGLE_MAPS_API_KEY</code> in the environment
-                                (or <code>GoogleMapsApiKey</code> in Key Vault) and restart.
-                            </p>
-                        </div>
-                    <% } else { %>
-                        <div id="googleMap" class="signs-map-canvas">
-                            <div class="signs-map-loading">
-                                <div class="spinner-border text-primary" role="status">
-                                    <span class="visually-hidden">Loading…</span>
-                                </div>
-                            </div>
                         </div>
                     <% } %>
                     <div class="signs-zoom-indicator" id="zoomIndicator">
