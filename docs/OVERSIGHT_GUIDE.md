@@ -321,16 +321,22 @@ Click the **printer icon** (🖨) in the sidebar header to open a
 print-optimised view in a new tab.
 
 The print page shows a WYSIWYG preview sized for letter-portrait paper
-(7 in × 7 in map area). Markers display a compact 2-column grid of
-category icon + arrow pills for every attachment at each location. A
-small mount-type icon (cone, a-frame, or existing structure) appears
-below the pills at the marker's geographic anchor point. Convention
-buildings are highlighted with the same colored polygon outlines shown
-on the interactive map. A legend below the map shows:
-- **Sign Types** — colored icon pills for each category
-- **Status** — dot colors for planned (orange) / installed (green) /
-  removed (red)
-- **Mount Types** — icons for cone, a-frame, and existing structure
+(7 in × 7 in map area). Five layer toggles in the toolbar control what
+appears on the map:
+
+- **Arrows** — traffic arrow chevrons and connector lines linking
+  arrows to their sign locations
+- **Expand** — placement detail level; OFF shows compact disc markers,
+  ON shows full sign pills (or radial sign pills when Facing is active)
+- **Facing** — placement style; OFF shows linear pill rows, ON shows
+  radial chevrons indicating sign bearing direction
+- **Count** — attachment count badges on compact markers
+- **Placement ID** — P1/P2/… badges on compact markers
+
+Count and Placement ID are auto-disabled when Expand or Facing is active.
+Convention buildings are highlighted with the same colored polygon
+outlines shown on the interactive map. A legend below the map shows
+sign types, status dots, mount types, and location count.
 
 Toolbar controls (Road / Hybrid toggle, status and template filters, fit
 button) let you frame the view. Click **Print** to open the browser print
@@ -369,8 +375,6 @@ Geofencing requires the browser's geolocation permission.
 
 - **Route visualization** — directed bearings per sign, road-traced
   paths between traffic arrows and sign locations.
-- **Print map layer toggles** — bring the Sign facing, Traffic arrows,
-  Sign count, and Placement ID layer controls to the print view.
 
 **Marker detail levels** (shipped):
 

@@ -326,6 +326,7 @@ export function signsRouter({
           csrfToken: req.csrfToken(),
           signs,
           locations,
+          arrows,
           googleMapsApiKey: googleMapsApiKey || "",
           defaultMapCenter,
           mapOverlays: getMapOverlays(),

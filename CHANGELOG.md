@@ -3,6 +3,47 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## 2.50.0
+
+### Print Map — Layer Toggles, Facing & Expand
+
+**Layer toggle toolbar**
+- Added five layer toggles to the print map toolbar: Arrows, Expand, Facing, Count, Placement ID
+- Labels positioned before toggle switches (`form-check-reverse`) for clearer UX
+- Each toggle independently controls its layer without affecting others or re-zooming the map
+
+**Four-state placement markers**
+- Non-facing compact (Expand OFF): disc with mount icon, count badge, and placement ID badge
+- Non-facing expanded (Expand ON): full pill rows with category icons and arrow directions
+- Facing collapsed (Facing ON, Expand OFF): radial chevron symbols showing sign bearing directions
+- Facing expanded (Facing ON, Expand ON): radial sign pills positioned by bearing, replacing chevrons with actual sign category/direction pills
+- Unlinked locations (no arrow links) show a minimal center disc in facing mode
+
+**Traffic arrows on print map**
+- Static SVG chevron markers rendered at each traffic arrow position
+- `translateY(44px)` anchoring keeps arrow tips at geographic points across zoom levels
+- Toggled independently via the Arrows layer switch
+
+**Connector lines (both maps)**
+- Polylines drawn from each traffic arrow to its linked sign locations (`#6f42c1`, 35% opacity)
+- Print map: drawn once at init, toggled with the Arrows layer
+- Main map: drawn at init, toggled with the Arrows layer, rebuilt on arrow link/unlink/drag/delete
+
+**Badge interference fixes**
+- Print map: count and placement ID badges auto-hidden when Expand is ON (toggles disabled)
+- Main map: removed placement ID badge from `buildMarkerContent` (full/hover view) so it no longer overlaps expanded sign pills during hover; badge remains on compact markers
+
+**Facing radius for print**
+- Chevron pill radius reduced from 34px to 20px for tighter print layout
+- Expanded radial pills use 30px radius to accommodate pill width
+
+**Route data passed to print**
+- `arrows` array now passed from the print route handler to the template and bootstrap JSON
+- `attachmentLookup` and `getAttachmentBearingMap` enable facing and connector features
+
+**Template filter fix (EJS)**
+- Fixed broken `signs.forEach` loop in print toolbar that had stray legend HTML instead of `<option>` elements
+
 ## 2.49.0
 
 ### Signs Map — Hover, Layers & Placement IDs

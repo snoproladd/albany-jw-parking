@@ -208,6 +208,12 @@
   /** @type {number|null} Cleanup timer for the current pulse animation. */
   let pulseTimer = null;
 
+  /** @type {Map<number, object>} attachment_id → parent location */
+  const attachmentLocationMap = new Map();
+
+  /** @type {google.maps.Polyline[]} */
+  const connectorLines = [];
+
   /** @type {number|null} Arrow ID currently being pulsed (used as stale-timer guard). */
   let pulsingArrowId = null;
 
@@ -460,7 +466,9 @@
 
     // Add markers
     locations.forEach((loc) => addMarkerForLocation(loc));
+    rebuildAttachmentLocationMap();
     arrows.forEach((arrow) => addMarkerForArrow(arrow));
+    rebuildConnectorLines();
     applyFilters();
     renderLocationList();
 
@@ -560,9 +568,6 @@
 
     const wrapper = document.createElement("div");
     wrapper.className = `signs-map-marker signs-map-marker-${status}${colorCls}`;
-
-    const placementBadge = buildPlacementBadge(loc);
-    if (placementBadge) wrapper.appendChild(placementBadge);
 
     const stack = document.createElement("div");
     stack.className = "signs-map-marker-stack";
@@ -1694,6 +1699,7 @@
       if (data.success) {
         arrow.latitude = lat;
         arrow.longitude = lng;
+        rebuildConnectorLines();
       } else {
         // Snap back
         const marker = arrowMarkers.get(arrowId);
@@ -1979,6 +1985,7 @@
       const marker = arrowMarkers.get(arrowId);
       if (marker) marker.map = null;
       arrowMarkers.delete(arrowId);
+      rebuildConnectorLines();
       clearLinkedSignHighlight();
       selectedArrowId = null;
 
@@ -2216,6 +2223,7 @@
         renderArrowLinks(arrow);
         highlightArrowLinks(arrowId);
         invalidateBearingMap();
+        rebuildConnectorLines();
         if (currentFacingLevel !== "none") {
           applyDetailLevelToAll(currentDetailLevel);
         }
@@ -2255,6 +2263,7 @@
         renderArrowLinks(arrow);
         highlightArrowLinks(arrowId);
         invalidateBearingMap();
+        rebuildConnectorLines();
         if (currentFacingLevel !== "none") {
           applyDetailLevelToAll(currentDetailLevel);
         }
@@ -2317,6 +2326,10 @@
       marker.map = visible ? mapRef : null;
     });
 
+    connectorLines.forEach((line) => {
+      line.setMap(visible ? mapRef : null);
+    });
+
     if (!visible) {
       cancelPulse();
       clearLinkedSignHighlight();
@@ -2333,6 +2346,64 @@
    */
   function isLayerVisible(layerId) {
     return !!layerState[layerId];
+  }
+
+  // ============================================================
+  // ARROW ↔ LOCATION CONNECTOR LINES
+  // ============================================================
+
+  /**
+   * Build a reverse lookup from attachment_id to its parent
+   * location. Called once after data load and after attachment
+   * changes.
+   */
+  function rebuildAttachmentLocationMap() {
+    attachmentLocationMap.clear();
+    locations.forEach((loc) => {
+      (loc.attachments || []).forEach((att) => {
+        attachmentLocationMap.set(att.attachment_id, loc);
+      });
+    });
+  }
+
+  /**
+   * Clear and redraw all connector polylines from traffic arrows
+   * to the locations of their linked signs.
+   */
+  function rebuildConnectorLines() {
+    connectorLines.forEach((line) => line.setMap(null));
+    connectorLines.length = 0;
+
+    if (!mapRef || !layerState.trafficArrows) return;
+
+    arrows.forEach((arrow) => {
+      if (!arrow.links?.length) return;
+
+      const arrowPos = {
+        lat: Number(arrow.latitude),
+        lng: Number(arrow.longitude),
+      };
+
+      const seenLocations = new Set();
+      arrow.links.forEach((attId) => {
+        const loc = attachmentLocationMap.get(attId);
+        if (!loc || seenLocations.has(loc.location_id)) return;
+        seenLocations.add(loc.location_id);
+
+        const line = new google.maps.Polyline({
+          path: [
+            arrowPos,
+            { lat: Number(loc.latitude), lng: Number(loc.longitude) },
+          ],
+          strokeColor: "#6f42c1",
+          strokeOpacity: 0.35,
+          strokeWeight: 1.5,
+          geodesic: false,
+          map: mapRef,
+        });
+        connectorLines.push(line);
+      });
+    });
   }
 
   // ============================================================

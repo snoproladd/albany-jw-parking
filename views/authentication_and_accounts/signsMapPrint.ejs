@@ -90,25 +90,40 @@
                         const glyph = arrowGlyphForOption(s.arrow_direction);
                         const arrowPart = glyph ? ` ${glyph}` : '';
                     %>
-                    <p class="small text-muted mb-1 fw-semibold">Sign types</p>
-                            <ul class="signs-legend-list mb-2">
-                                <li>
-                                    <span class="sign-category-icon sign-category-icon-parking signs-legend-category-icon">P</span>
-                                    Parking
-                                </li>
-                                <li>
-                                    <i class="fa-solid fa-wheelchair signs-legend-category-icon" aria-hidden="true"></i>
-                                    Accessible
-                                </li>
-                                <li>
-                                    <i class="fa-solid fa-person-walking-luggage signs-legend-category-icon" aria-hidden="true"></i>
-                                    Drop-off / Pick-up
-                                </li>
-                            </ul>
-
-                            <p class="small text-muted mb-1 fw-semibold">Traffic arrows</p>
+                    <option value="<%= s.sign_id %>"><%= s.sign_text %><%= arrowPart %></option>
                 <% }); %>
             </select>
+        </div>
+
+        <div class="signs-print-toolbar-group">
+            <span class="signs-print-toolbar-label">Layers</span>
+            <div class="d-flex align-items-center gap-3">
+                <div class="form-check form-switch form-check-reverse mb-0">
+                    <label class="form-check-label small" for="layerTrafficArrows">Arrows</label>
+                    <input type="checkbox" class="form-check-input signs-print-layer-cb"
+                           role="switch" id="layerTrafficArrows" data-layer="trafficArrows" checked />
+                </div>
+                <div class="form-check form-switch form-check-reverse mb-0">
+                    <label class="form-check-label small" for="layerExpandSigns">Expand</label>
+                    <input type="checkbox" class="form-check-input signs-print-layer-cb"
+                           role="switch" id="layerExpandSigns" data-layer="expandSigns" checked />
+                </div>
+                <div class="form-check form-switch form-check-reverse mb-0">
+                    <label class="form-check-label small" for="layerSignFacing">Facing</label>
+                    <input type="checkbox" class="form-check-input signs-print-layer-cb"
+                           role="switch" id="layerSignFacing" data-layer="signFacing" />
+                </div>
+                <div class="form-check form-switch form-check-reverse mb-0">
+                    <label class="form-check-label small" for="layerSignCount">Count</label>
+                    <input type="checkbox" class="form-check-input signs-print-layer-cb"
+                           role="switch" id="layerSignCount" data-layer="signCount" checked />
+                </div>
+                <div class="form-check form-switch form-check-reverse mb-0">
+                    <label class="form-check-label small" for="layerPlacementId">Placement ID</label>
+                    <input type="checkbox" class="form-check-input signs-print-layer-cb"
+                           role="switch" id="layerPlacementId" data-layer="placementId" checked />
+                </div>
+            </div>
         </div>
 
         <div class="signs-print-toolbar-actions">
@@ -178,7 +193,7 @@
     </div>
 
     <%# ── Bootstrap JSON ───────────────────────────────────────── %>
-    <script id="signsMapBootstrap" type="application/json"><%- JSON.stringify({ signs, locations, mapOverlays: mapOverlays || [] }) %></script>
+    <script id="signsMapBootstrap" type="application/json"><%- JSON.stringify({ signs, locations, arrows: arrows || [], mapOverlays: mapOverlays || [] }) %></script>
 
     <%- include('../partials/footer') %>
     <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>

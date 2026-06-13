@@ -337,6 +337,73 @@
 /* ══════════════════════════════════════════════════════════════════
    PRINT MEDIA RULES
    ══════════════════════════════════════════════════════════════════ */
+/* ── Print arrow markers ───────────────────────────────────────── */
+
+.signs-arrow-marker-print {
+    cursor: default;
+    transform-origin: 50% 9.375%;
+}
+
+.signs-arrow-marker-print svg {
+    display: block;
+    width: 30px;
+    height: 48px;
+    overflow: visible;
+    pointer-events: none;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+}
+
+/* Sign callout pills attached below each arrow marker */
+.signs-arrow-callout {
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: 1px;
+    justify-content: center;
+    margin-top: 2px;
+}
+
+/* ── Facing layout overrides for print ─────────────────────────── */
+
+.signs-print-map .signs-facing-layout {
+    cursor: default;
+}
+
+.signs-print-map .signs-facing-center {
+    cursor: default;
+}
+
+.signs-print-map .signs-facing-group {
+    cursor: default;
+}
+
+/* ── Placement ID badge on print markers ───────────────────────── */
+
+.signs-print-placement-badge {
+    position: absolute;
+    bottom: -5px;
+    left: -8px;
+    font-size: 0.5rem;
+    font-weight: 700;
+    background: #6f42c1;
+    color: #fff;
+    border: 1.5px solid #fff;
+    border-radius: 999px;
+    padding: 0 0.25rem;
+    line-height: 1.4;
+    pointer-events: none;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* ── Layer visibility (toggled via map container class) ─────────── */
+
+.signs-print-hide-sign-count .signs-print-marker-count {
+    display: none;
+}
+
+.signs-print-hide-placement-id .signs-print-placement-badge {
+    display: none;
+}
+
 /* Stacked count badge on print markers */
 .signs-print-marker-count {
     position: absolute;
@@ -434,6 +501,25 @@
     .signs-map-marker-print .sign-preview {
         box-shadow: none;
         border-width: 1.5px;
+    }
+
+    /* Arrow markers */
+    .signs-arrow-marker-print svg {
+        filter: none;
+    }
+
+    /* Facing layout */
+    .signs-facing-layout-symbol .signs-facing-group {
+        box-shadow: none;
+    }
+
+    /* Badges */
+    .signs-print-marker-count {
+        box-shadow: none;
+    }
+
+    .signs-print-placement-badge {
+        box-shadow: none;
     }
 
     /* Legend */

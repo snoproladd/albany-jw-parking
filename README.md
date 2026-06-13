@@ -491,12 +491,15 @@ The first ADMIN must be granted directly in the database.
 - **Overlay labels:** building/landmark polygon labels (`signsMapOverlays.js`) render at
   `zIndex: -100000`, well below all sign and arrow markers.
 - **Printable sign map** (`/signs/map/print`): WYSIWYG page preview at letter-portrait
-  proportions (7 in × 7 in map area). Markers show a compact 2-column grid of category
-  icon + arrow pills for every attachment. Legend shows sign types (colored pills),
-  status dots, and location count. `@media print` hides toolbar/nav and fills the page.
-  OVERSEER+ users can publish a PDF snapshot to SharePoint and Blob Storage via the
-  toolbar Publish button. Files: `signsMapPrint.ejs`, `signsMapPrint.js`,
-  `signsPrint.css`, `publishSignMap.js`.
+  proportions (7 in × 7 in map area). Five layer toggles (Arrows, Expand, Facing, Count,
+  Placement ID) mirror the main map’s layer system. Four-state placement markers: compact
+  disc (Expand OFF), full pill rows (Expand ON), radial chevrons (Facing ON), radial sign
+  pills by bearing (Facing + Expand ON). Traffic arrow chevrons, connector polylines
+  (arrow ↔ location), and building polygon overlays render on the print map. Legend shows
+  sign types (colored pills), status dots, and location count. `@media print` hides
+  toolbar/nav and fills the page. OVERSEER+ users can publish a PDF snapshot to SharePoint
+  and Blob Storage via the toolbar Publish button. Files: `signsMapPrint.ejs`,
+  `signsMapPrint.js`, `signsPrint.css`, `publishSignMap.js`.
 - **Sign categories:** `sign_category` column on `signs` (parking / accessible / dropoff /
   info / warning). Each category maps to a FontAwesome icon and color treatment on map
   markers, print markers, library cards, and the builder preview. Category picker in the
