@@ -145,6 +145,46 @@ import { buildAlertMessage, sendAlertSms } from "../lib/alertScheduler.js";
 import { isProfileComplete } from "../lib/volunteerStatus.js";
 
 /**
+ * Normalise a freeform time string ("7:30 AM", "14:00", "2:00 PM",
+ * "08:00:00", etc.) to "HH:MM" (24-hour) for safe SQL TIME column
+ * assignment via NVarChar(8).
+ *
+ * @param {string|null|undefined} str - Raw time string from the client
+ * @returns {string|null} "HH:MM" string, or null if unparseable
+ */
+function parseTimeString(str) {
+  if (!str) return null;
+  const trimmed = String(str).trim();
+
+  // 24-hour: "HH:MM" / "H:MM" / "HH:MM:SS"
+  const m24 = trimmed.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (m24) {
+    const h = parseInt(m24[1], 10);
+    const m = parseInt(m24[2], 10);
+    if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+      return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    }
+    return null;
+  }
+
+  // 12-hour: "H:MM AM" / "HH:MMPM" / "H:MM:SS AM" etc.
+  const m12 = trimmed.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)$/i);
+  if (m12) {
+    let h = parseInt(m12[1], 10);
+    const m = parseInt(m12[2], 10);
+    const ap = m12[4].toUpperCase();
+    if (ap === "PM" && h !== 12) h += 12;
+    if (ap === "AM" && h === 12) h = 0;
+    if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+      return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    }
+    return null;
+  }
+
+  return null;
+}
+
+/**
  * Factory: build router that verifies oversight access..
  *
  * Usage in index.js:
@@ -2354,13 +2394,20 @@ export function oversightRouter({
         return res
           .status(400)
           .json({ success: false, error: "Invalid year or convention date." });
+      const normStart = parseTimeString(program_start);
+      const normEnd   = parseTimeString(program_end);
+      if (!normStart || !normEnd)
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid time format. Use HH:MM or H:MM AM/PM." });
+
       try {
         const id = await createConventionDay({
           year: yearNum,
           label,
           convention_date,
-          program_start,
-          program_end,
+          program_start: normStart,
+          program_end: normEnd,
           notes,
           schedulable: schedulable !== false && schedulable !== "false",
         });
@@ -2402,12 +2449,19 @@ export function oversightRouter({
           .status(400)
           .json({ success: false, error: "Invalid convention date." });
 
+      const normStart = parseTimeString(program_start);
+      const normEnd   = parseTimeString(program_end);
+      if (!normStart || !normEnd)
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid time format. Use HH:MM or H:MM AM/PM." });
+
       try {
         const ok = await updateConventionDay(id, {
           label,
           convention_date,
-          program_start,
-          program_end,
+          program_start: normStart,
+          program_end: normEnd,
           notes,
           schedulable: schedulable !== false && schedulable !== "false",
         });
@@ -2481,13 +2535,20 @@ export function oversightRouter({
           .status(400)
           .json({ success: false, error: "Missing required fields." });
 
+      const normStart = parseTimeString(program_start);
+      const normEnd   = parseTimeString(program_end);
+      if (!normStart || !normEnd)
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid time format. Use HH:MM or H:MM AM/PM." });
+
       try {
         const newId = await copyConventionDay(sourceDayId, {
           year: Number(year),
           label: label.trim(),
           convention_date,
-          program_start,
-          program_end,
+          program_start: normStart,
+          program_end: normEnd,
           notes: notes?.trim() || null,
         });
         return res.json({ success: true, id: newId });
@@ -2519,13 +2580,20 @@ export function oversightRouter({
         return res
           .status(400)
           .json({ success: false, error: "Missing required fields." });
+      const normStart = parseTimeString(start_time);
+      const normEnd   = parseTimeString(end_time);
+      if (!normStart || !normEnd)
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid time format. Use HH:MM or H:MM AM/PM." });
+
       try {
         const id = await createSession({
           convention_day_id: Number(convention_day_id),
           label,
           session_order: session_order || 0,
-          start_time,
-          end_time,
+          start_time: normStart,
+          end_time: normEnd,
           notes,
         });
         return res.json({ success: true, id });
@@ -2549,12 +2617,19 @@ export function oversightRouter({
         return res
           .status(400)
           .json({ success: false, error: "Missing required fields." });
+      const normStart = parseTimeString(start_time);
+      const normEnd   = parseTimeString(end_time);
+      if (!normStart || !normEnd)
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid time format. Use HH:MM or H:MM AM/PM." });
+
       try {
         const ok = await updateSession(id, {
           label,
           session_order: session_order || 0,
-          start_time,
-          end_time,
+          start_time: normStart,
+          end_time: normEnd,
           notes,
         });
         if (!ok)
@@ -2619,12 +2694,20 @@ export function oversightRouter({
         return res
           .status(400)
           .json({ success: false, error: "Missing required fields." });
-      try {const id = await createShift({
+      const normStart = parseTimeString(start_time);
+      const normEnd   = parseTimeString(end_time);
+      if (!normStart || !normEnd)
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid time format. Use HH:MM or H:MM AM/PM." });
+
+      try {
+        const id = await createShift({
           session_id: Number(session_id),
           event_type_id: Number(event_type_id),
           label,
-          start_time,
-          end_time,
+          start_time: normStart,
+          end_time: normEnd,
           department: department?.trim() || null,
           volunteer_need,
           notes,
@@ -2660,12 +2743,19 @@ export function oversightRouter({
         return res
           .status(400)
           .json({ success: false, error: "Missing required fields." });
+      const normStart = parseTimeString(start_time);
+      const normEnd   = parseTimeString(end_time);
+      if (!normStart || !normEnd)
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid time format. Use HH:MM or H:MM AM/PM." });
+
       try {
         const ok = await updateShift(id, {
           event_type_id: Number(event_type_id),
           label,
-          start_time,
-          end_time,
+          start_time: normStart,
+          end_time: normEnd,
           department: department?.trim() || null,
           volunteer_need,
           notes,
@@ -5153,12 +5243,17 @@ export function oversightRouter({
           .json({ success: false, error: "Invalid alert_category." });
       }
 
+      if (fire_time_utc && !parseTimeString(fire_time_utc))
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid fire time format." });
+
       try {
         const id = await createAlertSchedule({
           year: Number(year),
           name: name.trim(),
           fire_date: fire_date || null,
-          fire_time_utc: fire_time_utc || null,
+          fire_time_utc: fire_time_utc ? parseTimeString(fire_time_utc) : null,
           alert_category,
           departments: departments || null,
           include_null_dept:
@@ -5212,11 +5307,16 @@ export function oversightRouter({
         });
       }
 
+      if (fire_time_utc && !parseTimeString(fire_time_utc))
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid fire time format." });
+
       try {
         const ok = await updateAlertSchedule(id, {
           name: name.trim(),
           fire_date: fire_date || null,
-          fire_time_utc: fire_time_utc || null,
+          fire_time_utc: fire_time_utc ? parseTimeString(fire_time_utc) : null,
           alert_category,
           departments: departments || null,
           include_null_dept:
