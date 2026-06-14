@@ -3,6 +3,15 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## 2.50.1
+
+### Bug Fix — Time Input Parsing
+
+- **Server-side time normalisation:** added `parseTimeString()` helper in `oversightRoutes.js` that accepts common freeform formats (`7:30 AM`, `14:00`, `2:00 PM`, `08:00:00`) and normalises to `HH:MM` 24-hour
+- **Timelines:** applied to all 7 day/session/shift POST and PUT handlers — freeform `type="text"` time values are now normalised before hitting SQL, preventing `Conversion failed when converting date and/or time from character string` errors
+- **Shift Alerts:** applied to schedule POST and PUT handlers — validates `fire_time_utc` to prevent silent data corruption when `localToUtc()` receives AM/PM input (previously produced values like `"11:NaN"`)
+- Invalid time formats now return a descriptive 400 response instead of a 500 SQL crash
+
 ## 2.50.0
 
 ### Print Map — Layer Toggles, Facing & Expand
