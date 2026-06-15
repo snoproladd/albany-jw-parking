@@ -3,6 +3,34 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## 2.51.0
+
+### Scheduler — Shift Expand, Auto-Routing & Polish
+
+**Shift expand-on-hover**
+- Truncated shift blocks (content exceeds grid-row height) show a gradient fade indicator
+- Hovering for 750 ms expands the block to reveal all dropzones, floating above adjacent shifts via z-index
+- Viewport-aware direction: expands upward when the block is near the bottom of the screen
+- Re-validates overflow at hover time — tall blocks with few volunteers never shrink
+
+**Grid lower boundary**
+- Calendar grid now extends 90 minutes past the last session end time, giving after-session shifts (egress, signs removal) room to display fully
+
+**Auto-routing drag-and-drop**
+- Pills dropped on an occupied slot automatically route to the first empty volunteer slot in the same shift
+- Pills dropped on a KM/KA slot the volunteer's role can't fill also redirect to the next volunteer slot
+- Shared `_resolveDropTarget()` helper keeps `canDrop` and `onDrop` in sync
+- KM/KA slots still fill normally when the slot is empty and the volunteer qualifies
+
+**Blackout badge fix**
+- Deleting a blackout now immediately clears the conflict badge from assigned pills — stale `blackoutNote` data and fallback note re-application removed
+- No longer requires a page refresh after blackout deletion
+
+**UI polish**
+- Crew badges (LGC, SGN, SEC, D/P, MS) use full-saturation colors with white text for better readability at small sizes
+- Dropzone slot tiers (required, ideal, extra, KM, KA) use stronger mid-saturation colours for clearer visual differentiation
+- Blackout panel: delete button now renders inline with the time range instead of stacking below it
+
 ## 2.50.1
 
 ### Bug Fix — Time Input Parsing

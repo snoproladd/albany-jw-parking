@@ -504,6 +504,21 @@ The first ADMIN must be granted directly in the database.
   info / warning). Each category maps to a FontAwesome icon and color treatment on map
   markers, print markers, library cards, and the builder preview. Category picker in the
   Sign Builder form.
+- **Scheduler (2.51.0):** 9-file ES module suite under `public/js/scheduler*.js`.
+  Drag-and-drop grid built on `agnostic-draggable` (UMD). Key behaviors:
+  - **Auto-routing:** `_resolveDropTarget()` in `schedulerDraggable.js` redirects drops on
+    occupied slots or unqualified KM/KA slots to the first empty volunteer DZ in the same
+    shift. Shared by `canDrop` (accept gate) and `onDrop` (placement). KM/KA fill normally
+    when the slot is empty and the volunteer qualifies.
+  - **Expand-on-hover:** shift blocks whose content overflows their grid-row height show a
+    gradient fade indicator (`sched-shift-truncated`). After a 750 ms hover delay the block
+    expands to reveal all dropzones, floating above adjacent shifts (`z-index: 10`).
+    Viewport-aware: expands upward (`sched-shift-expanded-up`, absolutely-positioned DZ area)
+    when the block would spill below the viewport. `_getBlockContentHeight()` measures
+    header + time + `dzArea.scrollHeight`; re-validates at hover time so tall blocks with few
+    DZs never shrink.
+  - **Grid bounds:** `latest` is `Math.max(shiftLatest, sessionLatest + 90)` — the grid
+    always extends 90 minutes past the last session to accommodate after-session shifts.
 
 ---
 
