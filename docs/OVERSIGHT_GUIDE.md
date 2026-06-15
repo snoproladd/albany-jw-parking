@@ -994,13 +994,20 @@ color-coding renders correctly.
    - Filter by **Department** to show only volunteers with the matching crew flag.
    - Filter by **Sort** to order the pool by last name, rank, or department.
 3. **Drag** a name pill from the pool onto any highlighted drop zone in the grid.
-   - Drop zones are color-coded: red = required slots (below vol_min), grey =
-     ideal slots (up to vol_target), faded = extra slots (up to vol_max).
-   - **KM** slots (blue) require KEYMAN or above. **KA** slots (teal) accept
-     any rank.
+   - Drop zones are color-coded: pink = required slots (below vol_min), blue =
+     ideal slots (up to vol_target), grey = extra slots (up to vol_max).
+   - **KM** slots (deeper blue) require KEYMAN or above. **KA** slots (cyan)
+     accept any rank.
    - Department drop guards automatically reject volunteers who lack the crew
      flag for that department — the zone will not highlight for ineligible drags.
-   - A slot that already has a volunteer assigned will reject further drops.
+   - **Auto-routing:** dropping a pill on an occupied slot, or on a KM/KA slot
+     the volunteer's rank cannot fill, automatically places the volunteer in the
+     next available volunteer slot within that same shift. If no empty volunteer
+     slots remain, the drop is rejected.
+   - **Short shifts:** shift blocks that are too short to display all their drop
+     zones show a gradient fade at the bottom. Hover over the block for about one
+     second and it expands to reveal the full set of slots. Moving the mouse away
+     collapses it back.
 4. **Return** a pill to the pool by dragging it back onto the sidebar pool area.
    The slot assignment is deleted from the database immediately.
 5. Assignments **persist across sessions** — selecting a day reloads any
@@ -1092,7 +1099,8 @@ convention day. They are managed via **Manage Blackouts** in the right-click
 context menu on any volunteer pill. Unlike shift assignments, blackouts have
 no associated slot — they exist only to trigger the conflict guard. Adding
 or removing a blackout immediately re-evaluates any existing DZ pills for
-that volunteer and updates their `⚠` badges live.
+that volunteer and updates their `⚠` badges live — deleting a blackout
+clears the badge instantly without a page refresh.
 
 ---
 

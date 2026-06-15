@@ -212,7 +212,7 @@ export function onDragStop(event) {
  */
 export function onDrop(event) {
   const pill = event.draggable.element;
-  const dz   = event.droppable.element;
+  const dz   = _resolveDropTarget(pill, event.droppable.element);
 
   if (pill.classList.contains('in-pool')) {
     // ── Pool pill → DZ: leave original in pool, place a clone in the slot ──
@@ -317,21 +317,22 @@ export function onReturnToPool(event) {
  * @returns {boolean}
  */
 function canDrop(pill, dz) {
-  // ── Occupied check — reject if another pill is already in the slot ───────
-  // Skip for the pool itself, which legitimately contains many pills.
+  const targetDz = _resolveDropTarget(pill, dz);
+
+  // ── Occupied check — if redirect failed the target is still full ────────
   if (
-    dz.classList.contains("scheduler-dropzone") &&
-    dz.querySelector(".name-pill")
+    targetDz.classList.contains("scheduler-dropzone") &&
+    targetDz.querySelector(".name-pill")
   )
     return false;
 
   // ── Shift-conflict check — hard block non-security shift-to-shift overlaps ──
   // Blackout conflicts (dzEl === null) are allowed through and handled post-drop.
   // Security dept is exempt — overlapping coverage shifts are by design.
-  const dzStart = Number(dz.dataset.shiftStartMins);
-  const dzEnd = Number(dz.dataset.shiftEndMins);
+  const dzStart = Number(targetDz.dataset.shiftStartMins);
+  const dzEnd = Number(targetDz.dataset.shiftEndMins);
   if (dzStart > 0 && dzEnd > 0) {
-    const targetDept = dz.closest("[data-department]")?.dataset.department;
+    const targetDept = targetDz.closest("[data-department]")?.dataset.department;
     if (targetDept !== "security") {
       const volId = Number(pill.dataset.id);
       const fromDz = pill.classList.contains("in-pool")
@@ -345,7 +346,7 @@ function canDrop(pill, dz) {
   }
 
   // ── Role check ──────────────────────────────────────────────────────
-  const slotRole = dz.dataset.role;
+  const slotRole = targetDz.dataset.role;
   if (slotRole) {
     const minLevel = MIN_ROLE_FOR_SLOT[slotRole] ?? 0;
     const volLevel =
@@ -354,7 +355,7 @@ function canDrop(pill, dz) {
   }
 
   // ── Department check ─────────────────────────────────────────────────
-  const dept = dz.closest("[data-department]")?.dataset.department;
+  const dept = targetDz.closest("[data-department]")?.dataset.department;
   if (!dept) return true;
 
   const crewKey = DEPT_CREW_KEY[dept];
@@ -364,6 +365,67 @@ function canDrop(pill, dz) {
   const volRow = volunteers.find((v) => v.id === volId);
 
   return Boolean(volRow?.crews?.[crewKey]);
+}
+
+// ─────────────────────────────────────────────
+//  Auto-routing helpers
+// ─────────────────────────────────────────────
+
+/**
+ * Find the first empty volunteer drop zone in the same shift as the
+ * given DZ.  Walks sibling `.scheduler-dropzone[data-slot-type="volunteer"]`
+ * elements and returns the first one with no `.name-pill` child.
+ *
+ * @param {Element} anyDz - Any drop zone inside the target shift.
+ * @returns {Element|null} The first available volunteer DZ, or null.
+ */
+function _findNextEmptyVolunteerDz(anyDz) {
+  const area = anyDz.closest(".sched-dropzone-area");
+  if (!area) return null;
+  const dzs = area.querySelectorAll(
+    '.scheduler-dropzone[data-slot-type="volunteer"]',
+  );
+  for (const dz of dzs) {
+    if (!dz.querySelector(".name-pill")) return dz;
+  }
+  return null;
+}
+
+/**
+ * Determine the actual target DZ for a drop.  Returns the original DZ
+ * unchanged when it is empty and the volunteer qualifies for it.
+ *
+ * Redirects to the first empty volunteer DZ in the same shift when:
+ *  - the hovered DZ already contains a pill, **or**
+ *  - the hovered DZ is a KM/KA slot the volunteer's role cannot fill.
+ *
+ * Falls back to the original DZ if no empty volunteer slot exists
+ * (subsequent canDrop checks will reject it).
+ *
+ * @param {Element} pill - The dragged pill element.
+ * @param {Element} dz   - The hovered droppable element.
+ * @returns {Element}    The resolved target DZ.
+ */
+function _resolveDropTarget(pill, dz) {
+  if (!dz.classList.contains("scheduler-dropzone")) return dz;
+
+  const isOccupied = Boolean(dz.querySelector(".name-pill"));
+
+  let roleBlocked = false;
+  if (!isOccupied) {
+    const slotRole = dz.dataset.role;
+    if (slotRole) {
+      const minLevel = MIN_ROLE_FOR_SLOT[slotRole] ?? 0;
+      const volLevel =
+        ROLE_LEVEL[String(pill.dataset.role || "").toUpperCase()] ?? 0;
+      roleBlocked = volLevel < minLevel;
+    }
+  }
+
+  if (isOccupied || roleBlocked) {
+    return _findNextEmptyVolunteerDz(dz) || dz;
+  }
+  return dz;
 }
 
 // ─────────────────────────────────────────────

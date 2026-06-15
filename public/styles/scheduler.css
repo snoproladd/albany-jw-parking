@@ -148,33 +148,33 @@
 }
 
 .crew-lots-and-garages {
-    background: var(--bs-success-bg-subtle);
-    color: var(--bs-success-text-emphasis);
-    border: 1px solid var(--bs-success-border-subtle);
+    background: #198754;
+    color: #fff;
+    border: 1px solid #146c43;
 }
 
 .crew-signs {
-    background: var(--bs-primary-bg-subtle);
-    color: var(--bs-primary-text-emphasis);
-    border: 1px solid var(--bs-primary-border-subtle);
+    background: #0d6efd;
+    color: #fff;
+    border: 1px solid #0a58ca;
 }
 
 .crew-security {
-    background: var(--bs-danger-bg-subtle);
-    color: var(--bs-danger-text-emphasis);
-    border: 1px solid var(--bs-danger-border-subtle);
+    background: #dc3545;
+    color: #fff;
+    border: 1px solid #b02a37;
 }
 
 .crew-dropoff-pickup {
-    background: var(--bs-warning-bg-subtle);
-    color: var(--bs-warning-text-emphasis);
-    border: 1px solid var(--bs-warning-border-subtle);
+    background: #fd7e14;
+    color: #fff;
+    border: 1px solid #ca6510;
 }
 
 .crew-mobile-support {
-    background: var(--bs-info-bg-subtle);
-    color: var(--bs-info-text-emphasis);
-    border: 1px solid var(--bs-info-border-subtle);
+    background: #0dcaf0;
+    color: #000;
+    border: 1px solid #0aa2c0;
 }
 
 /* Legend label row */
@@ -334,6 +334,68 @@
     z-index: 1;
 }
 
+/* Truncated shift block — gradient fade hint when content overflows */
+.sched-shift-truncated::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 14px;
+    background: linear-gradient(transparent, var(--bs-body-bg));
+    pointer-events: none;
+    z-index: 2;
+    border-radius: 0 0 0.25rem 0.25rem;
+}
+
+/* Expanded shift block revealed on hover */
+.sched-shift-block.sched-shift-expanded {
+    overflow: visible;
+    z-index: 10;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
+.sched-shift-block.sched-shift-expanded::after {
+    display: none;
+}
+
+.sched-shift-block.sched-shift-expanded .sched-dropzone-area {
+    overflow-y: visible;
+    flex-shrink: 0;
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-top: none;
+    border-radius: 0 0 0.25rem 0.25rem;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+/* Upward expansion for blocks near viewport bottom */
+.sched-shift-block.sched-shift-expanded-up {
+    overflow: visible;
+    z-index: 10;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
+.sched-shift-block.sched-shift-expanded-up::after {
+    display: none;
+}
+
+.sched-shift-block.sched-shift-expanded-up .sched-dropzone-area {
+    position: absolute;
+    bottom: 100%;
+    left: -1px;
+    right: -1px;
+    overflow-y: visible;
+    flex-shrink: 0;
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-bottom: none;
+    border-radius: 0.25rem 0.25rem 0 0;
+    box-shadow: 0 -6px 16px rgba(0, 0, 0, 0.12);
+}
+
 .sched-shift-header {
     font-size: 0.7rem;
     font-weight: 700;
@@ -426,28 +488,28 @@
 
 /* Required slot — must be filled */
 .dz-required {
-    border-color: var(--bs-danger-border-subtle);
-    background: var(--bs-danger-bg-subtle);
+    border-color: #f1aeb5;
+    background: #f8d7da;
 }
 
 /* Ideal slot */
 .dz-ideal {
-    border-color: var(--bs-border-color);
-    background: var(--bs-tertiary-bg);
+    border-color: #b6d4fe;
+    background: #e7f1ff;
 }
 
 /* Extra (nice-to-have) slot */
 .dz-extra {
-    border-color: var(--bs-secondary-border-subtle);
-    background: var(--bs-body-bg);
-    opacity: 0.7;
+    border-color: #c4c8cb;
+    background: #eef0f2;
+    opacity: 0.85;
 }
 
 /* Keyman leadership slot */
 .dz-keyman {
-    border-color: var(--bs-primary-border-subtle);
-    background: var(--bs-primary-bg-subtle);
-    color: var(--bs-primary-text-emphasis);
+    border-color: #6ea8fe;
+    background: #9ec5fe;
+    color: #052c65;
     font-weight: 700;
     min-width: 44px;
     flex: 0 0 auto;
@@ -461,9 +523,9 @@
 
 /* Keyman assistant slot */
 .dz-keyman-asst {
-    border-color: var(--bs-info-border-subtle);
-    background: var(--bs-info-bg-subtle);
-    color: var(--bs-info-text-emphasis);
+    border-color: #6edff6;
+    background: #a6e9f6;
+    color: #032830;
     min-width: 44px;
     flex: 0 0 auto;
 }
@@ -1090,4 +1152,57 @@
     font-size: 0.74rem;
     color: var(--bs-secondary-color);
     white-space: nowrap;
+}
+
+/* ─────────────────────────────────────────────
+   Blackout panel rows
+───────────────────────────────────────────── */
+
+.sched-blackout-list {
+    padding: 0.25rem 0;
+}
+
+.sched-blackout-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.35rem 0.85rem;
+}
+
+.sched-blackout-row + .sched-blackout-row {
+    border-top: 1px solid var(--bs-border-color-translucent);
+}
+
+.sched-blackout-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.sched-blackout-time-range {
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.sched-blackout-reason-text {
+    font-size: 0.74rem;
+    color: var(--bs-secondary-color);
+}
+
+.sched-blackout-del-btn {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    padding: 0.2rem 0.35rem;
+    cursor: pointer;
+    color: var(--bs-danger);
+    border-radius: 0.2rem;
+    line-height: 1;
+    font-size: 0.85rem;
+}
+
+.sched-blackout-del-btn:hover {
+    background: var(--bs-danger-bg-subtle);
 }

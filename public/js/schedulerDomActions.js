@@ -911,6 +911,7 @@ export async function initDomActions() {
       }
 
       _buildCalendarGrid(dayData, dayLabel);
+      _initShiftExpand();
       _setState("grid");
 
       // Load blackouts FIRST so conflict checks during assignment load are accurate
@@ -949,7 +950,13 @@ export async function initDomActions() {
     if (!container) return;
     container.replaceChildren();
 
-    const { earliest, latest } = getDayBounds(dayData);
+    const { earliest, latest: shiftLatest } = getDayBounds(dayData);
+    // Ensure the grid extends at least 3 hours past the last session
+    const sessionLatest = (dayData.sessions || []).reduce((max, s) => {
+      const end = parseTimeToMinutes(s.end_time);
+      return end !== null && end > max ? end : max;
+    }, -Infinity);
+    const latest = Math.max(shiftLatest, sessionLatest + 90);
     const totalRows = Math.round((latest - earliest) / 15);
 
     // ── Step 1: sub-column structure per department ────────────────────────
@@ -1126,6 +1133,115 @@ export async function initDomActions() {
 
     wrap.appendChild(grid);
     container.appendChild(wrap);
+  }
+
+  // ─────────────────────────────────────────────
+  //  Shift expand-on-hover
+  // ─────────────────────────────────────────────
+
+  /**
+   * Measure the full content height a shift block needs, including any
+   * content clipped by the grid-row constraint.
+   *
+   * @param {HTMLElement} block
+   * @returns {number}
+   */
+  function _getBlockContentHeight(block) {
+    const header = block.querySelector(".sched-shift-header");
+    const time = block.querySelector(".sched-shift-time");
+    const dzArea = block.querySelector(".sched-dropzone-area");
+    if (!dzArea) return block.clientHeight;
+    return (
+      (header?.offsetHeight || 0) +
+      (time?.offsetHeight || 0) +
+      dzArea.scrollHeight +
+      8
+    );
+  }
+
+  /**
+   * Initialise hover-to-expand behaviour on all truncated shift blocks.
+   * Blocks whose content exceeds their grid-row height receive a
+   * gradient fade indicator and expand after a 1 200 ms hover delay,
+   * floating above adjacent shifts via z-index.
+   *
+   * Called once per day change immediately after _buildCalendarGrid.
+   *
+   * @returns {void}
+   */
+  function _initShiftExpand() {
+    const blocks = _gridEl?.querySelectorAll(".sched-shift-block") || [];
+    let expandedBlock = null;
+
+    for (const block of blocks) {
+      const needed = _getBlockContentHeight(block);
+      if (needed <= block.clientHeight + 2) continue;
+
+      block.classList.add("sched-shift-truncated");
+      let timer = null;
+
+      block.addEventListener("mouseenter", () => {
+        timer = setTimeout(() => {
+          const contentH = _getBlockContentHeight(block);
+          const gridH = block.clientHeight;
+
+          // Re-check: if content actually fits now, clear the
+          // truncated flag and skip — avoids shrinking tall blocks
+          // that have fewer DZs than grid rows.
+          if (contentH <= gridH + 2) {
+            block.classList.remove("sched-shift-truncated");
+            return;
+          }
+
+          if (expandedBlock && expandedBlock !== block) {
+            _collapseBlock(expandedBlock);
+          }
+          block.classList.remove("sched-shift-truncated");
+
+          const extra = contentH - gridH;
+          const rect = block.getBoundingClientRect();
+
+          if (
+            rect.bottom + extra > window.innerHeight &&
+            rect.top - extra >= 0
+          ) {
+            block.classList.add("sched-shift-expanded-up");
+          } else {
+            // Never shrink below the grid-given height
+            block.style.height = Math.max(gridH, contentH) + "px";
+            block.classList.add("sched-shift-expanded");
+          }
+          expandedBlock = block;
+        }, 750);
+      });
+
+      block.addEventListener("mouseleave", () => {
+        clearTimeout(timer);
+        if (
+          block.classList.contains("sched-shift-expanded") ||
+          block.classList.contains("sched-shift-expanded-up")
+        ) {
+          _collapseBlock(block);
+          expandedBlock = null;
+        }
+      });
+    }
+  }
+
+  /**
+   * Collapse an expanded shift block back to its grid-row size.
+   * Restores the truncated indicator if the block still overflows.
+   *
+   * @param {HTMLElement} block
+   * @returns {void}
+   */
+  function _collapseBlock(block) {
+    block.style.height = "";
+    block.classList.remove("sched-shift-expanded", "sched-shift-expanded-up");
+    const needed = _getBlockContentHeight(block);
+    if (needed > block.clientHeight + 2) {
+      block.classList.add("sched-shift-truncated");
+    }
   }
 
   // ─────────────────────────────────────────────
@@ -1789,24 +1905,24 @@ function _recheckConflictBadges(volId) {
         })
         .join("; ");
       _applyNoteBadge(pill, noteTitle);
+    } else {
+      // No live blackout conflicts — clear stale blackout data so the
+      // badge does not reappear from a deleted blackout's saved note.
+      delete pill.dataset.blackoutNote;
     }
 
-    // Fallback: no live conflicts but pill has a stored DB note — the
-    // blackout may have been deleted after this assignment was saved.
+    // Fallback: no live conflicts but pill has a stored DB note.
+    // Only re-apply shift-conflict portions — blackout portions are
+    // stale if the blackout was deleted.
     if (conflicts.length === 0) {
       const savedNote = pill.dataset.conflictNote || "";
       if (savedNote) {
-        const parts = savedNote.split("; ");
-        const shiftParts = parts.filter(
-          (p) => !p.startsWith("Unavailable from"),
-        );
-        const blackoutParts = parts.filter((p) =>
-          p.startsWith("Unavailable from"),
-        );
-        if (shiftParts.length > 0)
+        const shiftParts = savedNote
+          .split("; ")
+          .filter((p) => !p.startsWith("Unavailable"));
+        if (shiftParts.length > 0) {
           _applyConflictBadge(pill, shiftParts.join("; "));
-        if (blackoutParts.length > 0)
-          _applyNoteBadge(pill, blackoutParts.join("; "));
+        }
       }
     }
   });
