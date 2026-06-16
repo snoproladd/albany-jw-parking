@@ -124,3 +124,4 @@
 .crew-filter-btn--sec.active  { background: var(--bs-danger);   border-color: var(--bs-danger);   color: #fff; }
 .crew-filter-btn--dp.active   { background: var(--bs-warning);  border-color: var(--bs-warning);  color: var(--bs-dark); }
 .crew-filter-btn--ms.active   { background: var(--bs-info);     border-color: var(--bs-info);     color: var(--bs-dark); }
+.crew-filter-btn--desk.active { background: #6610f2;            border-color: #6610f2;            color: #fff; }

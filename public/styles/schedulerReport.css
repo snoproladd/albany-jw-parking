@@ -125,6 +125,10 @@
     border-left-color: #0dcaf0;
 }
 
+.report-dept[data-dept="desk"] .report-dept-header {
+    border-left-color: #6610f2;
+}
+
 /* ─────────────────────────────────────────────
    Shifts
 ───────────────────────────────────────────── */

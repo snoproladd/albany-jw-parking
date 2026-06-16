@@ -53,6 +53,7 @@ document.addEventListener("DOMContentLoaded", () => {
     security: "Sec",
     dropoff_pickup: "D/P",
     mobile_support: "MS",
+    desk: "Desk",
   };
 
   /** @type {object|null} Raw API response, cached for re-renders. */

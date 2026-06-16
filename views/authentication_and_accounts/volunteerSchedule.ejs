@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title><%= mode === 'self' ? 'My Schedule' : 'Volunteer Schedule' %> — Albany JW Parking</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+  <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+  <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+  <link rel="stylesheet" type="text/css" href="/styles/volunteerSchedule.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@15.2.2/dist/css/shepherd.css" />
+  <link rel="stylesheet" href="/css/tours.css" />
+  <meta name="csrf-token" content="<%= csrfToken %>" />
+  <meta name="vs-mode" content="<%= mode %>" />
+  <% if (volunteer) { %>
+    <meta name="vs-volunteer-id" content="<%= volunteer.id %>" />
+  <% } %>
+</head>
+
+<body data-authed="true" class="bg-body-tertiary vs-body">
+
+  <%- include('../partials/header') %>
+
+  <%# ── Toolbar ─────────────────────────────────────────────── %>
+  <div class="vs-toolbar">
+
+    <% if (mode === 'oversight') { %>
+      <a href="/oversight/tools" class="btn btn-sm btn-outline-secondary">
+        <i class="fa-solid fa-chevron-left me-1"></i>Tools
+      </a>
+    <% } else { %>
+      <a href="/" class="btn btn-sm btn-outline-secondary">
+        <i class="fa-solid fa-chevron-left me-1"></i>Home
+      </a>
+    <% } %>
+
+    <span class="vs-toolbar-title">
+      <i class="fa-solid fa-calendar-check me-1 text-secondary"></i>
+      <%= mode === 'self' ? 'My Schedule' : 'Volunteer Schedule' %>
+    </span>
+
+    <% if (mode === 'oversight') { %>
+      <%# ── Volunteer search ──────────────────────────────── %>
+      <div class="vs-search-wrap">
+        <div class="vs-search-box">
+          <i class="fa-solid fa-magnifying-glass vs-search-icon"></i>
+          <input type="text"
+                 id="vs-search-input"
+                 class="form-control form-control-sm"
+                 placeholder="Search volunteer…"
+                 autocomplete="off"
+                 value="<%= volunteer ? `${volunteer.lastName}, ${volunteer.firstName}` : '' %>" />
+          <div id="vs-search-results" class="vs-search-results"></div>
+        </div>
+      </div>
+    <% } %>
+
+    <%# ── Day filter ──────────────────────────────────────── %>
+    <div class="vs-day-filter">
+      <select id="vs-day-picker" class="form-select form-select-sm vs-day-select">
+        <option value="all" selected>All Days</option>
+        <% conventionDays.forEach(day => { %>
+          <option value="<%= day.id %>"><%= day.label %></option>
+        <% }) %>
+      </select>
+    </div>
+
+    <%# ── Crew / department filter ────────────────────────── %>
+    <div class="vs-crew-filters">
+      <span class="vs-filter-label">Crew:</span>
+      <% [
+        { key: 'lots_and_garages', label: 'L&G' },
+        { key: 'signs',            label: 'Signs' },
+        { key: 'security',         label: 'Security' },
+        { key: 'dropoff_pickup',   label: 'D/P' },
+        { key: 'mobile_support',   label: 'MS' },
+        { key: 'desk',             label: 'Desk' },
+      ].forEach(d => {
+        const present = scheduleData.days.some(day =>
+          day.assignments.some(a => a.dept_key === d.key)
+        );
+      %>
+        <label class="vs-filter-chip <%= present ? '' : 'is-empty' %>">
+          <input type="checkbox" class="vs-crew-cb"
+                 data-dept="<%= d.key %>"
+                 <%= present ? 'checked' : 'disabled' %> />
+          <%= d.label %>
+        </label>
+      <% }) %>
+    </div>
+
+    <%# ── Action buttons ──────────────────────────────────── %>
+    <button type="button" id="vs-print-btn" class="btn btn-sm btn-primary">
+      <i class="fa-solid fa-print me-1"></i>Print
+    </button>
+
+    <% if (volunteer) { %>
+      <button type="button" id="vs-send-btn" class="btn btn-sm btn-success"
+              data-bs-toggle="modal" data-bs-target="#vsSendModal"
+              data-vol-id="<%= volunteer.id %>">
+        <i class="fa-solid fa-paper-plane me-1"></i>Send
+      </button>
+    <% } %>
+  </div>
+
+  <%# ── Send schedule modal ─────────────────────────────────── %>
+  <% if (volunteer) { %>
+    <div class="modal fade" id="vsSendModal" tabindex="-1"
+         aria-labelledby="vsSendModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="vsSendModalLabel">
+              <i class="fa-solid fa-paper-plane me-2 text-success"></i>Send Schedule
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-2">
+              Send <strong><%= volunteer.firstName %> <%= volunteer.lastName %></strong>'s schedule via:
+            </p>
+
+            <div class="d-flex gap-3 mb-3">
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="sendChannel"
+                       id="sendChannelSms" value="sms"
+                       <%= volunteer.phone ? '' : 'disabled' %> checked />
+                <label class="form-check-label" for="sendChannelSms">
+                  <i class="fa-solid fa-comment-sms me-1"></i>SMS
+                  <% if (!volunteer.phone) { %>
+                    <span class="text-muted small">(no phone)</span>
+                  <% } %>
+                </label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="sendChannel"
+                       id="sendChannelEmail" value="email"
+                       <%= volunteer.email ? '' : 'disabled' %>
+                       <%= !volunteer.phone && volunteer.email ? 'checked' : '' %> />
+                <label class="form-check-label" for="sendChannelEmail">
+                  <i class="fa-solid fa-envelope me-1"></i>Email
+                  <% if (!volunteer.email) { %>
+                    <span class="text-muted small">(no email)</span>
+                  <% } %>
+                </label>
+              </div>
+            </div>
+
+            <div id="vsSendError" class="alert alert-danger d-none py-2" role="alert"></div>
+            <div id="vsSendSuccess" class="alert alert-success d-none py-2" role="alert"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-success" id="vsSendConfirmBtn">
+              <i class="fa-solid fa-paper-plane me-1"></i>Send
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  <% } %>
+
+  <%# ── Schedule content ────────────────────────────────────── %>
+  <div class="vs-container">
+
+    <% if (mode === 'oversight' && !volunteer) { %>
+
+      <div class="vs-empty">
+        <i class="fa-solid fa-magnifying-glass fa-2x text-muted d-block mb-3"></i>
+        <p class="text-muted mb-1">Search for a volunteer to view their schedule.</p>
+        <p class="text-muted small">
+          Use the search bar above to find a volunteer by name.
+        </p>
+      </div>
+
+    <% } else if (!scheduleData.days || scheduleData.days.length === 0) { %>
+
+      <div class="vs-empty">
+        <i class="fa-solid fa-calendar-xmark fa-2x text-muted d-block mb-3"></i>
+        <p class="text-muted mb-1">
+          <% if (mode === 'self') { %>
+            You have no shift assignments yet.
+          <% } else { %>
+            No shift assignments found for <strong><%= volunteer.firstName %> <%= volunteer.lastName %></strong>.
+          <% } %>
+        </p>
+        <p class="text-muted small">
+          Assignments are made in the <a href="/oversight/tools/scheduler">Scheduler</a>.
+        </p>
+      </div>
+
+    <% } else { %>
+
+      <div class="vs-page-header">
+        <h1>
+          <% if (mode === 'self') { %>
+            My Schedule
+          <% } else { %>
+            <%= volunteer.lastName %>, <%= volunteer.firstName %>
+          <% } %>
+        </h1>
+        <p class="vs-subtitle">
+          Albany JW Parking &mdash;
+          Generated <%= new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) %>
+        </p>
+      </div>
+
+      <% scheduleData.days.forEach(day => { %>
+
+        <section class="vs-day" data-day-id="<%= day.id %>">
+
+          <div class="vs-day-header">
+            <h2><%= day.label %></h2>
+            <% if (day.convention_date) { %>
+              <span class="vs-day-date">
+                <%= new Date(day.convention_date + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' }) %>
+              </span>
+            <% } %>
+            <span class="vs-day-count">
+              <%= day.assignments.length %> assignment<%= day.assignments.length !== 1 ? 's' : '' %>
+            </span>
+          </div>
+
+          <div class="vs-assignments">
+            <% day.assignments.forEach(a => { %>
+
+              <div class="vs-assignment" data-dept="<%= a.dept_key %>">
+                <div class="vs-assignment-header">
+                  <span class="vs-dept-stripe" data-dept="<%= a.dept_key %>"></span>
+                  <div class="vs-shift-info">
+                    <span class="vs-shift-label"><%= a.shift_label %></span>
+                    <% if (a.start_time || a.end_time) { %>
+                      <span class="vs-shift-time">
+                        <%= a.start_time || '' %><% if (a.start_time && a.end_time) { %> &ndash; <% } %><%= a.end_time || '' %>
+                      </span>
+                    <% } %>
+                  </div>
+                  <span class="vs-dept-badge" data-dept="<%= a.dept_key %>"><%= a.dept_name %></span>
+                </div>
+
+                <div class="vs-assignment-body">
+                  <div class="vs-location-row">
+                    <i class="fa-solid fa-map-pin text-muted me-1"></i>
+                    <span class="vs-location-name"><%= a.location_name %></span>
+                  </div>
+
+                  <div class="vs-role-row">
+                    <% if (a.slot_type === 'keyman') { %>
+                      <span class="vs-role-badge role-km">Keyman</span>
+                    <% } else if (a.slot_type === 'keyman_asst') { %>
+                      <span class="vs-role-badge role-ka">Keyman Asst</span>
+                    <% } else { %>
+                      <span class="vs-role-badge role-vol">Volunteer</span>
+                    <% } %>
+                  </div>
+
+                  <% if (a.slot_type !== 'keyman' && a.keyman) { %>
+                    <div class="vs-leader-row">
+                      <span class="vs-leader-label">KM:</span>
+                      <span class="vs-leader-name"><%= a.keyman.lastName %>, <%= a.keyman.firstName %></span>
+                      <% if (a.keyman.phone) { %>
+                        <span class="vs-leader-phone"><%= a.keyman.phone %></span>
+                      <% } %>
+                    </div>
+                  <% } %>
+
+                  <% if (a.slot_type !== 'keyman_asst' && a.keyman_asst) { %>
+                    <div class="vs-leader-row">
+                      <span class="vs-leader-label">KA:</span>
+                      <span class="vs-leader-name"><%= a.keyman_asst.lastName %>, <%= a.keyman_asst.firstName %></span>
+                      <% if (a.keyman_asst.phone) { %>
+                        <span class="vs-leader-phone"><%= a.keyman_asst.phone %></span>
+                      <% } %>
+                    </div>
+                  <% } %>
+
+                  <% if (a.note) { %>
+                    <div class="vs-note-row">
+                      <i class="fa-solid fa-circle-info"></i>
+                      <span><%= a.note %></span>
+                    </div>
+                  <% } %>
+                </div>
+              </div>
+
+            <% }) %>
+          </div>
+
+        </section>
+
+      <% }) %>
+
+    <% } %>
+
+  </div>
+
+  <%- include('../partials/footer') %>
+
+  <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+  <script type="module" src="/js/volunteerSchedule.js"></script>
+</body>
+</html>
