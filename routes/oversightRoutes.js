@@ -109,6 +109,7 @@ import {
   deleteOversightStructureNode,
   getSessionsForDay,
   getSchedulerReportData,
+  getVolunteerScheduleReport,
   getCrewMatrix,
   updateVolunteerCrew,
   batchUpdateVolunteerCrew,
@@ -5990,6 +5991,267 @@ export function oversightRouter({
       } catch (err) {
         (logError || console.error)("bug-reports PUT error:", err);
         return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  // ─── Volunteer Schedule Report ──────────────────────────────────────
+
+  /**
+   * GET /my-schedule
+   * Volunteer-facing schedule: shows the logged-in user's own assignments.
+   *
+   * @requires viewSchedules permission (REGISTERED+)
+   */
+  router.get(
+    "/my-schedule",
+    requireAuth,
+    requirePermission("viewSchedules"),
+    csrfProtection,
+    async (req, res) => {
+      try {
+        const volunteerId = req.session.userId;
+        const year = new Date().getFullYear();
+        const [scheduleData, allDays, volunteer] = await Promise.all([
+          getVolunteerScheduleReport(volunteerId, year),
+          getConventionDays(year),
+          getVolunteerById(volunteerId),
+        ]);
+        const conventionDays = allDays.filter(
+          (d) => d.schedulable !== false && d.schedulable !== 0,
+        );
+        return res.render("authentication_and_accounts/volunteerSchedule", {
+          csrfToken: req.csrfToken(),
+          mode: "self",
+          scheduleData,
+          conventionDays,
+          volunteer,
+          volunteers: null,
+        });
+      } catch (err) {
+        (logError || console.error)("my-schedule GET error:", err);
+        return res.status(500).send("Server error");
+      }
+    },
+  );
+
+  /**
+   * GET /oversight/tools/volunteer-schedule
+   * Oversight-facing schedule: search any volunteer by name.
+   *
+   * Query param: ?volunteerId=N (optional — if omitted, shows empty search state)
+   *
+   * @requires createAssignments permission (OVERSEER+)
+   */
+  router.get(
+    "/oversight/tools/volunteer-schedule",
+    requireAuth,
+    requirePermission("createAssignments"),
+    csrfProtection,
+    async (req, res) => {
+      try {
+        const year = new Date().getFullYear();
+        const volunteerId = Number(req.query.volunteerId) || null;
+
+        let scheduleData = { days: [] };
+        let volunteer = null;
+
+        if (volunteerId) {
+          [scheduleData, volunteer] = await Promise.all([
+            getVolunteerScheduleReport(volunteerId, year),
+            getVolunteerById(volunteerId),
+          ]);
+        }
+
+        const conventionDays = (
+          await getConventionDays(year)
+        ).filter(
+          (d) => d.schedulable !== false && d.schedulable !== 0,
+        );
+
+        return res.render("authentication_and_accounts/volunteerSchedule", {
+          csrfToken: req.csrfToken(),
+          mode: "oversight",
+          scheduleData,
+          conventionDays,
+          volunteer,
+          volunteers: null,
+        });
+      } catch (err) {
+        (logError || console.error)("volunteer-schedule GET error:", err);
+        return res.status(500).send("Server error");
+      }
+    },
+  );
+
+  /**
+   * GET /api/volunteers/search
+   * Return volunteers matching a name query (for typeahead).
+   *
+   * Query param: ?q=... (min 2 chars)
+   *
+   * @requires createAssignments permission (OVERSEER+)
+   */
+  router.get(
+    "/api/volunteers/search",
+    requireAuth,
+    requirePermission("createAssignments"),
+    async (req, res) => {
+      try {
+        const q = (req.query.q || "").trim().toLowerCase();
+        if (q.length < 2) return res.json({ results: [] });
+
+        const all = await getActiveVolunteers({});
+        const results = all
+          .filter((v) => {
+            const full = `${v.lastName || ""} ${v.firstName || ""}`.toLowerCase();
+            return full.includes(q);
+          })
+          .slice(0, 15)
+          .map((v) => ({
+            id: v.id,
+            firstName: v.firstName,
+            lastName: v.lastName,
+          }));
+
+        return res.json({ results });
+      } catch (err) {
+        (logError || console.error)("volunteers/search error:", err);
+        return res.status(500).json({ results: [] });
+      }
+    },
+  );
+
+  /**
+   * POST /api/volunteer-schedule/:volunteerId/send
+   * Send a volunteer's schedule summary via SMS or email.
+   *
+   * Body: { channel: 'sms' | 'email' }
+   *
+   * Permission: OVERSEER+ can send to any volunteer.
+   * REGISTERED+ can send only to themselves.
+   */
+  router.post(
+    "/api/volunteer-schedule/:volunteerId/send",
+    requireAuth,
+    requirePermission("viewSchedules"),
+    csrfProtection,
+    express.json(),
+    async (req, res) => {
+      try {
+        const targetId = Number(req.params.volunteerId);
+        const senderId = req.session.userId;
+        const perms = req.session.permissions ?? {};
+        const channel = req.body.channel;
+
+        // Non-oversight users can only send their own schedule
+        if (!perms.createAssignments && targetId !== senderId) {
+          return res.status(403).json({
+            success: false,
+            error: "You can only send your own schedule.",
+          });
+        }
+
+        if (!["sms", "email"].includes(channel)) {
+          return res.status(400).json({
+            success: false,
+            error: "Invalid channel. Use 'sms' or 'email'.",
+          });
+        }
+
+        const year = new Date().getFullYear();
+        const [volunteer, scheduleData] = await Promise.all([
+          getVolunteerById(targetId),
+          getVolunteerScheduleReport(targetId, year),
+        ]);
+
+        if (!volunteer) {
+          return res.status(404).json({
+            success: false,
+            error: "Volunteer not found.",
+          });
+        }
+
+        // Build schedule text
+        const lines = [`Albany JW Parking — Schedule for ${volunteer.firstName} ${volunteer.lastName}`];
+        lines.push("");
+
+        if (scheduleData.days.length === 0) {
+          lines.push("No shift assignments found.");
+        } else {
+          for (const day of scheduleData.days) {
+            lines.push(`${day.label}${day.convention_date ? ` (${day.convention_date})` : ""}:`);
+            for (const a of day.assignments) {
+              const time = [a.start_time, a.end_time].filter(Boolean).join(" - ");
+              const role =
+                a.slot_type === "keyman"
+                  ? " [KM]"
+                  : a.slot_type === "keyman_asst"
+                    ? " [KA]"
+                    : "";
+              lines.push(`  ${a.shift_label} ${time ? `(${time})` : ""} — ${a.location_name}${role}`);
+            }
+            lines.push("");
+          }
+        }
+
+        const textBody = lines.join("\n");
+
+        if (channel === "sms") {
+          if (!volunteer.phone) {
+            return res.status(400).json({
+              success: false,
+              error: "Volunteer has no phone number on file.",
+            });
+          }
+
+          const { sendResetSms } = await import("../lib/messaging.js");
+          const sent = await sendResetSms(
+            volunteer.phone,
+            "",
+            twilioAccountSid,
+            twilioAuthToken,
+            twilioMsgSid,
+            { customBody: textBody, firstName: volunteer.firstName },
+          );
+
+          if (!sent) {
+            return res.status(500).json({
+              success: false,
+              error: "Failed to send SMS.",
+            });
+          }
+        } else {
+          if (!volunteer.email) {
+            return res.status(400).json({
+              success: false,
+              error: "Volunteer has no email on file.",
+            });
+          }
+
+          const { sendResetEmail } = await import("../lib/messaging.js");
+          const sent = await sendResetEmail(volunteer.email, "", {
+            ...smtpConfig,
+            subject: `Your Albany JW Parking Schedule — ${volunteer.firstName} ${volunteer.lastName}`,
+            firstName: volunteer.firstName,
+            customBody: textBody,
+          });
+
+          if (!sent) {
+            return res.status(500).json({
+              success: false,
+              error: "Failed to send email.",
+            });
+          }
+        }
+
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("volunteer-schedule send error:", err);
+        return res.status(500).json({
+          success: false,
+          error: "Server error.",
+        });
       }
     },
   );

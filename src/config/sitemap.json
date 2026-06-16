@@ -118,6 +118,14 @@
           "permission": null
         },
         {
+          "title": "My Schedule",
+          "path": "/my-schedule",
+          "description": "View your personal shift assignments for all convention days.",
+          "icon": "fa-solid fa-calendar-check",
+          "minRole": "REGISTERED",
+          "permission": "viewSchedules"
+        },
+        {
           "title": "Continue Registration",
           "path": "/continue-registration/auto",
           "description": "Resume an incomplete registration from where you left off.",
@@ -274,6 +282,22 @@
           "minRole": null,
           "permission": "createAssignments",
           "tourId": "scheduler"
+        },
+        {
+          "title": "Conflict Grid",
+          "path": "/oversight/tools/conflict-grid",
+          "description": "View a master grid of all volunteer shift assignments to identify scheduling conflicts and coverage gaps.",
+          "icon": "fa-solid fa-table-cells",
+          "minRole": null,
+          "permission": "createAssignments"
+        },
+        {
+          "title": "Volunteer Schedule",
+          "path": "/oversight/tools/volunteer-schedule",
+          "description": "Look up any volunteer's shift assignments across all convention days. Print or send via SMS/email.",
+          "icon": "fa-solid fa-calendar-check",
+          "minRole": null,
+          "permission": "createAssignments"
         },
         {
           "title": "Shift Alerts",

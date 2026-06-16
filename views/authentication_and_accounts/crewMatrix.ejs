@@ -68,6 +68,7 @@
                   <button type="button" class="crew-filter-btn crew-filter-btn--sec" data-value="security">Security</button>
                   <button type="button" class="crew-filter-btn crew-filter-btn--dp" data-value="dropoff_pickup">D/P</button>
                   <button type="button" class="crew-filter-btn crew-filter-btn--ms" data-value="mobile_support">MS</button>
+                  <button type="button" class="crew-filter-btn crew-filter-btn--desk" data-value="desk">Desk</button>
                 </div>
               </div>
               <span id="crewRowCount" class="text-muted small ms-auto">
@@ -122,6 +123,13 @@
                         <span class="crew-badge crew-mobile-support">MS</span>
                         <div class="crew-col-label">Mobile Support</div>
                         <button class="crew-toggle-all-btn" type="button" data-crew="mobile_support" title="Toggle all visible">
+                          <i class="fa-regular fa-square"></i>
+                        </button>
+                      </th>
+                      <th class="crew-col-crew text-center" data-crew="desk">
+                        <span class="crew-badge crew-desk">Desk</span>
+                        <div class="crew-col-label">Desk</div>
+                        <button class="crew-toggle-all-btn" type="button" data-crew="desk" title="Toggle all visible">
                           <i class="fa-regular fa-square"></i>
                         </button>
                       </th>
@@ -191,6 +199,15 @@
                               data-crew="mobile_support"
                               <%= v.crew_mobile_support ? 'checked' : '' %>
                               aria-label="Mobile Support" />
+                          </div>
+                        </td>
+                        <td class="text-center">
+                          <div class="form-check form-switch d-flex justify-content-center mb-0">
+                            <input class="form-check-input crew-toggle"
+                              type="checkbox"
+                              data-crew="desk"
+                              <%= v.crew_desk ? 'checked' : '' %>
+                              aria-label="Desk" />
                           </div>
                         </td>
                       </tr>

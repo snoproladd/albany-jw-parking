@@ -80,6 +80,7 @@ const CREW_ABBREV = {
   security: "SEC",
   dropoff_pickup: "D/P",
   mobile_support: "MS",
+  desk: "Desk",
 };
 
 /**
@@ -105,6 +106,7 @@ const DEPT_ABBREV = {
   security: "Security",
   dropoff_pickup: "D/P",
   mobile_support: "MS",
+  desk: "Desk",
 };
 
 // ─────────────────────────────────────────────
@@ -220,6 +222,24 @@ export async function initDomActions() {
   );
   document.addEventListener("filter:select", (e) => _onFilterSelect(e.detail));
 
+  // Horizontal-scroll listener — toggle right time mirror column
+  const _mainEl = document.querySelector(".scheduler-main");
+  if (_mainEl) {
+    _mainEl.addEventListener("scroll", () => {
+      const outer = _mainEl.querySelector(".scheduler-calendar-outer");
+      if (!outer || !_gridEl) return;
+      const wasScrolled = outer.classList.contains("is-scrolled");
+      const isScrolled = _mainEl.scrollLeft > 0;
+      if (isScrolled !== wasScrolled) {
+        outer.classList.toggle("is-scrolled", isScrolled);
+        const cols = _gridEl.style.gridTemplateColumns.split(" ");
+        cols[cols.length - 1] = isScrolled ? "60px" : "0px";
+        _gridEl.style.gridTemplateColumns = cols.join(" ");
+      }
+      _updateScrollPeeks();
+    });
+  }
+
   // Persist + track assignment on drop.
   // Conflict logic:
   //   - Non-security shift conflicts: blocked in canDrop (shouldn't reach here)
@@ -228,7 +248,13 @@ export async function initDomActions() {
   //   - Place Anyway: auto-note saved to DB, badge applied to pill
   //   - Silent load (record=false): apply saved note badge if present
   document.addEventListener("scheduler:slotAssigned", async (e) => {
-    const { pill, dz, record, note: loadedNote, fromDz: priorDz = null } = e.detail;
+    const {
+      pill,
+      dz,
+      record,
+      note: loadedNote,
+      fromDz: priorDz = null,
+    } = e.detail;
     const volId = Number(pill.dataset.id);
     const shiftStart = Number(dz.dataset.shiftStartMins);
     const shiftEnd = Number(dz.dataset.shiftEndMins);
@@ -717,6 +743,7 @@ export async function initDomActions() {
     "security",
     "dropoff_pickup",
     "mobile_support",
+    "desk",
   ];
 
   /**
@@ -924,6 +951,62 @@ export async function initDomActions() {
     }
   }
 
+  /**
+   * Update scroll peek indicators showing the next off-screen dept.
+   *
+   * @returns {void}
+   */
+  function _updateScrollPeeks() {
+    const mainEl = document.getElementById("schedulerMain");
+    const peekL = document.getElementById("schedPeekLeft");
+    const peekR = document.getElementById("schedPeekRight");
+    if (!mainEl || !peekL || !peekR || !_gridEl) return;
+
+    const headers = [
+      ..._gridEl.querySelectorAll(
+        ".sched-dept-header:not([style*='display: none'])",
+      ),
+    ];
+    if (!headers.length) {
+      peekL.classList.add("d-none");
+      peekR.classList.add("d-none");
+      return;
+    }
+
+    const viewLeft = mainEl.scrollLeft;
+    const viewRight = viewLeft + mainEl.clientWidth;
+
+    let leftDept = null;
+    let rightDept = null;
+
+    for (const h of headers) {
+      const rect = h.getBoundingClientRect();
+      const mainRect = mainEl.getBoundingClientRect();
+      const elLeft = rect.left - mainRect.left + viewLeft;
+      const elRight = elLeft + rect.width;
+
+      if (elRight < viewLeft + 60) {
+        leftDept = h.textContent.trim();
+      }
+      if (elLeft > viewRight - 60 && !rightDept) {
+        rightDept = h.textContent.trim();
+      }
+    }
+
+    if (leftDept) {
+      peekL.querySelector(".sched-peek-label").textContent = leftDept;
+      peekL.classList.remove("d-none");
+    } else {
+      peekL.classList.add("d-none");
+    }
+
+    if (rightDept) {
+      peekR.querySelector(".sched-peek-label").textContent = rightDept;
+      peekR.classList.remove("d-none");
+    } else {
+      peekR.classList.add("d-none");
+    }
+  }
   // ─────────────────────────────────────────────
   //  Calendar grid builder
   // ─────────────────────────────────────────────
@@ -987,7 +1070,11 @@ export async function initDomActions() {
 
     // ── Step 4: build DOM ───────────────────────────────────────────────
     const subColCount = deptMeta.reduce((s, d) => s + d.subCols.length, 0);
-    const colTemplate = `60px ${Array(subColCount).fill("1fr").join(" ")}`;
+    const rightTimeCol = subColCount + 2;
+    const colMin =
+      getComputedStyle(container).getPropertyValue("--sched-col-min").trim() ||
+      "120px";
+    const colTemplate = `60px ${Array(subColCount).fill(`minmax(${colMin}, 1fr)`).join(" ")} 0px`;
     const rowTemplate = `30px 20px repeat(${totalRows}, 22px)`;
 
     const wrap = document.createElement("div");
@@ -1010,6 +1097,44 @@ export async function initDomActions() {
       label.style.gridRow = `${timeToRow(mins, earliest) + 3} / span 4`;
       label.style.gridColumn = "1";
       grid.appendChild(label);
+    }
+
+    // Sticky corner cells (rows 1–2, col 1 — left)
+    const cornerDept = document.createElement("div");
+    cornerDept.classList.add("sched-time-corner");
+    cornerDept.style.gridRow = "1";
+    cornerDept.style.gridColumn = "1";
+    grid.appendChild(cornerDept);
+
+    const cornerLoc = document.createElement("div");
+    cornerLoc.classList.add("sched-time-corner", "sched-time-corner--loc");
+    cornerLoc.style.gridRow = "2";
+    cornerLoc.style.gridColumn = "1";
+    grid.appendChild(cornerLoc);
+
+    // Right time mirror column (last col)
+    const cornerDeptR = document.createElement("div");
+    cornerDeptR.classList.add("sched-time-corner-right");
+    cornerDeptR.style.gridRow = "1";
+    cornerDeptR.style.gridColumn = String(rightTimeCol);
+    grid.appendChild(cornerDeptR);
+
+    const cornerLocR = document.createElement("div");
+    cornerLocR.classList.add(
+      "sched-time-corner-right",
+      "sched-time-corner-right--loc",
+    );
+    cornerLocR.style.gridRow = "2";
+    cornerLocR.style.gridColumn = String(rightTimeCol);
+    grid.appendChild(cornerLocR);
+
+    for (let mins = earliest; mins < latest; mins += 60) {
+      const rLabel = document.createElement("div");
+      rLabel.classList.add("sched-time-label-right");
+      rLabel.textContent = formatMinutesToTime(mins);
+      rLabel.style.gridRow = `${timeToRow(mins, earliest) + 3} / span 4`;
+      rLabel.style.gridColumn = String(rightTimeCol);
+      grid.appendChild(rLabel);
     }
 
     // Department columns
@@ -1119,12 +1244,15 @@ export async function initDomActions() {
         track.classList.add("sched-col-track");
         track.dataset.dept = deptKey;
         track.dataset.locIdx = String(i);
-        track.style.gridRow = `3 / ${totalRows + 3}`;
         track.style.gridColumn = String(startCol + i);
         if (i === 0 && !_firstDept) {
           track.classList.add("sched-col-track--dept");
-        } else if (i > 0) {
-          track.classList.add("sched-col-track--loc");
+          track.style.gridRow = `1 / ${totalRows + 3}`;
+        } else {
+          track.style.gridRow = `3 / ${totalRows + 3}`;
+          if (i > 0) {
+            track.classList.add("sched-col-track--loc");
+          }
         }
         grid.appendChild(track);
       });
@@ -1636,10 +1764,19 @@ export async function initDomActions() {
 
     // Rebuild column template (hidden depts collapse to 0px)
     const cols = ["60px"];
+    const colMin =
+      getComputedStyle(_gridEl).getPropertyValue("--sched-col-min").trim() ||
+      "120px";
     for (const { deptKey, subCols } of _deptMeta) {
       const hidden = _hiddenDepts.has(deptKey);
-      cols.push(...subCols.map(() => (hidden ? "0px" : "1fr")));
+      cols.push(
+        ...subCols.map(() => (hidden ? "0px" : `minmax(${colMin}, 1fr)`)),
+      );
     }
+    const isScrolled = _gridEl
+      .closest(".scheduler-calendar-outer")
+      ?.classList.contains("is-scrolled");
+    cols.push(isScrolled ? "60px" : "0px");
     _gridEl.style.gridTemplateColumns = cols.join(" ");
 
     // Update every cell's gridColumn for each dept
@@ -1679,7 +1816,9 @@ export async function initDomActions() {
       _gridEl
         .querySelectorAll(`.sched-col-track[data-dept="${deptKey}"]`)
         .forEach((track) => {
-          track.style.gridColumn = String(startCol + Number(track.dataset.locIdx));
+          track.style.gridColumn = String(
+            startCol + Number(track.dataset.locIdx),
+          );
           track.style.display = hidden ? "none" : "";
         });
     }
@@ -1718,7 +1857,7 @@ export async function initDomActions() {
     if (s || e) {
       const time = document.createElement("div");
       time.classList.add("sched-shift-time");
-      time.textContent = s && e ? `${s} – ${e}` : (s || e);
+      time.textContent = s && e ? `${s} – ${e}` : s || e;
       block.appendChild(time);
     }
 
@@ -1873,60 +2012,60 @@ export async function initDomActions() {
     }
   }
 
-function _recheckConflictBadges(volId) {
-  const pills = document.querySelectorAll(
-    `.scheduler-calendar .name-pill[data-id="${volId}"]`,
-  );
-  pills.forEach((pill) => {
-    const dz = pill.parentElement;
-    if (!dz?.classList.contains("scheduler-dropzone")) return;
-    const dzStart = Number(dz.dataset.shiftStartMins);
-    const dzEnd = Number(dz.dataset.shiftEndMins);
-    if (!dzStart || !dzEnd) return;
+  function _recheckConflictBadges(volId) {
+    const pills = document.querySelectorAll(
+      `.scheduler-calendar .name-pill[data-id="${volId}"]`,
+    );
+    pills.forEach((pill) => {
+      const dz = pill.parentElement;
+      if (!dz?.classList.contains("scheduler-dropzone")) return;
+      const dzStart = Number(dz.dataset.shiftStartMins);
+      const dzEnd = Number(dz.dataset.shiftEndMins);
+      if (!dzStart || !dzEnd) return;
 
-    pill.querySelector(".pill-badge-row")?.remove();
-    delete pill.dataset.conflictCount;
+      pill.querySelector(".pill-badge-row")?.remove();
+      delete pill.dataset.conflictCount;
 
-    const conflicts = getConflicts(volId, dzStart, dzEnd, dz);
-    const shiftConflicts = conflicts.filter((c) => c.dzEl !== null);
-    const blackoutConflicts = conflicts.filter((c) => c.dzEl === null);
+      const conflicts = getConflicts(volId, dzStart, dzEnd, dz);
+      const shiftConflicts = conflicts.filter((c) => c.dzEl !== null);
+      const blackoutConflicts = conflicts.filter((c) => c.dzEl === null);
 
-    if (shiftConflicts.length > 0) {
-      pill.dataset.conflictCount = String(shiftConflicts.length);
-      _applyConflictBadge(pill, _generateConflictNote(shiftConflicts));
-    }
-    if (blackoutConflicts.length > 0) {
-      const noteTitle = blackoutConflicts
-        .map((c) => {
-          const t = `${_fmtConflictTime(c.shiftStart)}–${_fmtConflictTime(c.shiftEnd)}`;
-          return c.reason
-            ? `Unavailable ${t} — ${c.reason}`
-            : `Unavailable ${t}`;
-        })
-        .join("; ");
-      _applyNoteBadge(pill, noteTitle);
-    } else {
-      // No live blackout conflicts — clear stale blackout data so the
-      // badge does not reappear from a deleted blackout's saved note.
-      delete pill.dataset.blackoutNote;
-    }
+      if (shiftConflicts.length > 0) {
+        pill.dataset.conflictCount = String(shiftConflicts.length);
+        _applyConflictBadge(pill, _generateConflictNote(shiftConflicts));
+      }
+      if (blackoutConflicts.length > 0) {
+        const noteTitle = blackoutConflicts
+          .map((c) => {
+            const t = `${_fmtConflictTime(c.shiftStart)}–${_fmtConflictTime(c.shiftEnd)}`;
+            return c.reason
+              ? `Unavailable ${t} — ${c.reason}`
+              : `Unavailable ${t}`;
+          })
+          .join("; ");
+        _applyNoteBadge(pill, noteTitle);
+      } else {
+        // No live blackout conflicts — clear stale blackout data so the
+        // badge does not reappear from a deleted blackout's saved note.
+        delete pill.dataset.blackoutNote;
+      }
 
-    // Fallback: no live conflicts but pill has a stored DB note.
-    // Only re-apply shift-conflict portions — blackout portions are
-    // stale if the blackout was deleted.
-    if (conflicts.length === 0) {
-      const savedNote = pill.dataset.conflictNote || "";
-      if (savedNote) {
-        const shiftParts = savedNote
-          .split("; ")
-          .filter((p) => !p.startsWith("Unavailable"));
-        if (shiftParts.length > 0) {
-          _applyConflictBadge(pill, shiftParts.join("; "));
+      // Fallback: no live conflicts but pill has a stored DB note.
+      // Only re-apply shift-conflict portions — blackout portions are
+      // stale if the blackout was deleted.
+      if (conflicts.length === 0) {
+        const savedNote = pill.dataset.conflictNote || "";
+        if (savedNote) {
+          const shiftParts = savedNote
+            .split("; ")
+            .filter((p) => !p.startsWith("Unavailable"));
+          if (shiftParts.length > 0) {
+            _applyConflictBadge(pill, shiftParts.join("; "));
+          }
         }
       }
-    }
-  });
-}
+    });
+  }
 
   // ─────────────────────────────────────────────
   //  Day assignments loader

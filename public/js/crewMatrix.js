@@ -20,6 +20,7 @@ document.addEventListener("DOMContentLoaded", () => {
     "security",
     "dropoff_pickup",
     "mobile_support",
+    "desk",
   ];
 
   // ─────────────────────────────────────────────

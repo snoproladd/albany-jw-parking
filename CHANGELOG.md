@@ -3,6 +3,62 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## 2.54.0
+
+### Volunteer Schedule Report
+
+- **My Schedule** (`/my-schedule`) — volunteer-facing page (REGISTERED+) shows
+  the logged-in user's shift assignments across all convention days. Accessible
+  from the My Account dropdown, Resources dropdown, My Account page link, and
+  a "Full Schedule" button in the home page Your Shifts card header.
+- **Volunteer Schedule** (`/oversight/tools/volunteer-schedule`) — oversight-facing
+  page (OVERSEER+) with debounced name search typeahead. Look up any volunteer's
+  full schedule. Card added to Oversight Tools page and Operations > Scheduling
+  header dropdown.
+- Both views share the same EJS template (`volunteerSchedule.ejs`) with a `mode`
+  flag, client-side day and crew/department filters, print CSS with per-day page
+  breaks, and a Send modal (SMS via Twilio or email via IONOS SMTP).
+- New `getVolunteerScheduleReport(volunteerId, year)` in dbSync — two-query
+  approach (assignments + KM/KA leaders), results grouped by day.
+- API endpoints: `GET /api/volunteers/search?q=` (typeahead),
+  `POST /api/volunteer-schedule/:id/send` (SMS/email).
+- Sitemap entries for both pages.
+
+### Desk Department
+
+- **New `desk` crew/department** added across the full stack: DB column
+  (`crew_desk BIT`), dbSync queries, scheduler, crew matrix, conflict grid,
+  timelines, scheduler report, volunteer schedule report, and home page.
+- Color: purple `#6610f2` (all CSS files updated with matching stripe, badge,
+  toggle, swatch, and filter-button-active rules).
+- Migration: `scripts/migrations/addCrewDesk.sql` + `_demo.sql`.
+
+### Scheduler Layout Improvements
+
+- **Minimum column width** (`--sched-col-min: 120px` CSS variable on
+  `.scheduler-main`) — prevents location columns from compressing when many
+  departments are visible. Grid scrolls horizontally when columns exceed viewport.
+- **Frozen time column** — left time labels use `position: sticky; left: 0`
+  so they stay visible during horizontal scroll.
+- **Right time mirror** — a duplicate time column appears at the right edge
+  when horizontal scrolling begins, toggled via scroll listener.
+- **Department separation** — stronger 3px centered divider lines between
+  department columns (pseudo-element, full-height from dept header through
+  data rows), with subtle box-shadow.
+- **Dept header color accents** — each department header gets a colored bottom
+  border matching its crew color.
+- **Fixed-width dropzones** — volunteer slots use `flex: 0 0 calc((100% - 4px) / 3)`
+  so exactly 3 fit per row; names truncate with ellipsis.
+- **Scroll peek indicators** — floating badges at viewport edges show the name
+  of the next off-screen department with directional arrows.
+
+### Files added
+- `views/authentication_and_accounts/volunteerSchedule.ejs`
+- `public/js/volunteerSchedule.js`
+- `public/styles/volunteerSchedule.css`
+- `scripts/migrations/addCrewDesk.sql`
+- `scripts/migrations/addCrewDesk_demo.sql`
+
 ## 2.53.0
 
 ### Self-Service Blackout Management (My Account)

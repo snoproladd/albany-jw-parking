@@ -126,6 +126,11 @@
     color: #664d03;
 }
 
+.cg-dept-desk {
+    background-color: #e8dafc;
+    color: #3d0a91;
+}
+
 /* ── Sticky corner (name column header area) ───────────────────── */
 .cg-corner {
     position: sticky;
@@ -348,4 +353,9 @@
 .cg-dept-swatch-mobile_support {
     background-color: #fff3cd;
     color: #664d03;
+}
+
+.cg-dept-swatch-desk {
+    background-color: #e8dafc;
+    color: #3d0a91;
 }

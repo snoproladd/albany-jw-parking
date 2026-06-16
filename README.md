@@ -259,6 +259,7 @@ parking/
 │   │   ├── scheduler.ejs
 │   │   ├── schedulerReport.ejs
 │   │   ├── shiftAlerts.ejs
+│   │   ├── volunteerSchedule.ejs
 │   │   ├── signsBuilder.ejs
 │   │   ├── signsList.ejs
 │   │   ├── signsMap.ejs
@@ -346,6 +347,7 @@ parking/
 │   │   ├── schedulerHistory.js        # Undo/redo history stack
 │   │   ├── schedulerReport.js         # Schedule report/PDF page
 │   │   ├── schedulerTimeUtils.js      # Scheduler-specific time helpers
+│   │   ├── volunteerSchedule.js       # Volunteer schedule report (my-schedule + oversight)
 │   │   │
 │   │   ├── # ── Timelines ────────────────────────────────────
 │   │   ├── timelines.js               # Event types / days / sessions / shifts CRUD
@@ -392,6 +394,7 @@ parking/
 │   │   ├── scheduler.css              # Scheduler grid
 │   │   ├── schedulerReport.css        # Schedule report / PDF
 │   │   ├── shiftAlerts.css            # Shift alerts page
+│   │   ├── volunteerSchedule.css      # Volunteer schedule report
 │   │   ├── signs.css                  # Sign Library, Builder, Map
 │   │   ├── signsPrint.css             # Printable sign map (WYSIWYG page preview + @media print)
 │   │   ├── sitemap.css                # Sitemap page
@@ -508,7 +511,7 @@ The first ADMIN must be granted directly in the database.
   info / warning). Each category maps to a FontAwesome icon and color treatment on map
   markers, print markers, library cards, and the builder preview. Category picker in the
   Sign Builder form.
-- **Scheduler (2.51.0):** 9-file ES module suite under `public/js/scheduler*.js`.
+- **Scheduler (2.54.0):** 9-file ES module suite under `public/js/scheduler*.js`.
   Drag-and-drop grid built on `agnostic-draggable` (UMD). Key behaviors:
   - **Auto-routing:** `_resolveDropTarget()` in `schedulerDraggable.js` redirects drops on
     occupied slots or unqualified KM/KA slots to the first empty volunteer DZ in the same
@@ -523,6 +526,17 @@ The first ADMIN must be granted directly in the database.
     DZs never shrink.
   - **Grid bounds:** `latest` is `Math.max(shiftLatest, sessionLatest + 90)` — the grid
     always extends 90 minutes past the last session to accommodate after-session shifts.
+  - **Horizontal scroll (2.54.0):** location columns use `minmax(var(--sched-col-min), 1fr)`
+    (default 120px, set on `.scheduler-main`). When columns exceed viewport width the grid
+    scrolls horizontally with the left time column frozen (`position: sticky; left: 0`) and
+    a mirrored right time column that appears on scroll. Department dividers use centered
+    pseudo-element lines with box-shadow. Scroll peek badges show the next off-screen
+    department name with directional arrows.
+  - **Fixed-width dropzones (2.54.0):** volunteer slots are `flex: 0 0 calc((100% - 4px) / 3)`,
+    always 3 per row with ellipsis-truncated names.
+- **Volunteer Schedule Report (2.54.0):** `/my-schedule` (REGISTERED+, own assignments)
+  and `/oversight/tools/volunteer-schedule` (OVERSEER+, search any volunteer). Shared EJS
+  template with day/crew filters, print CSS, and SMS/email send modal.
 
 ---
 
@@ -539,6 +553,8 @@ Azure SQL. Connection pool managed in `lib/sql.js` with:
 Schema highlights:
 - `volunteer_in` — core volunteer table (registration, contact, role, crews,
   delegated extra permissions)
+  - Crew columns: `crew_lots_garages`, `crew_signs`, `crew_security`,
+    `crew_mobile_support`, `crew_dropoff_pickup`, `crew_desk` (all BIT)
   - `extra_signs_placement BIT NOT NULL DEFAULT 0` — grants `manageSigns` to a
     REGISTERED volunteer without a role promotion. Checked at login; stored as
     `'manageSigns'` in `req.session.extraPermissions` (string array). Future

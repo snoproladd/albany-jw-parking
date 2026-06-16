@@ -277,21 +277,6 @@
                   </div>
                 </div>
 
-                <% if (can('createAssignments')) { %>
-                <div class="col-12 col-sm-6 col-lg-4">
-                  <div class="admin-tool-card h-100">
-                    <div class="admin-tool-icon text-warning">
-                      <i class="fa-solid fa-triangle-exclamation"></i>
-                    </div>
-                    <h3 class="admin-tool-title">Master Conflict Grid</h3>
-                    <p class="admin-tool-desc">View all volunteers against all shifts across every convention day. Highlights scheduling and personal conflicts at a glance.</p>
-                    <a href="/oversight/tools/conflict-grid" class="btn btn-warning admin-tool-btn">
-                      Open <i class="fa-solid fa-arrow-right ms-1"></i>
-                    </a>
-                  </div>
-                </div>
-                <% } %>
-
               </div>
             <% } %>
             <%# ══════════════════════════════════════════════
@@ -354,7 +339,7 @@
             <%# ══════════════════════════════════════════════
                 4. SCHEDULING
             ══════════════════════════════════════════════ %>
-            <% if (can('manageShifts') || can('accessAdminConsole')) { %>
+            <% if (can('manageShifts') || can('createAssignments') || can('accessAdminConsole')) { %>
               <h2 class="tools-group-heading" id="scheduling">
                 <i class="fa-regular fa-calendar-days me-2"></i>Scheduling
               </h2>
@@ -429,6 +414,36 @@
                       <h3 class="admin-tool-title">Scheduler</h3>
                       <p class="admin-tool-desc">Drag and drop volunteers onto shift slots. Filter the pool by rank or department and enforce role eligibility automatically.</p>
                       <a href="/oversight/tools/scheduler" class="btn btn-success admin-tool-btn">
+                        Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                      </a>
+                    </div>
+                  </div>
+                <% } %>
+
+                <% if (can('createAssignments')) { %>
+                  <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="admin-tool-card h-100">
+                      <div class="admin-tool-icon text-warning">
+                        <i class="fa-solid fa-table-cells"></i>
+                      </div>
+                      <h3 class="admin-tool-title">Master Conflict Grid</h3>
+                      <p class="admin-tool-desc">View all volunteers against all shifts across every convention day. Highlights scheduling and personal conflicts at a glance.</p>
+                      <a href="/oversight/tools/conflict-grid" class="btn btn-warning admin-tool-btn">
+                        Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                      </a>
+                    </div>
+                  </div>
+                <% } %>
+
+                <% if (can('createAssignments')) { %>
+                  <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="admin-tool-card h-100">
+                      <div class="admin-tool-icon text-info">
+                        <i class="fa-solid fa-calendar-check"></i>
+                      </div>
+                      <h3 class="admin-tool-title">Volunteer Schedule</h3>
+                      <p class="admin-tool-desc">Look up any volunteer's shift assignments across all convention days. Print or send their schedule via SMS or email.</p>
+                      <a href="/oversight/tools/volunteer-schedule" class="btn btn-info admin-tool-btn">
                         Open <i class="fa-solid fa-arrow-right ms-1"></i>
                       </a>
                     </div>

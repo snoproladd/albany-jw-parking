@@ -715,7 +715,7 @@ changes on their behalf.
 
 The **Assignment & Role** section (collapsed at top) lets you set:
 - Their role (REGISTERED or KEYMAN — OVERSEER+ only)
-- Crew assignments: Lots & Garages, Signs, Security, Mobile Support, Dropoff & Pickup
+- Crew assignments: Lots & Garages, Signs, Security, Mobile Support, Dropoff & Pickup, Desk
 
 The **Convention Invitations** section (collapsed at bottom) shows all
 current-year invitations for this volunteer. Use the Yes / No / Maybe /
@@ -992,8 +992,8 @@ convention day.
 
 Before the Scheduler can display a grid, each shift in Timelines must have
 its **Department** column set (via direct DB edit or a future UI field) to
-one of the five department keys: `lots_and_garages`, `signs`, `security`,
-`dropoff_pickup`, `mobile_support`. Shifts without a department are excluded
+one of the six department keys: `lots_and_garages`, `signs`, `security`,
+`dropoff_pickup`, `mobile_support`, `desk`. Shifts without a department are excluded
 from the grid.
 
 Schedule assignments on those shifts should also have **Min** and **Max**
@@ -1050,7 +1050,7 @@ to open the report in a new tab.
 
 **Layout:**
 - Each department (Lots & Garages, Signs, Security, Drop-off/Pickup,
-  Mobile Support) renders as its own section, with a page break between
+  Mobile Support, Desk) renders as its own section, with a page break between
   departments when printed.
 - Within each department, shifts appear as sub-sections showing the time
   range. Each location is a column card listing the **KM** (blue),
@@ -1133,6 +1133,31 @@ department:
 - **Drag** a pill onto another to swap their column order. Hold and move more
   than a few pixels to enter drag mode; release over the target pill to confirm
   the swap.
+
+---
+
+### Volunteer Schedule *(OVERSEER+)*
+
+**Path:** Operations → Volunteer Schedule
+
+Look up any volunteer's shift assignments across all convention days.
+
+1. Type a volunteer's name in the **search bar** — results appear as you type
+   (minimum 2 characters). Click a result to load their schedule.
+2. The report shows all days with assignments, each listing the shift name,
+   time range, department, location, and role (Keyman, Keyman Asst, or
+   Volunteer). KM/KA contact info is shown for non-leadership volunteers.
+3. Use the **Day** dropdown to filter to a single convention day.
+4. Use the **Crew** filter chips to toggle departments on or off.
+5. Click **Print** to open the browser print dialog (each day gets a page break).
+6. Click **Send** to deliver the schedule to the volunteer via SMS or email.
+   The modal shows which channels are available based on the volunteer's
+   contact info on file.
+
+> **Volunteer self-service:** Volunteers with REGISTERED+ access can view their
+> own schedule at `/my-schedule` (linked from My Account, Resources, and the
+> home page "Full Schedule" button). Same layout, same filters, same print —
+> but restricted to their own assignments. They can also send it to themselves.
 
 ---
 

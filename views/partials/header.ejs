@@ -62,11 +62,19 @@
               </a>
               <ul class="dropdown-menu" aria-labelledby="resourcesDropdown">
                 <li>
+                  <a class="dropdown-item" href="/my-schedule">
+                    <i class="fa-solid fa-calendar-check me-1"></i>
+                    My Schedule
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider" /></li>
+                <li>
                   <a class="dropdown-item" href="/maps">
                     <i class="fa-solid fa-map me-1"></i>
                     Maps
                   </a>
                 </li>
+
                 <% if (can('viewSigns')) { %>
                 <li>
                   <a class="dropdown-item" href="/signs">
@@ -247,9 +255,15 @@
                         <li><a class="ot-nav-item" href="/oversight/tools/crew-assignments">
                           <i class="fa-solid fa-people-group"></i>Crew Assignments
                         </a></li>
-                        <li><a class="ot-nav-item" href="/oversight/tools/scheduler">
-                          <i class="fa-solid fa-calendar-days"></i>Scheduler
-                        </a></li>
+                       <li><a class="ot-nav-item" href="/oversight/tools/scheduler">
+                        <i class="fa-solid fa-calendar-days"></i>Scheduler
+                      </a></li>
+                      <li><a class="ot-nav-item" href="/oversight/tools/conflict-grid">
+                        <i class="fa-solid fa-table-cells"></i>Conflict Grid
+                      </a></li>
+                      <li><a class="ot-nav-item" href="/oversight/tools/volunteer-schedule">
+                        <i class="fa-solid fa-calendar-check"></i>Volunteer Schedule
+                      </a></li>
                       <% } %>
                       <% if (can('accessAdminConsole')) { %>
                         <li><a class="ot-nav-item" href="/oversight/tools/shift-alerts">
@@ -405,6 +419,14 @@
                       My Account
                     </a>
                   </li>
+                  <% if (isAtLeast('REGISTERED')) { %>
+                  <li>
+                    <a class="dropdown-item" href="/my-schedule">
+                      <i class="fa-solid fa-calendar-check me-1"></i>
+                      My Schedule
+                    </a>
+                  </li>
+                  <% } %>
                 <% } %>
               </ul>
             </li>
