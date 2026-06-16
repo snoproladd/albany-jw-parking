@@ -102,6 +102,7 @@ import {
   getBlackoutsForVolunteer,
   createBlackout,
   deleteBlackout,
+  getConflictGridData,
   getOversightStructure,
   addOversightStructureNode,
   saveOversightStructureOrder,
@@ -285,7 +286,8 @@ export function oversightRouter({
           pwSuccess,
           canDelete,
           includeDeleted,
-          canGrantExtraPerms: actorRole === "ADMIN" || actorRole === "ASSISTANT_ADMIN",
+          canGrantExtraPerms:
+            actorRole === "ADMIN" || actorRole === "ASSISTANT_ADMIN",
         });
       } catch (err) {
         (logError || console.error)("editVolunteer GET error:", err);
@@ -341,7 +343,8 @@ export function oversightRouter({
           includeDeleted,
           rsvpHistory,
           conventionDays,
-          canGrantExtraPerms: actorRole === "ADMIN" || actorRole === "ASSISTANT_ADMIN",
+          canGrantExtraPerms:
+            actorRole === "ADMIN" || actorRole === "ASSISTANT_ADMIN",
         });
 
         return res.render("volunteerAccountOversight", {
@@ -590,7 +593,9 @@ export function oversightRouter({
       const { volunteerId, optOut } = req.body || {};
       const id = Number(volunteerId);
       if (!id)
-        return res.status(400).json({ success: false, error: "Invalid volunteer ID." });
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid volunteer ID." });
 
       try {
         await setVolunteerSmsOptOutManual(id, !!optOut);
@@ -956,7 +961,8 @@ export function oversightRouter({
             // value entirely if the actor doesn't have the authority, so a
             // crafted POST body can't elevate a volunteer's permissions.
             extraSignsPlacement: canGrantExtraPerms
-              ? extra_signs_placement === "true" || extra_signs_placement === true
+              ? extra_signs_placement === "true" ||
+                extra_signs_placement === true
               : undefined,
           },
           req.session.userEmail || "admin",
@@ -2395,11 +2401,14 @@ export function oversightRouter({
           .status(400)
           .json({ success: false, error: "Invalid year or convention date." });
       const normStart = parseTimeString(program_start);
-      const normEnd   = parseTimeString(program_end);
+      const normEnd = parseTimeString(program_end);
       if (!normStart || !normEnd)
         return res
           .status(400)
-          .json({ success: false, error: "Invalid time format. Use HH:MM or H:MM AM/PM." });
+          .json({
+            success: false,
+            error: "Invalid time format. Use HH:MM or H:MM AM/PM.",
+          });
 
       try {
         const id = await createConventionDay({
@@ -2426,8 +2435,14 @@ export function oversightRouter({
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
-      const { label, convention_date, program_start, program_end, notes, schedulable } =
-        req.body || {};
+      const {
+        label,
+        convention_date,
+        program_start,
+        program_end,
+        notes,
+        schedulable,
+      } = req.body || {};
 
       const conventionDateObj = convention_date
         ? new Date(String(convention_date).slice(0, 10) + "T12:00:00Z")
@@ -2450,11 +2465,14 @@ export function oversightRouter({
           .json({ success: false, error: "Invalid convention date." });
 
       const normStart = parseTimeString(program_start);
-      const normEnd   = parseTimeString(program_end);
+      const normEnd = parseTimeString(program_end);
       if (!normStart || !normEnd)
         return res
           .status(400)
-          .json({ success: false, error: "Invalid time format. Use HH:MM or H:MM AM/PM." });
+          .json({
+            success: false,
+            error: "Invalid time format. Use HH:MM or H:MM AM/PM.",
+          });
 
       try {
         const ok = await updateConventionDay(id, {
@@ -2536,11 +2554,14 @@ export function oversightRouter({
           .json({ success: false, error: "Missing required fields." });
 
       const normStart = parseTimeString(program_start);
-      const normEnd   = parseTimeString(program_end);
+      const normEnd = parseTimeString(program_end);
       if (!normStart || !normEnd)
         return res
           .status(400)
-          .json({ success: false, error: "Invalid time format. Use HH:MM or H:MM AM/PM." });
+          .json({
+            success: false,
+            error: "Invalid time format. Use HH:MM or H:MM AM/PM.",
+          });
 
       try {
         const newId = await copyConventionDay(sourceDayId, {
@@ -2581,11 +2602,14 @@ export function oversightRouter({
           .status(400)
           .json({ success: false, error: "Missing required fields." });
       const normStart = parseTimeString(start_time);
-      const normEnd   = parseTimeString(end_time);
+      const normEnd = parseTimeString(end_time);
       if (!normStart || !normEnd)
         return res
           .status(400)
-          .json({ success: false, error: "Invalid time format. Use HH:MM or H:MM AM/PM." });
+          .json({
+            success: false,
+            error: "Invalid time format. Use HH:MM or H:MM AM/PM.",
+          });
 
       try {
         const id = await createSession({
@@ -2618,11 +2642,14 @@ export function oversightRouter({
           .status(400)
           .json({ success: false, error: "Missing required fields." });
       const normStart = parseTimeString(start_time);
-      const normEnd   = parseTimeString(end_time);
+      const normEnd = parseTimeString(end_time);
       if (!normStart || !normEnd)
         return res
           .status(400)
-          .json({ success: false, error: "Invalid time format. Use HH:MM or H:MM AM/PM." });
+          .json({
+            success: false,
+            error: "Invalid time format. Use HH:MM or H:MM AM/PM.",
+          });
 
       try {
         const ok = await updateSession(id, {
@@ -2673,7 +2700,7 @@ export function oversightRouter({
     requirePermission("manageShifts"),
     csrfProtection,
     async (req, res) => {
-  const {
+      const {
         session_id,
         event_type_id,
         label,
@@ -2695,11 +2722,14 @@ export function oversightRouter({
           .status(400)
           .json({ success: false, error: "Missing required fields." });
       const normStart = parseTimeString(start_time);
-      const normEnd   = parseTimeString(end_time);
+      const normEnd = parseTimeString(end_time);
       if (!normStart || !normEnd)
         return res
           .status(400)
-          .json({ success: false, error: "Invalid time format. Use HH:MM or H:MM AM/PM." });
+          .json({
+            success: false,
+            error: "Invalid time format. Use HH:MM or H:MM AM/PM.",
+          });
 
       try {
         const id = await createShift({
@@ -2744,11 +2774,14 @@ export function oversightRouter({
           .status(400)
           .json({ success: false, error: "Missing required fields." });
       const normStart = parseTimeString(start_time);
-      const normEnd   = parseTimeString(end_time);
+      const normEnd = parseTimeString(end_time);
       if (!normStart || !normEnd)
         return res
           .status(400)
-          .json({ success: false, error: "Invalid time format. Use HH:MM or H:MM AM/PM." });
+          .json({
+            success: false,
+            error: "Invalid time format. Use HH:MM or H:MM AM/PM.",
+          });
 
       try {
         const ok = await updateShift(id, {
@@ -3056,7 +3089,7 @@ export function oversightRouter({
         shiftId = null,
         force = false,
         isReminder = false,
-        messageType = 'invitation',
+        messageType = "invitation",
         responseConfig = null,
       } = req.body || {};
 
@@ -3223,9 +3256,11 @@ export function oversightRouter({
             parentBatchId: campaignMode === "followup" ? resolvedParent : null,
             responseNeeded:
               responseNeeded !== false && responseNeeded !== "false",
-            messageType: ['invitation','alert','followup'].includes(messageType)
+            messageType: ["invitation", "alert", "followup"].includes(
+              messageType,
+            )
               ? messageType
-              : 'invitation',
+              : "invitation",
             responseConfig: responseConfig || null,
           });
         }
@@ -3305,8 +3340,11 @@ export function oversightRouter({
         // If none is found (e.g. revoked, already responded, or missing),
         // skip this volunteer rather than creating a new invitation record.
         if (isReminder && !existingInvitation) {
-            skipped.push({ name: shortName, reason: "No open invitation found to remind." });
-            continue;
+          skipped.push({
+            name: shortName,
+            reason: "No open invitation found to remind.",
+          });
+          continue;
         }
 
         const token = existingInvitation
@@ -3870,9 +3908,9 @@ export function oversightRouter({
           responseNeeded:
             responseNeeded !== false && responseNeeded !== "false",
           active: active !== false && active !== "false",
-          messageType: ['invitation','alert','followup'].includes(messageType)
+          messageType: ["invitation", "alert", "followup"].includes(messageType)
             ? messageType
-            : 'invitation',
+            : "invitation",
           responseConfig: responseConfig || null,
         });
 
@@ -4570,7 +4608,9 @@ export function oversightRouter({
           getSchedulerReportData(dayId),
           getConventionDays(new Date().getFullYear()),
         ]);
-        const conventionDays = allDays.filter((d) => d.schedulable !== false && d.schedulable !== 0);
+        const conventionDays = allDays.filter(
+          (d) => d.schedulable !== false && d.schedulable !== 0,
+        );
         return res.render("authentication_and_accounts/schedulerReport", {
           csrfToken: req.csrfToken(),
           reportData,
@@ -4583,7 +4623,55 @@ export function oversightRouter({
       }
     },
   );
+  // ─── Master Conflict Grid ──────────────────────────────────────────
 
+  /**
+   * GET /oversight/tools/conflict-grid
+   * Render the Master Conflict Grid page shell.
+   * Data loads client-side via the API endpoint.
+   *
+   * @requires createAssignments permission
+   */
+  router.get(
+    "/oversight/tools/conflict-grid",
+    requireAuth,
+    requirePermission("createAssignments"),
+    csrfProtection,
+    async (req, res) => {
+      try {
+        return res.render("authentication_and_accounts/conflictGrid", {
+          csrfToken: req.csrfToken(),
+        });
+      } catch (err) {
+        (logError || console.error)("conflict-grid GET error:", err);
+        return res.status(500).send("Server error");
+      }
+    },
+  );
+
+  /**
+   * GET /api/conflict-grid
+   * Return all data needed to build the Master Conflict Grid.
+   *
+   * Response: { shifts, volunteers, assignments, blackouts }
+   *
+   * @requires createAssignments permission
+   */
+  router.get(
+    "/api/conflict-grid",
+    requireAuth,
+    requirePermission("createAssignments"),
+    async (req, res) => {
+      try {
+        const year = new Date().getFullYear();
+        const data = await getConflictGridData(year);
+        return res.json(data);
+      } catch (err) {
+        (logError || console.error)("api/conflict-grid GET error:", err);
+        return res.status(500).json({ error: "Server error." });
+      }
+    },
+  );
   /**
    * GET /oversight/tools/scheduler
    * Render the drag-and-drop volunteer scheduler page.
@@ -4601,7 +4689,9 @@ export function oversightRouter({
       try {
         const year = new Date().getFullYear();
         const allDays = await getConventionDays(year);
-        const conventionDays = allDays.filter((d) => d.schedulable !== false && d.schedulable !== 0);
+        const conventionDays = allDays.filter(
+          (d) => d.schedulable !== false && d.schedulable !== 0,
+        );
         return res.render("authentication_and_accounts/scheduler", {
           csrfToken: req.csrfToken(),
           conventionDays,
@@ -4803,7 +4893,9 @@ export function oversightRouter({
       try {
         const schedule = await getAlertSchedule(id);
         if (!schedule)
-          return res.status(404).json({ success: false, error: "Schedule not found." });
+          return res
+            .status(404)
+            .json({ success: false, error: "Schedule not found." });
 
         const easternToday = new Date(Date.now() - 4 * 60 * 60 * 1000)
           .toISOString()
@@ -4814,18 +4906,24 @@ export function oversightRouter({
           : easternToday;
 
         const shifts = await getSchedulePreview({
-          scheduleId:      schedule.id,
-          alertCategory:   schedule.alert_category,
+          scheduleId: schedule.id,
+          alertCategory: schedule.alert_category,
           fireDate,
-          departments:     schedule.departments || null,
+          departments: schedule.departments || null,
           includeNullDept: !!schedule.include_null_dept,
-          year:            schedule.year,
+          year: schedule.year,
         });
 
         // Build human-readable fire time for the response
         let fireAt = null;
-        if (schedule.alert_category !== "t15min" && schedule.fire_date && schedule.fire_time_utc) {
-          const fireDateStr = new Date(schedule.fire_date).toISOString().slice(0, 10);
+        if (
+          schedule.alert_category !== "t15min" &&
+          schedule.fire_date &&
+          schedule.fire_time_utc
+        ) {
+          const fireDateStr = new Date(schedule.fire_date)
+            .toISOString()
+            .slice(0, 10);
           fireAt = `${fireDateStr}T${schedule.fire_time_utc}Z`;
         }
 
@@ -5389,15 +5487,27 @@ export function oversightRouter({
       try {
         const schedule = await getAlertSchedule(id);
         if (!schedule)
-          return res.status(404).json({ success: false, error: "Schedule not found." });
+          return res
+            .status(404)
+            .json({ success: false, error: "Schedule not found." });
         if (schedule.active)
-          return res.status(400).json({ success: false, error: "Deactivate the schedule before deleting it." });
+          return res
+            .status(400)
+            .json({
+              success: false,
+              error: "Deactivate the schedule before deleting it.",
+            });
         const ok = await hardDeleteAlertSchedule(id);
         if (!ok)
-          return res.status(404).json({ success: false, error: "Schedule not found." });
+          return res
+            .status(404)
+            .json({ success: false, error: "Schedule not found." });
         return res.json({ success: true });
       } catch (err) {
-        (logError || console.error)("shift-alerts/schedules/permanent DELETE error:", err);
+        (logError || console.error)(
+          "shift-alerts/schedules/permanent DELETE error:",
+          err,
+        );
         return res.status(500).json({ success: false, error: "Server error." });
       }
     },
@@ -5459,7 +5569,9 @@ export function oversightRouter({
           });
         }
 
-        (logError || console.log)(`[shift-alerts send] schedule ${id}: category=${schedule.alert_category} fireDate=${fireDate} year=${year} depts=${schedule.departments} rows=${rows.length}`);
+        (logError || console.log)(
+          `[shift-alerts send] schedule ${id}: category=${schedule.alert_category} fireDate=${fireDate} year=${year} depts=${schedule.departments} rows=${rows.length}`,
+        );
 
         if (force) {
           // On a forced re-send, bypass the dupe guard by re-querying without it.
@@ -5574,14 +5686,15 @@ export function oversightRouter({
     requirePermission("manageCampaigns"),
     csrfProtection,
     async (req, res) => {
-      const { parent_id, role_title, volunteer_id, sort_order } = req.body || {};
+      const { parent_id, role_title, volunteer_id, sort_order } =
+        req.body || {};
 
       try {
         const id = await addHierarchyNode({
-          parent_id:    parent_id    != null ? Number(parent_id)    : null,
+          parent_id: parent_id != null ? Number(parent_id) : null,
           volunteer_id: volunteer_id != null ? Number(volunteer_id) : null,
-          role_title:   role_title?.trim()   || "New Role",
-          sort_order:   sort_order   != null ? Number(sort_order)   : 0,
+          role_title: role_title?.trim() || "New Role",
+          sort_order: sort_order != null ? Number(sort_order) : 0,
         });
         return res.json({ success: true, id });
       } catch (err) {
@@ -5620,10 +5733,10 @@ export function oversightRouter({
       const persistedNodes = nodes
         .filter((n) => n.id > 0)
         .map((n) => ({
-          id:           Number(n.id),
-          parent_id:    n.parent_id != null ? Number(n.parent_id) : null,
-          sort_order:   n.sort_order != null ? Number(n.sort_order) : 0,
-          role_title:   n.role_title?.trim() || "",
+          id: Number(n.id),
+          parent_id: n.parent_id != null ? Number(n.parent_id) : null,
+          sort_order: n.sort_order != null ? Number(n.sort_order) : 0,
+          role_title: n.role_title?.trim() || "",
           volunteer_id: n.volunteer_id != null ? Number(n.volunteer_id) : null,
         }));
 
@@ -5714,33 +5827,29 @@ export function oversightRouter({
    * Body (JSON): { description: string, steps?: string, pageUrl?: string }
    * Response:    { success: boolean }
    */
-  router.post(
-    "/api/bug-report",
-    requireAuth,
-    async (req, res) => {
-      const { description, steps, pageUrl } = req.body || {};
+  router.post("/api/bug-report", requireAuth, async (req, res) => {
+    const { description, steps, pageUrl } = req.body || {};
 
-      if (!description?.trim()) {
-        return res
-          .status(400)
-          .json({ success: false, error: "Description is required." });
-      }
+    if (!description?.trim()) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Description is required." });
+    }
 
-      try {
-        await createBugReport({
-          volunteerId: req.session.userId,
-          description: description.trim(),
-          steps:       steps?.trim()   || null,
-          pageUrl:     pageUrl?.trim() || null,
-          userAgent:   req.headers["user-agent"]?.slice(0, 500) || null,
-        });
-        return res.json({ success: true });
-      } catch (err) {
-        (logError || console.error)("api/bug-report POST error:", err);
-        return res.status(500).json({ success: false, error: "Server error." });
-      }
-    },
-  );
+    try {
+      await createBugReport({
+        volunteerId: req.session.userId,
+        description: description.trim(),
+        steps: steps?.trim() || null,
+        pageUrl: pageUrl?.trim() || null,
+        userAgent: req.headers["user-agent"]?.slice(0, 500) || null,
+      });
+      return res.json({ success: true });
+    } catch (err) {
+      (logError || console.error)("api/bug-report POST error:", err);
+      return res.status(500).json({ success: false, error: "Server error." });
+    }
+  });
 
   /**
    * POST /oversight/tools/bug-reports/log
@@ -5757,23 +5866,35 @@ export function oversightRouter({
     requirePermission("accessAdminConsole"),
     csrfProtection,
     async (req, res) => {
-      const { description, steps, pageUrl, status, solution, filesTouched, fixedAt } = req.body || {};
+      const {
+        description,
+        steps,
+        pageUrl,
+        status,
+        solution,
+        filesTouched,
+        fixedAt,
+      } = req.body || {};
       const validStatuses = ["open", "fixed", "wontfix", "duplicate"];
 
       if (!description?.trim()) {
-        return res.status(400).json({ success: false, error: "Description is required." });
+        return res
+          .status(400)
+          .json({ success: false, error: "Description is required." });
       }
       if (status && !validStatuses.includes(status)) {
-        return res.status(400).json({ success: false, error: "Invalid status." });
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid status." });
       }
 
       try {
         const id = await createBugReport({
           volunteerId: req.session.userId,
           description: description.trim(),
-          steps:       steps?.trim()   || null,
-          pageUrl:     pageUrl?.trim() || null,
-          userAgent:   "admin-manual",
+          steps: steps?.trim() || null,
+          pageUrl: pageUrl?.trim() || null,
+          userAgent: "admin-manual",
         });
 
         // If resolution fields were provided, apply them immediately
@@ -5806,7 +5927,9 @@ export function oversightRouter({
     requirePermission("accessAdminConsole"),
     csrfProtection,
     async (req, res) => {
-      const status = ["open", "fixed", "wontfix", "duplicate"].includes(req.query.status)
+      const status = ["open", "fixed", "wontfix", "duplicate"].includes(
+        req.query.status,
+      )
         ? req.query.status
         : null;
 
@@ -5847,7 +5970,9 @@ export function oversightRouter({
       const validStatuses = ["open", "fixed", "wontfix", "duplicate"];
 
       if (!validStatuses.includes(status)) {
-        return res.status(400).json({ success: false, error: "Invalid status." });
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid status." });
       }
 
       try {
@@ -5857,7 +5982,9 @@ export function oversightRouter({
           req.session.userEmail || "admin",
         );
         if (!ok) {
-          return res.status(404).json({ success: false, error: "Report not found." });
+          return res
+            .status(404)
+            .json({ success: false, error: "Report not found." });
         }
         return res.json({ success: true });
       } catch (err) {

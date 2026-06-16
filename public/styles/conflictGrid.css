@@ -1,0 +1,351 @@
+/* public/styles/conflictGrid.css */
+
+/* ── Scrollable wrapper ────────────────────────────────────────── */
+.cg-wrapper {
+    overflow: auto;
+    max-height: calc(100vh - 200px);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.375rem;
+    background: var(--bs-body-bg);
+}
+/* ── Centering container ───────────────────────────────────────── */
+.cg-container {
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 auto;
+}
+.cg-controls-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.cg-controls-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.cg-toggles {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    background: var(--bs-body-bg);
+    padding: 0.35rem 0.6rem;
+    border-radius: 0.375rem;
+    border: 1px solid var(--bs-border-color);
+    font-size: 0.8rem;
+}
+
+.cg-toggles .form-check-label {
+    color: var(--bs-body-color);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* ── Table base ────────────────────────────────────────────────── */
+.cg-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+
+/* ── Sticky header ─────────────────────────────────────────────── */
+.cg-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+}
+
+.cg-day-header {
+    color: #fff;
+    text-align: center;
+    padding: 0.25rem 0.375rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+/* ── Per-day header colors ─────────────────────────────────────── */
+.cg-day-header-0 { background: #4a7ab5; }
+.cg-day-header-1 { background: #5a9e6f; border-left: 3px solid #3a5c4a; }
+.cg-day-header-2 { background: #b8893a; border-left: 3px solid #8a6828; }
+
+.cg-shift-header {
+    padding: 0;
+    border-right: 1px solid var(--bs-border-color);
+    border-bottom: 1px solid var(--bs-border-color);
+    font-weight: 600;
+    max-width: 60px;
+    height: 110px;
+    overflow: hidden;
+    vertical-align: bottom;
+}
+
+.cg-shift-text {
+    display: block;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    font-size: 0.7rem;
+    line-height: 1.15;
+    padding: 0.2rem 0.3rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    height: 100%;
+}
+
+/* ── Department colors on shift headers ────────────────────────── */
+.cg-dept-lots_and_garages {
+    background-color: #cfe2ff;
+    color: #052c65;
+}
+
+.cg-dept-signs {
+    background-color: #d1e7dd;
+    color: #0a3622;
+}
+
+.cg-dept-security {
+    background-color: #f8d7da;
+    color: #58151c;
+}
+
+.cg-dept-dropoff_pickup {
+    background-color: #e2d9f3;
+    color: #2e1f5e;
+}
+
+.cg-dept-mobile_support {
+    background-color: #fff3cd;
+    color: #664d03;
+}
+
+/* ── Sticky corner (name column header area) ───────────────────── */
+.cg-corner {
+    position: sticky;
+    left: 0;
+    z-index: 4;
+    background: var(--bs-gray-200);
+    border-right: 3px solid #4a7ab5;
+    border-bottom: 2px solid var(--bs-border-color);
+    min-width: 160px;
+    padding: 0.25rem;
+    vertical-align: bottom;
+}
+
+.cg-search {
+    width: 100%;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.25rem;
+    padding: 0.2rem 0.4rem;
+    font-size: 0.75rem;
+    outline: none;
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+}
+
+.cg-search:focus {
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 2px rgba(74, 122, 181, 0.25);
+}
+
+.cg-search::placeholder {
+    color: var(--bs-secondary-color);
+    font-style: italic;
+}
+
+/* ── Name column (sticky left) ─────────────────────────────────── */
+.cg-name {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: var(--bs-body-bg);
+    border-right: 3px solid #4a7ab5;
+    padding: 0.2rem 0.5rem;
+    font-weight: 600;
+    min-width: 160px;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cg-table tbody tr:nth-child(even) .cg-name {
+    background: var(--bs-gray-100);
+}
+
+.cg-table tbody tr:hover .cg-name {
+    background: #e8e4d8;
+}
+
+/* ── Data cells ────────────────────────────────────────────────── */
+.cg-cell {
+    text-align: center;
+    padding: 0.15rem 0.25rem;
+    border-right: 1px solid var(--bs-border-color);
+    border-bottom: 1px solid var(--bs-border-color);
+    min-width: 36px;
+    font-weight: 700;
+    cursor: default;
+}
+
+/* ── Day boundary divider (header + body) ──────────────────────── */
+.cg-day-start {
+    border-left: 3px solid #4a7ab5 !important;
+}
+
+/* ── Column hover highlight (translucent band) ─────────────────── */
+.cg-col-highlight {
+    box-shadow: inset 0 0 0 100px rgba(74, 122, 181, 0.1);
+}
+
+
+
+/* ── Per-day pastel tints on body cells ─────────────────────────── */
+.cg-day-0 { background-color: #edf3fb; }
+.cg-day-1 { background-color: #eef6f0; }
+.cg-day-2 { background-color: #fdf6ea; }
+
+.cg-table tbody tr:nth-child(even) .cg-day-0 { background-color: #e3ecf6; }
+.cg-table tbody tr:nth-child(even) .cg-day-1 { background-color: #e4efe7; }
+.cg-table tbody tr:nth-child(even) .cg-day-2 { background-color: #f5eddf; }
+
+.cg-table tbody tr:hover .cg-day-0 { background-color: #d6e4f2; }
+.cg-table tbody tr:hover .cg-day-1 { background-color: #d6e9da; }
+.cg-table tbody tr:hover .cg-day-2 { background-color: #ede3d1; }
+
+/* ── Cell status colors (override row hover/stripe) ────────────── */
+.cg-cell-assigned {
+    background-color: #d1e7dd !important;
+    color: #0a3622;
+}
+
+.cg-cell-pc {
+    background-color: #fff3cd !important;
+    color: #664d03;
+}
+
+.cg-cell-xpc {
+    background-color: #f4c87c !important;
+    color: #5a3600;
+}
+
+.cg-cell-sc {
+    background-color: #f8d7da !important;
+    color: #842029;
+}
+
+.cg-cell-scpc {
+    background-color: #e35d6a !important;
+    color: #fff;
+    font-weight: 800;
+}
+
+/* ── Legend card ────────────────────────────────────────────────── */
+.cg-legend-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    background: var(--bs-body-bg);
+    padding: 0.4rem 0.6rem;
+    border-radius: 0.375rem;
+    border: 1px solid var(--bs-border-color);
+}
+
+.cg-legend-row {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.8rem;
+    flex-wrap: wrap;
+}
+
+.cg-legend-label {
+    font-weight: 700;
+    color: var(--bs-body-color);
+    margin-right: 0.15rem;
+}
+
+.cg-legend-text {
+    color: var(--bs-body-color);
+    margin-right: 0.35rem;
+}
+
+.cg-legend-swatch {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    padding: 0.15rem 0.4rem;
+    border-radius: 0.25rem;
+    font-weight: 700;
+    font-size: 0.7rem;
+    margin-left: 0.5rem;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.cg-legend-swatch-assigned {
+    background-color: #d1e7dd;
+    color: #0a3622;
+}
+
+.cg-legend-swatch-pc {
+    background-color: #fff3cd;
+    color: #664d03;
+}
+
+.cg-legend-swatch-xpc {
+    background-color: #f4c87c;
+    color: #5a3600;
+}
+
+.cg-legend-swatch-sc {
+    background-color: #f8d7da;
+    color: #842029;
+}
+
+.cg-legend-swatch-scpc {
+    background-color: #e35d6a;
+    color: #fff;
+}
+
+.cg-dept-swatch {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15rem 0.45rem;
+    border-radius: 0.25rem;
+    font-weight: 600;
+    font-size: 0.7rem;
+    margin-left: 0.65rem;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.cg-dept-swatch-lots_and_garages {
+    background-color: #cfe2ff;
+    color: #052c65;
+}
+
+.cg-dept-swatch-signs {
+    background-color: #d1e7dd;
+    color: #0a3622;
+}
+
+.cg-dept-swatch-security {
+    background-color: #f8d7da;
+    color: #58151c;
+}
+
+.cg-dept-swatch-dropoff_pickup {
+    background-color: #e2d9f3;
+    color: #2e1f5e;
+}
+
+.cg-dept-swatch-mobile_support {
+    background-color: #fff3cd;
+    color: #664d03;
+}

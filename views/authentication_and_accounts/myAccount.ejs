@@ -725,6 +725,70 @@
                         </div>
                       </div>
                     </div>
+                    <%# ── My Availability (Blackout Windows) ── %>
+                    <% if (typeof conventionDays !== 'undefined' && conventionDays && conventionDays.length > 0) { %>
+                    <div class="accordion-item">
+                      <h2 class="accordion-header" id="headingBlackouts">
+                        <button class="accordion-button collapsed"
+                          type="button"
+                          data-bs-toggle="collapse"
+                          data-bs-target="#collapseBlackouts"
+                          aria-controls="collapseBlackouts">
+                          <i class="fa-solid fa-clock-rotate-left me-2"></i>My Availability
+                        </button>
+                      </h2>
+
+                      <div id="collapseBlackouts" class="accordion-collapse collapse">
+                        <div class="accordion-body" data-section="blackouts">
+
+                          <p class="text-muted small mb-3">
+                            Define times when you are unavailable on a convention day.
+                            The scheduler will avoid placing you in an overlapping slot.
+                          </p>
+
+                          <div class="mb-3">
+                            <label class="form-label small fw-semibold" for="bkDaySelect">Convention Day</label>
+                            <select class="form-select form-select-sm" id="bkDaySelect">
+                              <option value="">— Select a day —</option>
+                              <% conventionDays.forEach(function(day) { %>
+                                <option value="<%= day.id %>">
+                                  <%= day.label %> —
+                                  <%= new Date(day.convention_date).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', timeZone:'UTC' }) %>
+                                </option>
+                              <% }); %>
+                            </select>
+                          </div>
+
+                          <div id="bkList" class="mb-3"></div>
+
+                          <div id="bkAddForm" class="d-none">
+                            <div class="d-flex align-items-center gap-2 flex-wrap mb-2">
+                              <div>
+                                <label class="form-label small mb-1" for="bkStart">Start</label>
+                                <input type="time" class="form-control form-control-sm" id="bkStart" />
+                              </div>
+                              <div>
+                                <label class="form-label small mb-1" for="bkEnd">End</label>
+                                <input type="time" class="form-control form-control-sm" id="bkEnd" />
+                              </div>
+                              <div class="flex-grow-1">
+                                <label class="form-label small mb-1" for="bkReason">Reason <span class="text-muted fw-normal">(optional)</span></label>
+                                <input type="text" class="form-control form-control-sm" id="bkReason" maxlength="200" placeholder="e.g. Doctor appointment" />
+                              </div>
+                              <div class="align-self-end">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="bkAddBtn">
+                                  <i class="fa-solid fa-plus me-1"></i>Add
+                                </button>
+                              </div>
+                            </div>
+                            <div id="bkFormStatus" class="small"></div>
+                          </div>
+
+                        </div>
+                      </div>
+                    </div>
+                    <% } %>
+
                     <!-- CONVENTION INVITATIONS (read-only) -->
                     <% if (rsvpHistory && rsvpHistory.length > 0) { %>
                     <div class="accordion-item">
@@ -840,6 +904,7 @@
     <script src="/js/formListeners.js"></script>
     <script src="/js/privilegeEnforcer.js"></script>
     <script src="/js/myAccount.js"></script>
+    <script src="/js/myAccountBlackouts.js"></script>
     <%- include('../partials/footer') %>
   </body>
 </html>

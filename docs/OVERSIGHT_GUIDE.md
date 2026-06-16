@@ -690,6 +690,10 @@ From here you can update your:
 - **Spiritual info** — privileges (pioneer, elder, ministerial servant, etc.)
 - **Additional notes** — anything else the parking team should know
 - **Password** — via the Change Password panel inside the Contact section
+- **My Availability** — define blackout windows (times you are unavailable)
+  for each convention day. Select a day, enter a start and end time, add an
+  optional reason, and click Add. The scheduler will avoid placing you in
+  overlapping shifts. You can delete any blackout you have created.
 
 You can also view your **Convention Invitations** — a read-only panel showing
 all invitations sent to you for the current convention year, including your
@@ -1205,6 +1209,34 @@ Use the **filter bar** to narrow across all shifts simultaneously by:
 
 A table of all volunteers showing their registration completeness. Volunteers
 with missing required fields are flagged so oversight can follow up.
+
+### Master Conflict Grid *(OVERSEER+)*
+
+**Path:** Operations → Master Conflict Grid
+
+A full cross-day view of every volunteer against every shift. Volunteer names
+run down the left column (sticky, with a live search filter) and shifts run
+across the top, grouped by convention day with color-coded department headers.
+
+Each cell shows a status code:
+
+- **X** — assigned, no conflicts
+- **PC** — personal conflict (volunteer has a blackout overlapping this shift)
+- **X/PC** — assigned during a blackout window (warning)
+- **SC** — shift conflict (volunteer is assigned to overlapping shifts)
+- **SC/PC** — both shift and personal conflict
+
+Toggle switches above the grid control visibility:
+
+- **Show Personal Conflicts / Shift Conflicts Only** — hides or shows the
+  yellow PC cells for unassigned slots
+- **Show All Volunteers / Volunteers with Assignments Only** — expands the
+  grid to include every active volunteer, making it easy to spot anyone who
+  has not been scheduled
+
+Hover over any column to see it highlighted as a translucent band. Day
+boundary dividers and pastel background tints help visually separate the
+three convention days.
 
 ---
 

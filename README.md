@@ -234,6 +234,7 @@ parking/
 │   │   └── 404.ejs            # Not found
 │   ├── authentication_and_accounts/
 │   │   ├── login.ejs
+│   │   ├── conflictGrid.ejs
 │   │   ├── myAccount.ejs
 │   │   ├── resetPassword.ejs
 │   │   ├── chooseContinueOrUpgrade.ejs
@@ -304,6 +305,8 @@ parking/
 │   │   ├── formListeners.js           # Multi-step form navigation
 │   │   ├── formSummary.js             # Registration summary page
 │   │   ├── myAccount.js               # My Account page (edit, finalize, password)
+│   │   ├── myAccountBlackouts.js      # Self-service blackout management (My Account)
+│   │   ├── conflictGrid.js            # Master Conflict Grid report page
 │   │   ├── nonProfile.js              # Non-profile registration path
 │   │   ├── passwords.js               # Password strength + toggle visibility
 │   │   ├── phoneVer.js                # Twilio phone verification
@@ -378,6 +381,7 @@ parking/
 │   │   ├── attendance.css             # Attendance check-in + report
 │   │   ├── bugReport.css              # Bug report pages
 │   │   ├── campaignCenter.css         # Campaign centre
+│   │   ├── conflictGrid.css           # Master Conflict Grid report
 │   │   ├── createProfileLaunch.css    # Registration launch page
 │   │   ├── crewMatrix.css             # Crew matrix
 │   │   ├── invitationTracker.css      # Invitation tracker

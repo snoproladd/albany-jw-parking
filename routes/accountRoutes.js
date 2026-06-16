@@ -19,6 +19,10 @@ import {
   getVolunteerById,
   loadMergedPermissions,
   getVolunteerRsvpHistory,
+  getConventionDays,
+  getBlackoutsForVolunteer,
+  createBlackout,
+  deleteBlackoutForVolunteer,
 } from "../lib/dbSync.js";
 import { verifyPassword, hashPassword } from "../lib/passwordVer.js";
 
@@ -796,9 +800,10 @@ export function loginRouter({ csrfProtection, logError }) {
         return res.redirect("/login");
       }
 
-      const [congregations, rawRsvpHistory] = await Promise.all([
+      const [congregations, rawRsvpHistory, conventionDays] = await Promise.all([
         getCongregations(),
         getVolunteerRsvpHistory(id, new Date().getFullYear()),
+        getConventionDays(new Date().getFullYear()),
       ]);
       const gender = user.gender || "";
       const rsvpHistory = formatRsvpHistory(rawRsvpHistory);
@@ -812,6 +817,7 @@ export function loginRouter({ csrfProtection, logError }) {
         pwError,
         pwSuccess,
         rsvpHistory,
+        conventionDays,
       });
     } catch (err) {
       (logError || console.error)("myAccount GET error:", err);
@@ -1161,6 +1167,112 @@ export function loginRouter({ csrfProtection, logError }) {
           success: false,
           message: "Failed to finalize changes.",
         });
+      }
+    },
+  );
+
+  // ─── Self-Service Blackout Routes ─────────────────────────────────────
+
+  /**
+   * GET /api/my-account/blackouts
+   * Fetch the logged-in volunteer's blackout windows for a convention day.
+   *
+   * Query: ?dayId=N
+   * Response: { success: boolean, blackouts: Array }
+   */
+  router.get(
+    "/api/my-account/blackouts",
+    requireAuth,
+    async (req, res) => {
+      const volunteerId = req.session.userId;
+      const dayId = Number(req.query.dayId);
+      if (!dayId) {
+        return res
+          .status(400)
+          .json({ success: false, error: "Missing dayId." });
+      }
+      try {
+        const blackouts = await getBlackoutsForVolunteer(volunteerId, dayId);
+        return res.json({ success: true, blackouts });
+      } catch (err) {
+        (logError || console.error)("my-account blackouts GET error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * POST /api/my-account/blackouts
+   * Create a blackout window for the logged-in volunteer.
+   *
+   * Body: { conventionDayId, startMins, endMins, reason? }
+   * Response: { success: boolean, id: number }
+   */
+  router.post(
+    "/api/my-account/blackouts",
+    requireAuth,
+    csrfProtection,
+    async (req, res) => {
+      const volunteerId = req.session.userId;
+      const { conventionDayId, startMins, endMins, reason } = req.body || {};
+
+      if (
+        !conventionDayId ||
+        startMins == null ||
+        endMins == null ||
+        Number(endMins) <= Number(startMins)
+      ) {
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid parameters." });
+      }
+
+      try {
+        const id = await createBlackout({
+          volunteerId,
+          conventionDayId: Number(conventionDayId),
+          startMins: Number(startMins),
+          endMins: Number(endMins),
+          reason: reason || null,
+          createdBy: req.session.userEmail || "self-service",
+        });
+        return res.json({ success: true, id });
+      } catch (err) {
+        (logError || console.error)("my-account blackouts POST error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * DELETE /api/my-account/blackouts/:id
+   * Remove a blackout window only if it belongs to the logged-in volunteer.
+   *
+   * Response: { success: boolean }
+   */
+  router.delete(
+    "/api/my-account/blackouts/:id",
+    requireAuth,
+    csrfProtection,
+    async (req, res) => {
+      const volunteerId = req.session.userId;
+      const id = Number(req.params.id);
+      if (!id) {
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid ID." });
+      }
+      try {
+        const deleted = await deleteBlackoutForVolunteer(id, volunteerId);
+        if (!deleted) {
+          return res
+            .status(404)
+            .json({ success: false, error: "Blackout not found." });
+        }
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("my-account blackouts DELETE error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
       }
     },
   );

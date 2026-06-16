@@ -277,6 +277,21 @@
                   </div>
                 </div>
 
+                <% if (can('createAssignments')) { %>
+                <div class="col-12 col-sm-6 col-lg-4">
+                  <div class="admin-tool-card h-100">
+                    <div class="admin-tool-icon text-warning">
+                      <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <h3 class="admin-tool-title">Master Conflict Grid</h3>
+                    <p class="admin-tool-desc">View all volunteers against all shifts across every convention day. Highlights scheduling and personal conflicts at a glance.</p>
+                    <a href="/oversight/tools/conflict-grid" class="btn btn-warning admin-tool-btn">
+                      Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                    </a>
+                  </div>
+                </div>
+                <% } %>
+
               </div>
             <% } %>
             <%# ══════════════════════════════════════════════
