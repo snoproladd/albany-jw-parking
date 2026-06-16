@@ -15,11 +15,12 @@
  */
 
 import {
-    createTour,
-    navButtons,
-    startButtons,
-    finishButtons,
-} from './tourBase.js';
+  createTour,
+  navButtons,
+  startButtons,
+  finishButtons,
+  registerTour,
+} from "./tourBase.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Utilities
@@ -392,17 +393,23 @@ function detectView() {
  * @returns {void}
  */
 export function initTimelinesTour() {
-    const btn = document.getElementById('tourTriggerBtn');
-    if (!btn) return;
+  const btn = document.getElementById("tourTriggerBtn");
+  if (!btn) return;
 
-    btn.addEventListener('click', () => {
-        const view = detectView();
-        const tour =
-            view === 'event-types'        ? buildEventTypesTour() :
-            view === 'timelines-sessions'  ? buildTimelinesSessionsTour() :
-                                             buildTimelinesDaysTour();
-        tour.start();
-    });
+  const buildFn = () => {
+    const view = detectView();
+    return view === "event-types"
+      ? buildEventTypesTour()
+      : view === "timelines-sessions"
+        ? buildTimelinesSessionsTour()
+        : buildTimelinesDaysTour();
+  };
+
+  btn.addEventListener("click", () => {
+    buildFn().start();
+  });
+
+  registerTour("timelines", buildFn);
 }
 
 initTimelinesTour();

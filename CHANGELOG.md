@@ -3,6 +3,42 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## 2.52.0
+
+### Tour System — Universal Button, First-Visit Prompts & DB Persistence
+
+**Universal tour button**
+- Moved the tour trigger button from 13 individual page templates into the shared navbar header (`header.ejs`). A single `<li>` with `id="tourTriggerItem"` starts hidden (`d-none`) and is auto-revealed by `tourBase.js` when any tour module loads on the page.
+- Removed 14 per-page `#tourTriggerBtn` button instances across 13 EJS templates (timelines had two).
+- Button styled for dark navbar: white border at 50% opacity, frosted hover state, high luminance contrast for accessibility.
+
+**First-visit prompt system**
+- New `registerTour(tourId, buildFn)` export in `tourBase.js`. Each tour module registers with a stable string key and a builder function.
+- On page load, `tourBase.js` fetches the user's dismissal list from `GET /api/tours/status` (cached for the session). If the current page's tour has never been dismissed, a one-step Shepherd prompt highlights the Tour button with four options:
+  - **Take the tour** — dismisses the prompt (persisted) and starts the walkthrough
+  - **Maybe later** — closes the prompt without persisting (reappears next visit)
+  - **Don't show again** — persists dismissal for this tour only
+  - **Disable all prompts** — persists `_all` dismissal, suppressing prompts site-wide
+- Prompt buttons rendered in a 2×2 CSS grid for clean layout.
+
+**Database persistence**
+- New `volunteer_tour_dismissals` table (paired `dbo` and `demo` migrations) with composite PK `(volunteer_id, tour_id)` and FK to `volunteer_in(id)` with `ON DELETE CASCADE`.
+- `getTourDismissals(volunteerId)` — returns all dismissed tour IDs for a volunteer.
+- `dismissTour(volunteerId, tourId)` — idempotent insert of a dismissal row.
+- `GET /api/tours/status` — returns `{ dismissed: [...] }` for the logged-in user; empty array for guests.
+- `POST /api/tours/dismiss` — accepts `{ tourId }` with input validation (string, max 50 chars).
+
+**Sitemap integration**
+- Added `tourId` field to 16 page entries in `sitemap.json`, linking each page to its tour key for future badge/status display on the sitemap page.
+
+**Tour CSS for Signs pages**
+- Added Shepherd CSS and `tours.css` links plus `<script type="module">` tour tags to `signsMap.ejs`, `signsList.ejs`, and `signsBuilder.ejs` (tour JS files to be created in a follow-up).
+
+### Upcoming (queued, not yet applied)
+- Updated tour content for schedulerTour, campaignTour, and invitationTrackerTour
+- New tour files: signsMapTour.js, signsListTour.js, signsBuilderTour.js
+- `registerTour()` calls in all 16 tour modules
+
 ## 2.51.0
 
 ### Scheduler — Shift Expand, Auto-Routing & Polish

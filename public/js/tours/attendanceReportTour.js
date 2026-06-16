@@ -6,7 +6,13 @@
  * @module attendanceReportTour
  */
 
-import { createTour, navButtons, startButtons, finishButtons } from './tourBase.js';
+import {
+  createTour,
+  navButtons,
+  startButtons,
+  finishButtons,
+  registerTour,
+} from "./tourBase.js";
 
 /**
  * Builds and returns the Attendance Report tour.

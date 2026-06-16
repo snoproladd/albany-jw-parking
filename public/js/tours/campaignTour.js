@@ -6,7 +6,13 @@
  * @module campaignTour
  */
 
-import { createTour, navButtons, startButtons, finishButtons } from './tourBase.js';
+import {
+  createTour,
+  navButtons,
+  startButtons,
+  finishButtons,
+  registerTour,
+} from "./tourBase.js";
 
 /**
  * Builds and returns the Campaign Center tour.
@@ -139,6 +145,7 @@ export function initCampaignTour() {
     const btn = document.getElementById('tourTriggerBtn');
     if (!btn) return;
     btn.addEventListener('click', () => buildCampaignTour().start());
+    registerTour("campaign", buildCampaignTour);
 }
 
 initCampaignTour();

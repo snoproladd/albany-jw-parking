@@ -6,7 +6,7 @@
  * @module attendanceCheckinTour
  */
 
-import { createTour, navButtons, startButtons, finishButtons } from './tourBase.js';
+import { createTour, navButtons, startButtons, finishButtons, registerTour } from './tourBase.js';
 
 /**
  * Builds and returns the Attendance Check-In tour.
@@ -113,6 +113,8 @@ export function initAttendanceCheckinTour() {
     const btn = document.getElementById('tourTriggerBtn');
     if (!btn) return;
     btn.addEventListener('click', () => buildAttendanceCheckinTour().start());
+      registerTour("attendanceCheckin", buildAttendanceCheckinTour);
+    
 }
 
 initAttendanceCheckinTour();

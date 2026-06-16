@@ -788,6 +788,21 @@ b {
   color: #d5ecff;
 }
 
+.site-navbar .ajwp-tour-trigger {
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 6px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+}
+
+.site-navbar .ajwp-tour-trigger:hover,
+.site-navbar .ajwp-tour-trigger:focus-visible {
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.8);
+}
+
 .site-navbar .dropdown-menu {
   background: rgba(8, 28, 58, 0.97);
   backdrop-filter: blur(12px) saturate(180%);
