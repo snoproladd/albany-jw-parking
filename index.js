@@ -37,6 +37,11 @@ import { mapsRouter } from "./routes/mapsRoutes.js";
 import { signsRouter } from "./routes/signsRoutes.js";
 import { getBaseUrl, resetSmsClient } from "./lib/messaging.js";
 import { startAlertScheduler } from "./lib/alertScheduler.js";
+import { initRvTokenSecret, verifyRvToken } from "./lib/rvToken.js";
+import {
+  getShiftRendezvousById,
+  getShiftRendezvous,
+} from "./lib/dbSync.js";
 
 // Resolve paths
 const config = await getConfig();
@@ -393,6 +398,7 @@ let alertScheduler = null;
 
     const sessionSecret =
       config.sessionSecret || process.env.SESSION_SECRET || "fallback-secret";
+    initRvTokenSecret(sessionSecret);
 
     /** @type {session.SessionOptions} */
     const sessionOptions = {
@@ -683,47 +689,51 @@ let alertScheduler = null;
       }),
     );
 
-app.use("/", sitemapRouter());
-app.use(
-  "/",
-  signsRouter({
-    csrfProtection,
-    logError,
-    googleMapsApiKey: config.GOOGLE_MAPS_API_KEY,
-    // Adjust the default center / zoom here if MVP Arena isn't the right anchor.
-    defaultMapCenter: { lat: 42.648638511758264, lng: -73.75487925266984, zoom: 17 },
-    serverPort: PORT,
-    graphConfig: {
-      tenantId: config.GRAPH_TENANT_ID,
-      clientId: config.GRAPH_CLIENT_ID,
-      clientSecret: config.GRAPH_CLIENT_SECRET,
-      driveUser:
-        config.GRAPH_DRIVE_USER ||
-        "jladd@jakeofalltradespropertyserv.onmicrosoft.com",
-      folderPath:
-        config.GRAPH_FOLDER_PATH ||
-        "2026 Convention Parking/Documents for Distribution",
-    },
-  }),
-);
-app.use(
-  "/",
-  mapsRouter({
-    csrfProtection,
-    logError,
-    graphConfig: {
-      tenantId: config.GRAPH_TENANT_ID,
-      clientId: config.GRAPH_CLIENT_ID,
-      clientSecret: config.GRAPH_CLIENT_SECRET,
-      driveUser:
-        config.GRAPH_DRIVE_USER ||
-        "jladd@jakeofalltradespropertyserv.onmicrosoft.com",
-      folderPath:
-        config.GRAPH_FOLDER_PATH ||
-        "2026 Convention Parking/Documents for Distribution",
-    },
-  }),
-);
+    app.use("/", sitemapRouter());
+    app.use(
+      "/",
+      signsRouter({
+        csrfProtection,
+        logError,
+        googleMapsApiKey: config.GOOGLE_MAPS_API_KEY,
+        // Adjust the default center / zoom here if MVP Arena isn't the right anchor.
+        defaultMapCenter: {
+          lat: 42.648638511758264,
+          lng: -73.75487925266984,
+          zoom: 17,
+        },
+        serverPort: PORT,
+        graphConfig: {
+          tenantId: config.GRAPH_TENANT_ID,
+          clientId: config.GRAPH_CLIENT_ID,
+          clientSecret: config.GRAPH_CLIENT_SECRET,
+          driveUser:
+            config.GRAPH_DRIVE_USER ||
+            "jladd@jakeofalltradespropertyserv.onmicrosoft.com",
+          folderPath:
+            config.GRAPH_FOLDER_PATH ||
+            "2026 Convention Parking/Documents for Distribution",
+        },
+      }),
+    );
+    app.use(
+      "/",
+      mapsRouter({
+        csrfProtection,
+        logError,
+        graphConfig: {
+          tenantId: config.GRAPH_TENANT_ID,
+          clientId: config.GRAPH_CLIENT_ID,
+          clientSecret: config.GRAPH_CLIENT_SECRET,
+          driveUser:
+            config.GRAPH_DRIVE_USER ||
+            "jladd@jakeofalltradespropertyserv.onmicrosoft.com",
+          folderPath:
+            config.GRAPH_FOLDER_PATH ||
+            "2026 Convention Parking/Documents for Distribution",
+        },
+      }),
+    );
     app.use(
       "/",
       oversightRouter({
@@ -835,7 +845,67 @@ app.use(
     // ========================================================
 
     /**
-     * GET /invite/respond/:token
+     // ── Public rendezvous detail (token-gated, no login) ──────────
+    /**
+     * GET /rv/:scheduleAssignmentId
+     * Public page showing rendezvous point details + photo.
+     * Access is gated by an HMAC token in the ?t= query parameter.
+     */
+    app.get("/rv/:saId", async (req, res) => {
+      const saId = Number(req.params.saId);
+      const token = String(req.query.t || "");
+
+      if (!saId || !token || !verifyRvToken(saId, token)) {
+        return res.status(403).send("Invalid or expired link.");
+      }
+
+      try {
+        const rv = await getShiftRendezvous(saId);
+        if (!rv) {
+          return res.status(404).send("Rendezvous point not found.");
+        }
+
+        return res.render("authentication_and_accounts/rendezvousDetail", {
+          rv,
+          token,
+          shiftLabel: `${rv.event_type_name || "Shift"} — ${rv.shift_label || ""}`,
+          locationName: rv.location_name || "",
+        });
+      } catch (err) {
+        logError("rv/:saId GET error:", err);
+        return res.status(500).send("Server error.");
+      }
+    });
+
+    /**
+     * GET /rv/photo/:blobName
+     * Unauthenticated photo proxy for the public RV detail page.
+     * Validates an HMAC token passed as ?t= query param with the
+     * assignment ID in ?a= to prevent enumeration.
+     */
+    app.get("/rv/photo/:blobName", async (req, res) => {
+      const blobName = req.params.blobName;
+      const saId = Number(req.query.a || 0);
+      const token = String(req.query.t || "");
+
+      if (
+        !blobName?.startsWith("rv-") ||
+        !saId ||
+        !verifyRvToken(saId, token)
+      ) {
+        return res.status(403).send("Forbidden.");
+      }
+
+      try {
+        const { streamSignPhotoToResponse } =
+          await import("./lib/blobStorage.js");
+        await streamSignPhotoToResponse(blobName, res);
+      } catch (err) {
+        logError("rv/photo GET error:", err);
+        if (!res.headersSent) res.status(404).send("Not found.");
+      }
+    });
+    /**
      * Show the RSVP response page for an invite link.
      */
     app.get("/invite/respond/:token", csrfProtection, async (req, res) => {
@@ -885,12 +955,12 @@ app.use(
         const config = invitation.response_config
           ? JSON.parse(invitation.response_config)
           : null;
-        const validOptions = config?.options ?? ['yes', 'no', 'maybe'];
-        const allowOther   = config?.allowOther ?? false;
+        const validOptions = config?.options ?? ["yes", "no", "maybe"];
+        const allowOther = config?.allowOther ?? false;
 
         // Accept 'other' as a valid choice if allowOther is enabled
-        const isOther  = allowOther && response === 'other';
-        const isValid  = validOptions.includes(response) || isOther;
+        const isOther = allowOther && response === "other";
+        const isValid = validOptions.includes(response) || isOther;
 
         if (!isValid) {
           return res.redirect(
@@ -901,7 +971,9 @@ app.use(
         // For 'other' responses, store the label as the response value
         // and the free-text input in response_other
         const responseValue = isOther
-          ? (response_other?.trim() ? 'other' : null)
+          ? response_other?.trim()
+            ? "other"
+            : null
           : response;
 
         if (!responseValue) {
@@ -913,7 +985,7 @@ app.use(
         await db.markInvitationResponded(
           token,
           responseValue,
-          isOther ? (response_other?.trim() || null) : null,
+          isOther ? response_other?.trim() || null : null,
         );
         return res.redirect(
           `/invite/respond/${encodeURIComponent(token)}?responded=1`,
@@ -1025,7 +1097,10 @@ app.use(
                 );
               }
 
-              const checkT15 = await db.hasT15AlertBeenSent(smsVol.id, shift.shift_id);
+              const checkT15 = await db.hasT15AlertBeenSent(
+                smsVol.id,
+                shift.shift_id,
+              );
               if (!checkT15) {
                 res.set("Content-Type", "text/xml");
                 return res.send(
@@ -1035,7 +1110,11 @@ app.use(
                 );
               }
 
-              const checkDayId = (await db.getSchedulerDayForVolunteerShift(smsVol.id, shift.shift_id)) ?? shift.convention_day_id;
+              const checkDayId =
+                (await db.getSchedulerDayForVolunteerShift(
+                  smsVol.id,
+                  shift.shift_id,
+                )) ?? shift.convention_day_id;
               await db.upsertAttendance({
                 volunteerId: smsVol.id,
                 conventionDayId: checkDayId,
@@ -1045,7 +1124,9 @@ app.use(
                 recordedBy: `sms:${fromPhone}`,
               });
 
-              log(`SMS CHECK-IN: vol ${smsVol.id} shift ${shift.shift_id} day ${checkDayId}`);
+              log(
+                `SMS CHECK-IN: vol ${smsVol.id} shift ${shift.shift_id} day ${checkDayId}`,
+              );
               res.set("Content-Type", "text/xml");
               return res.send(
                 `<?xml version="1.0" encoding="UTF-8"?><Response>` +
@@ -1078,9 +1159,16 @@ app.use(
                 .slice(0, 10);
 
               if (shiftDate === easternToday) {
-                const codeT15 = await db.hasT15AlertBeenSent(smsVol.id, shift.shift_id);
+                const codeT15 = await db.hasT15AlertBeenSent(
+                  smsVol.id,
+                  shift.shift_id,
+                );
                 if (codeT15) {
-                  const codeDayId = (await db.getSchedulerDayForVolunteerShift(smsVol.id, shift.shift_id)) ?? shift.convention_day_id;
+                  const codeDayId =
+                    (await db.getSchedulerDayForVolunteerShift(
+                      smsVol.id,
+                      shift.shift_id,
+                    )) ?? shift.convention_day_id;
                   await db.upsertAttendance({
                     volunteerId: smsVol.id,
                     conventionDayId: codeDayId,
@@ -1092,7 +1180,9 @@ app.use(
                 }
               }
 
-              log(`SMS code confirm: vol ${smsVol.id} code ${bodyText} shift ${shift.shift_id}`);
+              log(
+                `SMS code confirm: vol ${smsVol.id} code ${bodyText} shift ${shift.shift_id}`,
+              );
               res.set("Content-Type", "text/xml");
               return res.send(
                 `<?xml version="1.0" encoding="UTF-8"?><Response>` +
@@ -1193,14 +1283,14 @@ app.use(
      * Used by tourBase.js to decide whether to show the first-visit prompt.
      */
     app.get("/api/tours/status", async (req, res) => {
-        if (!req.session?.userId) return res.json({ dismissed: [] });
-        try {
-            const dismissed = await db.getTourDismissals(req.session.userId);
-            return res.json({ dismissed });
-        } catch (err) {
-            logError("Tour status error:", err);
-            return res.json({ dismissed: [] });
-        }
+      if (!req.session?.userId) return res.json({ dismissed: [] });
+      try {
+        const dismissed = await db.getTourDismissals(req.session.userId);
+        return res.json({ dismissed });
+      } catch (err) {
+        logError("Tour status error:", err);
+        return res.json({ dismissed: [] });
+      }
     });
 
     /**
@@ -1209,20 +1299,20 @@ app.use(
      * Body: { tourId: string } — the tour key, or '_all' to disable all prompts.
      */
     app.post("/api/tours/dismiss", express.json(), async (req, res) => {
-        if (!req.session?.userId) {
-            return res.status(401).json({ error: "Not logged in" });
-        }
-        const { tourId } = req.body;
-        if (!tourId || typeof tourId !== "string" || tourId.length > 50) {
-            return res.status(400).json({ error: "Invalid tour ID" });
-        }
-        try {
-            await db.dismissTour(req.session.userId, tourId);
-            return res.json({ ok: true });
-        } catch (err) {
-            logError("Tour dismiss error:", err);
-            return res.status(500).json({ error: "Failed" });
-        }
+      if (!req.session?.userId) {
+        return res.status(401).json({ error: "Not logged in" });
+      }
+      const { tourId } = req.body;
+      if (!tourId || typeof tourId !== "string" || tourId.length > 50) {
+        return res.status(400).json({ error: "Invalid tour ID" });
+      }
+      try {
+        await db.dismissTour(req.session.userId, tourId);
+        return res.json({ ok: true });
+      } catch (err) {
+        logError("Tour dismiss error:", err);
+        return res.status(500).json({ error: "Failed" });
+      }
     });
 
     /**
@@ -1230,7 +1320,7 @@ app.use(
      * Renders the Privacy Policy page (public, no auth required).
      */
     app.get("/privacy", (req, res) => {
-        res.render("privacy");
+      res.render("privacy");
     });
 
     /**
@@ -1238,7 +1328,7 @@ app.use(
      * Renders the Terms of Service page (public, no auth required).
      */
     app.get("/terms", (req, res) => {
-        res.render("terms");
+      res.render("terms");
     });
 
     app.get("/health", (req, res) => res.send("OK"));

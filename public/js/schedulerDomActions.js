@@ -1190,6 +1190,7 @@ export async function initDomActions() {
             `${startCol} / ${endCol}`,
           );
           block.dataset.subcol = "all";
+          block.dataset.assignmentId = String(locValues[0]?.id ?? "");
           _appendDropzones(
             block,
             isMS,
@@ -1220,6 +1221,7 @@ export async function initDomActions() {
               String(startCol + subIdx),
             );
             block.dataset.subcol = String(subIdx);
+            block.dataset.assignmentId = String(loc.id ?? "");
             _appendDropzones(
               block,
               isMS,

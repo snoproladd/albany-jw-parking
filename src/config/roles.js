@@ -55,6 +55,7 @@ export const PERMISSIONS = {
     viewAttendance: false,
     viewSigns: false,
     manageSigns: false,
+    editRendezvous: false,
   },
   REGISTERED: {
     submitInfo: true,
@@ -80,6 +81,7 @@ export const PERMISSIONS = {
     viewAttendance: false,
     viewSigns: true,
     manageSigns: false,
+    editRendezvous: false,
   },
   DESK: {
     submitInfo: true,
@@ -105,6 +107,7 @@ export const PERMISSIONS = {
     viewAttendance: true,
     viewSigns: true,
     manageSigns: false,
+    editRendezvous: false,
   },
   KEYMAN: {
     submitInfo: true,
@@ -130,6 +133,7 @@ export const PERMISSIONS = {
     viewAttendance: true,
     viewSigns: true,
     manageSigns: false,
+    editRendezvous: true,
   },
   OVERSEER: {
     submitInfo: true,
@@ -155,6 +159,7 @@ export const PERMISSIONS = {
     viewAttendance: true,
     viewSigns: true,
     manageSigns: true,
+    editRendezvous: true,
   },
   ASSISTANT_ADMIN: {
     submitInfo: true,
@@ -180,6 +185,7 @@ export const PERMISSIONS = {
     viewAttendance: true,
     viewSigns: true,
     manageSigns: true,
+    editRendezvous: true,
   },
   ADMIN: {
     submitInfo: true,
@@ -205,6 +211,7 @@ export const PERMISSIONS = {
     viewAttendance: true,
     viewSigns: true,
     manageSigns: true,
+    editRendezvous: true,
   },
 };
 

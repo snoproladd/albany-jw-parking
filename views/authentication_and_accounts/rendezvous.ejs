@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Rendezvous Points — Albany JW Parking</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/rendezvous.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+    <meta name="csrf-token" content="<%= csrfToken %>" />
+    <meta name="user-role" content="<%= userRole %>" />
+  </head>
+
+  <body class="min-vh-100 bg-body-tertiary" data-authed="true">
+    <%- include('../partials/header') %>
+
+    <main class="container-fluid py-4">
+      <div class="row justify-content-center">
+        <div class="col-12 col-lg-10 col-xl-8">
+
+          <section class="card shadow-lg">
+            <header class="card-header d-flex align-items-center justify-content-between">
+              <h1 class="h5 mb-0">
+                <i class="fa-solid fa-location-dot me-2 text-primary"></i>Rendezvous Points
+              </h1>
+              <span class="badge bg-secondary rounded-pill"><%= year %></span>
+            </header>
+
+            <div class="card-body">
+              <%# Event type filter %>
+              <div class="mb-3">
+                <label for="rvEventFilter" class="form-label small fw-semibold">Filter by shift type</label>
+                <select id="rvEventFilter" class="form-select form-select-sm" style="max-width:280px;">
+                  <option value="">All types</option>
+                </select>
+              </div>
+
+              <%# Day accordions — content populated client-side %>
+              <div id="rvDaysContainer">
+                <% if (!days || days.length === 0) { %>
+                  <p class="text-muted fst-italic">No convention days configured for <%= year %>.</p>
+                <% } else { %>
+                  <% days.forEach((day, idx) => { %>
+                    <div class="rv-day-block mb-3" data-day-id="<%= day.id %>"
+                         data-date="<%= day.convention_date ? new Date(day.convention_date).toISOString().slice(0, 10) : '' %>">
+                      <button class="rv-landing-day-header btn w-100 text-start d-flex align-items-center gap-2"
+                              type="button" data-day-id="<%= day.id %>">
+                        <i class="fa-solid fa-chevron-right rv-day-chevron"></i>
+                        <span><%= day.label %></span>
+                        <span class="rv-day-count badge bg-primary rounded-pill ms-auto">—</span>
+                      </button>
+                      <div class="rv-day-body d-none" id="rvDay-<%= day.id %>"></div>
+                    </div>
+                  <% }) %>
+                <% } %>
+              </div>
+            </div>
+          </section>
+
+        </div>
+      </div>
+    </main>
+
+    <%- include('../partials/footer') %>
+
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="/js/rendezvousLanding.js"></script>
+  </body>
+</html>

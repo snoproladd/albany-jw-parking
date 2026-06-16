@@ -275,6 +275,14 @@
           "tourId": "crew-matrix"
         },
         {
+          "title": "Rendezvous Points",
+          "path": "/oversight/tools/rendezvous",
+          "description": "View and manage meeting point details for shift assignments. Includes GPS, photo, and floor info sent with shift alerts.",
+          "icon": "fa-solid fa-location-dot",
+          "minRole": null,
+          "permission": "editRendezvous"
+        },
+        {
           "title": "Scheduler",
           "path": "/oversight/tools/scheduler",
           "description": "Assign volunteers to shift slots. Filter by rank or department and enforce role eligibility automatically.",

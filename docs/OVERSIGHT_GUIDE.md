@@ -981,7 +981,80 @@ deletion.
 
 ---
 
-### Scheduler *(OVERSEER+)*
+### Rendezvous Points *(KEYMAN+)*
+
+**Path:** Operations → Rendezvous Points
+
+A rendezvous point tells volunteers exactly where to meet for a specific shift
+at a specific location — description, address, floor number, GPS coordinates,
+and an optional photo.
+
+#### Who can do what
+
+| Action | Minimum Role |
+|---|---|
+| View rendezvous details | REGISTERED |
+| Edit fields, upload/clear photo | KEYMAN |
+| Create a new rendezvous point | OVERSEER |
+| Delete a rendezvous point | OVERSEER |
+
+#### Landing page
+
+The landing page shows an accordion of convention days. Expand a day to see all
+shift + location pairs that have a rendezvous point set. Click any card to open
+the editor panel. Use the **Filter by shift type** dropdown to narrow the list
+by event type (Ingress, Egress, etc.).
+
+A green dot means a rendezvous point is set; grey means none exists yet.
+
+#### Editor panel
+
+The editor panel appears as a floating card and is used on the landing page,
+the Scheduler (right-click a shift block header), and the Timelines page
+(click the map-pin icon on an assignment badge). It shows:
+
+- **Description** — free text describing the meeting spot
+- **Address** — optional street address
+- **Floor** — flexible label (e.g. "B1", "G", "2nd")
+- **Latitude / Longitude** — enter manually or tap **GPS** to capture your
+  phone's current location
+- **Photo** — upload an image (camera-capable on mobile). The photo is
+  processed and stored in Azure Blob Storage.
+
+KEYMAN users can edit any field and upload or clear the photo, but only
+OVERSEER+ can create a new rendezvous point or delete one entirely.
+
+#### Time guard
+
+Editing is unrestricted when a shift starts in more than 15 minutes. Within
+the ±15-minute window around shift start, saving prompts a confirmation:
+
+> *"This shift starts in X minutes. Saving will send an update alert to
+> all N assigned volunteers. Continue?"*
+
+If confirmed, an ad-hoc SMS is sent to every SMS-eligible volunteer assigned
+to that shift + location. After 15 minutes into a shift, editing is locked.
+
+#### SMS integration
+
+Rendezvous details are automatically appended to T-15 shift alert messages.
+When a photo exists, the SMS also includes a link to a lightweight detail page
+that shows the full info and photo without requiring login.
+
+- **Rendezvous points (2.55.0):** one optional meeting point per schedule assignment
+  (shift + location). Managed via a shared floating panel (`rendezvous.js`) accessible
+  from three surfaces: the Rendezvous landing page (`/oversight/tools/rendezvous`),
+  right-click on shift block headers in the Scheduler, and the map-pin button on
+  assignment badges in Timelines. GPS capture via `navigator.geolocation`, photo upload
+  via multer → sharp → Azure Blob (`rv-{saId}-{ts}.jpg`). Time guard logic mirrors
+  `alertScheduler.js` EDT offset: free editing >15 min before start, warn+alert within
+  ±15 min of start (sends ad-hoc SMS to assigned volunteers), hard lock >15 min after
+  start. T-15 SMS alerts LEFT JOIN rendezvous data and append inline text
+  (description/floor/address) plus a link to the public HMAC-gated detail page when a
+  photo exists. Permission key: `editRendezvous` (KEYMAN+ edit, OVERSEER+ create/delete).
+  RV data is preloaded per day in the scheduler via `preloadRendezvousForDay()` on the
+  `scheduler:dayChange` event.
+- **Volunteer Schedule Report (2.54.0):**
 
 **Path:** Operations → Scheduler
 
@@ -1065,6 +1138,18 @@ hides all browser chrome and navigation when printed.
 ---
 
 ### Right-click context menu
+
+Right-clicking any **volunteer name pill** opens a context-sensitive menu (see
+below). Right-clicking a **shift block header** (the shift name or time label,
+not a pill or dropzone) opens a shift-level menu with a single action:
+
+- **View / Edit Rendezvous** — if a rendezvous point is already set for this
+  shift + location, opens the editor panel with the current data.
+- **Set Rendezvous** — if no rendezvous exists yet, opens the editor panel in
+  create mode (OVERSEER+ only).
+
+The rendezvous data is preloaded when you select a convention day, so the menu
+knows instantly whether an RV exists.
 
 Right-clicking any volunteer name pill opens a context-sensitive menu.
 

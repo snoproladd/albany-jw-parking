@@ -55,6 +55,13 @@ import {
   updateScheduleAssignment,
   deleteScheduleAssignment,
   getFullDayTimeline,
+  getShiftRendezvous,
+  getRendezvousForDay,
+  createShiftRendezvous,
+  updateShiftRendezvous,
+  deleteShiftRendezvous,
+  getShiftRendezvousById,
+  getVolunteersForRendezvousAlert,
   copyConventionDay,
   getVolunteersForMessaging,
   createInvitation,
@@ -144,7 +151,14 @@ import { sendResetEmail, sendResetSms, getBaseUrl } from "../lib/messaging.js";
 import { PDF_SECRET, publishDaySchedule } from "../lib/publishSchedule.js";
 import { buildAlertMessage, sendAlertSms } from "../lib/alertScheduler.js";
 
+import {
+  uploadRendezvousPhoto,
+  deleteSignPhoto,
+  streamSignPhotoToResponse,
+} from "../lib/blobStorage.js";
+
 import { isProfileComplete } from "../lib/volunteerStatus.js";
+import multer from "multer";
 
 /**
  * Normalise a freeform time string ("7:30 AM", "14:00", "2:00 PM",
@@ -187,6 +201,26 @@ function parseTimeString(str) {
 }
 
 /**
+ * Format a shift start_time value as "h:MM AM/PM" for SMS bodies.
+ * Handles both mssql TIME (epoch-anchored Date) and NVarChar "HH:MM:SS" strings.
+ *
+ * @param {Date|string|null} val
+ * @returns {string}
+ */
+function _fmtTimeShort(val) {
+  if (!val) return "";
+  let h, m;
+  if (val instanceof Date) {
+    h = val.getUTCHours();
+    m = val.getUTCMinutes();
+  } else {
+    [h, m] = String(val).split(":").map(Number);
+  }
+  const ap = h >= 12 ? "PM" : "AM";
+  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${ap}`;
+}
+
+/**
  * Factory: build router that verifies oversight access..
  *
  * Usage in index.js:
@@ -209,6 +243,15 @@ export function oversightRouter({
   graphConfig,
 }) {
   const router = express.Router();
+
+  /** Multer config for rendezvous photo uploads: in-memory, 12 MB cap. */
+  const rvPhotoUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 12 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+      cb(null, /^image\//.test(file.mimetype || ""));
+    },
+  });
 
   /**
    * Derive the "edited by" identity for audit fields.
@@ -2919,6 +2962,416 @@ export function oversightRouter({
       } catch (err) {
         (logError || console.error)("timelines/assignments DELETE error:", err);
         return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  // ===========================
+  // RENDEZVOUS POINTS
+  // ===========================
+
+  /**
+   * GET /api/rendezvous/day/:dayId
+   * Batch-fetch all rendezvous points for a convention day.
+   * Used by scheduler preload and the landing page.
+   *
+   * @requires viewSchedules permission (REGISTERED+)
+   */
+  router.get(
+    "/api/rendezvous/day/:dayId",
+    requireAuth,
+    requirePermission("viewSchedules"),
+    async (req, res) => {
+      const dayId = Number(req.params.dayId);
+      if (!dayId) {
+        return res.status(400).json({ success: false, error: "Invalid day id." });
+      }
+      try {
+        const rows = await getRendezvousForDay(dayId);
+        return res.json({ success: true, rows });
+      } catch (err) {
+        (logError || console.error)("rendezvous/day GET error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * GET /api/rendezvous/photo/:blobName
+   * Stream a rendezvous photo to the client (authenticated proxy).
+   *
+   * @requires viewSchedules permission (REGISTERED+)
+   */
+  router.get(
+    "/api/rendezvous/photo/:blobName",
+    requireAuth,
+    requirePermission("viewSchedules"),
+    async (req, res) => {
+      const blobName = req.params.blobName;
+      if (!blobName || !blobName.startsWith("rv-")) {
+        return res.status(400).send("Invalid blob name.");
+      }
+      try {
+        await streamSignPhotoToResponse(blobName, res);
+      } catch (err) {
+        (logError || console.error)("rendezvous photo GET error:", err);
+        if (!res.headersSent) {
+          return res.status(404).send("Photo not found.");
+        }
+      }
+    },
+  );
+
+  /**
+   * GET /api/rendezvous/:scheduleAssignmentId
+   * Fetch the rendezvous point for a single schedule assignment.
+   *
+   * @requires viewSchedules permission (REGISTERED+)
+   */
+  router.get(
+    "/api/rendezvous/:scheduleAssignmentId",
+    requireAuth,
+    requirePermission("viewSchedules"),
+    async (req, res) => {
+      const saId = Number(req.params.scheduleAssignmentId);
+      if (!saId) {
+        return res.status(400).json({ success: false, error: "Invalid assignment id." });
+      }
+      try {
+        const rv = await getShiftRendezvous(saId);
+        return res.json({ success: true, rv });
+      } catch (err) {
+        (logError || console.error)("rendezvous GET error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * POST /api/rendezvous
+   * Create a rendezvous point for a schedule assignment.
+   * Body (JSON): { schedule_assignment_id, description, address,
+   *                latitude, longitude, floor_number }
+   *
+   * @requires manageShifts permission (OVERSEER+)
+   */
+  router.post(
+    "/api/rendezvous",
+    requireAuth,
+    requirePermission("manageShifts"),
+    csrfProtection,
+    async (req, res) => {
+      const { schedule_assignment_id, description, address,
+              latitude, longitude, floor_number } = req.body || {};
+      if (!schedule_assignment_id) {
+        return res.status(400).json({
+          success: false,
+          error: "schedule_assignment_id is required.",
+        });
+      }
+      try {
+        const id = await createShiftRendezvous({
+          schedule_assignment_id: Number(schedule_assignment_id),
+          description:   description   || null,
+          address:       address       || null,
+          latitude:      latitude  != null ? Number(latitude)  : null,
+          longitude:     longitude != null ? Number(longitude) : null,
+          floor_number:  floor_number   || null,
+          created_by:    req.session.userId,
+        });
+        return res.json({ success: true, id });
+      } catch (err) {
+        if (err.message?.includes("UQ_rendezvous_assignment") ||
+            err.message?.includes("UNIQUE")) {
+          return res.status(409).json({
+            success: false,
+            error: "A rendezvous point already exists for this assignment.",
+          });
+        }
+        (logError || console.error)("rendezvous POST error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * PUT /api/rendezvous/:id
+   * Update a rendezvous point. Null values clear the corresponding field.
+   * Body (JSON): { description, address, latitude, longitude, floor_number,
+   *                send_alert? }
+   *
+   * If send_alert is true the server sends an ad-hoc SMS update to all
+   * volunteers assigned to the parent schedule assignment.
+   *
+   * @requires editRendezvous permission (KEYMAN+)
+   */
+  router.put(
+    "/api/rendezvous/:id",
+    requireAuth,
+    requirePermission("editRendezvous"),
+    csrfProtection,
+    async (req, res) => {
+      const id = Number(req.params.id);
+      if (!id) {
+        return res.status(400).json({ success: false, error: "Invalid id." });
+      }
+
+      const existing = await getShiftRendezvousById(id);
+      if (!existing) {
+        return res.status(404).json({ success: false, error: "Not found." });
+      }
+
+      const { description, address, latitude, longitude,
+              floor_number, send_alert } = req.body || {};
+
+      try {
+        const ok = await updateShiftRendezvous(id, {
+          description:     description   ?? existing.description,
+          address:         address       ?? existing.address,
+          latitude:        latitude  !== undefined ? latitude  : existing.latitude,
+          longitude:       longitude !== undefined ? longitude : existing.longitude,
+          floor_number:    floor_number  ?? existing.floor_number,
+          photo_blob_name: existing.photo_blob_name,
+          updated_by:      req.session.userId,
+        });
+        if (!ok) {
+          return res.status(404).json({ success: false, error: "Not found." });
+        }
+
+        // Ad-hoc alert: send SMS to all assigned volunteers
+        let alertResult = null;
+        if (send_alert && twilioAccountSid && twilioAuthToken && twilioMsgSid) {
+          try {
+            const vols = await getVolunteersForRendezvousAlert(
+              existing.schedule_assignment_id,
+            );
+            const desc = (description ?? existing.description) || "updated meeting point";
+            let sent = 0;
+            let failed = 0;
+            for (const vol of vols) {
+              const body =
+                `Albany JW Parking: Updated meet-up for your ` +
+                `${vol.event_type_name} shift at ` +
+                `${_fmtTimeShort(vol.start_time)}: ${desc}`;
+              try {
+                await sendAlertSms(
+                  vol.phone, body,
+                  twilioAccountSid, twilioAuthToken, twilioMsgSid,
+                );
+                sent++;
+              } catch (smsErr) {
+                (logError || console.error)(
+                  `RV alert send error vol ${vol.volunteer_id}:`, smsErr,
+                );
+                failed++;
+              }
+            }
+            alertResult = { sent, failed, total: vols.length };
+          } catch (alertErr) {
+            (logError || console.error)("RV ad-hoc alert error:", alertErr);
+            alertResult = { error: "Alert send failed." };
+          }
+        }
+
+        return res.json({ success: true, alertResult });
+      } catch (err) {
+        (logError || console.error)("rendezvous PUT error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * DELETE /api/rendezvous/:id
+   * Delete a rendezvous point (and its photo blob if present).
+   *
+   * @requires manageShifts permission (OVERSEER+)
+   */
+  router.delete(
+    "/api/rendezvous/:id",
+    requireAuth,
+    requirePermission("manageShifts"),
+    csrfProtection,
+    async (req, res) => {
+      const id = Number(req.params.id);
+      if (!id) {
+        return res.status(400).json({ success: false, error: "Invalid id." });
+      }
+      try {
+        const existing = await getShiftRendezvousById(id);
+        if (!existing) {
+          return res.status(404).json({ success: false, error: "Not found." });
+        }
+
+        const ok = await deleteShiftRendezvous(id);
+        if (!ok) {
+          return res.status(404).json({ success: false, error: "Not found." });
+        }
+
+        // Best-effort blob cleanup
+        if (existing.photo_blob_name) {
+          try { await deleteSignPhoto(existing.photo_blob_name); }
+          catch (bErr) {
+            (logError || console.error)(
+              "Warning: failed to delete RV photo blob:", bErr,
+            );
+          }
+        }
+
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("rendezvous DELETE error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * POST /api/rendezvous/:id/photo
+   * Upload (or replace) the photo for a rendezvous point.
+   * Form data: `photo` (image file, multipart/form-data).
+   * CSRF token must be sent as X-CSRF-Token header.
+   *
+   * @requires editRendezvous permission (KEYMAN+)
+   */
+  router.post(
+    "/api/rendezvous/:id/photo",
+    requireAuth,
+    requirePermission("editRendezvous"),
+    csrfProtection,
+    rvPhotoUpload.single("photo"),
+    async (req, res) => {
+      const id = Number(req.params.id);
+      if (!id) {
+        return res.status(400).json({ success: false, error: "Invalid id." });
+      }
+      if (!req.file) {
+        return res.status(400).json({ success: false, error: "No photo uploaded." });
+      }
+
+      try {
+        const existing = await getShiftRendezvousById(id);
+        if (!existing) {
+          return res.status(404).json({ success: false, error: "Not found." });
+        }
+
+        const newBlobName = await uploadRendezvousPhoto(
+          existing.schedule_assignment_id,
+          req.file.buffer,
+        );
+
+        await updateShiftRendezvous(id, {
+          description:     existing.description,
+          address:         existing.address,
+          latitude:        existing.latitude,
+          longitude:       existing.longitude,
+          floor_number:    existing.floor_number,
+          photo_blob_name: newBlobName,
+          updated_by:      req.session.userId,
+        });
+
+        // Best-effort delete of previous blob
+        if (existing.photo_blob_name && existing.photo_blob_name !== newBlobName) {
+          try { await deleteSignPhoto(existing.photo_blob_name); }
+          catch (bErr) {
+            (logError || console.error)(
+              "Warning: failed to delete old RV photo blob:", bErr,
+            );
+          }
+        }
+
+        return res.json({ success: true, photo_blob_name: newBlobName });
+      } catch (err) {
+        (logError || console.error)("rendezvous photo POST error:", err);
+        const isImgErr = /Input (?:buffer|file)|unsupported image/i.test(
+          err.message || "",
+        );
+        return res.status(isImgErr ? 400 : 500).json({
+          success: false,
+          error: isImgErr
+            ? "Could not process the image. Try a different file."
+            : "Server error.",
+        });
+      }
+    },
+  );
+
+  /**
+   * DELETE /api/rendezvous/:id/photo
+   * Clear the photo from a rendezvous point (KEYMAN can clear fields).
+   *
+   * @requires editRendezvous permission (KEYMAN+)
+   */
+  router.delete(
+    "/api/rendezvous/:id/photo",
+    requireAuth,
+    requirePermission("editRendezvous"),
+    csrfProtection,
+    async (req, res) => {
+      const id = Number(req.params.id);
+      if (!id) {
+        return res.status(400).json({ success: false, error: "Invalid id." });
+      }
+
+      try {
+        const existing = await getShiftRendezvousById(id);
+        if (!existing) {
+          return res.status(404).json({ success: false, error: "Not found." });
+        }
+
+        if (existing.photo_blob_name) {
+          await updateShiftRendezvous(id, {
+            description:     existing.description,
+            address:         existing.address,
+            latitude:        existing.latitude,
+            longitude:       existing.longitude,
+            floor_number:    existing.floor_number,
+            photo_blob_name: null,
+            updated_by:      req.session.userId,
+          });
+
+          try { await deleteSignPhoto(existing.photo_blob_name); }
+          catch (bErr) {
+            (logError || console.error)(
+              "Warning: failed to delete RV photo blob:", bErr,
+            );
+          }
+        }
+
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("rendezvous photo DELETE error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * GET /oversight/tools/rendezvous
+   * Landing page: rendezvous points sorted by day, filterable by event type.
+   *
+   * @requires editRendezvous permission (KEYMAN+)
+   */
+  router.get(
+    "/oversight/tools/rendezvous",
+    requireAuth,
+    requirePermission("editRendezvous"),
+    csrfProtection,
+    async (req, res) => {
+      const year = parseInt(req.query.year) || new Date().getFullYear();
+      try {
+        const days = await getConventionDaysWithShifts(year);
+        return res.render("authentication_and_accounts/rendezvous", {
+          csrfToken: req.csrfToken(),
+          year,
+          days,
+          currentYear: new Date().getFullYear(),
+          userPermissions: req.session.permissions || {},
+          userRole: req.session.userRole || "NON_REGISTERED",
+        });
+      } catch (err) {
+        (logError || console.error)("rendezvous landing GET error:", err);
+        return res.status(500).send("Server error.");
       }
     },
   );

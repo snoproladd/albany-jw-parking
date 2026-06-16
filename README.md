@@ -193,6 +193,7 @@ parking/
 │   ├── passwordVer.js         # PBKDF2 hashing + verification
 │   ├── publishSchedule.js     # PDF schedule generation + OneDrive upload
 │   ├── publishSignMap.js      # Sign map PDF generation + Blob + OneDrive upload
+│   ├── rvToken.js             # HMAC token generation for public rendezvous detail links
 │   ├── sql.js                 # SQL connection pool management + demo pool routing
 │   └── volunteerStatus.js     # Profile completeness checks
 │
@@ -257,6 +258,8 @@ parking/
 │   │   ├── locationsAndTasks.ejs
 │   │   ├── reports.ejs
 │   │   ├── scheduler.ejs
+│   │   ├── rendezvous.ejs             # Rendezvous points landing page (day accordion + RV editor)
+│   │   ├── rendezvousDetail.ejs       # Public token-gated RV detail page (no login required)
 │   │   ├── schedulerReport.ejs
 │   │   ├── shiftAlerts.ejs
 │   │   ├── volunteerSchedule.ejs
@@ -349,6 +352,10 @@ parking/
 │   │   ├── schedulerTimeUtils.js      # Scheduler-specific time helpers
 │   │   ├── volunteerSchedule.js       # Volunteer schedule report (my-schedule + oversight)
 │   │   │
+│   │   ├── # ── Rendezvous ───────────────────────────────────
+│   │   ├── rendezvous.js              # Shared RV editor/viewer panel (GPS, photo, time guard)
+│   │   ├── rendezvousLanding.js       # Rendezvous landing page (day accordion, filters)
+│   │   │
 │   │   ├── # ── Timelines ────────────────────────────────────
 │   │   ├── timelines.js               # Event types / days / sessions / shifts CRUD
 │   │   │
@@ -390,6 +397,7 @@ parking/
 │   │   ├── maps.css                   # Maps page
 │   │   ├── oversightStructure.css     # Oversight structure admin tree
 │   │   ├── permissionMatrix.css       # Permission matrix
+│   │   ├── rendezvous.css             # Rendezvous editor panel + landing page
 │   │   ├── reports.css                # Reports page
 │   │   ├── scheduler.css              # Scheduler grid
 │   │   ├── schedulerReport.css        # Schedule report / PDF
@@ -421,7 +429,8 @@ parking/
 │   └── migrations/            # SQL schema migrations (always paired: .sql + _demo.sql)
 │       ├── README.md          # Migration convention docs + migration log
 │       ├── addDepartmentId.sql / _demo.sql
-│       └── addResponseConfig.sql / _demo.sql
+│       ├── addResponseConfig.sql / _demo.sql
+│       └── shift_rendezvous_points.sql / _demo.sql
 │
 ├── docs/
 │   └── OVERSIGHT_GUIDE.md     # End-user guide for oversight staff
@@ -534,6 +543,19 @@ The first ADMIN must be granted directly in the database.
     department name with directional arrows.
   - **Fixed-width dropzones (2.54.0):** volunteer slots are `flex: 0 0 calc((100% - 4px) / 3)`,
     always 3 per row with ellipsis-truncated names.
+- **Rendezvous points (2.55.0):** one optional meeting point per schedule assignment
+  (shift + location). Managed via a shared floating panel (`rendezvous.js`) accessible
+  from three surfaces: the Rendezvous landing page (`/oversight/tools/rendezvous`),
+  right-click on shift block headers in the Scheduler, and the map-pin button on
+  assignment badges in Timelines. GPS capture via `navigator.geolocation`, photo upload
+  via multer → sharp → Azure Blob (`rv-{saId}-{ts}.jpg`). Time guard logic mirrors
+  `alertScheduler.js` EDT offset: free editing >15 min before start, warn+alert within
+  ±15 min of start (sends ad-hoc SMS to assigned volunteers), hard lock >15 min after
+  start. T-15 SMS alerts LEFT JOIN rendezvous data and append inline text
+  (description/floor/address) plus a link to the public HMAC-gated detail page when a
+  photo exists. Permission key: `editRendezvous` (KEYMAN+ edit, OVERSEER+ create/delete).
+  RV data is preloaded per day in the scheduler via `preloadRendezvousForDay()` on the
+  `scheduler:dayChange` event.
 - **Volunteer Schedule Report (2.54.0):** `/my-schedule` (REGISTERED+, own assignments)
   and `/oversight/tools/volunteer-schedule` (OVERSEER+, search any volunteer). Shared EJS
   template with day/crew filters, print CSS, and SMS/email send modal.
@@ -582,6 +604,14 @@ Schema highlights:
 - `schedule_publishes` — audit log for schedule PDF publish events
 - `published_files` — generic published file tracking (sign map PDFs, etc.); stores blob name, SharePoint URL, publisher, and timestamp
 - `volunteer_tour_dismissals` — tracks which guided tour prompts a volunteer has permanently dismissed; composite PK `(volunteer_id, tour_id)`, FK to `volunteer_in(id)`. Special `tour_id = '_all'` disables all first-visit prompts site-wide.
+- `shift_rendezvous_points` — one optional meeting point per schedule assignment
+  (shift + location pair). Fields: `description`, `address`, `latitude`/`longitude`
+  (GPS), `floor_number`, `photo_blob_name` (Azure Blob, `rv-` prefix in `sign-photos`
+  container). `UNIQUE` on `schedule_assignment_id`; `ON DELETE CASCADE` from
+  `schedule_assignments`. KEYMAN+ can edit fields and upload photos; OVERSEER+ can
+  create and delete records (`editRendezvous` permission). Rendezvous details are
+  appended to T-15 shift alert SMS messages; a public HMAC-gated detail page
+  (`/rv/:id?t=<token>`) is linked when a photo exists.
 - `signs` — reusable sign templates (text + optional abbreviation); soft-deleted via `is_archived`
   - `abbreviation` `NVARCHAR(6)` — optional compact label for map markers (auto-generated from sign text when NULL)
 - `sign_locations` — physical mounting points (the pin on the map). Multiple signs

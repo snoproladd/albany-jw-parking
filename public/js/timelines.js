@@ -49,11 +49,50 @@ function fmtDate(raw) {
   });
 }
 
-import {
-  fmtTimeInput,
-  bindTimeInput,
-  validateTimeInput,
-} from './timeUtils.js';
+document.querySelectorAll("[data-end]").forEach((el) => {
+    el.dataset.end = fmtTimeInput(el.dataset.end);
+  });
+
+  // ── Rendezvous point buttons ──────────────────────────────────────
+  document.querySelectorAll(".rv-assignment-btn").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const assignmentId = Number(btn.dataset.assignmentId);
+      const locationName = btn.dataset.locationName || "Location";
+      const shiftLabel = btn.dataset.shiftLabel || "Shift";
+      const convDate = btn.dataset.conventionDate || "";
+
+      // Parse start time — mssql TIME comes as ISO epoch string
+      let startTime = "";
+      const raw = btn.dataset.startTime;
+      if (raw) {
+        const d = new Date(raw);
+        if (!isNaN(d.valueOf())) {
+          startTime = `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
+        } else {
+          startTime = String(raw).slice(0, 5);
+        }
+      }
+
+      openRendezvousPanel({
+        assignmentId,
+        shiftLabel,
+        locationName,
+        startTime,
+        conventionDate: convDate,
+        canCreate: true,
+        canEdit: true,
+        canDelete: true,
+        anchorX: e.clientX,
+        anchorY: e.clientY,
+      });
+    });
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") dismissRendezvousPanel();
+  });
+});
 
 document.addEventListener("DOMContentLoaded", () => {
   const csrfToken =

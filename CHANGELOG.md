@@ -3,6 +3,26 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## 2.55.0 — Rendezvous Points
+
+### Added
+- **Shift rendezvous points** — one optional meeting point per shift + location (schedule assignment), with description, address, GPS coordinates, floor number, and photo.
+- **Permission model** — new `editRendezvous` permission: KEYMAN+ can edit fields and upload photos; OVERSEER+ can create and delete records.
+- **Rendezvous landing page** (`/oversight/tools/rendezvous`) — day accordion view with event type filter, sorted by convention day. Accessible to KEYMAN+.
+- **Scheduler integration** — right-click any shift block header to view/edit/set the rendezvous point. RV data preloads on day change for instant access.
+- **Timelines integration** — map-pin button on each assignment badge opens the RV editor panel.
+- **T-15 alert integration** — rendezvous details (description, floor, address) are appended to T-15 shift alert SMS messages. A link to a photo detail page is included when a photo exists.
+- **Time guard** — editing is warned within 15 minutes of shift start (triggers ad-hoc SMS to assigned volunteers) and locked after 15 minutes into the shift.
+- **Public detail page** (`/rv/:id?t=<token>`) — HMAC-gated page showing rendezvous details and photo without login, linked from SMS alerts.
+- **Photo storage** — reuses `sign-photos` Azure Blob container with `rv-` prefix. Processed through the same sharp pipeline (resize, JPEG recompress).
+- New `shift_rendezvous_points` table with cascade delete from `schedule_assignments`.
+- Sitemap entry for Rendezvous Points page.
+
+### Changed
+- `getT15CandidateShifts` now LEFT JOINs rendezvous and location data for SMS enrichment.
+- Scheduler shift blocks now carry `data-assignment-id` for RV panel integration.
+- Day picker options in the scheduler now include `data-date` for convention date access.
+
 ## 2.54.0
 
 ### Volunteer Schedule Report

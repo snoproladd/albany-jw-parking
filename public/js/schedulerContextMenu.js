@@ -15,6 +15,7 @@
 
 import { unbindDraggable } from './schedulerDraggable.js';
 import { trackAssign, untrackBlackout, getConflicts } from './schedulerConflicts.js';
+import { openRendezvousPanel, dismissRendezvousPanel, getCachedRendezvous } from './rendezvous.js';
 
 // ─────────────────────────────────────────────
 //  Module state
@@ -57,7 +58,7 @@ export function initContextMenu() {
     });
 
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') { _dismissMenu(); _dismissPanel(); }
+        if (e.key === 'Escape') { _dismissMenu(); _dismissPanel(); dismissRendezvousPanel(); }
     });
 }
 
@@ -70,6 +71,16 @@ export function initContextMenu() {
  * @returns {void}
  */
 function _onContextMenu(e) {
+    // ── Shift-block right-click (not on a pill or dropzone) ──
+    const block = e.target.closest('.sched-shift-block');
+    if (block && !e.target.closest('.name-pill') && !e.target.closest('.scheduler-dropzone')) {
+        e.preventDefault();
+        _dismissMenu();
+        _dismissPanel();
+        _showShiftBlockMenu(block, e.clientX, e.clientY);
+        return;
+    }
+
     const pill = e.target.closest('.name-pill');
     if (!pill) { _dismissMenu(); return; }
 
@@ -536,6 +547,99 @@ async function _showBlackoutsPanel(volId, volName) {
     });
 
     await loadList();
+}
+
+// ─────────────────────────────────────────────
+//  Shift-block context menu (RV)
+// ─────────────────────────────────────────────
+
+/**
+ * Build and show a context menu for a shift block with rendezvous options.
+ *
+ * @param {HTMLElement} block  The .sched-shift-block element.
+ * @param {number}      x     Click x coordinate.
+ * @param {number}      y     Click y coordinate.
+ */
+function _showShiftBlockMenu(block, x, y) {
+    const assignmentId = Number(block.dataset.assignmentId);
+    const shiftLabel = block.querySelector('.sched-shift-header')?.textContent?.trim() || 'Shift';
+
+    // Read location name from the column header above this block
+    const col = block.style.gridColumn?.split('/')[0]?.trim();
+    const dept = block.dataset.department || '';
+    let locationName = '';
+    if (col) {
+        const locHeader = document.querySelector(
+            `.sched-loc-header[data-dept="${dept}"]`
+        );
+        if (locHeader) locationName = locHeader.textContent?.trim() || '';
+    }
+
+    // Read convention date + start time from DOM
+    const dayPicker = document.getElementById('dayPicker');
+    const selectedOpt = dayPicker?.selectedOptions?.[0];
+    const conventionDate = selectedOpt?.dataset?.date || '';
+
+    const dz = block.querySelector('.scheduler-dropzone');
+    const startMins = Number(dz?.dataset.shiftStartMins || 0);
+    const startHH = String(Math.floor(startMins / 60)).padStart(2, '0');
+    const startMM = String(startMins % 60).padStart(2, '0');
+    const startTime = `${startHH}:${startMM}`;
+
+    const hasRv = !!getCachedRendezvous(assignmentId);
+
+    const menu = document.createElement('div');
+    menu.classList.add('sched-ctx-menu');
+
+    const header = document.createElement('div');
+    header.classList.add('sched-ctx-header');
+    header.textContent = shiftLabel;
+    menu.appendChild(header);
+
+    if (hasRv) {
+        menu.appendChild(_item('fa-solid fa-location-dot', 'View / Edit Rendezvous', [], () => {
+            _openRvFromBlock(assignmentId, shiftLabel, locationName, startTime, conventionDate, x, y);
+        }));
+    } else if (assignmentId) {
+        menu.appendChild(_item('fa-solid fa-location-crosshairs', 'Set Rendezvous', [], () => {
+            _openRvFromBlock(assignmentId, shiftLabel, locationName, startTime, conventionDate, x, y);
+        }));
+    } else {
+        menu.appendChild(_item('fa-solid fa-location-dot', 'No assignment', ['muted'], null));
+    }
+
+    _menuEl = menu;
+    document.body.appendChild(menu);
+    _positionEl(menu, x, y);
+}
+
+/**
+ * Open the RV panel for a shift block.
+ *
+ * @param {number} assignmentId
+ * @param {string} shiftLabel
+ * @param {string} locationName
+ * @param {string} startTime
+ * @param {string} conventionDate
+ * @param {number} x
+ * @param {number} y
+ */
+function _openRvFromBlock(assignmentId, shiftLabel, locationName, startTime, conventionDate, x, y) {
+    openRendezvousPanel({
+        assignmentId,
+        shiftLabel,
+        locationName: locationName || 'Location',
+        startTime,
+        conventionDate,
+        canCreate: true,
+        canEdit:   true,
+        canDelete: true,
+        anchorX:   x,
+        anchorY:   y,
+        onUpdate:  (aId, rvData) => {
+            // Cache is updated internally by rendezvous.js
+        },
+    });
 }
 
 /**

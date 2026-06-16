@@ -1,0 +1,238 @@
+/* ═══════════════════════════════════════════════
+   Rendezvous Point Panel
+   ═══════════════════════════════════════════════ */
+
+.rv-panel {
+    position: fixed;
+    z-index: 9998;
+    width: 340px;
+    max-width: calc(100vw - 16px);
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.45rem;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14),
+        0 1px 4px rgba(0, 0, 0, 0.08);
+    font-size: 0.83rem;
+    overflow: hidden;
+}
+
+.rv-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.45rem 0.6rem 0.45rem 0.85rem;
+    background: var(--bs-secondary-bg);
+    border-bottom: 1px solid var(--bs-border-color);
+    font-size: 0.76rem;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.rv-panel-header span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.rv-panel-close {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    padding: 0.1rem 0.2rem;
+    cursor: pointer;
+    color: var(--bs-secondary-color);
+    line-height: 1;
+    border-radius: 0.2rem;
+}
+
+.rv-panel-close:hover {
+    background: var(--bs-tertiary-bg);
+    color: var(--bs-body-color);
+}
+
+.rv-panel-body {
+    padding: 0.65rem 0.85rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+/* ── Fields ────────────────────────────────── */
+
+.rv-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.rv-field label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--bs-secondary-color);
+}
+
+.rv-field textarea {
+    resize: vertical;
+    min-height: 2.4rem;
+}
+
+/* ── Coordinates ───────────────────────────── */
+
+.rv-coord-row {
+    display: flex;
+    gap: 0.4rem;
+    align-items: flex-end;
+}
+
+.rv-coord-row .rv-field {
+    flex: 1;
+    min-width: 0;
+}
+
+.rv-gps-btn {
+    flex-shrink: 0;
+    white-space: nowrap;
+    height: calc(1.5em + 0.5rem + 2px);
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+}
+
+/* ── Photo ─────────────────────────────────── */
+
+.rv-photo-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.rv-photo-section>label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--bs-secondary-color);
+}
+
+.rv-photo-preview {
+    width: 100%;
+    max-height: 180px;
+    object-fit: cover;
+    border-radius: 0.3rem;
+    border: 1px solid var(--bs-border-color);
+}
+
+.rv-file-input {
+    font-size: 0.78rem;
+}
+
+.rv-clear-photo {
+    align-self: flex-start;
+    font-size: 0.72rem;
+}
+
+/* ── Status + actions ──────────────────────── */
+
+.rv-status {
+    font-size: 0.78rem;
+    min-height: 1.1rem;
+}
+
+.rv-actions {
+    display: flex;
+    gap: 0.4rem;
+    justify-content: flex-end;
+    padding-top: 0.2rem;
+    border-top: 1px solid var(--bs-border-color-translucent);
+}
+
+.rv-lock-msg {
+    margin: 0;
+    padding: 0.4rem 0.6rem;
+    background: var(--bs-warning-bg-subtle);
+    color: var(--bs-warning-text-emphasis);
+    border-radius: 0.25rem;
+    font-size: 0.78rem;
+    font-weight: 500;
+}
+
+.rv-empty {
+    margin: 0;
+    color: var(--bs-secondary-color);
+    font-style: italic;
+    font-size: 0.8rem;
+}
+
+/* ═══════════════════════════════════════════════
+   Landing page
+   ═══════════════════════════════════════════════ */
+
+.rv-landing-day-header {
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 0.5rem 0;
+    border-bottom: 2px solid var(--bs-primary);
+    margin-bottom: 0.5rem;
+}
+
+.rv-landing-card {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.45rem 0.65rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.35rem;
+    margin-bottom: 0.35rem;
+    cursor: pointer;
+    transition: background 0.08s;
+}
+
+.rv-landing-card:hover {
+    background: var(--bs-tertiary-bg);
+}
+
+.rv-landing-card-badge {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.rv-landing-card-badge--set {
+    background: var(--bs-success);
+}
+
+.rv-landing-card-badge--unset {
+    background: var(--bs-secondary);
+    opacity: 0.4;
+}
+
+.rv-landing-card-info {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.82rem;
+}
+
+.rv-landing-card-shift {
+    font-weight: 600;
+}
+
+.rv-landing-card-loc {
+    color: var(--bs-secondary-color);
+    font-size: 0.75rem;
+}
+
+/* ── Day accordion chevron ─────────────────── */
+
+.rv-day-chevron {
+    transition: transform 0.15s ease;
+    font-size: 0.7rem;
+    color: var(--bs-secondary-color);
+}
+
+.rv-day-chevron--open {
+    transform: rotate(90deg);
+}

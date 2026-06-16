@@ -12,6 +12,7 @@
 
 import { initDomEvents } from "./schedulerDomEvents.js";
 import { initDomActions, refreshAttendanceBadges } from "./schedulerDomActions.js";
+import { preloadRendezvousForDay, clearRendezvousCache } from "./rendezvous.js";
 
 // ─────────────────────────────────────────────
 //  Attendance poller
@@ -50,6 +51,16 @@ function _isToday(isoDate) {
 
 // Cancel the poller whenever the user switches days
 document.addEventListener("scheduler:dayChange", () => _stopPoller());
+
+// Preload rendezvous data when day changes
+document.addEventListener("scheduler:dayChange", (e) => {
+  const dayId = (e).detail?.dayId;
+  if (dayId) {
+    preloadRendezvousForDay(dayId);
+  } else {
+    clearRendezvousCache();
+  }
+});
 
 /**
  * After attendance data loads for the first time on a day, decide whether

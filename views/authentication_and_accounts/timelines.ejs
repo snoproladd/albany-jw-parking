@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
     <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
     <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@15.2.2/dist/css/shepherd.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/rendezvous.css" />
     <link rel="stylesheet" href="/css/tours.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -699,6 +699,17 @@
                                                   data-notes="<%= a.notes || '' %>"
                                                   aria-label="Edit">
                                                   <i class="fa-solid fa-pen text-secondary"></i>
+                                                </button>
+                                                <button type="button"
+                                                  class="rv-assignment-btn border-0 bg-transparent p-0"
+                                                  data-assignment-id="<%= a.id %>"
+                                                  data-location-name="<%= a.location_task_name %>"
+                                                  data-shift-label="<%= shift.event_type_name %> – <%= shift.label %>"
+                                                  data-start-time="<%= shift.start_time %>"
+                                                  data-convention-date="<%= selectedDay && selectedDay.convention_date ? new Date(selectedDay.convention_date).toISOString().slice(0, 10) : '' %>"
+                                                  aria-label="Rendezvous"
+                                                  title="Rendezvous point">
+                                                  <i class="fa-solid fa-map-pin text-primary"></i>
                                                 </button>
                                                 <button type="button"
                                                   class="btn-close btn-close-sm remove-assignment-btn assignment-remove-btn"
