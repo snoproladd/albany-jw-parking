@@ -1184,7 +1184,47 @@ app.use(
         return res.status(500).json({ success: false, error: "Server error." });
       }
     });
-    
+
+    // ── Tour dismissal API ──────────────────────────────────────
+
+    /**
+     * GET /api/tours/status
+     * Returns the list of tour IDs this user has dismissed.
+     * Used by tourBase.js to decide whether to show the first-visit prompt.
+     */
+    app.get("/api/tours/status", async (req, res) => {
+        if (!req.session?.userId) return res.json({ dismissed: [] });
+        try {
+            const dismissed = await db.getTourDismissals(req.session.userId);
+            return res.json({ dismissed });
+        } catch (err) {
+            logError("Tour status error:", err);
+            return res.json({ dismissed: [] });
+        }
+    });
+
+    /**
+     * POST /api/tours/dismiss
+     * Permanently dismisses a tour prompt for the logged-in user.
+     * Body: { tourId: string } — the tour key, or '_all' to disable all prompts.
+     */
+    app.post("/api/tours/dismiss", express.json(), async (req, res) => {
+        if (!req.session?.userId) {
+            return res.status(401).json({ error: "Not logged in" });
+        }
+        const { tourId } = req.body;
+        if (!tourId || typeof tourId !== "string" || tourId.length > 50) {
+            return res.status(400).json({ error: "Invalid tour ID" });
+        }
+        try {
+            await db.dismissTour(req.session.userId, tourId);
+            return res.json({ ok: true });
+        } catch (err) {
+            logError("Tour dismiss error:", err);
+            return res.status(500).json({ error: "Failed" });
+        }
+    });
+
     /**
      * GET /privacy
      * Renders the Privacy Policy page (public, no auth required).

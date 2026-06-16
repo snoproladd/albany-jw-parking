@@ -20,6 +20,7 @@ import {
   startButtons,
   finishButtons,
   gotItButtons,
+  registerTour,
 } from "./tourBase.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -173,6 +174,7 @@ export function initVolunteersTour() {
     const tour = volunteerLoaded ? buildFullTour() : buildSelectorTour();
     tour.start();
   });
+  registerTour("volunteers", buildVolunteersTour);
 }
 
 initVolunteersTour();

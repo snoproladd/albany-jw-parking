@@ -11,6 +11,7 @@ import {
   navButtons,
   startButtons,
   finishButtons,
+  registerTour,
 } from "./tourBase.js";
 
 /**
@@ -86,6 +87,7 @@ export function initSchedulerReportTour() {
   btn.addEventListener("click", () => {
     buildReportTour().start();
   });
+  registerTour("schedulerReport", buildReportTour);
 }
 
 initSchedulerReportTour();

@@ -6,7 +6,13 @@
  * @module reportsTour
  */
 
-import { createTour, navButtons, startButtons, finishButtons } from './tourBase.js';
+import {
+  createTour,
+  navButtons,
+  startButtons,
+  finishButtons,
+  registerTour,
+} from "./tourBase.js";
 
 /**
  * Builds and returns the Reports tour.
@@ -91,6 +97,7 @@ export function initReportsTour() {
     const btn = document.getElementById('tourTriggerBtn');
     if (!btn) return;
     btn.addEventListener('click', () => buildReportsTour().start());
+    registerTour("reports", buildReportsTour);
 }
 
 initReportsTour();

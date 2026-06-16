@@ -81,7 +81,8 @@
           "description": "Browse sign templates and their placements around the convention area.",
           "icon": "fa-solid fa-table-list",
           "minRole": null,
-          "permission": "viewSigns"
+          "permission": "viewSigns",
+          "tourId": "signs-list"
         },
         {
           "title": "Sign Builder",
@@ -89,7 +90,8 @@
           "description": "Create and edit reusable sign templates with text and arrow direction.",
           "icon": "fa-solid fa-pen-to-square",
           "minRole": null,
-          "permission": "manageSigns"
+          "permission": "manageSigns",
+          "tourId": "signs-builder"
         },
         {
           "title": "Sign Map",
@@ -97,7 +99,8 @@
           "description": "Place sign templates on a satellite map. Drag to reposition, edit status and mount type.",
           "icon": "fa-solid fa-map-location-dot",
           "minRole": null,
-          "permission": "viewSigns"
+          "permission": "viewSigns",
+          "tourId": "signs-map"
         }
       ]
     },
@@ -135,7 +138,8 @@
           "description": "Oversight dashboard showing all tools available based on your role and permissions.",
           "icon": "fa-solid fa-table-cells-large",
           "minRole": "KEYMAN",
-          "permission": null
+          "permission": null,
+          "tourId": "oversight-tools"
         }
       ]
     },
@@ -150,7 +154,8 @@
           "description": "Send convention invitations via email or SMS. Manage campaigns, templates, and track RSVP responses.",
           "icon": "fa-solid fa-envelope-open-text",
           "minRole": null,
-          "permission": "accessAdminConsole"
+          "permission": "accessAdminConsole",
+          "tourId": "campaign-center"
         },
         {
           "title": "Invitation Tracker",
@@ -158,7 +163,8 @@
           "description": "View sent invitations, filter by campaign or response status, and identify non-responders.",
           "icon": "fa-solid fa-chart-gantt",
           "minRole": null,
-          "permission": "accessAdminConsole"
+          "permission": "accessAdminConsole",
+          "tourId": "invitation-tracker"
         },
         {
           "title": "Send Reset Link",
@@ -181,7 +187,8 @@
           "description": "View and edit volunteer account details including contact, congregation, and spiritual information.",
           "icon": "fa-solid fa-id-card",
           "minRole": null,
-          "permission": "editVolunteerInfo"
+          "permission": "editVolunteerInfo",
+          "tourId": "volunteers"
         },
         {
           "title": "Create Volunteer",
@@ -197,7 +204,8 @@
           "description": "Assign and update volunteer roles. Roles control what each user can see and do across the site.",
           "icon": "fa-solid fa-user-shield",
           "minRole": "OVERSEER",
-          "permission": null
+          "permission": null,
+          "tourId": "roles"
         }
       ]
     },
@@ -212,7 +220,8 @@
           "description": "View all volunteers with their registration status and identify accounts with missing information.",
           "icon": "fa-solid fa-clipboard-list",
           "minRole": "OVERSEER",
-          "permission": null
+          "permission": null,
+          "tourId": "reports"
         }
       ]
     },
@@ -227,7 +236,8 @@
           "description": "Define convention days, sessions, and event shifts. Mark shifts as invitable and attach locations.",
           "icon": "fa-regular fa-clock",
           "minRole": null,
-          "permission": "manageShifts"
+          "permission": "manageShifts",
+          "tourId": "timelines"
         },
         {
           "title": "Locations",
@@ -235,7 +245,8 @@
           "description": "Define parking locations and zones for the current year used in building shift assignments.",
           "icon": "fa-solid fa-map-pin",
           "minRole": null,
-          "permission": "manageShifts"
+          "permission": "manageShifts",
+          "tourId": "locations"
         },
         {
           "title": "Event Types",
@@ -243,7 +254,8 @@
           "description": "Manage shift categories used in scheduling — Ingress, Egress, Security, and more.",
           "icon": "fa-solid fa-tags",
           "minRole": null,
-          "permission": "accessAdminConsole"
+          "permission": "accessAdminConsole",
+          "tourId": "timelines"
         },
         {
           "title": "Crew Assignments",
@@ -251,7 +263,8 @@
           "description": "Assign volunteers to parking crews. Controls which shifts each volunteer is eligible for in the Scheduler.",
           "icon": "fa-solid fa-people-group",
           "minRole": null,
-          "permission": "createAssignments"
+          "permission": "createAssignments",
+          "tourId": "crew-matrix"
         },
         {
           "title": "Scheduler",
@@ -259,7 +272,8 @@
           "description": "Assign volunteers to shift slots. Filter by rank or department and enforce role eligibility automatically.",
           "icon": "fa-solid fa-calendar-days",
           "minRole": null,
-          "permission": "createAssignments"
+          "permission": "createAssignments",
+          "tourId": "scheduler"
         },
         {
           "title": "Shift Alerts",
@@ -282,7 +296,8 @@
           "description": "Log volunteer attendance shift by shift. Mark arrivals, add walk-ins, and record notes in real time.",
           "icon": "fa-solid fa-clipboard-check",
           "minRole": null,
-          "permission": "logAttendance"
+          "permission": "logAttendance",
+          "tourId": "attendance-checkin"
         },
         {
           "title": "Attendance Report",
@@ -290,7 +305,8 @@
           "description": "View attendance across all shifts for a convention day. See invited, RSVP, attended, and no-show counts.",
           "icon": "fa-solid fa-chart-bar",
           "minRole": null,
-          "permission": "viewAttendance"
+          "permission": "viewAttendance",
+          "tourId": "attendance-report"
         }
       ]
     },

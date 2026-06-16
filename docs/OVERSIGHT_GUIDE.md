@@ -47,9 +47,23 @@ roles see more options.
 
 ### Guided Tours
 
-Every oversight tool page has a **Take a tour** button in the top-right corner
-of the page header. Clicking it launches a step-by-step walkthrough of that
-page's layout and features.
+Pages with guided tours show a **Tour** button in the top-right corner of the
+navbar. Clicking it launches a step-by-step walkthrough of that page's layout
+and features.
+
+**First-visit prompts:** the first time you visit a page that has a tour, a
+prompt highlights the Tour button and asks if you'd like a walkthrough. Four
+options:
+
+- **Take the tour** — starts the walkthrough immediately
+- **Maybe later** — dismisses the prompt for this visit only (it will
+  reappear next time)
+- **Don't show again** — permanently hides the prompt on this page
+- **Disable all prompts** — permanently hides first-visit prompts on
+  every page
+
+The Tour button itself is always available in the navbar regardless of prompt
+status — you can start a tour at any time by clicking it.
 
 Tours are context-aware — steps that require data to be present (e.g. shift
 cards, assignment badges) are skipped automatically when the page is empty,

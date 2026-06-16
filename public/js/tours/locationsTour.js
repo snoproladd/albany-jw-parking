@@ -12,7 +12,13 @@
  * @module locationsTour
  */
 
-import { createTour, navButtons, startButtons, finishButtons } from './tourBase.js';
+import {
+  createTour,
+  navButtons,
+  startButtons,
+  finishButtons,
+  registerTour,
+} from "./tourBase.js";
 
 /**
  * Opens the add-location inline form by clicking the add button.
@@ -125,6 +131,7 @@ export function initLocationsTour() {
     const btn = document.getElementById('tourTriggerBtn');
     if (!btn) return;
     btn.addEventListener('click', () => buildLocationsTour().start());
+    registerTour("locations", buildLocationsTour);
 }
 
 initLocationsTour();

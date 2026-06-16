@@ -356,7 +356,7 @@ parking/
 │   │   ├── signsMapPrint.js           # Print-optimised map (WYSIWYG letter-portrait)
 │   │   │
 │   │   └── tours/                     # Shepherd.js guided tour modules
-│   │       ├── tourBase.js            # Shared tour factory and button helpers
+│   │       ├── tourBase.js            # Tour factory, button helpers, first-visit prompt system, registerTour API
 │   │       ├── attandanceCheckinTour.js  # (legacy typo filename, kept for compat)
 │   │       ├── attendanceCheckinTour.js
 │   │       ├── attendanceReportTour.js
@@ -561,6 +561,7 @@ Schema highlights:
 - `bug_reports` — full lifecycle bug tracking with resolution fields
 - `schedule_publishes` — audit log for schedule PDF publish events
 - `published_files` — generic published file tracking (sign map PDFs, etc.); stores blob name, SharePoint URL, publisher, and timestamp
+- `volunteer_tour_dismissals` — tracks which guided tour prompts a volunteer has permanently dismissed; composite PK `(volunteer_id, tour_id)`, FK to `volunteer_in(id)`. Special `tour_id = '_all'` disables all first-visit prompts site-wide.
 - `signs` — reusable sign templates (text + optional abbreviation); soft-deleted via `is_archived`
   - `abbreviation` `NVARCHAR(6)` — optional compact label for map markers (auto-generated from sign text when NULL)
 - `sign_locations` — physical mounting points (the pin on the map). Multiple signs

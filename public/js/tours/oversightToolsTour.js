@@ -6,7 +6,13 @@
  * @module oversightToolsTour
  */
 
-import { createTour, navButtons, startButtons, finishButtons } from './tourBase.js';
+import {
+  createTour,
+  navButtons,
+  startButtons,
+  finishButtons,
+  registerTour,
+} from "./tourBase.js";
 
 /**
  * Builds and returns the Oversight Tools hub tour.
@@ -104,6 +110,7 @@ export function initOversightToolsTour() {
     const btn = document.getElementById('tourTriggerBtn');
     if (!btn) return;
     btn.addEventListener('click', () => buildOversightToolsTour().start());
+    registerTour("oversightTools", buildOversightToolsTour);
 }
 
 initOversightToolsTour();

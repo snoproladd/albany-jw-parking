@@ -17,6 +17,7 @@ import {
   navButtons,
   startButtons,
   finishButtons,
+  registerTour
 } from "./tourBase.js";
 
 /**
@@ -92,6 +93,7 @@ export function initRolesTour() {
   btn.addEventListener("click", () => {
     buildRolesTour().start();
   });
+  registerTour("roles", buildRolesTour);
 }
 
 initRolesTour();
