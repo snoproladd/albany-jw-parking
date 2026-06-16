@@ -3,6 +3,49 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## 2.53.0
+
+### Self-Service Blackout Management (My Account)
+
+- **My Availability accordion** on the My Account page lets volunteers manage
+  their own blackout windows — select a convention day, add start/end times
+  with an optional reason, and delete entries. No oversight intervention needed.
+- Three new API routes scoped to the logged-in volunteer's own data:
+  `GET /api/my-account/blackouts`, `POST /api/my-account/blackouts`,
+  `DELETE /api/my-account/blackouts/:id` (ownership-enforced).
+- New `deleteBlackoutForVolunteer(id, volunteerId)` in dbSync enforces
+  ownership via `WHERE id = @id AND volunteer_id = @volunteerId`.
+- Accordion body tagged `data-section="blackouts"` to skip the formSummary
+  lock loop — blackout CRUD is immediate, not part of the finalize flow.
+
+### Master Conflict Grid (Oversight Report)
+
+- **New report page** at `/oversight/tools/conflict-grid` — volunteers on the
+  Y-axis, every shift across all convention days on the X-axis, with cell
+  status codes: `X` (assigned), `PC` (personal conflict / blackout overlap),
+  `X/PC` (assigned during blackout), `SC` (shift conflict), `SC/PC` (both).
+- Shift headers color-coded by department (L&G blue, Signs green, Security red,
+  D/P purple, Mobile Support amber) with automatic label disambiguation when
+  the same shift name appears for multiple departments on the same day.
+- Day columns grouped by convention day with three distinct header colors and
+  pastel tints carried through the body cells. Day boundary dividers run the
+  full grid height.
+- Column hover highlight (translucent blue band), row hover highlight on name
+  column, and a live name search input in the sticky corner cell.
+- Toggle switches: "Show Personal Conflicts" ↔ "Shift Conflicts Only" and
+  "Show All Volunteers" ↔ "Volunteers with Assignments Only" with dynamic
+  labels reflecting the current state.
+- Card added to Oversight Tools → Reports section (gated on `createAssignments`).
+- New `getConflictGridData(year)` in dbSync runs four queries in a single
+  `exec()` call: shifts with times as minutes-from-midnight, all active
+  volunteers, distinct volunteer→shift assignments, and blackout ranges.
+
+### Files added
+- `public/js/myAccountBlackouts.js`
+- `public/js/conflictGrid.js`
+- `public/styles/conflictGrid.css`
+- `views/authentication_and_accounts/conflictGrid.ejs`
+
 ## 2.52.0
 
 ### Tour System — Universal Button, First-Visit Prompts & DB Persistence

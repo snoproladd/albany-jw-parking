@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Master Conflict Grid — Albany JW Parking</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+  <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+  <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+  <link rel="stylesheet" type="text/css" href="/styles/conflictGrid.css" />
+  <meta name="csrf-token" content="<%= csrfToken %>" />
+</head>
+
+<body data-authed="true" class="bg-body-tertiary">
+
+  <%- include('../partials/header') %>
+
+ <main class="container-fluid px-3 py-3">
+
+    <%# ── Title bar ── %>
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <a href="/oversight/tools" class="btn btn-sm btn-secondary">
+        <i class="fa-solid fa-arrow-left me-1"></i>Oversight Tools
+      </a>
+      <h1 class="h3 mb-0 fw-bold">
+        <i class="fa-solid fa-triangle-exclamation text-warning me-2"></i>Master Conflict Grid
+      </h1>
+    </div>
+
+    <%# ── Centered container: controls + grid share width ── %>
+    <div class="cg-container">
+
+    <div class="cg-controls-row mb-3">
+      <div class="cg-legend-card">
+        <div class="cg-legend-row">
+          <span class="cg-legend-label">Status:</span>
+          <span class="cg-legend-swatch cg-legend-swatch-assigned">X</span>
+          <span class="cg-legend-text">Assigned</span>
+          <span class="cg-legend-swatch cg-legend-swatch-pc">PC</span>
+          <span class="cg-legend-text">Unavailable</span>
+          <span class="cg-legend-swatch cg-legend-swatch-xpc">X/PC</span>
+          <span class="cg-legend-text">Assigned during blackout</span>
+          <span class="cg-legend-swatch cg-legend-swatch-sc">SC</span>
+          <span class="cg-legend-text">Shift conflict</span>
+          <span class="cg-legend-swatch cg-legend-swatch-scpc">SC/PC</span>
+          <span class="cg-legend-text">Both</span>
+        </div>
+        <div class="cg-legend-row">
+          <span class="cg-legend-label">Dept:</span>
+          <span class="cg-dept-swatch cg-dept-swatch-lots_and_garages">L&amp;G</span>
+          <span class="cg-dept-swatch cg-dept-swatch-signs">Signs</span>
+          <span class="cg-dept-swatch cg-dept-swatch-security">Security</span>
+          <span class="cg-dept-swatch cg-dept-swatch-dropoff_pickup">D/P</span>
+          <span class="cg-dept-swatch cg-dept-swatch-mobile_support">MS</span>
+        </div>
+      </div>
+
+      <div class="cg-controls-right">
+        <div class="cg-toggles">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="togglePC" checked />
+            <label class="form-check-label" for="togglePC" id="togglePCLabel">
+              Show Personal Conflicts
+            </label>
+          </div>
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="toggleUnassigned" />
+            <label class="form-check-label" for="toggleUnassigned" id="toggleVolLabel">
+              Show All Volunteers
+            </label>
+          </div>
+        </div>
+             </div>
+    </div>
+
+    <div id="cgLoading" class="text-center py-5">
+      <div class="spinner-border text-secondary" role="status"></div>
+      <p class="text-muted mt-2">Loading conflict grid&hellip;</p>
+    </div>
+
+    <div id="cgWrapper" class="cg-wrapper d-none"></div>
+
+    </div><%# /.cg-container %>
+
+  </main>
+
+  <%- include('../partials/footer') %>
+  <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+  <script src="/js/conflictGrid.js"></script>
+</body>
+</html>
