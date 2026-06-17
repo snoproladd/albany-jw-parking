@@ -100,6 +100,7 @@ import {
   getVolunteerDemographics,
   getCrewStaffingSummary,
   getDayStaffingReport,
+  clearT15AlertsForShift,
   getConventionDaysWithShifts,
   getShiftAttendanceData,
   upsertAttendance,
@@ -2834,6 +2835,17 @@ export function oversightRouter({
         });
         if (!ok)
           return res.status(404).json({ success: false, error: "Not found." });
+
+        // Reset the T-15 dupe guard so the alert can fire against the new
+        // start_time. Only clears rolling T-15 rows (schedule_id IS NULL);
+        // burst alert history is preserved.
+        await clearT15AlertsForShift(id).catch((err) => {
+          (logError || console.error)(
+            "clearT15AlertsForShift error (non-fatal):",
+            err,
+          );
+        });
+
         return res.json({ success: true });
       } catch (err) {
         (logError || console.error)("timelines/shifts PUT error:", err);

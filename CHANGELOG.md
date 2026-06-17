@@ -3,8 +3,18 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
-## [2.56.2] — 2026-06-17
+## [2.56.3] — 2026-06-17
 
+### Fixed
+- **T-15 alert does not re-fire after shift time edit** — the rolling T-15 dupe
+  guard in `getT15CandidateShifts` excludes any volunteer+shift pair already in
+  `shift_alert_log`, keyed on `shift_id` with no reference to `start_time`. Editing
+  a shift's start time left the old log row in place, permanently blocking the alert.
+  The shift `PUT` route now calls `clearT15AlertsForShift` after a successful update,
+  resetting the dupe guard so the alert can fire at the new time. Burst alert history
+  (`schedule_id NOT NULL`) is unaffected.
+
+## [2.56.2] — 2026-06-17
 ### Fixed
 - **`api/shifts/suggest-code` ReferenceError in prod** — `oversightRoutes.js` was missing
   `import sql from "mssql"`. Every other route in the file delegates DB parameter binding
