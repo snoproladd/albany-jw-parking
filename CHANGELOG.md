@@ -3,6 +3,56 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.56.1] — 2026-06-17
+
+### Fixed
+- **Shift alert preview time display** — `fmtShiftTime` in `shiftAlerts.js` was splitting
+  the ISO epoch-anchored string returned by mssql for SQL `TIME` columns (e.g.
+  `"1970-01-01T12:43:00.000Z"`) by `":"`, producing `Number("1970-01-01T12") = NaN`.
+  `NaN >= 12` evaluates to `false`, so every shift showed `12:XX AM` regardless of the
+  actual hour. The fix detects the `"T"` sentinel and routes through `new Date().getUTCHours()`
+  / `getUTCMinutes()` for ISO strings, keeping the plain `HH:MM:SS` path for NVarChar values.
+
+## [2.56.0] — 2026-06-17
+
+### Added
+- **Graphical Reports dashboard** — `public/js/reportsCharts.js` (Chart.js 4 ESM) adds five
+  chart-driven tabs to the Oversight Reports page, all lazy-loaded on first activation:
+  - **Demographics** (Volunteers) — KPI cards + registration-status donut (from embedded
+    volunteer data); age-distribution horizontal bar + spiritual-privilege bar (API).
+  - **Target Levels** (Volunteers) — grouped bar of slots needed vs assigned per convention
+    day; totals row with overall fill rate.
+  - **Staff Usage** (Crews) — horizontal grouped bar comparing roster count vs volunteers
+    who appeared in a shift, per department.
+  - **Crew Attendance** (Event Day) — stacked bar of attended / no-show per convention day.
+  - **Day Staffing** (Event Day) — day picker auto-selects today; crew status cards
+    (color-coded short / warn / ok / over with large gap number); grouped bar chart with
+    dynamically colored Present bars (teal = covered, amber = close, red = short).
+- **Five new report API routes** (all `viewAttendance`-gated, OVERSEER+):
+  - `GET /api/reports/scheduling-coverage?year=`
+  - `GET /api/reports/attendance-overview?year=`
+  - `GET /api/reports/demographics?year=`
+  - `GET /api/reports/crew-staffing?year=`
+  - `GET /api/reports/day-staffing?dayId=`
+- **Three new DB functions** in `lib/dbSync.js`:
+  - `getVolunteerDemographics(year)` — age, gender, spiritual privileges per active volunteer.
+  - `getCrewStaffingSummary(year)` — roster count + scheduled count per department.
+  - `getDayStaffingReport(dayId)` — need / scheduled / attended / gap per department for one day.
+- **Reports navigation reorganization** — header dropdown and Oversight Tools page now group
+  all reports into three named categories: Volunteers, Crews, Event Day; each entry deep-links
+  via `?tab=<id>` query param read on load by `reports.js`.
+- **Tab bar styling** — `#reportTabs` gets a dark-navy frosted-glass treatment
+  (`rgba(10,35,65,0.88)`) to remain legible over the parking-lot photo background;
+  active tab is white with primary-blue text; category labels (`report-tab-category`)
+  appear as faint uppercase separators between tab groups.
+- **Oversight Tools categorization** — Reports section split into Volunteers / Crews /
+  Event Day sub-groups with `.tools-sub-heading` labels and individual cards per report.
+- **Staffing card styles** in `reportsCharts.css` — `.staffing-card` with four status
+  modifiers (`--ok`, `--over`, `--warn`, `--short`), 4px color-coded left border.
+- **`.tools-sub-heading`** and **`.ot-nav-group-label`** utility classes in `styles.css`.
+- `public/styles/reportsCharts.css` — chart panel layout, KPI cards, loading/error states,
+  staffing cards, day picker.
+
 ## 2.55.1 — Bug Fixes
 
 ### Fixed

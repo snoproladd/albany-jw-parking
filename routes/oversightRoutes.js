@@ -94,6 +94,11 @@ import {
   getVolunteersForSmsManagement,
   promoteIfComplete,
   getVolunteerReportRows,
+  getSchedulingCoverageSummary,
+  getAttendanceSummary,
+  getVolunteerDemographics,
+  getCrewStaffingSummary,
+  getDayStaffingReport,
   getConventionDaysWithShifts,
   getShiftAttendanceData,
   upsertAttendance,
@@ -2447,12 +2452,10 @@ export function oversightRouter({
       const normStart = parseTimeString(program_start);
       const normEnd = parseTimeString(program_end);
       if (!normStart || !normEnd)
-        return res
-          .status(400)
-          .json({
-            success: false,
-            error: "Invalid time format. Use HH:MM or H:MM AM/PM.",
-          });
+        return res.status(400).json({
+          success: false,
+          error: "Invalid time format. Use HH:MM or H:MM AM/PM.",
+        });
 
       try {
         const id = await createConventionDay({
@@ -2511,12 +2514,10 @@ export function oversightRouter({
       const normStart = parseTimeString(program_start);
       const normEnd = parseTimeString(program_end);
       if (!normStart || !normEnd)
-        return res
-          .status(400)
-          .json({
-            success: false,
-            error: "Invalid time format. Use HH:MM or H:MM AM/PM.",
-          });
+        return res.status(400).json({
+          success: false,
+          error: "Invalid time format. Use HH:MM or H:MM AM/PM.",
+        });
 
       try {
         const ok = await updateConventionDay(id, {
@@ -2600,12 +2601,10 @@ export function oversightRouter({
       const normStart = parseTimeString(program_start);
       const normEnd = parseTimeString(program_end);
       if (!normStart || !normEnd)
-        return res
-          .status(400)
-          .json({
-            success: false,
-            error: "Invalid time format. Use HH:MM or H:MM AM/PM.",
-          });
+        return res.status(400).json({
+          success: false,
+          error: "Invalid time format. Use HH:MM or H:MM AM/PM.",
+        });
 
       try {
         const newId = await copyConventionDay(sourceDayId, {
@@ -2648,12 +2647,10 @@ export function oversightRouter({
       const normStart = parseTimeString(start_time);
       const normEnd = parseTimeString(end_time);
       if (!normStart || !normEnd)
-        return res
-          .status(400)
-          .json({
-            success: false,
-            error: "Invalid time format. Use HH:MM or H:MM AM/PM.",
-          });
+        return res.status(400).json({
+          success: false,
+          error: "Invalid time format. Use HH:MM or H:MM AM/PM.",
+        });
 
       try {
         const id = await createSession({
@@ -2688,12 +2685,10 @@ export function oversightRouter({
       const normStart = parseTimeString(start_time);
       const normEnd = parseTimeString(end_time);
       if (!normStart || !normEnd)
-        return res
-          .status(400)
-          .json({
-            success: false,
-            error: "Invalid time format. Use HH:MM or H:MM AM/PM.",
-          });
+        return res.status(400).json({
+          success: false,
+          error: "Invalid time format. Use HH:MM or H:MM AM/PM.",
+        });
 
       try {
         const ok = await updateSession(id, {
@@ -2768,12 +2763,10 @@ export function oversightRouter({
       const normStart = parseTimeString(start_time);
       const normEnd = parseTimeString(end_time);
       if (!normStart || !normEnd)
-        return res
-          .status(400)
-          .json({
-            success: false,
-            error: "Invalid time format. Use HH:MM or H:MM AM/PM.",
-          });
+        return res.status(400).json({
+          success: false,
+          error: "Invalid time format. Use HH:MM or H:MM AM/PM.",
+        });
 
       try {
         const id = await createShift({
@@ -2820,12 +2813,10 @@ export function oversightRouter({
       const normStart = parseTimeString(start_time);
       const normEnd = parseTimeString(end_time);
       if (!normStart || !normEnd)
-        return res
-          .status(400)
-          .json({
-            success: false,
-            error: "Invalid time format. Use HH:MM or H:MM AM/PM.",
-          });
+        return res.status(400).json({
+          success: false,
+          error: "Invalid time format. Use HH:MM or H:MM AM/PM.",
+        });
 
       try {
         const ok = await updateShift(id, {
@@ -2984,7 +2975,9 @@ export function oversightRouter({
     async (req, res) => {
       const dayId = Number(req.params.dayId);
       if (!dayId) {
-        return res.status(400).json({ success: false, error: "Invalid day id." });
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid day id." });
       }
       try {
         const rows = await getRendezvousForDay(dayId);
@@ -3035,7 +3028,9 @@ export function oversightRouter({
     async (req, res) => {
       const saId = Number(req.params.scheduleAssignmentId);
       if (!saId) {
-        return res.status(400).json({ success: false, error: "Invalid assignment id." });
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid assignment id." });
       }
       try {
         const rv = await getShiftRendezvous(saId);
@@ -3061,8 +3056,14 @@ export function oversightRouter({
     requirePermission("manageShifts"),
     csrfProtection,
     async (req, res) => {
-      const { schedule_assignment_id, description, address,
-              latitude, longitude, floor_number } = req.body || {};
+      const {
+        schedule_assignment_id,
+        description,
+        address,
+        latitude,
+        longitude,
+        floor_number,
+      } = req.body || {};
       if (!schedule_assignment_id) {
         return res.status(400).json({
           success: false,
@@ -3072,17 +3073,19 @@ export function oversightRouter({
       try {
         const id = await createShiftRendezvous({
           schedule_assignment_id: Number(schedule_assignment_id),
-          description:   description   || null,
-          address:       address       || null,
-          latitude:      latitude  != null ? Number(latitude)  : null,
-          longitude:     longitude != null ? Number(longitude) : null,
-          floor_number:  floor_number   || null,
-          created_by:    req.session.userId,
+          description: description || null,
+          address: address || null,
+          latitude: latitude != null ? Number(latitude) : null,
+          longitude: longitude != null ? Number(longitude) : null,
+          floor_number: floor_number || null,
+          created_by: req.session.userId,
         });
         return res.json({ success: true, id });
       } catch (err) {
-        if (err.message?.includes("UQ_rendezvous_assignment") ||
-            err.message?.includes("UNIQUE")) {
+        if (
+          err.message?.includes("UQ_rendezvous_assignment") ||
+          err.message?.includes("UNIQUE")
+        ) {
           return res.status(409).json({
             success: false,
             error: "A rendezvous point already exists for this assignment.",
@@ -3121,18 +3124,24 @@ export function oversightRouter({
         return res.status(404).json({ success: false, error: "Not found." });
       }
 
-      const { description, address, latitude, longitude,
-              floor_number, send_alert } = req.body || {};
+      const {
+        description,
+        address,
+        latitude,
+        longitude,
+        floor_number,
+        send_alert,
+      } = req.body || {};
 
       try {
         const ok = await updateShiftRendezvous(id, {
-          description:     description   ?? existing.description,
-          address:         address       ?? existing.address,
-          latitude:        latitude  !== undefined ? latitude  : existing.latitude,
-          longitude:       longitude !== undefined ? longitude : existing.longitude,
-          floor_number:    floor_number  ?? existing.floor_number,
+          description: description ?? existing.description,
+          address: address ?? existing.address,
+          latitude: latitude !== undefined ? latitude : existing.latitude,
+          longitude: longitude !== undefined ? longitude : existing.longitude,
+          floor_number: floor_number ?? existing.floor_number,
           photo_blob_name: existing.photo_blob_name,
-          updated_by:      req.session.userId,
+          updated_by: req.session.userId,
         });
         if (!ok) {
           return res.status(404).json({ success: false, error: "Not found." });
@@ -3145,7 +3154,8 @@ export function oversightRouter({
             const vols = await getVolunteersForRendezvousAlert(
               existing.schedule_assignment_id,
             );
-            const desc = (description ?? existing.description) || "updated meeting point";
+            const desc =
+              (description ?? existing.description) || "updated meeting point";
             let sent = 0;
             let failed = 0;
             for (const vol of vols) {
@@ -3155,13 +3165,17 @@ export function oversightRouter({
                 `${_fmtTimeShort(vol.start_time)}: ${desc}`;
               try {
                 await sendAlertSms(
-                  vol.phone, body,
-                  twilioAccountSid, twilioAuthToken, twilioMsgSid,
+                  vol.phone,
+                  body,
+                  twilioAccountSid,
+                  twilioAuthToken,
+                  twilioMsgSid,
                 );
                 sent++;
               } catch (smsErr) {
                 (logError || console.error)(
-                  `RV alert send error vol ${vol.volunteer_id}:`, smsErr,
+                  `RV alert send error vol ${vol.volunteer_id}:`,
+                  smsErr,
                 );
                 failed++;
               }
@@ -3210,10 +3224,12 @@ export function oversightRouter({
 
         // Best-effort blob cleanup
         if (existing.photo_blob_name) {
-          try { await deleteSignPhoto(existing.photo_blob_name); }
-          catch (bErr) {
+          try {
+            await deleteSignPhoto(existing.photo_blob_name);
+          } catch (bErr) {
             (logError || console.error)(
-              "Warning: failed to delete RV photo blob:", bErr,
+              "Warning: failed to delete RV photo blob:",
+              bErr,
             );
           }
         }
@@ -3246,7 +3262,9 @@ export function oversightRouter({
         return res.status(400).json({ success: false, error: "Invalid id." });
       }
       if (!req.file) {
-        return res.status(400).json({ success: false, error: "No photo uploaded." });
+        return res
+          .status(400)
+          .json({ success: false, error: "No photo uploaded." });
       }
 
       try {
@@ -3261,21 +3279,26 @@ export function oversightRouter({
         );
 
         await updateShiftRendezvous(id, {
-          description:     existing.description,
-          address:         existing.address,
-          latitude:        existing.latitude,
-          longitude:       existing.longitude,
-          floor_number:    existing.floor_number,
+          description: existing.description,
+          address: existing.address,
+          latitude: existing.latitude,
+          longitude: existing.longitude,
+          floor_number: existing.floor_number,
           photo_blob_name: newBlobName,
-          updated_by:      req.session.userId,
+          updated_by: req.session.userId,
         });
 
         // Best-effort delete of previous blob
-        if (existing.photo_blob_name && existing.photo_blob_name !== newBlobName) {
-          try { await deleteSignPhoto(existing.photo_blob_name); }
-          catch (bErr) {
+        if (
+          existing.photo_blob_name &&
+          existing.photo_blob_name !== newBlobName
+        ) {
+          try {
+            await deleteSignPhoto(existing.photo_blob_name);
+          } catch (bErr) {
             (logError || console.error)(
-              "Warning: failed to delete old RV photo blob:", bErr,
+              "Warning: failed to delete old RV photo blob:",
+              bErr,
             );
           }
         }
@@ -3321,19 +3344,21 @@ export function oversightRouter({
 
         if (existing.photo_blob_name) {
           await updateShiftRendezvous(id, {
-            description:     existing.description,
-            address:         existing.address,
-            latitude:        existing.latitude,
-            longitude:       existing.longitude,
-            floor_number:    existing.floor_number,
+            description: existing.description,
+            address: existing.address,
+            latitude: existing.latitude,
+            longitude: existing.longitude,
+            floor_number: existing.floor_number,
             photo_blob_name: null,
-            updated_by:      req.session.userId,
+            updated_by: req.session.userId,
           });
 
-          try { await deleteSignPhoto(existing.photo_blob_name); }
-          catch (bErr) {
+          try {
+            await deleteSignPhoto(existing.photo_blob_name);
+          } catch (bErr) {
             (logError || console.error)(
-              "Warning: failed to delete RV photo blob:", bErr,
+              "Warning: failed to delete RV photo blob:",
+              bErr,
             );
           }
         }
@@ -4538,12 +4563,126 @@ export function oversightRouter({
   // VOLUNTEER REPORTS
   // ===========================
 
+  // ── Report chart data API ──────────────────────────────────────────────────
+
+  /**
+   * GET /api/reports/scheduling-coverage
+   * Returns per-convention-day slot fill rate for the current year.
+   * Query param: ?year=YYYY (defaults to current year).
+   *
+   * Permission: OVERSEER+
+   */
+  router.get(
+    "/api/reports/scheduling-coverage",
+    requireAuth,
+    requirePermission("viewAttendance"),
+    async (req, res) => {
+      try {
+        const year = parseInt(req.query.year, 10) || new Date().getFullYear();
+        const days = await getSchedulingCoverageSummary(year);
+        res.json({ year, days });
+      } catch (err) {
+        (logError || console.error)(
+          "GET /api/reports/scheduling-coverage error:",
+          err,
+        );
+        res
+          .status(500)
+          .json({ error: "Failed to fetch scheduling coverage data." });
+      }
+    },
+  );
+
+  /**
+   * GET /api/reports/attendance-overview
+   * Returns per-convention-day attendance summary (invited / attended / no-show).
+   * Query param: ?year=YYYY (defaults to current year).
+   *
+   * Permission: viewAttendance
+   */
+  router.get(
+    "/api/reports/attendance-overview",
+    requireAuth,
+    requirePermission("viewAttendance"),
+    async (req, res) => {
+      try {
+        const year = parseInt(req.query.year, 10) || new Date().getFullYear();
+        const days = await getAttendanceSummary(year);
+        res.json({ year, days });
+      } catch (err) {
+        (logError || console.error)(
+          "GET /api/reports/attendance-overview error:",
+          err,
+        );
+        res
+          .status(500)
+          .json({ error: "Failed to fetch attendance overview data." });
+      }
+    },
+  );
+
+  /**
+   * GET /api/reports/demographics
+   * Returns one row per active completed volunteer with age, gender, and
+   * spiritual privilege flags. Aggregation is done client-side.
+   * Query param: ?year=YYYY (defaults to current year).
+   *
+   * Permission: viewAttendance (OVERSEER+)
+   */
+  router.get(
+    "/api/reports/demographics",
+    requireAuth,
+    requirePermission("viewAttendance"),
+    async (req, res) => {
+      try {
+        const year = parseInt(req.query.year, 10) || new Date().getFullYear();
+        const volunteers = await getVolunteerDemographics(year);
+        res.json({ year, volunteers });
+      } catch (err) {
+        (logError || console.error)(
+          "GET /api/reports/demographics error:",
+          err,
+        );
+        res.status(500).json({ error: "Failed to fetch demographics data." });
+      }
+    },
+  );
+
+  /**
+   * GET /api/reports/crew-staffing
+   * Returns roster count vs. scheduled count per crew department.
+   * Query param: ?year=YYYY (defaults to current year).
+   *
+   * Permission: viewAttendance (OVERSEER+)
+   */
+  router.get(
+    "/api/reports/crew-staffing",
+    requireAuth,
+    requirePermission("viewAttendance"),
+    async (req, res) => {
+      try {
+        const year = parseInt(req.query.year, 10) || new Date().getFullYear();
+        const crews = await getCrewStaffingSummary(year);
+        res.json({ year, crews });
+      } catch (err) {
+        (logError || console.error)(
+          "GET /api/reports/crew-staffing error:",
+          err,
+        );
+        res.status(500).json({ error: "Failed to fetch crew staffing data." });
+      }
+    },
+  );
+
+  // GET /oversight/tools/reports
+
   /**
    * GET /oversight/tools/reports
    * Landing page for Oversight Reports. Currently surfaces the
    * Volunteer Application Status report.
    * Requires OVERSEER or above (createAssignments permission).
    */
+
   router.get(
     "/oversight/tools/reports",
     requireAuth,
@@ -5699,21 +5838,21 @@ export function oversightRouter({
    *
    * @requires manageShifts permission
    */
-router.get(
-  "/api/shifts/suggest-code",
-  requireAuth,
-  requirePermission("manageShifts"),
-  async (req, res) => {
-    const { conventionDate, department } = req.query;
-    if (!conventionDate || !department) {
-      return res.status(400).json({
-        success: false,
-        error: "conventionDate and department are required.",
-      });
-    }
-    try {
-      const countResult = await exec(
-        `
+  router.get(
+    "/api/shifts/suggest-code",
+    requireAuth,
+    requirePermission("manageShifts"),
+    async (req, res) => {
+      const { conventionDate, department } = req.query;
+      if (!conventionDate || !department) {
+        return res.status(400).json({
+          success: false,
+          error: "conventionDate and department are required.",
+        });
+      }
+      try {
+        const countResult = await exec(
+          `
             SELECT COUNT(*) AS cnt
             FROM dbo.shifts sh
             JOIN dbo.sessions        sess ON sess.id = sh.session_id
@@ -5722,20 +5861,20 @@ router.get(
               AND sh.department  = @department
               AND sh.sms_code IS NOT NULL;
         `,
-        (preq) => {
-          preq.input("conventionDate", sql.Date, conventionDate);
-          preq.input("department", sql.NVarChar(50), department);
-        },
-      );
-      const n = (countResult.recordset?.[0]?.cnt ?? 0) + 1;
-      const code = generateShiftCode(conventionDate, department, n);
-      return res.json({ success: true, code });
-    } catch (err) {
-      (logError || console.error)("api/shifts/suggest-code error:", err);
-      return res.status(500).json({ success: false, error: "Server error." });
-    }
-  },
-);
+          (preq) => {
+            preq.input("conventionDate", sql.Date, conventionDate);
+            preq.input("department", sql.NVarChar(50), department);
+          },
+        );
+        const n = (countResult.recordset?.[0]?.cnt ?? 0) + 1;
+        const code = generateShiftCode(conventionDate, department, n);
+        return res.json({ success: true, code });
+      } catch (err) {
+        (logError || console.error)("api/shifts/suggest-code error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
 
   // ===========================
   // SHIFT ALERTS — Schedules
@@ -5962,12 +6101,10 @@ router.get(
             .status(404)
             .json({ success: false, error: "Schedule not found." });
         if (schedule.active)
-          return res
-            .status(400)
-            .json({
-              success: false,
-              error: "Deactivate the schedule before deleting it.",
-            });
+          return res.status(400).json({
+            success: false,
+            error: "Deactivate the schedule before deleting it.",
+          });
         const ok = await hardDeleteAlertSchedule(id);
         if (!ok)
           return res
@@ -6533,9 +6670,7 @@ router.get(
           ]);
         }
 
-        const conventionDays = (
-          await getConventionDays(year)
-        ).filter(
+        const conventionDays = (await getConventionDays(year)).filter(
           (d) => d.schedulable !== false && d.schedulable !== 0,
         );
 
@@ -6574,7 +6709,8 @@ router.get(
         const all = await getActiveVolunteers({});
         const results = all
           .filter((v) => {
-            const full = `${v.lastName || ""} ${v.firstName || ""}`.toLowerCase();
+            const full =
+              `${v.lastName || ""} ${v.firstName || ""}`.toLowerCase();
             return full.includes(q);
           })
           .slice(0, 15)
@@ -6643,23 +6779,31 @@ router.get(
         }
 
         // Build schedule text
-        const lines = [`Albany JW Parking — Schedule for ${volunteer.firstName} ${volunteer.lastName}`];
+        const lines = [
+          `Albany JW Parking — Schedule for ${volunteer.firstName} ${volunteer.lastName}`,
+        ];
         lines.push("");
 
         if (scheduleData.days.length === 0) {
           lines.push("No shift assignments found.");
         } else {
           for (const day of scheduleData.days) {
-            lines.push(`${day.label}${day.convention_date ? ` (${day.convention_date})` : ""}:`);
+            lines.push(
+              `${day.label}${day.convention_date ? ` (${day.convention_date})` : ""}:`,
+            );
             for (const a of day.assignments) {
-              const time = [a.start_time, a.end_time].filter(Boolean).join(" - ");
+              const time = [a.start_time, a.end_time]
+                .filter(Boolean)
+                .join(" - ");
               const role =
                 a.slot_type === "keyman"
                   ? " [KM]"
                   : a.slot_type === "keyman_asst"
                     ? " [KA]"
                     : "";
-              lines.push(`  ${a.shift_label} ${time ? `(${time})` : ""} — ${a.location_name}${role}`);
+              lines.push(
+                `  ${a.shift_label} ${time ? `(${time})` : ""} — ${a.location_name}${role}`,
+              );
             }
             lines.push("");
           }
@@ -6722,6 +6866,125 @@ router.get(
           success: false,
           error: "Server error.",
         });
+      }
+    },
+  );
+
+  // ============================================================
+  // REPORTS — Graphical chart data APIs
+  // ============================================================
+
+  /**
+   * GET /api/reports/scheduling-coverage
+   * Per-convention-day slot fill rate (needed vs. assigned).
+   * Query param: ?year=YYYY (defaults to current year).
+   * Permission: viewAttendance (OVERSEER+)
+   */
+  router.get(
+    "/api/reports/scheduling-coverage",
+    requireAuth,
+    requirePermission("viewAttendance"),
+    async (req, res) => {
+      try {
+        const year = parseInt(req.query.year, 10) || new Date().getFullYear();
+        const days = await getSchedulingCoverageSummary(year);
+        return res.json({ year, days });
+      } catch (err) {
+        (logError || console.error)("GET /api/reports/scheduling-coverage error:", err);
+        return res.status(500).json({ error: "Failed to fetch scheduling coverage data." });
+      }
+    },
+  );
+
+  /**
+   * GET /api/reports/attendance-overview
+   * Per-convention-day attendance rollup (invited / attended / no-show).
+   * Query param: ?year=YYYY (defaults to current year).
+   * Permission: viewAttendance (OVERSEER+)
+   */
+  router.get(
+    "/api/reports/attendance-overview",
+    requireAuth,
+    requirePermission("viewAttendance"),
+    async (req, res) => {
+      try {
+        const year = parseInt(req.query.year, 10) || new Date().getFullYear();
+        const days = await getAttendanceSummary(year);
+        return res.json({ year, days });
+      } catch (err) {
+        (logError || console.error)("GET /api/reports/attendance-overview error:", err);
+        return res.status(500).json({ error: "Failed to fetch attendance overview data." });
+      }
+    },
+  );
+
+  /**
+   * GET /api/reports/demographics
+   * One row per active completed volunteer: age, gender, spiritual privilege flags.
+   * Client aggregates into bins — no server-side grouping.
+   * Query param: ?year=YYYY (defaults to current year).
+   * Permission: viewAttendance (OVERSEER+)
+   */
+  router.get(
+    "/api/reports/demographics",
+    requireAuth,
+    requirePermission("viewAttendance"),
+    async (req, res) => {
+      try {
+        const year = parseInt(req.query.year, 10) || new Date().getFullYear();
+        const volunteers = await getVolunteerDemographics(year);
+        return res.json({ year, volunteers });
+      } catch (err) {
+        (logError || console.error)("GET /api/reports/demographics error:", err);
+        return res.status(500).json({ error: "Failed to fetch demographics data." });
+      }
+    },
+  );
+
+  /**
+   * GET /api/reports/crew-staffing
+   * Roster count vs. scheduled count per crew department for the year.
+   * Query param: ?year=YYYY (defaults to current year).
+   * Permission: viewAttendance (OVERSEER+)
+   */
+  router.get(
+    "/api/reports/crew-staffing",
+    requireAuth,
+    requirePermission("viewAttendance"),
+    async (req, res) => {
+      try {
+        const year = parseInt(req.query.year, 10) || new Date().getFullYear();
+        const crews = await getCrewStaffingSummary(year);
+        return res.json({ year, crews });
+      } catch (err) {
+        (logError || console.error)("GET /api/reports/crew-staffing error:", err);
+        return res.status(500).json({ error: "Failed to fetch crew staffing data." });
+      }
+    },
+  );
+
+  /**
+   * GET /api/reports/day-staffing
+   * Per-crew staffing health for a single convention day:
+   * volunteer_need, scheduled, attended, and gap per department.
+   * Query param: ?dayId=N (required — convention_days.id).
+   * Permission: viewAttendance (OVERSEER+)
+   */
+  router.get(
+    "/api/reports/day-staffing",
+    requireAuth,
+    requirePermission("viewAttendance"),
+    async (req, res) => {
+      try {
+        const dayId = parseInt(req.query.dayId, 10);
+        if (!dayId) {
+          return res.status(400).json({ error: "dayId is required." });
+        }
+        const crews = await getDayStaffingReport(dayId);
+        return res.json({ dayId, crews });
+      } catch (err) {
+        (logError || console.error)("GET /api/reports/day-staffing error:", err);
+        return res.status(500).json({ error: "Failed to fetch day staffing data." });
       }
     },
   );

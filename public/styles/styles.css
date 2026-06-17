@@ -2280,3 +2280,30 @@ footer p:not(.footer-text) {
 #smsSearch {
   max-width: 180px;
 }
+
+/* ── Reports: sub-group headings within a section ─────────────── */
+.tools-sub-heading {
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--bs-secondary-color, #6c757d);
+    margin: 0.5rem 0 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+/* ── Operations nav dropdown: category-level sub-labels ───────── */
+.ot-nav-group-label {
+    display: block;
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: rgba(144, 196, 248, 0.45);
+    padding: 0.55rem 1rem 0.1rem 2rem;
+    pointer-events: none;
+    cursor: default;
+    list-style: none;
+}

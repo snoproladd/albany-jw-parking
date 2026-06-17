@@ -171,8 +171,8 @@
                 </li>
                 <% } %>
 
-                <% if (isAtLeast('OVERSEER')) { %>
-                <%# ── Reports ─────────────────────────────────────── %>
+<% if (isAtLeast('OVERSEER')) { %>
+                <%# ── Reports ─────────────────────────────────────────── %>
                 <li>
                   <button class="ot-nav-category" type="button"
                           data-bs-toggle="collapse"
@@ -184,8 +184,30 @@
                 <li>
                   <div class="collapse show" id="otNavReports">
                     <ul class="ot-nav-items">
-                      <li><a class="ot-nav-item" href="/oversight/tools/reports">
+                      <li class="ot-nav-group-label">Volunteers</li>
+                      <li><a class="ot-nav-item" href="/oversight/tools/reports?tab=app-status">
                         <i class="fa-solid fa-clipboard-list"></i>Application Status
+                      </a></li>
+                      <li><a class="ot-nav-item" href="/oversight/tools/reports?tab=demographics">
+                        <i class="fa-solid fa-chart-pie"></i>Demographics
+                      </a></li>
+                      <li><a class="ot-nav-item" href="/oversight/tools/reports?tab=target-levels">
+                        <i class="fa-solid fa-bullseye"></i>Target Levels
+                      </a></li>
+                      <li class="ot-nav-group-label">Crews</li>
+                      <li><a class="ot-nav-item" href="/oversight/tools/reports?tab=staff-usage">
+                        <i class="fa-solid fa-layer-group"></i>Staff Usage
+                      </a></li>
+                      <li class="ot-nav-group-label">Event Day</li>
+                      <li><a class="ot-nav-item" href="/oversight/tools/reports?tab=crew-attendance">
+                        <i class="fa-solid fa-clipboard-check"></i>Crew Attendance
+                      </a></li>
+                      <li><a class="ot-nav-item" href="/oversight/tools/reports?tab=day-staffing">
+                        <i class="fa-solid fa-people-arrows"></i>Day Staffing
+                      </a></li>
+                      <li><a class="ot-nav-item ot-nav-item--soon" href="#" aria-disabled="true" tabindex="-1">
+                        <i class="fa-solid fa-warehouse"></i>Garage Capacity
+                        <span class="badge bg-secondary ms-auto badge-xs">Soon</span>
                       </a></li>
                     </ul>
                   </div>

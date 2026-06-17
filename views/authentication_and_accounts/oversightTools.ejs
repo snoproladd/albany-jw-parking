@@ -262,21 +262,108 @@
               <h2 class="tools-group-heading" id="reports">
                 <i class="fa-solid fa-chart-bar me-2"></i>Reports
               </h2>
-              <div class="row g-4 mb-5">
 
+              <%# ── Volunteer reports ──────────────────────── %>
+              <p class="tools-sub-heading">
+                <i class="fa-solid fa-users" aria-hidden="true"></i>Volunteers
+              </p>
+              <div class="row g-4 mb-4">
                 <div class="col-12 col-sm-6 col-lg-4">
                   <div class="admin-tool-card h-100">
                     <div class="admin-tool-icon text-info">
                       <i class="fa-solid fa-clipboard-list"></i>
                     </div>
-                    <h3 class="admin-tool-title">Volunteer Application Status</h3>
-                    <p class="admin-tool-desc">View all volunteers with their registration status and identify accounts with missing required information.</p>
-                    <a href="/oversight/tools/reports" class="btn btn-info admin-tool-btn">
+                    <h3 class="admin-tool-title">Application Status</h3>
+                    <p class="admin-tool-desc">All volunteers with their registration status and any missing required information.</p>
+                    <a href="/oversight/tools/reports?tab=app-status" class="btn btn-info admin-tool-btn">
                       Open <i class="fa-solid fa-arrow-right ms-1"></i>
                     </a>
                   </div>
                 </div>
+                <div class="col-12 col-sm-6 col-lg-4">
+                  <div class="admin-tool-card h-100">
+                    <div class="admin-tool-icon text-primary">
+                      <i class="fa-solid fa-chart-pie"></i>
+                    </div>
+                    <h3 class="admin-tool-title">Demographics</h3>
+                    <p class="admin-tool-desc">Age distribution, gender split, and spiritual privilege breakdown across active volunteers.</p>
+                    <a href="/oversight/tools/reports?tab=demographics" class="btn btn-primary admin-tool-btn">
+                      Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                    </a>
+                  </div>
+                </div>
+                <div class="col-12 col-sm-6 col-lg-4">
+                  <div class="admin-tool-card h-100">
+                    <div class="admin-tool-icon text-warning">
+                      <i class="fa-solid fa-bullseye"></i>
+                    </div>
+                    <h3 class="admin-tool-title">Target Levels</h3>
+                    <p class="admin-tool-desc">Slot fill rate vs. volunteer-need targets per convention day — see where you're short.</p>
+                    <a href="/oversight/tools/reports?tab=target-levels" class="btn btn-warning admin-tool-btn">
+                      Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                    </a>
+                  </div>
+                </div>
+              </div>
 
+              <%# ── Crew reports ───────────────────────────── %>
+              <p class="tools-sub-heading">
+                <i class="fa-solid fa-people-group" aria-hidden="true"></i>Crews
+              </p>
+              <div class="row g-4 mb-4">
+                <div class="col-12 col-sm-6 col-lg-4">
+                  <div class="admin-tool-card h-100">
+                    <div class="admin-tool-icon text-success">
+                      <i class="fa-solid fa-layer-group"></i>
+                    </div>
+                    <h3 class="admin-tool-title">Staff Usage</h3>
+                    <p class="admin-tool-desc">Roster size and scheduling activity per crew — compare assigned volunteers to actual shifts filled.</p>
+                    <a href="/oversight/tools/reports?tab=staff-usage" class="btn btn-success admin-tool-btn">
+                      Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              <%# ── Event day reports ──────────────────────── %>
+              <p class="tools-sub-heading">
+                <i class="fa-solid fa-calendar-day" aria-hidden="true"></i>Event Day
+              </p>
+              <div class="row g-4 mb-5">
+                <div class="col-12 col-sm-6 col-lg-4">
+                  <div class="admin-tool-card h-100">
+                    <div class="admin-tool-icon text-danger">
+                      <i class="fa-solid fa-clipboard-check"></i>
+                    </div>
+                    <h3 class="admin-tool-title">Crew Attendance</h3>
+                    <p class="admin-tool-desc">Attended vs. no-show counts per convention day, rolled up from shift invitation and check-in records.</p>
+                    <a href="/oversight/tools/reports?tab=crew-attendance" class="btn btn-danger admin-tool-btn">
+                      Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                    </a>
+                  </div>
+                </div>
+                <div class="col-12 col-sm-6 col-lg-4">
+                  <div class="admin-tool-card h-100">
+                    <div class="admin-tool-icon text-warning">
+                      <i class="fa-solid fa-people-arrows"></i>
+                    </div>
+                    <h3 class="admin-tool-title">Day Staffing</h3>
+                    <p class="admin-tool-desc">Pick a convention day and see each crew's need vs. scheduled vs. present — color-coded so you can spot where to redeploy volunteers instantly.</p>
+                    <a href="/oversight/tools/reports?tab=day-staffing" class="btn btn-warning admin-tool-btn">
+                      Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                    </a>
+                  </div>
+                </div>
+                <div class="col-12 col-sm-6 col-lg-4">
+                  <div class="admin-tool-card h-100 admin-tool-card--soon">
+                    <div class="admin-tool-icon text-secondary">
+                      <i class="fa-solid fa-warehouse"></i>
+                    </div>
+                    <h3 class="admin-tool-title">Garage Capacity</h3>
+                    <p class="admin-tool-desc">Vehicle counts and capacity utilization per garage or lot across each convention day. <em>Coming soon.</em></p>
+                    <span class="btn btn-secondary admin-tool-btn disabled" aria-disabled="true">Coming Soon</span>
+                  </div>
+                </div>
               </div>
             <% } %>
             <%# ══════════════════════════════════════════════

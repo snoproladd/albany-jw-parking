@@ -259,3 +259,15 @@ searchInput.addEventListener("input", renderTable);
 
 syncSortIcons();
 renderTable();
+
+// ─── URL deep-link: ?tab=<data-tab-id> ───────────────────────────────────
+// Lets oversight tools cards and nav links jump directly to a report tab.
+(function () {
+    const params  = new URLSearchParams(window.location.search);
+    const tabId   = params.get('tab');
+    if (!tabId) return;
+    const btn = document.querySelector(`#reportTabs [data-tab-id="${CSS.escape(tabId)}"]`);
+    if (btn && !btn.classList.contains('disabled')) {
+        bootstrap.Tab.getOrCreateInstance(btn).show();
+    }
+})();

@@ -1,0 +1,230 @@
+/**
+ * reportsCharts.css
+ * Styles for the graphical chart panels on the Oversight Reports page.
+ * Companion to reportsCharts.js — never inline styles or scripts.
+ */
+
+/* ── KPI stat cards ─────────────────────────────────────────── */
+.report-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.report-kpi-card {
+    background-color: var(--bs-tertiary-bg, #f8f9fa);
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 0.5rem;
+    padding: 0.875rem 1rem;
+    text-align: center;
+}
+
+.report-kpi-label {
+    font-size: 0.7rem;
+    color: var(--bs-secondary-color, #6c757d);
+    margin-bottom: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.report-kpi-value {
+    font-size: 1.7rem;
+    font-weight: 500;
+    line-height: 1.1;
+    margin: 0;
+    color: var(--bs-body-color, #212529);
+}
+
+.report-kpi-value.kpi-blue {
+    color: #1e3a8a;
+}
+
+.report-kpi-value.kpi-green {
+    color: #166534;
+}
+
+.report-kpi-value.kpi-amber {
+    color: #92400e;
+}
+
+.report-kpi-value.kpi-gray {
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+/* ── Chart wrapper ───────────────────────────────────────────── */
+.report-chart-card {
+    background: var(--bs-body-bg, #fff);
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 0.5rem;
+    padding: 1.25rem;
+    margin-bottom: 1.25rem;
+}
+
+.report-chart-card-title {
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin-bottom: 1rem;
+    color: var(--bs-body-color, #212529);
+}
+
+/* ── Sized canvas container ──────────────────────────────────── */
+.report-chart-wrap {
+    position: relative;
+    height: 280px;
+    width: 100%;
+}
+
+.report-chart-wrap.chart-donut {
+    height: 240px;
+}
+
+/* ── Loading state ───────────────────────────────────────────── */
+.report-chart-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 280px;
+    color: var(--bs-secondary-color, #6c757d);
+    font-size: 0.875rem;
+    gap: 0.5rem;
+}
+
+.report-chart-loading.loading-donut {
+    height: 240px;
+}
+
+/* ── Error state ─────────────────────────────────────────────── */
+.report-chart-error {
+    display: none;
+    padding: 0.75rem 1rem;
+    margin-top: 0.5rem;
+    border-radius: 0.375rem;
+    background-color: var(--bs-danger-bg-subtle, #f8d7da);
+    color: var(--bs-danger-text-emphasis, #842029);
+    font-size: 0.8rem;
+}
+
+/* ── Two-up layout for dashboard donut + bar ─────────────────── */
+@media (min-width: 768px) {
+    .report-dash-row {
+        display: grid;
+        grid-template-columns: 240px minmax(0, 1fr);
+        gap: 1rem;
+        align-items: start;
+    }
+}
+
+/* ── Taller chart wrap for day staffing (more crews = more height) ── */
+.report-chart-wrap--tall {
+    height: 340px;
+}
+
+/* ── Day picker row ──────────────────────────────────────────── */
+.report-day-picker {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.report-day-picker label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin: 0;
+    white-space: nowrap;
+    color: var(--bs-body-color, #212529);
+}
+
+.report-day-picker select {
+    width: auto;
+    min-width: 220px;
+}
+
+/* ── Crew status cards grid ──────────────────────────────────── */
+.staffing-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.6rem;
+    margin-bottom: 1.25rem;
+}
+
+.staffing-card {
+    border-radius: 0.5rem;
+    padding: 0.75rem 0.875rem;
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-left-width: 4px;
+    background: var(--bs-tertiary-bg, #f8f9fa);
+}
+
+/* Status color modifiers — left border + value color */
+.staffing-card--ok     { border-left-color: #16a34a; }
+.staffing-card--over   { border-left-color: #0891b2; }
+.staffing-card--warn   { border-left-color: #d97706; }
+.staffing-card--short  { border-left-color: #dc2626; }
+
+.staffing-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.4rem;
+    margin-bottom: 0.2rem;
+}
+
+.staffing-card-name {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--bs-body-color, #212529);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.staffing-card-status {
+    font-size: 0.65rem;
+    font-weight: 700;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.staffing-card--ok    .staffing-card-status { color: #15803d; }
+.staffing-card--over  .staffing-card-status { color: #0e7490; }
+.staffing-card--warn  .staffing-card-status { color: #b45309; }
+.staffing-card--short .staffing-card-status { color: #b91c1c; }
+
+/* Large gap number */
+.staffing-card-gap {
+    font-size: 1.6rem;
+    font-weight: 700;
+    line-height: 1.05;
+    margin: 0.15rem 0 0.35rem;
+}
+.staffing-card--ok    .staffing-card-gap { color: #16a34a; }
+.staffing-card--over  .staffing-card-gap { color: #0891b2; }
+.staffing-card--warn  .staffing-card-gap { color: #d97706; }
+.staffing-card--short .staffing-card-gap { color: #dc2626; }
+
+/* Stat trio: Need / Sched. / Present */
+.staffing-card-stats {
+    display: flex;
+    gap: 0.65rem;
+}
+
+.staffing-card-stats > div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.05rem;
+}
+
+.staffing-card-stats > div span {
+    font-size: 0.58rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+.staffing-card-stats > div strong {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--bs-body-color, #212529);
+}

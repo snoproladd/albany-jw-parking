@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
   <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
   <link rel="stylesheet" type="text/css" href="/styles/reports.css" />
+  <link rel="stylesheet" type="text/css" href="/styles/reportsCharts.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@15.2.2/dist/css/shepherd.css" />
   <link rel="stylesheet" href="/css/tours.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -33,14 +34,21 @@
             <i class="fa-solid fa-chart-bar me-2 text-info"></i>Reports
           </h1>        </div>
 
-        <!-- Report nav tabs -->
-        <ul class="nav nav-tabs mb-4" id="reportTabs" role="tablist">
+<!-- Report nav tabs -->
+        <ul class="nav nav-tabs mb-0" id="reportTabs" role="tablist">
+
+          <!-- ── Volunteers ──────────────────────────────── -->
+          <li class="report-tab-category" aria-hidden="true">
+            <span>Volunteers</span>
+          </li>
+
           <li class="nav-item" role="presentation">
             <button
               class="nav-link active"
               id="tab-app-status"
               data-bs-toggle="tab"
               data-bs-target="#panel-app-status"
+              data-tab-id="app-status"
               type="button"
               role="tab"
               aria-controls="panel-app-status"
@@ -48,13 +56,113 @@
               <i class="fa-solid fa-clipboard-list me-1"></i>Application Status
             </button>
           </li>
-          <!-- Future reports slot in here as additional <li> elements -->
+
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              id="tab-demographics"
+              data-bs-toggle="tab"
+              data-bs-target="#panel-demographics"
+              data-tab-id="demographics"
+              type="button"
+              role="tab"
+              aria-controls="panel-demographics"
+              aria-selected="false">
+              <i class="fa-solid fa-chart-pie me-1"></i>Demographics
+            </button>
+          </li>
+
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              id="tab-target-levels"
+              data-bs-toggle="tab"
+              data-bs-target="#panel-target-levels"
+              data-tab-id="target-levels"
+              type="button"
+              role="tab"
+              aria-controls="panel-target-levels"
+              aria-selected="false">
+              <i class="fa-solid fa-bullseye me-1"></i>Target Levels
+            </button>
+          </li>
+
+          <!-- ── Crews ───────────────────────────────────── -->
+          <li class="report-tab-category" aria-hidden="true">
+            <span>Crews</span>
+          </li>
+
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              id="tab-staff-usage"
+              data-bs-toggle="tab"
+              data-bs-target="#panel-staff-usage"
+              data-tab-id="staff-usage"
+              type="button"
+              role="tab"
+              aria-controls="panel-staff-usage"
+              aria-selected="false">
+              <i class="fa-solid fa-layer-group me-1"></i>Staff Usage
+            </button>
+          </li>
+
+          <!-- ── Event Day ───────────────────────────────── -->
+          <li class="report-tab-category" aria-hidden="true">
+            <span>Event Day</span>
+          </li>
+
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              id="tab-crew-attendance"
+              data-bs-toggle="tab"
+              data-bs-target="#panel-crew-attendance"
+              data-tab-id="crew-attendance"
+              type="button"
+              role="tab"
+              aria-controls="panel-crew-attendance"
+              aria-selected="false">
+              <i class="fa-solid fa-clipboard-check me-1"></i>Crew Attendance
+            </button>
+          </li>
+
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              id="tab-day-staffing"
+              data-bs-toggle="tab"
+              data-bs-target="#panel-day-staffing"
+              data-tab-id="day-staffing"
+              type="button"
+              role="tab"
+              aria-controls="panel-day-staffing"
+              aria-selected="false">
+              <i class="fa-solid fa-people-arrows me-1"></i>Day Staffing
+            </button>
+          </li>
+
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link disabled"
+              id="tab-garage-capacity"
+              data-tab-id="garage-capacity"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              aria-disabled="true"
+              tabindex="-1">
+              <i class="fa-solid fa-warehouse me-1"></i>Garage Capacity
+              <span class="badge bg-secondary ms-1 badge-xs">Soon</span>
+            </button>
+          </li>
+
         </ul>
 
         <!-- Tab panels -->
-        <div class="tab-content">
+        <div class="tab-content mt-0">
 
-          <!-- ══ Application Status report ══ -->
+          <!-- ══ Application Status ══ -->
           <div
             class="tab-pane fade show active"
             id="panel-app-status"
@@ -123,7 +231,207 @@
               </div>
             </section>
 
-          </div><!-- /.tab-pane -->
+</div><!-- /#panel-app-status -->
+
+          <!-- ══ Demographics ══ -->
+          <div
+            class="tab-pane fade"
+            id="panel-demographics"
+            role="tabpanel"
+            aria-labelledby="tab-demographics">
+
+            <!-- KPI summary cards -->
+            <div class="report-kpi-grid mt-3 mb-3">
+              <div class="report-kpi-card">
+                <p class="report-kpi-label">Total volunteers</p>
+                <p class="report-kpi-value kpi-gray" id="kpi-total">—</p>
+              </div>
+              <div class="report-kpi-card">
+                <p class="report-kpi-label">Completed</p>
+                <p class="report-kpi-value kpi-green" id="kpi-completed">—</p>
+              </div>
+              <div class="report-kpi-card">
+                <p class="report-kpi-label">Incomplete</p>
+                <p class="report-kpi-value kpi-amber" id="kpi-draft">—</p>
+              </div>
+              <div class="report-kpi-card">
+                <p class="report-kpi-label">Completion rate</p>
+                <p class="report-kpi-value kpi-blue" id="kpi-rate">—</p>
+              </div>
+            </div>
+
+            <div class="row g-3">
+              <!-- Registration status donut -->
+              <div class="col-12 col-md-4">
+                <div class="report-chart-card h-100">
+                  <p class="report-chart-card-title">
+                    <i class="fa-solid fa-circle-half-stroke me-1 text-muted"></i>
+                    Registration status
+                  </p>
+                  <div class="report-chart-loading loading-donut" id="demo-donut-loading" role="status">
+                    <div class="spinner-border spinner-border-sm text-secondary" aria-hidden="true"></div>
+                    Loading…
+                  </div>
+                  <div class="report-chart-wrap chart-donut">
+                    <canvas id="demo-donut-canvas" aria-label="Registration status donut chart" role="img"></canvas>
+                  </div>
+                </div>
+              </div>
+              <!-- Age distribution -->
+              <div class="col-12 col-md-8">
+                <div class="report-chart-card h-100">
+                  <p class="report-chart-card-title">
+                    <i class="fa-solid fa-cake-candles me-1 text-muted"></i>
+                    Age distribution
+                  </p>
+                  <div class="report-chart-loading" id="demo-age-loading" role="status">
+                    <div class="spinner-border spinner-border-sm text-secondary" aria-hidden="true"></div>
+                    Loading…
+                  </div>
+                  <div class="report-chart-error" id="demo-age-error" role="alert"></div>
+                  <div class="report-chart-wrap">
+                    <canvas id="demo-age-canvas" aria-label="Age distribution bar chart" role="img"></canvas>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Spiritual privileges -->
+            <div class="report-chart-card mt-3">
+              <p class="report-chart-card-title">
+                <i class="fa-solid fa-hands-praying me-1 text-muted"></i>
+                Spiritual privileges
+                <span class="text-muted fw-normal small ms-2">(active volunteers — multiple may apply)</span>
+              </p>
+              <div class="report-chart-loading" id="demo-priv-loading" role="status">
+                <div class="spinner-border spinner-border-sm text-secondary" aria-hidden="true"></div>
+                Loading…
+              </div>
+              <div class="report-chart-error" id="demo-priv-error" role="alert"></div>
+              <div class="report-chart-wrap">
+                <canvas id="demo-priv-canvas" aria-label="Spiritual privileges bar chart" role="img"></canvas>
+              </div>
+            </div>
+
+          </div><!-- /#panel-demographics -->
+
+          <!-- ══ Target Levels ══ -->
+          <div
+            class="tab-pane fade"
+            id="panel-target-levels"
+            role="tabpanel"
+            aria-labelledby="tab-target-levels">
+
+            <div class="report-chart-card mt-3">
+              <p class="report-chart-card-title">
+                <i class="fa-solid fa-bars-progress me-1 text-muted"></i>
+                Slot fill rate — by convention day
+              </p>
+              <div class="report-chart-loading" id="targets-chart-loading" role="status">
+                <div class="spinner-border spinner-border-sm text-secondary" aria-hidden="true"></div>
+                Loading…
+              </div>
+              <div class="report-chart-error" id="targets-chart-error" role="alert"></div>
+              <div class="report-chart-wrap">
+                <canvas id="targets-chart-canvas" aria-label="Scheduling coverage bar chart" role="img"></canvas>
+              </div>
+              <div class="report-totals-row mt-3 pt-3 border-top small text-muted" id="targets-summary">
+                <span>Total slots needed: <strong id="targets-sum-needed">—</strong></span>
+                <span>Assigned: <strong id="targets-sum-assigned">—</strong></span>
+                <span>Overall fill: <strong id="targets-sum-pct">—</strong></span>
+              </div>
+            </div>
+
+          </div><!-- /#panel-target-levels -->
+
+          <!-- ══ Staff Usage ══ -->
+          <div
+            class="tab-pane fade"
+            id="panel-staff-usage"
+            role="tabpanel"
+            aria-labelledby="tab-staff-usage">
+
+            <div class="report-chart-card mt-3">
+              <p class="report-chart-card-title">
+                <i class="fa-solid fa-layer-group me-1 text-muted"></i>
+                Volunteers per crew — roster vs. scheduled
+                <span class="text-muted fw-normal small ms-2">(active volunteers with crew flag vs. those who appeared in a shift)</span>
+              </p>
+              <div class="report-chart-loading" id="staff-chart-loading" role="status">
+                <div class="spinner-border spinner-border-sm text-secondary" aria-hidden="true"></div>
+                Loading…
+              </div>
+              <div class="report-chart-error" id="staff-chart-error" role="alert"></div>
+              <div class="report-chart-wrap">
+                <canvas id="staff-chart-canvas" aria-label="Staff usage horizontal bar chart" role="img"></canvas>
+              </div>
+            </div>
+
+          </div><!-- /#panel-staff-usage -->
+
+          <!-- ══ Crew Attendance ══ -->
+          <div
+            class="tab-pane fade"
+            id="panel-crew-attendance"
+            role="tabpanel"
+            aria-labelledby="tab-crew-attendance">
+
+            <div class="report-chart-card mt-3">
+              <p class="report-chart-card-title">
+                <i class="fa-solid fa-user-check me-1 text-muted"></i>
+                Attendance by convention day
+                <span class="text-muted fw-normal small ms-2">(based on shift invitations)</span>
+              </p>
+              <div class="report-chart-loading" id="crew-attend-loading" role="status">
+                <div class="spinner-border spinner-border-sm text-secondary" aria-hidden="true"></div>
+                Loading…
+              </div>
+              <div class="report-chart-error" id="crew-attend-error" role="alert"></div>
+              <div class="report-chart-wrap">
+                <canvas id="crew-attend-canvas" aria-label="Crew attendance stacked bar chart" role="img"></canvas>
+              </div>
+            </div>
+
+          </div><!-- /#panel-crew-attendance -->
+
+        <!-- ══ Day Staffing ══ -->
+          <div
+            class="tab-pane fade"
+            id="panel-day-staffing"
+            role="tabpanel"
+            aria-labelledby="tab-day-staffing">
+
+            <div class="report-chart-card mt-3">
+
+              <!-- Day picker -->
+              <div class="report-day-picker mb-3">
+                <label for="staffing-day-select">Convention day</label>
+                <select id="staffing-day-select" class="form-select form-select-sm">
+                  <option value="">Loading days…</option>
+                </select>
+              </div>
+
+              <!-- Crew status cards -->
+              <div class="staffing-cards-grid" id="staffing-cards"></div>
+
+              <!-- Chart -->
+              <p class="report-chart-card-title mb-2">
+                <i class="fa-solid fa-people-arrows me-1 text-muted"></i>
+                Need vs. Scheduled vs. Present — by crew
+                <span class="text-muted fw-normal small ms-2">teal = covered · amber = close · red = short</span>
+              </p>
+              <div class="report-chart-loading" id="day-staff-loading" role="status">
+                <div class="spinner-border spinner-border-sm text-secondary" aria-hidden="true"></div>
+                Loading…
+              </div>
+              <div class="report-chart-error" id="day-staff-error" role="alert"></div>
+              <div class="report-chart-wrap report-chart-wrap--tall">
+                <canvas id="day-staff-canvas" aria-label="Day staffing grouped bar chart" role="img"></canvas>
+              </div>
+
+            </div>
+
+          </div><!-- /#panel-day-staffing -->
 
         </div><!-- /.tab-content -->
 
@@ -137,6 +445,7 @@
 
   <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
   <script src="/js/reports.js" type="module"></script>
+  <script type="module" src="/js/reportsCharts.js"></script>
   <script type="module" src="/js/tours/reportsTour.js"></script>
 </body>
 </html>

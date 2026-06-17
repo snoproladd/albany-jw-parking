@@ -3,6 +3,102 @@
  * Styles specific to the Oversight Reports page.
  */
 
+/* ── Tab bar ──────────────────────────────────────────────────────────
+   The page background is the parking-lot photo (.bg-body-tertiary override
+   in styles.css), so Bootstrap's default tab styling renders inactive links
+   in near-invisible grey. Override to a dark-navy frosted strip — matching
+   the site navbar — with white inactive text and a white active tab.
+   ─────────────────────────────────────────────────────────────────────── */
+
+#reportTabs.nav-tabs {
+    background: rgba(10, 35, 65, 0.88);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.15);
+    border-radius: 0.5rem 0.5rem 0 0;
+    padding: 0.35rem 0.35rem 0;
+    gap: 0.15rem;
+}
+
+#reportTabs .nav-link {
+    color: rgba(255, 255, 255, 0.65);
+    border: none;
+    border-radius: 0.35rem 0.35rem 0 0;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: color 0.15s ease, background-color 0.15s ease;
+    white-space: nowrap;
+}
+
+#reportTabs .nav-link:hover,
+#reportTabs .nav-link:focus-visible {
+    color: rgba(255, 255, 255, 0.92);
+    background-color: rgba(255, 255, 255, 0.12);
+    border-color: transparent;
+}
+
+#reportTabs .nav-link.active {
+    color: var(--Primary, #1e3a8a);
+    background-color: #ffffff;
+    border-color: transparent;
+    font-weight: 600;
+}
+
+#reportTabs .nav-link.active:hover {
+    color: var(--Primary, #1e3a8a);
+    background-color: #ffffff;
+}
+
+/* ── Category label separators inside the tab bar ──────────────── */
+.report-tab-category {
+    display: flex;
+    align-items: flex-end;
+    padding: 0 0.25rem 0.5rem;
+    pointer-events: none;
+    cursor: default;
+    flex-shrink: 0;
+}
+
+.report-tab-category span {
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: rgba(255, 255, 255, 0.3);
+    white-space: nowrap;
+    line-height: 1;
+    padding-left: 0.5rem;
+    border-left: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+/* No left border on the very first category */
+#reportTabs .report-tab-category:first-child span {
+    border-left: none;
+    padding-left: 0;
+}
+
+/* Disabled tab (Garage Capacity — coming soon) */
+#reportTabs .nav-link.disabled {
+    color: rgba(255, 255, 255, 0.25);
+    pointer-events: none;
+}
+
+/* Overflow scroll on narrow screens */
+#reportTabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+}
+
+/* ── Sched summary totals row ────────────────────────────────────── */
+.report-totals-row {
+    display: none;
+    gap: 1.5rem;
+}
+.report-totals-row.is-visible {
+    display: flex;
+}
+
 /* Sortable column headers */
 th.sortable {
     user-select: none;

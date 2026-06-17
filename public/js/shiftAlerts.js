@@ -628,10 +628,32 @@ async function loadPreview(id, panel) {
 
     const deptLabel = (key) => DEPT_LABELS[key] ?? key ?? "No dept";
 
+    /**
+     * Format a shift start_time for display as "h:mm AM/PM".
+     *
+     * Handles both formats returned by the preview API:
+     *  - ISO epoch-anchored string from a mssql TIME column
+     *    e.g. "1970-01-01T12:43:00.000Z" — parse via UTC methods.
+     *  - Plain "HH:MM" or "HH:MM:SS" NVarChar string — split directly.
+     *
+     * @param {string|null} raw
+     * @returns {string}
+     */
     const fmtShiftTime = (raw) => {
       if (!raw) return "";
-      const parts = String(raw).split(":");
-      const h = Number(parts[0]), m = Number(parts[1] ?? 0);
+      let h, m;
+      const str = String(raw);
+      if (str.includes("T")) {
+        // Epoch-anchored ISO string from mssql TIME column — use UTC accessors
+        const d = new Date(str);
+        h = d.getUTCHours();
+        m = d.getUTCMinutes();
+      } else {
+        // Plain "HH:MM" or "HH:MM:SS" string
+        const parts = str.split(":");
+        h = Number(parts[0]);
+        m = Number(parts[1] ?? 0);
+      }
       const ap = h >= 12 ? "PM" : "AM";
       return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${ap}`;
     };
