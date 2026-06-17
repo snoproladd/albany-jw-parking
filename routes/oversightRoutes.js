@@ -5699,26 +5699,43 @@ export function oversightRouter({
    *
    * @requires manageShifts permission
    */
-  router.get(
-    "/api/shifts/suggest-code",
-    requireAuth,
-    requirePermission("manageShifts"),
-    (req, res) => {
-      const { conventionDate, eventTypeName, shiftLabel } = req.query;
-      if (!conventionDate || !eventTypeName) {
-        return res.status(400).json({
-          success: false,
-          error: "conventionDate and eventTypeName are required.",
-        });
-      }
-      const code = generateShiftCode(
-        conventionDate,
-        eventTypeName,
-        shiftLabel || "",
+router.get(
+  "/api/shifts/suggest-code",
+  requireAuth,
+  requirePermission("manageShifts"),
+  async (req, res) => {
+    const { conventionDate, department } = req.query;
+    if (!conventionDate || !department) {
+      return res.status(400).json({
+        success: false,
+        error: "conventionDate and department are required.",
+      });
+    }
+    try {
+      const countResult = await exec(
+        `
+            SELECT COUNT(*) AS cnt
+            FROM dbo.shifts sh
+            JOIN dbo.sessions        sess ON sess.id = sh.session_id
+            JOIN dbo.convention_days cd   ON cd.id  = sess.convention_day_id
+            WHERE CONVERT(DATE, cd.convention_date) = CONVERT(DATE, @conventionDate)
+              AND sh.department  = @department
+              AND sh.sms_code IS NOT NULL;
+        `,
+        (preq) => {
+          preq.input("conventionDate", sql.Date, conventionDate);
+          preq.input("department", sql.NVarChar(50), department);
+        },
       );
+      const n = (countResult.recordset?.[0]?.cnt ?? 0) + 1;
+      const code = generateShiftCode(conventionDate, department, n);
       return res.json({ success: true, code });
-    },
-  );
+    } catch (err) {
+      (logError || console.error)("api/shifts/suggest-code error:", err);
+      return res.status(500).json({ success: false, error: "Server error." });
+    }
+  },
+);
 
   // ===========================
   // SHIFT ALERTS — Schedules

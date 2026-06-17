@@ -368,6 +368,7 @@ app.use(
             "https://maps.googleapis.com",
             "https://maps.gstatic.com",
             "https://*.googleapis.com",
+            "https://cdn.jsdelivr.net"
           ],
       "worker-src": ["'self'", "blob:"],
     },

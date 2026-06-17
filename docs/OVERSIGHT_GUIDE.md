@@ -1479,6 +1479,10 @@ has been sent for their shift. If they text in before that, they receive a messa
 telling them they will be checked in automatically when the T-15 goes out. This
 prevents advance check-ins from being recorded hours before the shift.
 
+**Deleting a shift, session, or convention day is permanent and cascades completely.** The confirmation dialog describes everything that will be removed. For a shift this includes: all location assignments, scheduler slot assignments, SMS alert history, attendance records, and invitations. A session additionally removes all shifts under it and their child data. A convention day removes everything under all its sessions. There is no undo — if you need to temporarily hide a shift, consider leaving it in place rather than deleting it.
+
+**Shift alert fire time accepts both 24-hour and 12-hour format.** When creating or editing a shift alert schedule, you can enter the fire time as `19:30` or as `7:30 PM` — both are accepted. The stored value is always converted to UTC automatically. If you see an unexpected time on a schedule card after saving, check that you entered AM or PM correctly when using the 12-hour format.
+
 **Twilio inbound webhook must be set on the Messaging Service, not the phone number.**
 If SMS replies stop reaching the server, check the Albany Parking Messaging Service
 settings in the Twilio console (Messaging → Messaging Services → Albany Parking →

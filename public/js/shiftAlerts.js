@@ -597,12 +597,18 @@ async function loadPreview(id, panel) {
     let fireHtml = "";
     if (!isT15 && data.fireAt) {
       const fireDate = new Date(data.fireAt);
-      const edtOffset = 4 * 60;
-      const local = new Date(fireDate.getTime() - edtOffset * 60 * 1000);
-      const opts = { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", hour12: true };
+      const opts = {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: "America/New_York",
+      };
       fireHtml = `<div class="sa-preview-fire mb-2">
           <i class="fa-solid fa-clock me-1"></i>
-          <strong>Fires:</strong> ${local.toLocaleString("en-US", opts)} EDT
+          <strong>Fires:</strong> ${fireDate.toLocaleString("en-US", opts)} EDT
       </div>`;
     } else if (isT15) {
       fireHtml = `<div class="sa-preview-fire mb-2">

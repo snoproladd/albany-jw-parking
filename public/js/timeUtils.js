@@ -112,9 +112,32 @@ export function utcToEdtDisplay(utcHhmm) {
  * @param {string|null} edtHhmm - Local EDT time as "HH:MM" or null
  * @returns {string} e.g. "11:00", or "" if input is falsy
  */
+/**
+ * Convert an EDT time string to a UTC "HH:MM" string for storage.
+ * Accepts both 24-hour ("19:30") and 12-hour ("7:30 PM") formats.
+ *
+ * @param {string|null} edtHhmm - Local EDT time string
+ * @returns {string} UTC "HH:MM", or "" if input is falsy or unparseable
+ */
 export function localToUtc(edtHhmm) {
     if (!edtHhmm) return "";
-    const [h, m] = edtHhmm.split(":").map(Number);
+    const trimmed = String(edtHhmm).trim();
+    let h, m;
+
+    // 12-hour: "H:MM AM" or "H:MM PM"
+    const m12 = trimmed.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (m12) {
+        h = parseInt(m12[1], 10);
+        m = parseInt(m12[2], 10);
+        const ap = m12[3].toUpperCase();
+        if (ap === "PM" && h !== 12) h += 12;
+        if (ap === "AM" && h === 12) h = 0;
+    } else {
+        // 24-hour: "HH:MM"
+        [h, m] = trimmed.split(":").map(Number);
+    }
+
+    if (isNaN(h) || isNaN(m)) return "";
     let utcH = h + EDT_OFFSET_HOURS;
     if (utcH >= 24) utcH -= 24;
     return `${String(utcH).padStart(2, "0")}:${String(m).padStart(2, "0")}`;

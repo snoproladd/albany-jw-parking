@@ -49,50 +49,16 @@ function fmtDate(raw) {
   });
 }
 
-document.querySelectorAll("[data-end]").forEach((el) => {
-    el.dataset.end = fmtTimeInput(el.dataset.end);
-  });
+import {
+  fmtTimeInput,
+  bindTimeInput,
+  validateTimeInput,
+} from './timeUtils.js';
 
-  // ── Rendezvous point buttons ──────────────────────────────────────
-  document.querySelectorAll(".rv-assignment-btn").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const assignmentId = Number(btn.dataset.assignmentId);
-      const locationName = btn.dataset.locationName || "Location";
-      const shiftLabel = btn.dataset.shiftLabel || "Shift";
-      const convDate = btn.dataset.conventionDate || "";
-
-      // Parse start time — mssql TIME comes as ISO epoch string
-      let startTime = "";
-      const raw = btn.dataset.startTime;
-      if (raw) {
-        const d = new Date(raw);
-        if (!isNaN(d.valueOf())) {
-          startTime = `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
-        } else {
-          startTime = String(raw).slice(0, 5);
-        }
-      }
-
-      openRendezvousPanel({
-        assignmentId,
-        shiftLabel,
-        locationName,
-        startTime,
-        conventionDate: convDate,
-        canCreate: true,
-        canEdit: true,
-        canDelete: true,
-        anchorX: e.clientX,
-        anchorY: e.clientY,
-      });
-    });
-  });
-
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") dismissRendezvousPanel();
-  });
-});
+import {
+  openRendezvousPanel,
+  dismissRendezvousPanel,
+} from './rendezvous.js';
 
 document.addEventListener("DOMContentLoaded", () => {
   const csrfToken =
@@ -450,7 +416,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const id = Number(dayEditId.value);
       if (
         !id ||
-        !confirm("Delete this convention day and all its sessions and shifts?")
+        !confirm("Delete this convention day and ALL its sessions, shifts, assignments, alert history, attendance, and invitations?")
       )
         return;
       try {
@@ -649,7 +615,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     sessionDeleteBtn.addEventListener("click", async () => {
       const id = Number(sessionEditId.value);
-      if (!id || !confirm("Delete this session and all its shifts?")) return;
+      if (!id || !confirm("Delete this session and ALL its shifts, assignments, alert history, attendance, and invitations?")) return;
       try {
         await apiFetch(`/oversight/tools/timelines/sessions/${id}`, "DELETE");
         window.location.reload();
@@ -672,12 +638,73 @@ document.addEventListener("DOMContentLoaded", () => {
     const shiftStart = document.getElementById("shiftStart");
     const shiftEnd = document.getElementById("shiftEnd");
     const shiftSmsCode = document.getElementById("shiftSmsCode");
+    const shiftSmsCodeHint = document.getElementById("shiftSmsCodeHint");
     const shiftInvitable = document.getElementById("shiftInvitable");
     const shiftNotes = document.getElementById("shiftNotes");
     const shiftSaveBtn = document.getElementById("shiftSaveBtn");
     const shiftCancelBtn = document.getElementById("shiftCancelBtn");
     const shiftDeleteBtn = document.getElementById("shiftDeleteBtn");
     const shiftFormClose = document.getElementById("shiftFormClose");
+
+    /** Convention date (YYYY-MM-DD) for the currently open add-shift form. */
+    let shiftContextDate = "";
+
+    /**
+     * True when the SMS code field's current value was placed by auto-suggest.
+     * Cleared on any manual keystroke so the user's input is never overwritten.
+     * @type {boolean}
+     */
+    let codeAutoSuggested = false;
+
+    /**
+     * Fetch a suggested SMS code from the server and populate the code field
+     * when the user has not already typed their own value.
+     *
+     * Runs only in add mode (shiftEditId empty). Skips when:
+     *  - No department is selected
+     *  - No convention date is stored for this form session
+     *  - The field already contains a manually-entered value
+     *
+     * @returns {Promise<void>}
+     */
+    async function refreshSmsCodeSuggestion() {
+      if (shiftEditId.value) return;
+      if (!shiftContextDate) return;
+
+      const deptEl = document.getElementById("shiftDepartment");
+      const deptVal = deptEl?.value || "";
+      if (!deptVal) return;
+
+      // Don't overwrite a value the user typed themselves
+      if (!codeAutoSuggested && shiftSmsCode.value.trim() !== "") return;
+
+      try {
+        const params = new URLSearchParams({
+          conventionDate: shiftContextDate,
+          department: deptVal,
+        });
+        const res = await fetch(`/api/shifts/suggest-code?${params}`);
+        const data = await res.json();
+        if (data.success && data.code) {
+          shiftSmsCode.value = data.code;
+          codeAutoSuggested = true;
+          shiftSmsCodeHint?.classList.remove("d-none");
+        }
+      } catch {
+        // Silent — suggestion is best-effort
+      }
+    }
+
+    // Re-suggest when department changes (add mode only)
+    document.getElementById("shiftDepartment")?.addEventListener("change", () => {
+      if (!shiftEditId.value) refreshSmsCodeSuggestion();
+    });
+
+    // User typing in the code field takes ownership — stop auto-suggesting
+    shiftSmsCode.addEventListener("input", () => {
+      codeAutoSuggested = false;
+      shiftSmsCodeHint?.classList.add("d-none");
+    });
 
     /** Reset shift form. */
     function resetShiftForm() {
@@ -690,6 +717,8 @@ document.addEventListener("DOMContentLoaded", () => {
       shiftSmsCode.value = "";
       shiftNotes.value = "";
       shiftInvitable.checked = false;
+      codeAutoSuggested = false;
+      shiftSmsCodeHint?.classList.add("d-none");
       const shiftDepartment = document.getElementById("shiftDepartment");
       if (shiftDepartment) shiftDepartment.value = "";
       shiftDeleteBtn.classList.add("d-none");
@@ -701,6 +730,7 @@ document.addEventListener("DOMContentLoaded", () => {
       btn.addEventListener("click", () => {
         resetShiftForm();
         shiftSessionId.value = btn.dataset.sessionId;
+        shiftContextDate = btn.dataset.conventionDate || "";
         openPanel(shiftFormPanel, shiftEventType);
       });
     });
@@ -716,6 +746,8 @@ document.addEventListener("DOMContentLoaded", () => {
         shiftSmsCode.value = btn.dataset.smsCode || "";
         shiftNotes.value = btn.dataset.notes || "";
         shiftInvitable.checked = btn.dataset.invitable === "true";
+        codeAutoSuggested = false;
+        shiftSmsCodeHint?.classList.add("d-none");
         const shiftDeptSel = document.getElementById("shiftDepartment");
         if (shiftDeptSel) shiftDeptSel.value = btn.dataset.department || "";
         shiftDeleteBtn.classList.remove("d-none");
@@ -784,7 +816,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const id = Number(shiftEditId.value);
       if (
         !id ||
-        !confirm("Delete this shift and its location/task assignments?")
+        !confirm("Delete this shift and ALL its assignments, alert history, attendance, and invitations?")
       )
         return;
       try {
@@ -1025,5 +1057,45 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   document.querySelectorAll("[data-end]").forEach((el) => {
     el.dataset.end = fmtTimeInput(el.dataset.end);
+  });
+
+  // ── Rendezvous point buttons ──────────────────────────────────────
+  document.querySelectorAll(".rv-assignment-btn").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const assignmentId = Number(btn.dataset.assignmentId);
+      const locationName = btn.dataset.locationName || "Location";
+      const shiftLabel = btn.dataset.shiftLabel || "Shift";
+      const convDate = btn.dataset.conventionDate || "";
+
+      // Parse start time — mssql TIME comes as ISO epoch string
+      let startTime = "";
+      const raw = btn.dataset.startTime;
+      if (raw) {
+        const d = new Date(raw);
+        if (!isNaN(d.valueOf())) {
+          startTime = `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
+        } else {
+          startTime = String(raw).slice(0, 5);
+        }
+      }
+
+      openRendezvousPanel({
+        assignmentId,
+        shiftLabel,
+        locationName,
+        startTime,
+        conventionDate: convDate,
+        canCreate: true,
+        canEdit: true,
+        canDelete: true,
+        anchorX: e.clientX,
+        anchorY: e.clientY,
+      });
+    });
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") dismissRendezvousPanel();
   });
 });

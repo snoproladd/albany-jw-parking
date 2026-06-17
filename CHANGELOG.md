@@ -3,6 +3,16 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## 2.55.1 — Bug Fixes
+
+### Fixed
+- **Shift delete cascade** — deleting a shift now fully removes all child rows in order: `shift_slot_assignments` → `shift_alert_log` → `attendance` → `invitations` → `schedule_assignments` (which cascades `shift_rendezvous_points`) → `shifts`. Previously only `schedule_assignments` was cleaned up first, causing FK constraint errors when a shift had alert log entries.
+- **Session delete cascade** — `deleteSession` was previously a bare `DELETE FROM sessions` with no child cleanup, which would fail on any session containing shifts. It now performs the same full cascade through all child tables before removing the session row.
+- **Convention day delete cascade** — `deleteConventionDay` now also deletes `invitations` linked to the day before removing shifts and sessions.
+- **Timelines delete confirmation text** — all three delete dialogs (day, session, shift) now describe all the data that will be permanently removed.
+- **Shift alert "Next Alert" time display** — the "Fires:" line in the preview panel was double-applying the EDT offset (manual subtraction + browser timezone via `toLocaleString` with no `timeZone`), causing the displayed time to be several hours off. Now uses `timeZone: "America/New_York"` directly in `toLocaleString` with no manual offset math.
+- **Shift alert fire time AM/PM input** — `localToUtc` in `timeUtils.js` now handles 12-hour AM/PM format ("7:30 PM") in addition to 24-hour ("19:30"), matching the placeholder shown in the fire time input.
+
 ## 2.55.0 — Rendezvous Points
 
 ### Added
