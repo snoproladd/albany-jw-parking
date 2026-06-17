@@ -3,6 +3,15 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.56.2] — 2026-06-17
+
+### Fixed
+- **`api/shifts/suggest-code` ReferenceError in prod** — `oversightRoutes.js` was missing
+  `import sql from "mssql"`. Every other route in the file delegates DB parameter binding
+  to functions in `dbSync.js` (where `sql` is imported), but the SMS code suggestion route
+  has an inline `exec()` that references `sql.Date` and `sql.NVarChar(50)` directly.
+  Added the missing import.
+
 ## [2.56.1] — 2026-06-17
 
 ### Fixed
