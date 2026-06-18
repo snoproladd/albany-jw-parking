@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
     <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
     <link rel="stylesheet" type="text/css" href="/styles/rendezvous.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/schedulerCategories.css" />
     <link rel="stylesheet" href="/css/tours.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -26,47 +27,53 @@
 
           <% if (view === 'event-types') { %>
           <%# ══════════════════════════════════════════════════════
-              EVENT TYPES VIEW
+              SCHEDULER CATEGORIES VIEW
           ══════════════════════════════════════════════════════ %>
 
           <section class="card shadow-lg admin-console-card timeline-card-full">
             <header class="card-header">
               <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
                 <h1 class="h4 mb-0">
-                  <i class="fa-solid fa-tags me-2"></i>Event Types
+                  <i class="fa-solid fa-layer-group me-2"></i>Scheduler Categories
                 </h1>
-                <div class="d-flex gap-2 align-items-center">                  <a href="/oversight/tools" class="btn btn-secondary btn-sm">
+                <div class="d-flex gap-2 align-items-center">
+                  <a href="/oversight/tools" class="btn btn-secondary btn-sm">
                     <i class="fa-solid fa-arrow-left me-1"></i>Oversight Tools
                   </a>
                 </div>
               </div>
-              <p class="mb-0 mt-1 text-muted small">Manage the event categories used across all shift scheduling.</p>
+              <p class="mb-0 mt-1 text-muted small">Manage shift categories, display colors, and schedule visibility.</p>
             </header>
 
             <div class="card-body py-4">
 
-              <%# Add / Edit Event Type modal %>
+              <%# Add / Edit Category modal %>
               <div class="modal fade" id="etFormPanel" tabindex="-1" aria-labelledby="etFormTitle" aria-hidden="true">
                 <div class="modal-dialog modal-lg">
                   <div class="modal-content">
                     <div class="modal-header bg-secondary text-white">
-                      <h5 class="modal-title fw-semibold" id="etFormTitle">Add Event Type</h5>
+                      <h5 class="modal-title fw-semibold" id="etFormTitle">Add Category</h5>
                       <button type="button" class="btn-close btn-close-white" id="etFormClose" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
                       <input type="hidden" id="etEditId" />
                       <div class="row g-3">
-                        <div class="col-12 col-md-4">
-                          <label for="etName" class="form-label small">Name <span class="text-danger">*</span></label>
-                          <input type="text" id="etName" class="form-control" maxlength="100" placeholder="e.g. Ingress" />
+                        <div class="col-12 col-md-3 d-none" id="etDeptKeyWrap">
+                          <label for="etDeptKey" class="form-label small">Machine Key <span class="text-danger">*</span></label>
+                          <input type="text" id="etDeptKey" class="form-control font-monospace" maxlength="50" placeholder="e.g. lots_and_garages" />
+                          <div class="form-text">Stable identifier — cannot be changed later.</div>
                         </div>
                         <div class="col-12 col-md-5">
-                          <label for="etDescription" class="form-label small">Description</label>
-                          <input type="text" id="etDescription" class="form-control" maxlength="500" />
+                          <label for="etName" class="form-label small">Display Name <span class="text-danger">*</span></label>
+                          <input type="text" id="etName" class="form-control" maxlength="100" placeholder="e.g. Lots and Garages" />
                         </div>
-                        <div class="col-12 col-md-1">
+                        <div class="col-12 col-md-2">
                           <label for="etColor" class="form-label small">Color</label>
                           <input type="color" id="etColor" class="form-control form-control-color w-100" value="#6c757d" />
+                        </div>
+                        <div class="col-12 col-md-2">
+                          <label for="etSortOrder" class="form-label small">Sort Order</label>
+                          <input type="number" id="etSortOrder" class="form-control" min="0" max="99" value="0" />
                         </div>
                         <div class="col-12 col-md-2 d-flex align-items-end d-none" id="etActiveWrap">
                           <div class="form-check form-switch mb-2">
@@ -87,14 +94,48 @@
                 </div>
               </div>
 
+              <%# Access Management Modal %>
+              <div class="modal fade" id="etAccessPanel" tabindex="-1" aria-labelledby="etAccessTitle" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                  <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                      <h5 class="modal-title fw-semibold" id="etAccessTitle">Schedule Access</h5>
+                      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                      <p class="small text-muted mb-4">Volunteers listed here can view this restricted schedule. OVERSEER+ always has access regardless of grants.</p>
+                      <div class="mb-4">
+                        <label for="etAccessSearch" class="form-label small fw-semibold">Grant Access to Volunteer</label>
+                        <div class="d-flex gap-2 align-items-start">
+                          <div class="et-access-search-wrap flex-grow-1">
+                            <input type="text" id="etAccessSearch" class="form-control" placeholder="Type a name to search…" autocomplete="off" />
+                            <div id="etAccessDropdown" class="et-access-dropdown"></div>
+                          </div>
+                          <button type="button" class="btn btn-danger" id="etAccessGrantBtn" disabled>
+                            <i class="fa-solid fa-plus me-1"></i>Grant
+                          </button>
+                        </div>
+                      </div>
+                      <p class="small fw-semibold mb-2">Current Access Grants</p>
+                      <div id="etAccessGranteeList">
+                        <p class="text-muted small" id="etAccessEmpty">No volunteers granted access yet.</p>
+                      </div>
+                      <div id="etAccessStatus" class="mt-3"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div id="etSensitivityStatus" class="mb-3"></div>
+
               <div class="d-flex justify-content-end mb-3">
                 <button type="button" class="btn btn-secondary btn-sm" id="etAddBtn">
-                  <i class="fa-solid fa-plus me-1"></i>Add Event Type
+                  <i class="fa-solid fa-plus me-1"></i>Add Category
                 </button>
               </div>
 
               <% if (eventTypes.length === 0) { %>
-                <p class="text-muted small">No event types defined yet.</p>
+                <p class="text-muted small">No categories defined yet.</p>
               <% } else { %>
                 <div class="table-responsive">
                   <table class="table table-hover align-middle">
@@ -102,8 +143,9 @@
                       <tr>
                         <th>Color</th>
                         <th>Name</th>
-                        <th>Description</th>
+                        <th class="text-center">Order</th>
                         <th>Status</th>
+                        <th>Visibility</th>
                         <th></th>
                       </tr>
                     </thead>
@@ -111,19 +153,50 @@
                       <% eventTypes.forEach(et => { %>
                         <tr data-et-id="<%= et.id %>"
                             data-et-name="<%= et.name %>"
-                            data-et-description="<%= et.description || '' %>"
+                            data-et-dept-key="<%= et.dept_key %>"
                             data-et-color="<%= et.color || '#6c757d' %>"
+                            data-et-sort-order="<%= et.sort_order ?? 0 %>"
+                            data-et-sensitive="<%= et.is_sensitive ? 'true' : 'false' %>"
                             data-et-active="<%= et.active ? 'true' : 'false' %>"
                             class="<%= !et.active ? 'table-secondary text-muted' : '' %>">
                           <td>
                             <span class="et-color-swatch" data-color="<%= et.color || '#6c757d' %>"></span>
                           </td>
-                          <td><strong><%= et.name %></strong></td>
-                          <td class="small text-muted"><%= et.description || '—' %></td>
+                          <td>
+                            <strong><%= et.name %></strong>
+                            <div class="text-muted small font-monospace"><%= et.dept_key %></div>
+                          </td>
+                          <td class="text-center small text-muted"><%= et.sort_order ?? 0 %></td>
                           <td>
                             <span class="badge <%= et.active ? 'bg-success' : 'bg-secondary' %>">
                               <%= et.active ? 'Active' : 'Inactive' %>
                             </span>
+                          </td>
+                          <td>
+                            <% if (['OVERSEER', 'ASSISTANT_ADMIN', 'ADMIN'].includes(userRole)) { %>
+                              <div class="d-flex align-items-center gap-1">
+                                <button type="button"
+                                        class="btn btn-sm <%= et.is_sensitive ? 'btn-danger' : 'btn-outline-secondary' %> et-sensitivity-btn"
+                                        data-id="<%= et.id %>"
+                                        data-sensitive="<%= et.is_sensitive ? 'true' : 'false' %>"
+                                        title="<%= et.is_sensitive ? 'Restricted — click to open to all' : 'Open to all — click to restrict' %>">
+                                  <i class="fa-solid <%= et.is_sensitive ? 'fa-lock' : 'fa-lock-open' %> me-1"></i><%= et.is_sensitive ? 'Restricted' : 'Open' %>
+                                </button>
+                                <% if (et.is_sensitive) { %>
+                                  <button type="button"
+                                          class="btn btn-sm btn-outline-danger et-access-btn"
+                                          data-id="<%= et.id %>"
+                                          data-name="<%= et.name %>"
+                                          title="Manage who can view this schedule">
+                                    <i class="fa-solid fa-users"></i>
+                                  </button>
+                                <% } %>
+                              </div>
+                            <% } else { %>
+                              <span class="badge <%= et.is_sensitive ? 'bg-danger' : 'bg-secondary' %>">
+                                <i class="fa-solid <%= et.is_sensitive ? 'fa-lock' : 'fa-lock-open' %> me-1"></i><%= et.is_sensitive ? 'Restricted' : 'Open' %>
+                              </span>
+                            <% } %>
                           </td>
                           <td class="text-end">
                             <button type="button" class="btn btn-outline-secondary btn-sm et-edit-btn"

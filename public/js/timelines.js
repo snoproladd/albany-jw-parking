@@ -197,34 +197,38 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ══════════════════════════════════════════════════════════════════════
-  // EVENT TYPES VIEW
+  // SCHEDULER CATEGORIES VIEW
   // ══════════════════════════════════════════════════════════════════════
 
   const etFormPanel = document.getElementById("etFormPanel");
   if (etFormPanel) {
-    const etFormTitle = document.getElementById("etFormTitle");
-    const etFormStatus = document.getElementById("etFormStatus");
-    const etEditId = document.getElementById("etEditId");
-    const etName = document.getElementById("etName");
-    const etDescription = document.getElementById("etDescription");
-    const etColor = document.getElementById("etColor");
-    const etActive = document.getElementById("etActive");
-    const etActiveWrap = document.getElementById("etActiveWrap");
-    const etSaveBtn = document.getElementById("etSaveBtn");
-    const etCancelBtn = document.getElementById("etCancelBtn");
-    const etFormClose = document.getElementById("etFormClose");
-    const etAddBtn = document.getElementById("etAddBtn");
+    const etFormTitle    = document.getElementById("etFormTitle");
+    const etFormStatus   = document.getElementById("etFormStatus");
+    const etEditId       = document.getElementById("etEditId");
+    const etDeptKey      = document.getElementById("etDeptKey");
+    const etDeptKeyWrap  = document.getElementById("etDeptKeyWrap");
+    const etName         = document.getElementById("etName");
+    const etColor        = document.getElementById("etColor");
+    const etSortOrder    = document.getElementById("etSortOrder");
+    const etActive       = document.getElementById("etActive");
+    const etActiveWrap   = document.getElementById("etActiveWrap");
+    const etSaveBtn      = document.getElementById("etSaveBtn");
+    const etCancelBtn    = document.getElementById("etCancelBtn");
+    const etFormClose    = document.getElementById("etFormClose");
+    const etAddBtn       = document.getElementById("etAddBtn");
 
-    /** Reset event type form to blank add state. */
+    /** Reset category form to blank add state. */
     function resetEtForm() {
-      etEditId.value = "";
-      etName.value = "";
-      etDescription.value = "";
-      etColor.value = "#6c757d";
-      etActive.checked = true;
+      etEditId.value      = "";
+      etDeptKey.value     = "";
+      etName.value        = "";
+      etColor.value       = "#6c757d";
+      etSortOrder.value   = "0";
+      etActive.checked    = true;
+      etDeptKeyWrap.classList.remove("d-none");
       etActiveWrap.classList.add("d-none");
       etFormStatus.innerHTML = "";
-      etFormTitle.textContent = "Add Event Type";
+      etFormTitle.textContent = "Add Category";
     }
 
     etAddBtn.addEventListener("click", () => {
@@ -235,14 +239,15 @@ document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll(".et-edit-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         const tr = btn.closest("tr");
-        etEditId.value = tr.dataset.etId;
-        etName.value = tr.dataset.etName || "";
-        etDescription.value = tr.dataset.etDescription || "";
-        etColor.value = tr.dataset.etColor || "#6c757d";
-        etActive.checked = tr.dataset.etActive !== "false";
+        etEditId.value    = tr.dataset.etId;
+        etName.value      = tr.dataset.etName     || "";
+        etColor.value     = tr.dataset.etColor    || "#6c757d";
+        etSortOrder.value = tr.dataset.etSortOrder ?? "0";
+        etActive.checked  = tr.dataset.etActive   !== "false";
+        etDeptKeyWrap.classList.add("d-none");
         etActiveWrap.classList.remove("d-none");
         etFormTitle.textContent = `Edit — ${tr.dataset.etName}`;
-        etFormStatus.innerHTML = "";
+        etFormStatus.innerHTML  = "";
         openPanel(etFormPanel);
       });
     });
@@ -259,24 +264,239 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        const id = etEditId.value ? Number(etEditId.value) : null;
+        const id     = etEditId.value ? Number(etEditId.value) : null;
         const method = id ? "PUT" : "POST";
-        const url = id
+        const url    = id
           ? `/oversight/tools/timelines/event-types/${id}`
           : "/oversight/tools/timelines/event-types";
 
-        const body = {
-          name,
-          description: etDescription.value.trim() || null,
-          color: etColor.value || null,
-          active: etActive.checked,
-        };
+        const body = id
+          ? {
+              name,
+              color:      etColor.value     || null,
+              sort_order: Number(etSortOrder.value) || 0,
+              active:     etActive.checked,
+            }
+          : {
+              dept_key:   etDeptKey.value.trim(),
+              name,
+              color:      etColor.value     || null,
+              sort_order: Number(etSortOrder.value) || 0,
+            };
+
+        if (!id && !body.dept_key) {
+          showAlert(etFormStatus, "Machine key is required.");
+          return;
+        }
 
         try {
           await apiFetch(url, method, body);
           window.location.reload();
         } catch (err) {
           showAlert(etFormStatus, err.message);
+        }
+      }),
+    );
+  }
+
+  // ── Sensitivity Toggle ────────────────────────────────────────────────
+
+  const etSensitivityStatus = document.getElementById("etSensitivityStatus");
+
+  /**
+   * Wire sensitivity toggle buttons. Each click PATCHes the flag and
+   * reloads so EJS re-renders the correct button state and access icon.
+   */
+  document.querySelectorAll(".et-sensitivity-btn").forEach((btn) => {
+    btn.addEventListener("click", () =>
+      withSpinner(btn, async () => {
+        const id          = Number(btn.dataset.id);
+        const isSensitive = btn.dataset.sensitive !== "true";
+        try {
+          await apiFetch(
+            `/api/scheduler-categories/${id}/sensitivity`,
+            "PATCH",
+            { isSensitive },
+          );
+          window.location.reload();
+        } catch (err) {
+          if (etSensitivityStatus) showAlert(etSensitivityStatus, err.message);
+        }
+      }),
+    );
+  });
+
+  // ── Access Management Panel ───────────────────────────────────────────
+
+  const etAccessPanel = document.getElementById("etAccessPanel");
+  if (etAccessPanel) {
+    const etAccessTitle       = document.getElementById("etAccessTitle");
+    const etAccessSearch      = document.getElementById("etAccessSearch");
+    const etAccessDropdown    = document.getElementById("etAccessDropdown");
+    const etAccessGrantBtn    = document.getElementById("etAccessGrantBtn");
+    const etAccessGranteeList = document.getElementById("etAccessGranteeList");
+    const etAccessEmpty       = document.getElementById("etAccessEmpty");
+    const etAccessStatus      = document.getElementById("etAccessStatus");
+
+    /** @type {number|null} */
+    let activeEventTypeId = null;
+    /** @type {{id:number, firstName:string, lastName:string}|null} */
+    let selectedVolunteer = null;
+    /** @type {ReturnType<typeof setTimeout>|null} */
+    let searchTimeout = null;
+
+    /** Clear the volunteer search field and dropdown back to empty state. */
+    function resetSearch() {
+      etAccessSearch.value = "";
+      etAccessDropdown.innerHTML = "";
+      etAccessDropdown.classList.remove("is-open");
+      selectedVolunteer        = null;
+      etAccessGrantBtn.disabled = true;
+    }
+
+    /**
+     * Fetch and render current grantees for the active category.
+     * @returns {Promise<void>}
+     */
+    async function loadGrantees() {
+      try {
+        const data = await fetch(
+          `/api/scheduler-categories/${activeEventTypeId}/sensitivity`,
+        ).then((r) => r.json());
+        renderGrantees(data.volunteers || []);
+      } catch {
+        renderGrantees([]);
+      }
+    }
+
+    /**
+     * Render the list of volunteers currently granted access.
+     * @param {Array<{volunteer_id:number, full_name:string}>} list
+     */
+    function renderGrantees(list) {
+      Array.from(etAccessGranteeList.querySelectorAll(".et-grantee-row")).forEach(
+        (el) => el.remove(),
+      );
+      if (!list.length) {
+        etAccessEmpty.classList.remove("d-none");
+        return;
+      }
+      etAccessEmpty.classList.add("d-none");
+      list.forEach((v) => {
+        const row = document.createElement("div");
+        row.className = "et-grantee-row d-flex align-items-center justify-content-between";
+        row.dataset.vid = v.volunteer_id;
+
+        const nameSpan = document.createElement("span");
+        nameSpan.className   = "small";
+        nameSpan.textContent = v.full_name;
+
+        const revokeBtn = document.createElement("button");
+        revokeBtn.type      = "button";
+        revokeBtn.className = "btn btn-outline-danger btn-sm";
+        revokeBtn.dataset.vid = v.volunteer_id;
+        revokeBtn.innerHTML = `<i class="fa-solid fa-xmark me-1"></i>Revoke`;
+
+        revokeBtn.addEventListener("click", () =>
+          withSpinner(revokeBtn, async () => {
+            try {
+              await apiFetch(
+                `/api/scheduler-categories/${activeEventTypeId}/sensitivity/${v.volunteer_id}`,
+                "DELETE",
+              );
+              await loadGrantees();
+            } catch (err) {
+              showAlert(etAccessStatus, err.message);
+            }
+          }),
+        );
+
+        row.appendChild(nameSpan);
+        row.appendChild(revokeBtn);
+        etAccessGranteeList.appendChild(row);
+      });
+    }
+
+    document.querySelectorAll(".et-access-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        activeEventTypeId          = Number(btn.dataset.id);
+        etAccessTitle.textContent  = `Schedule Access — ${btn.dataset.name}`;
+        etAccessStatus.innerHTML   = "";
+        resetSearch();
+        loadGrantees();
+        openPanel(etAccessPanel, etAccessSearch);
+      });
+    });
+
+    // Volunteer typeahead search
+    etAccessSearch.addEventListener("input", () => {
+      clearTimeout(searchTimeout);
+      selectedVolunteer        = null;
+      etAccessGrantBtn.disabled = true;
+
+      const q = etAccessSearch.value.trim();
+      if (q.length < 2) {
+        etAccessDropdown.innerHTML = "";
+        etAccessDropdown.classList.remove("is-open");
+        return;
+      }
+
+      searchTimeout = setTimeout(async () => {
+        try {
+          const data = await fetch(
+            `/api/volunteers/search?q=${encodeURIComponent(q)}`,
+          ).then((r) => r.json());
+
+          etAccessDropdown.innerHTML = "";
+          if (!data.results?.length) {
+            etAccessDropdown.classList.remove("is-open");
+            return;
+          }
+
+          data.results.forEach((v) => {
+            const item = document.createElement("div");
+            item.className   = "et-access-dropdown-item";
+            item.textContent = `${v.lastName}, ${v.firstName}`;
+            item.addEventListener("click", () => {
+              selectedVolunteer        = v;
+              etAccessSearch.value     = `${v.lastName}, ${v.firstName}`;
+              etAccessDropdown.innerHTML = "";
+              etAccessDropdown.classList.remove("is-open");
+              etAccessGrantBtn.disabled = false;
+            });
+            etAccessDropdown.appendChild(item);
+          });
+          etAccessDropdown.classList.add("is-open");
+        } catch {
+          etAccessDropdown.classList.remove("is-open");
+        }
+      }, 300);
+    });
+
+    document.addEventListener("click", (e) => {
+      if (
+        !etAccessSearch.contains(e.target) &&
+        !etAccessDropdown.contains(e.target)
+      ) {
+        etAccessDropdown.classList.remove("is-open");
+      }
+    });
+
+    etAccessGrantBtn.addEventListener("click", () =>
+      withSpinner(etAccessGrantBtn, async () => {
+        if (!selectedVolunteer) return;
+        const grantName = `${selectedVolunteer.lastName}, ${selectedVolunteer.firstName}`;
+        try {
+          await apiFetch(
+            `/api/scheduler-categories/${activeEventTypeId}/sensitivity`,
+            "POST",
+            { volunteerId: selectedVolunteer.id },
+          );
+          resetSearch();
+          showAlert(etAccessStatus, `Access granted to ${grantName}.`, "success");
+          await loadGrantees();
+        } catch (err) {
+          showAlert(etAccessStatus, err.message);
         }
       }),
     );
