@@ -327,7 +327,6 @@ parking/
 │   │   ├── campaignCenter.js          # Campaign messaging centre
 │   │   ├── crewMatrix.js              # Crew assignment matrix
 │   │   ├── decentlyImport.js          # Decently data import
-│   │   ├── departments.js             # Department management
 │   │   ├── invitationTracker.js       # Campaign invitation tracker
 │   │   ├── inviteRespond.js           # Invitation RSVP response page
 │   │   ├── locationsAndTasks.js       # Locations & tasks management
@@ -398,6 +397,7 @@ parking/
 │   │   ├── oversightStructure.css     # Oversight structure admin tree
 │   │   ├── permissionMatrix.css       # Permission matrix
 │   │   ├── rendezvous.css             # Rendezvous editor panel + landing page
+│   │   ├── scheduler-categories.css   # Scheduler Categories management page
 │   │   ├── reports.css                # Reports page
 │   │   ├── scheduler.css              # Scheduler grid
 │   │   ├── schedulerReport.css        # Schedule report / PDF
@@ -556,16 +556,23 @@ The first ADMIN must be granted directly in the database.
   photo exists. Permission key: `editRendezvous` (KEYMAN+ edit, OVERSEER+ create/delete).
   RV data is preloaded per day in the scheduler via `preloadRendezvousForDay()` on the
   `scheduler:dayChange` event.
-- **Parking Meeting shifts (2.57.0):** `is_meeting BIT` on `dbo.shifts` replaces the
-  Event Type dropdown with a toggle in the shift creation form. Meeting shifts are
-  crew-agnostic — no department, no schedule assignments. The Scheduler renders a
-  dedicated narrow "Meetings" column (col 2, fixed 140 px) to the left of crew
-  columns when any meeting shifts exist on the day; blocks are time-positioned but
-  carry no dropzones. T-15 alerts use a day-broadcast model: `getMeetingT15Candidates`
-  returns all volunteers with crew assignments on the day minus those whose crew shift
-  overlaps the meeting window (they receive their normal crew alert instead).
-  `dbo.campaign_meetings` holds standalone meeting events outside the Timelines
-  hierarchy, surfaced via `/api/campaign-meetings` CRUD routes.
+- **Scheduler Categories (2.58.0):** `dbo.scheduler_categories` replaces
+  `dbo.event_types` and the `shifts.department` / `shifts.event_type_id` columns.
+  `shifts.category_id INT FK` is the sole link. Sensitivity flag (`is_sensitive`)
+  on each category gates visibility below OVERSEER; `req.session.sensitiveCategories`
+  (null = all access, array = permitted IDs) is set at login via
+  `getSchedulerCategoryAccessForVolunteer()`. The Scheduler Categories management
+  page (at `/oversight/tools/timelines/event-types`) shows sensitivity toggle and
+  access management panel for OVERSEER+. All hardcoded department maps (`DEPT_NAMES`,
+  `DEPT_ORDER`, `SCHEDULER_DEPT_LABEL`) removed from `dbSync.js` — ordering from
+  `sc.sort_order`, labels from `sc.name`.
+- **Parking Meeting shifts (2.57.0):** `is_meeting BIT` on `dbo.shifts` marks a
+  shift as crew-agnostic — no category, no schedule assignments. The Scheduler
+  renders a dedicated narrow "Meetings" column when any meeting shifts exist on
+  the day. T-15 alerts use a day-broadcast model: `getMeetingT15Candidates` returns
+  all volunteers with crew assignments on the day minus those whose crew shift
+  overlaps the meeting window. `dbo.campaign_meetings` holds standalone meeting
+  events outside the Timelines hierarchy, surfaced via `/api/campaign-meetings`.
 - **Volunteer Schedule Report (2.54.0):** `/my-schedule` (REGISTERED+, own assignments)
   and `/oversight/tools/volunteer-schedule` (OVERSEER+, search any volunteer). Shared EJS
   template with day/crew filters, print CSS, and SMS/email send modal.
@@ -597,18 +604,26 @@ Schema highlights:
 - `invitation_batches` — campaign metadata; `response_config` (JSON, nullable)
   stores dynamic RSVP configuration (type, options, allowOther, question)
 - `convention_days → sessions → shifts` — scheduling hierarchy
-  - `shifts.is_meeting BIT` — crew-agnostic meeting shift; no department,
+  - `shifts.is_meeting BIT` — crew-agnostic meeting shift; no category,
     no schedule assignments. Appears in a dedicated Meetings column in the
     Scheduler and uses `MT` SMS code prefix. T-15 alerts broadcast to all
     day volunteers not scheduled elsewhere during the meeting window.
-  - `shifts.event_type_id` — nullable; LEFT JOINed from `event_types`.
-    Retained for legacy data; effectively unused for new shifts.
-  - `shifts.department` — department key for scheduler grid grouping
-    (crew shifts only; NULL for meeting shifts)
+  - `shifts.category_id INT FK → scheduler_categories` — links each crew
+    shift to a scheduler category (NULL for meeting shifts). Replaced the
+    former `department` (NVARCHAR) and `event_type_id` (INT FK) columns.
   - `schedule_assignments.vol_min / vol_max` — flanking `volunteer_need`
     (vol_ideal) for slot sizing and color-coding
   - `shift_slot_assignments` — live scheduler assignments (volunteer → slot);
     one row per slot, cascades on schedule_assignment delete
+- `scheduler_categories` — shift categories replacing `dbo.event_types`.
+  Fields: `dept_key` (stable machine key, unique), `name` (editable display
+  label), `color` (hex), `is_sensitive BIT` (controls schedule visibility),
+  `active BIT`, `sort_order INT`. Eight rows seeded at setup.
+- `scheduler_category_access` — per-volunteer access grants for restricted
+  (`is_sensitive = 1`) categories. Fields: `volunteer_id FK`, `category_id FK`,
+  `granted_by FK`, `granted_at`. Composite PK `(volunteer_id, category_id)`.
+  Loaded into `req.session.sensitiveCategories` at login; null for OVERSEER+
+  (no filter), array of permitted category IDs for lower roles.
 - `campaign_meetings` — standalone meeting events not tied to a Timelines
   session (e.g. pre-event all-hands). Fields: `year`, `label`, `meeting_date`,
   `start_time`, `end_time`, `description`. Foundation for the planned

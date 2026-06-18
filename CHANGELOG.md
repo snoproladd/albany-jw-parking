@@ -3,6 +3,77 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.58.0] — 2026-06-18
+
+### Added
+- **Scheduler Categories** — new `dbo.scheduler_categories` table replaces
+  `dbo.event_types`. Each category has a stable `dept_key` machine key
+  (never changes), an editable display `name`, a `color`, `is_sensitive`
+  flag, `active` flag, and `sort_order`. Eight categories seeded:
+  Lots & Garages, Signs, Security, Drop-off/Pickup, Mobile Support
+  (sensitivity off by default); Information Desk, Count, Support
+  (sensitivity on by default).
+- **Schedule sensitivity system** — OVERSEER+ can mark any scheduler
+  category as "Restricted" via a lock toggle on the Scheduler Categories
+  page. Restricted schedules are hidden from volunteers below OVERSEER
+  unless explicitly granted access per category. Access grants are managed
+  per category via the Users (👥) button that appears when a category is
+  sensitive. Grants stored in `dbo.scheduler_category_access`; loaded into
+  `req.session.sensitiveCategories` at login (null = OVERSEER+, array of
+  permitted category IDs otherwise).
+- **`manageScheduleSensitivity` permission** — new permission in `roles.js`,
+  true for OVERSEER and above. Gates the sensitivity toggle and access
+  management API routes.
+- **`public/styles/scheduler-categories.css`** — styles for the Scheduler
+  Categories management page volunteer search dropdown and grantee list.
+- **New dbSync.js functions:** `getSchedulerCategories`,
+  `createSchedulerCategory`, `updateSchedulerCategory`,
+  `toggleSchedulerCategorySensitivity`,
+  `getSchedulerCategoryAccessForVolunteer`,
+  `getVolunteersForSchedulerCategory`, `grantSchedulerCategoryAccess`,
+  `revokeSchedulerCategoryAccess`.
+- **4 sensitivity API routes** — `PATCH/GET/POST/DELETE
+  /api/scheduler-categories/:id/sensitivity` — all `manageScheduleSensitivity`-gated.
+
+### Changed
+- **`dbo.shifts`** — `department` (NVARCHAR) and `event_type_id` (INT FK)
+  columns dropped; replaced by `category_id INT FK → dbo.scheduler_categories`.
+  All existing shift data backfilled from `department` string via `dept_key`
+  match before column drop. Zero unmatched rows.
+- **`dbo.event_types`** table dropped entirely. All queries updated to
+  `LEFT JOIN dbo.scheduler_categories sc ON sc.id = sh.category_id`.
+  `event_type_name` / `event_type_color` kept as output aliases in invitation,
+  RSVP, and attendance queries for backward compatibility.
+- **All hardcoded department maps removed from `dbSync.js`** — `DEPT_NAMES`,
+  `DEPT_ORDER`, `SCHEDULER_DEPT_LABEL` objects deleted; ordering now comes
+  from `sc.sort_order`, display names from `sc.name`.
+- **`generateShiftCode`** — parameter renamed `department` → `deptKey`. The
+  suggest-code route now accepts `category_id` (integer) and derives `dept_key`
+  from the DB via `MAX(sc.dept_key)` in the count query.
+- **Shift create/update routes** — `event_type_id` + `department` body fields
+  replaced by `category_id`. Validation: crew shifts require `category_id`;
+  meeting shifts (`is_meeting = true`) pass `null`.
+- **Scheduler Categories management page** (formerly "Event Types") at
+  `/oversight/tools/timelines/event-types` — updated header, table columns
+  (Color, Name + dept_key, Order, Status, Visibility), and edit modal
+  (removed Description, added Sort Order and Machine Key for new categories
+  only). Sensitivity lock toggle (OVERSEER+) and access management modal
+  added inline per category row.
+- **Timelines shift form** — `<select id="shiftDepartment">` now populated
+  dynamically from `schedulerCategories` (value = `sc.id`, category_id
+  integer). Shift save sends `category_id` instead of `department`.
+- **Shift cards in Timelines** — badge color and label now come from the
+  joined category (`shift.category_color`, `shift.category_name`) rather than
+  hardcoded EJS maps.
+- **`accountRoutes.js` login** — sets `req.session.sensitiveCategories` from
+  `getSchedulerCategoryAccessForVolunteer()`; null for OVERSEER+.
+
+### Removed
+- `public/js/departments.js` — dead code, never imported anywhere.
+- `getEventTypes`, `createEventType`, `updateEventType` from `dbSync.js`.
+- `shifts.department`, `shifts.event_type_id` columns from `dbo.shifts`.
+- `dbo.event_types` table.
+
 ## [2.57.0] — 2026-06-18
 
 ### Added

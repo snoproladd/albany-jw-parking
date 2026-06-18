@@ -1068,10 +1068,10 @@ convention day.
 #### Setup prerequisites
 
 Before the Scheduler can display a grid, each shift in Timelines must have
-its **Department** column set (via direct DB edit or a future UI field) to
-one of the six department keys: `lots_and_garages`, `signs`, `security`,
-`dropoff_pickup`, `mobile_support`, `desk`. Shifts without a department are excluded
-from the grid.
+a **Scheduler Dept** selected from the category dropdown in the shift form.
+Shifts without a category (i.e. meeting shifts with **Parking Meeting**
+toggled on) are shown in the dedicated Meetings column rather than a crew
+column. All other shifts without a category are excluded from the grid.
 
 Schedule assignments on those shifts should also have **Min** and **Max**
 set alongside the Target (volunteer need) in Timelines so the slot
@@ -1250,13 +1250,72 @@ Look up any volunteer's shift assignments across all convention days.
 
 ---
 
-### Event Types *(ADMIN)*
+### Scheduler Categories *(ASSISTANT_ADMIN+)*
 
-**Path:** Operations → Event Types
+**Path:** Operations → Timelines → Scheduler Categories button
 
-Manage the categories used to label shifts (Ingress, Egress, Mobile Support,
-etc.). Each event type has a name, optional description, and a color used
-as a dot indicator in the Timelines and Attendance views.
+Manage the categories used to organize shifts in the Scheduler grid and
+Timelines views. Each category has:
+
+- **Machine key (`dept_key`)** — a stable internal identifier that never
+  changes (e.g. `lots_and_garages`). Set once on creation; not editable.
+- **Display name** — the label shown in the UI (e.g. "Lots & Garages").
+  Editable at any time.
+- **Color** — hex color used for shift badges and scheduler column headers.
+- **Sort order** — integer controlling the order categories appear in the
+  Scheduler grid (lower = further left).
+- **Active / Inactive** — inactive categories are hidden from the shift
+  creation dropdown.
+
+Eight categories are seeded at setup. The parking crew categories
+(Lots & Garages, Signs, Security, Drop-off/Pickup, Mobile Support) default
+to **Open** visibility. Information Desk, Count, and Support default to
+**Restricted** visibility.
+
+#### Editing a category *(ASSISTANT_ADMIN+)*
+
+Click the pen icon on any row to open the edit modal. You can change the
+display name, color, sort order, and active flag. The machine key is not
+shown or editable in the edit modal — it is fixed at creation.
+
+#### Adding a category *(ASSISTANT_ADMIN+)*
+
+Click **Add Category**. The modal shows a **Machine Key** field (required,
+unique, letters and underscores only), along with the display name, color,
+and sort order. The machine key cannot be changed after creation.
+
+#### Schedule visibility *(OVERSEER+)*
+
+The **Visibility** column shows whether each category's shifts are visible
+to all volunteers or restricted to a named list.
+
+- **Open** (grey, unlocked) — all volunteers can see shifts of this category.
+- **Restricted** (red, locked) — only OVERSEER+ and volunteers explicitly
+  granted access can see shifts of this category.
+
+Click the lock button to toggle between Open and Restricted. The change
+takes effect immediately — volunteers below OVERSEER who are not on the
+access list will not see restricted shifts on their home page, schedule
+report, or any invitation-linked shift context.
+
+#### Managing access grants *(OVERSEER+)*
+
+When a category is Restricted, a **👥 Users** button appears next to the
+lock. Click it to open the access management panel for that category:
+
+- **Grant access** — type at least 2 characters in the search field to find
+  volunteers by name. Click a name in the dropdown to select them, then
+  click **Grant**. The grant takes effect on the volunteer's **next login**.
+- **Revoke access** — click the **Revoke** button next to any listed
+  volunteer. Revocation takes effect on their next login.
+
+OVERSEER+ always has full access regardless of grants.
+
+> **Note:** Marking a category Restricted hides its shifts from already
+> logged-in volunteers at their next page load, but the session-level
+> access list (`sensitiveCategories`) is not refreshed mid-session. For
+> changes that need to take effect immediately, ask the volunteer to log out
+> and back in.
 
 ---
 
@@ -1433,8 +1492,8 @@ mobile. The tree is visible to all authenticated users regardless of role.
 | **REGISTERED** | View schedules, maps, the Sign Library, and the Sign Map (read-only); edit own account |
 | **DESK** | Log attendance; create volunteer accounts |
 | **KEYMAN** | View volunteer info; log and view attendance; view Sign Library and Sign Map |
-| **OVERSEER** | Edit volunteers; manage shifts and locations; send messages; create campaigns; create and edit sign templates; manage sign locations and attachments on the Sign Map |
-| **ASSISTANT_ADMIN** | All OVERSEER capabilities + role management + delete volunteers + access admin console + grant delegated permissions to volunteers |
+| **OVERSEER** | Edit volunteers; manage shifts and locations; send messages; create campaigns; create and edit sign templates; manage sign locations and attachments on the Sign Map; toggle schedule sensitivity and manage access grants |
+| **ASSISTANT_ADMIN** | All OVERSEER capabilities + role management + delete volunteers + access admin console + grant delegated permissions to volunteers + create and edit Scheduler Categories |
 | **ADMIN** | Full access including Permission Matrix, Decently Sync, campaign management, and granting delegated permissions |
 
 Roles are assigned in **Role Management** (ASSISTANT_ADMIN+). The first ADMIN
