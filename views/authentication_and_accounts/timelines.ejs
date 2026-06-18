@@ -432,17 +432,14 @@
                         <input type="hidden" id="shiftEditId" />
                         <input type="hidden" id="shiftSessionId" />
                         <div class="row g-3">
-                          <div class="col-12 col-md-3">
-                            <label for="shiftEventType" class="form-label small">Event Type <span class="text-danger">*</span></label>
-                            <select id="shiftEventType" class="form-select">
-                              <option value="">Select…</option>
-                              <% eventTypes.filter(et => et.active).forEach(et => { %>
-                                <option value="<%= et.id %>"
-                                  data-color="<%= et.color || '#6c757d' %>">
-                                  <%= et.name %>
-                                </option>
-                              <% }) %>
-                            </select>
+                          <div class="col-12 col-md-2 d-flex align-items-end pb-1">
+                            <div class="form-check form-switch mb-1">
+                              <input class="form-check-input" type="checkbox" id="shiftIsMeeting" />
+                              <label class="form-check-label small" for="shiftIsMeeting">
+                                Parking Meeting
+                                <small class="text-muted d-block">crew-agnostic shift</small>
+                              </label>
+                            </div>
                           </div>
                           <div class="col-12 col-md-2">
                             <label for="shiftLabel" class="form-label small">Label <span class="text-danger">*</span></label>
@@ -453,6 +450,7 @@
                               <option value="Shift B" />
                               <option value="Full Session" />
                               <option value="Pre-Session" />
+                              <option value="Meeting" />
                             </datalist>
                           </div>
                           <div class="col-12 col-md-2">
@@ -465,7 +463,7 @@
                             <input type="text" id="shiftEnd" class="form-control" placeholder="e.g. 5:00 PM" />
                             <div class="invalid-feedback">Enter a valid time, e.g. "5:00 PM".</div>
                           </div>
-                          <div class="col-12 col-md-3">
+                          <div class="col-12 col-md-3" id="shiftDeptGroup">
                             <label for="shiftDepartment" class="form-label small">Scheduler Dept <span class="text-danger">*</span></label>
                             <select id="shiftDepartment" class="form-select">
                               <option value="">Select…</option>
@@ -568,6 +566,26 @@
                   </div>
                 </div>
 
+                <%# Dept → color / display-label maps used in shift cards %>
+                <%
+                const SHIFT_DEPT_COLORS = {
+                    lots_and_garages: '#fd7e14',
+                    security:         '#dc3545',
+                    signs:            '#0d6efd',
+                    dropoff_pickup:   '#198754',
+                    mobile_support:   '#6f42c1',
+                    desk:             '#6610f2',
+                };
+                const SHIFT_DEPT_LABELS = {
+                    lots_and_garages: 'Lots & Garages',
+                    security:         'Security',
+                    signs:            'Signs',
+                    dropoff_pickup:   'Drop-off / Pickup',
+                    mobile_support:   'Mobile Support',
+                    desk:             'Desk',
+                };
+                %>
+
                 <%# Sessions & Shifts accordion %>
                 <% if (timeline.length === 0) { %>
                   <p class="text-muted small">No sessions defined for this day yet.</p>
@@ -615,17 +633,22 @@
                               <p class="text-muted small mb-0">No shifts defined for this session.</p>
                             <% } else { %>
                               <div class="row g-3">
-                                <% block.shifts.forEach(({ shift, assignments }) => { %>
+                                <% block.shifts.forEach(({ shift, assignments }) => {
+                                   const _sc = shift.is_meeting ? '#0dcaf0' : (SHIFT_DEPT_COLORS[shift.department] || '#6c757d');
+                                   const _sl = shift.is_meeting ? 'Meeting' : (SHIFT_DEPT_LABELS[shift.department] || shift.department || '');
+                                   const _sd = _sl + ' \u2013 ' + shift.label;
+                                %>
                                   <div class="col-12 col-lg-6" id="shift-block-<%= shift.id %>">
                                     <div class="card h-100 shift-card"
-                                      data-shift-color="<%= shift.event_type_color || '#6c757d' %>">                                      <div class="card-body py-2 px-3">
+                                      data-shift-color="<%= _sc %>">
+                                      <div class="card-body py-2 px-3">
 
                                         <%# Shift header %>
                                         <div class="d-flex justify-content-between align-items-start mb-2">
                                           <div>
                                             <span class="badge me-1 shift-badge"
-                                              data-badge-color="<%= shift.event_type_color || '#6c757d' %>">
-                                              <%= shift.event_type_name %>
+                                              data-badge-color="<%= _sc %>">
+                                              <%= _sl %>
                                             </span>
                                             <strong><%= shift.label %></strong>
                                             <div class="text-muted small">
@@ -660,7 +683,7 @@
                                               class="btn btn-outline-secondary btn-sm shift-edit-btn"
                                               data-id="<%= shift.id %>"
                                               data-session-id="<%= shift.session_id %>"
-                                              data-event-type-id="<%= shift.event_type_id %>"
+                                              data-is-meeting="<%= shift.is_meeting ? 'true' : 'false' %>"
                                               data-label="<%= shift.label %>"
                                               data-start="<%= shift.start_time instanceof Date ? shift.start_time.toISOString() : shift.start_time %>"
                                               data-end="<%= shift.end_time instanceof Date ? shift.end_time.toISOString() : shift.end_time %>"
@@ -674,7 +697,7 @@
                                             <button type="button"
                                               class="btn btn-outline-success btn-sm add-assignment-btn"
                                               data-shift-id="<%= shift.id %>"
-                                              data-shift-label="<%= shift.event_type_name %> – <%= shift.label %>">
+                                              data-shift-label="<%= _sd %>">
                                               <i class="fa-solid fa-link"></i>
                                             </button>
                                           </div>
@@ -708,7 +731,7 @@
                                                   class="rv-assignment-btn border-0 bg-transparent p-0"
                                                   data-assignment-id="<%= a.id %>"
                                                   data-location-name="<%= a.location_task_name %>"
-                                                  data-shift-label="<%= shift.event_type_name %> – <%= shift.label %>"
+                                                  data-shift-label="<%= _sd %>"
                                                   data-start-time="<%= shift.start_time %>"
                                                   data-convention-date="<%= selectedDay && selectedDay.convention_date ? new Date(selectedDay.convention_date).toISOString().slice(0, 10) : '' %>"
                                                   aria-label="Rendezvous"

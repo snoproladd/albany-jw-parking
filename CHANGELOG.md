@@ -3,6 +3,58 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.57.0] — 2026-06-18
+
+### Added
+- **Parking Meeting shift type** — new `is_meeting BIT NOT NULL DEFAULT 0` column on
+  `dbo.shifts`. Meeting shifts are crew-agnostic: no department, no schedule assignments,
+  no scheduler column. The shift creation form now has a **Parking Meeting** toggle in
+  place of the Event Type dropdown. Toggling it on hides the department selector and
+  routes the SMS code suggestion to the `MT` prefix path (`FRMT1`, `SAMT2`, etc.).
+- **Scheduler meeting column** — when a convention day has meeting shifts, a dedicated
+  narrow "Meetings" column appears to the left of the crew columns. Meeting shift blocks
+  are positioned on the time axis, show the shift name, time range, and SMS code, and
+  carry no dropzones (informational only).
+- **Meeting T-15 alerts** — meeting shifts now participate in the T-15 rolling alert.
+  Recipients are all volunteers with any crew assignment on the day, **minus** those
+  whose crew shift window overlaps the meeting window (they are "scheduled elsewhere"
+  and receive their normal crew alert). Implemented via `getMeetingT15Candidates(year,
+  today)` in `dbSync.js`; `alertScheduler` runs crew and meeting queries in parallel
+  and merges before the time-window filter.
+- **`dbo.campaign_meetings` table** — standalone meeting events not tied to a Timelines
+  session (e.g. pre-event all-hands). Fields: `year`, `label`, `meeting_date`,
+  `start_time`, `end_time`, `description`. Foundation for the planned landing-page
+  calendar (unioning convention days + standalone meetings + future event types).
+- **Campaign meeting CRUD** — four new `dbSync.js` functions
+  (`getCampaignMeetings`, `createCampaignMeeting`, `updateCampaignMeeting`,
+  `deleteCampaignMeeting`) and four API routes (`GET/POST/PUT/DELETE
+  /api/campaign-meetings`), all `manageShifts`-gated.
+- **`generateShiftCode` `isMeeting` param** — passing `true` forces the `MT` dept
+  code regardless of department value. The `/api/shifts/suggest-code` endpoint
+  accepts `is_meeting=true` and counts existing meeting shifts for the day to
+  derive the correct sequence number.
+
+### Changed
+- **`event_type_id` made nullable** on `dbo.shifts` — preparatory step toward full
+  removal. The column and FK to `dbo.event_types` remain; all JOIN paths in
+  `getShifts`, `getShiftsForAlertBurst`, and `getT15CandidateShifts` changed from
+  INNER to LEFT JOIN. Meeting shifts (`is_meeting = 1`) carry `event_type_id = NULL`.
+- **Shift card badges in Timelines** derive color and label from `department` instead
+  of `event_type_color`/`event_type_name`. Department color map added to the EJS
+  template; meeting shifts show a teal "Meeting" badge.
+- **`getSchedulerData`** returns a `meetings: []` array alongside the `department`
+  map; the no-data guard now passes for days with only meeting shifts.
+- **`getShiftsForAlertBurst`** and **`getT15CandidateShifts`** explicitly filter
+  `sh.is_meeting = 0` so meeting shifts are handled exclusively by the meeting alert path.
+
+### Fixed
+- **`generateShiftCode` not imported** in `oversightRoutes.js` — every call to
+  `GET /api/shifts/suggest-code` threw `ReferenceError: generateShiftCode is not
+  defined`, returned a 500, and was silently swallowed by the client `catch {}` block.
+  Shift codes never auto-populated in the add-shift form.
+- **`dayCode` removed by bad find/replace** during `generateShiftCode` refactor —
+  restored the `const dayCode = DAY[d.getUTCDay()] ?? 'XX'` declaration.
+
 ## [2.56.3] — 2026-06-17
 
 ### Fixed

@@ -633,7 +633,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const shiftFormStatus = document.getElementById("shiftFormStatus");
     const shiftEditId = document.getElementById("shiftEditId");
     const shiftSessionId = document.getElementById("shiftSessionId");
-    const shiftEventType = document.getElementById("shiftEventType");
+    const shiftIsMeeting = document.getElementById("shiftIsMeeting");
+    const shiftDeptGroup = document.getElementById("shiftDeptGroup");
     const shiftLabel = document.getElementById("shiftLabel");
     const shiftStart = document.getElementById("shiftStart");
     const shiftEnd = document.getElementById("shiftEnd");
@@ -667,22 +668,37 @@ document.addEventListener("DOMContentLoaded", () => {
      *
      * @returns {Promise<void>}
      */
+    /**
+     * Fetch a suggested SMS code from the server and populate the code field
+     * when the user has not already typed their own value.
+     *
+     * Handles two paths:
+     *  - Meeting shifts: passes is_meeting=true; no department needed.
+     *  - Crew shifts:    passes department; bails if none selected.
+     *
+     * Runs only in add mode (shiftEditId empty).
+     *
+     * @returns {Promise<void>}
+     */
     async function refreshSmsCodeSuggestion() {
       if (shiftEditId.value) return;
       if (!shiftContextDate) return;
 
-      const deptEl = document.getElementById("shiftDepartment");
-      const deptVal = deptEl?.value || "";
-      if (!deptVal) return;
-
       // Don't overwrite a value the user typed themselves
       if (!codeAutoSuggested && shiftSmsCode.value.trim() !== "") return;
 
+      const isMeeting = shiftIsMeeting?.checked || false;
+      const deptVal = document.getElementById("shiftDepartment")?.value || "";
+
+      if (!isMeeting && !deptVal) return;
+
       try {
-        const params = new URLSearchParams({
-          conventionDate: shiftContextDate,
-          department: deptVal,
-        });
+        const params = new URLSearchParams({ conventionDate: shiftContextDate });
+        if (isMeeting) {
+          params.set("is_meeting", "true");
+        } else {
+          params.set("department", deptVal);
+        }
         const res = await fetch(`/api/shifts/suggest-code?${params}`);
         const data = await res.json();
         if (data.success && data.code) {
@@ -700,17 +716,32 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!shiftEditId.value) refreshSmsCodeSuggestion();
     });
 
+    // Meeting toggle — show/hide dept group and re-suggest
+    shiftIsMeeting?.addEventListener("change", () => {
+      const isMeeting = shiftIsMeeting.checked;
+      shiftDeptGroup?.classList.toggle("d-none", isMeeting);
+      if (!shiftEditId.value) {
+        codeAutoSuggested = false;
+        shiftSmsCode.value = "";
+        shiftSmsCodeHint?.classList.add("d-none");
+        refreshSmsCodeSuggestion();
+      }
+    });
+
     // User typing in the code field takes ownership — stop auto-suggesting
     shiftSmsCode.addEventListener("input", () => {
       codeAutoSuggested = false;
       shiftSmsCodeHint?.classList.add("d-none");
     });
 
-    /** Reset shift form. */
+    /**
+     * Reset the shift form to a clean add-mode state.
+     */
     function resetShiftForm() {
       shiftEditId.value = "";
       shiftSessionId.value = "";
-      shiftEventType.value = "";
+      if (shiftIsMeeting) shiftIsMeeting.checked = false;
+      shiftDeptGroup?.classList.remove("d-none");
       shiftLabel.value = "";
       shiftStart.value = "";
       shiftEnd.value = "";
@@ -726,20 +757,26 @@ document.addEventListener("DOMContentLoaded", () => {
       shiftFormStatus.innerHTML = "";
     }
 
+
     document.querySelectorAll(".add-shift-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         resetShiftForm();
         shiftSessionId.value = btn.dataset.sessionId;
         shiftContextDate = btn.dataset.conventionDate || "";
-        openPanel(shiftFormPanel, shiftEventType);
+        openPanel(shiftFormPanel, shiftLabel);
+        // Fire suggestion immediately if a department is already selected
+        // (covers browser state restoration / repeated opens).
+        refreshSmsCodeSuggestion();
       });
     });
 
     document.querySelectorAll(".shift-edit-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
+        const isMtg = btn.dataset.isMeeting === "true";
         shiftEditId.value = btn.dataset.id;
         shiftSessionId.value = btn.dataset.sessionId;
-        shiftEventType.value = btn.dataset.eventTypeId;
+        if (shiftIsMeeting) shiftIsMeeting.checked = isMtg;
+        shiftDeptGroup?.classList.toggle("d-none", isMtg);
         shiftLabel.value = btn.dataset.label || "";
         shiftStart.value = btn.dataset.start || "";
         shiftEnd.value = btn.dataset.end || "";
@@ -766,19 +803,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
     shiftSaveBtn.addEventListener("click", () =>
       withSpinner(shiftSaveBtn, async () => {
-        if (
-          !shiftEventType.value ||
-          !shiftLabel.value.trim() ||
-          !shiftStart.value ||
-          !shiftEnd.value ||
-          !document.getElementById("shiftDepartment")?.value
-        ) {
-          showAlert(
-            shiftFormStatus,
-            "Event type, label, department, start, and end are required.",
-          );
+        const isMeeting = shiftIsMeeting?.checked || false;
+        const deptVal = document.getElementById("shiftDepartment")?.value || "";
+
+        if (!shiftLabel.value.trim() || !shiftStart.value || !shiftEnd.value) {
+          showAlert(shiftFormStatus, "Label, start, and end are required.");
           return;
         }
+        if (!isMeeting && !deptVal) {
+          showAlert(shiftFormStatus, "Department is required for crew shifts.");
+          return;
+        }
+
         const id = shiftEditId.value ? Number(shiftEditId.value) : null;
         const method = id ? "PUT" : "POST";
         const url = id
@@ -794,16 +830,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
         try {
           await apiFetch(url, method, {
-            session_id: Number(shiftSessionId.value),
-            event_type_id: Number(shiftEventType.value),
-            label: shiftLabel.value.trim(),
-            start_time: parsedShiftStart,
-            end_time: parsedShiftEnd,
+            session_id:    Number(shiftSessionId.value),
+            label:         shiftLabel.value.trim(),
+            start_time:    parsedShiftStart,
+            end_time:      parsedShiftEnd,
             volunteer_need: null,
-            department: document.getElementById("shiftDepartment")?.value || null,
-            sms_code: shiftSmsCode.value.trim().toUpperCase() || null,
-            notes: shiftNotes.value.trim() || null,
-            invitable: shiftInvitable.checked,
+            department:    isMeeting ? null : (deptVal || null),
+            sms_code:      shiftSmsCode.value.trim().toUpperCase() || null,
+            notes:         shiftNotes.value.trim() || null,
+            invitable:     shiftInvitable.checked,
+            is_meeting:    isMeeting,
           });
           window.location.reload();
         } catch (err) {

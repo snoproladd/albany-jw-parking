@@ -1337,3 +1337,45 @@
 .sched-peek .sched-peek-label {
     letter-spacing: 0.02em;
 }
+
+
+/* ─────────────────────────────────────────────
+   Meeting column
+───────────────────────────────────────────── */
+
+.sched-dept-header--meeting {
+    border-bottom-color: #0dcaf0;
+    font-style: italic;
+}
+
+.sched-col-track--meeting {
+    background-color: color-mix(in srgb, #0dcaf0 6%, transparent);
+    border-right: 1px solid color-mix(in srgb, #0dcaf0 30%, transparent);
+    grid-row: 1 / -1;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.sched-shift-block--meeting {
+    background-color: color-mix(in srgb, #0dcaf0 15%, var(--bs-body-bg));
+    border-color: #0dcaf0;
+    cursor: default;
+    pointer-events: none;
+}
+
+.sched-shift-block--meeting .sched-shift-header {
+    color: #055160;
+}
+
+.sched-shift-block--meeting .sched-shift-time {
+    color: #055160;
+    opacity: 0.85;
+}
+
+.sched-meeting-code {
+    font-family: var(--bs-font-monospace);
+    font-size: 0.6rem;
+    color: #055160;
+    opacity: 0.7;
+    margin-top: 2px;
+}

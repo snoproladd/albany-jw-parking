@@ -932,7 +932,9 @@ export async function initDomActions() {
       const dayLabel = dayLabels[0];
       const dayData = schedule.day[dayLabel];
 
-      if (!dayData || Object.keys(dayData.department || {}).length === 0) {
+      const _hasDeptShifts = Object.keys(dayData.department || {}).length > 0;
+      const _hasMeetingShifts = (dayData.meetings?.length || 0) > 0;
+      if (!dayData || (!_hasDeptShifts && !_hasMeetingShifts)) {
         _setState("nodata");
         return;
       }
@@ -1056,8 +1058,14 @@ export async function initDomActions() {
       },
     );
 
+    // ── Step 1.5: meeting column ───────────────────────────────────────
+    // When meetings exist, col 2 is reserved for them.
+    // Crew dept columns start at col 2 (no meetings) or col 3 (with meetings).
+    const hasMeetings = (dayData.meetings?.length || 0) > 0;
+    const crewColOffset = hasMeetings ? 3 : 2;
+
     // ── Step 2: compute column indices ──────────────────────────────────
-    let cursor = 2;
+    let cursor = crewColOffset;
     for (const meta of deptMeta) {
       meta.startCol = cursor;
       meta.endCol = cursor + meta.subCols.length;
@@ -1070,11 +1078,14 @@ export async function initDomActions() {
 
     // ── Step 4: build DOM ───────────────────────────────────────────────
     const subColCount = deptMeta.reduce((s, d) => s + d.subCols.length, 0);
-    const rightTimeCol = subColCount + 2;
+    const rightTimeCol = subColCount + crewColOffset;
     const colMin =
       getComputedStyle(container).getPropertyValue("--sched-col-min").trim() ||
       "120px";
-    const colTemplate = `60px ${Array(subColCount).fill(`minmax(${colMin}, 1fr)`).join(" ")} 0px`;
+    const crewCols = Array(subColCount).fill(`minmax(${colMin}, 1fr)`).join(" ");
+    const colTemplate = hasMeetings
+      ? `60px 140px ${crewCols} 0px`
+      : `60px ${crewCols} 0px`;
     const rowTemplate = `30px 20px repeat(${totalRows}, 22px)`;
 
     const wrap = document.createElement("div");
@@ -1135,6 +1146,58 @@ export async function initDomActions() {
       rLabel.style.gridRow = `${timeToRow(mins, earliest) + 3} / span 4`;
       rLabel.style.gridColumn = String(rightTimeCol);
       grid.appendChild(rLabel);
+    }
+
+    // Meeting column — header + shift blocks + background track
+    if (hasMeetings) {
+      // Header spans both header rows (row 1 + row 2)
+      const meetingHeader = document.createElement("div");
+      meetingHeader.classList.add("sched-dept-header", "sched-dept-header--meeting");
+      meetingHeader.textContent = "Meetings";
+      meetingHeader.style.gridRow = "1 / 3";
+      meetingHeader.style.gridColumn = "2";
+      grid.appendChild(meetingHeader);
+
+      // One block per meeting shift, positioned on the time axis
+      for (const meeting of dayData.meetings) {
+        const startMins = parseTimeToMinutes(meeting.schedule.start_time);
+        const endMins   = parseTimeToMinutes(meeting.schedule.end_time);
+        if (startMins === null || endMins === null) continue;
+
+        const startRow = timeToRow(startMins, earliest) + 3;
+        const endRow   = timeToRow(endMins,   earliest) + 3;
+
+        const block = document.createElement("div");
+        block.classList.add("sched-shift-block", "sched-shift-block--meeting");
+        block.style.gridRow    = `${startRow} / ${endRow}`;
+        block.style.gridColumn = "2";
+
+        const header = document.createElement("div");
+        header.classList.add("sched-shift-header");
+        header.textContent = meeting.shift_name;
+        block.appendChild(header);
+
+        const time = document.createElement("div");
+        time.classList.add("sched-shift-time");
+        time.textContent = `${meeting.schedule.start_time} – ${meeting.schedule.end_time}`;
+        block.appendChild(time);
+
+        if (meeting.sms_code) {
+          const code = document.createElement("div");
+          code.classList.add("sched-meeting-code");
+          code.textContent = meeting.sms_code;
+          block.appendChild(code);
+        }
+
+        grid.appendChild(block);
+      }
+
+      // Background track for the meeting column
+      const meetingTrack = document.createElement("div");
+      meetingTrack.classList.add("sched-col-track", "sched-col-track--meeting");
+      meetingTrack.style.gridColumn = "2";
+      meetingTrack.style.gridRow    = `1 / ${totalRows + 3}`;
+      grid.appendChild(meetingTrack);
     }
 
     // Department columns

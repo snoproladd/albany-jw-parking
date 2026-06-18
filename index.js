@@ -32,6 +32,7 @@ import upgradeRoutes from "./routes/upgradeRoutes.js";
 import * as db from "./lib/dbSync.js";
 
 import { oversightRouter } from "./routes/oversightRoutes.js";
+import { smsWebhookRouter } from "./routes/smsWebhookRoute.js";
 import { sitemapRouter }   from "./routes/sitemapRoutes.js";
 import { mapsRouter } from "./routes/mapsRoutes.js";
 import { signsRouter } from "./routes/signsRoutes.js";
@@ -735,34 +736,42 @@ let alertScheduler = null;
         },
       }),
     );
-    app.use(
-      "/",
-      oversightRouter({
-        csrfProtection,
-        logError,
-        twilioAccountSid: config.TWILIO_ACCOUNT_SID,
-        twilioAuthToken: config.TWILIO_AUTH_TOKEN,
-        twilioMsgSid: config.TWILIO_MSG_SID,
-        smtpConfig: {
-          host: config.IONOS_SMTP_HOST,
-          port: config.IONOS_SMTP_PORT,
-          user: config.IONOS_SMTP_USER_INFO,
-          pass: config.IONOS_SMTP_PASS,
-        },
-        serverPort: PORT,
-        graphConfig: {
-          tenantId: config.GRAPH_TENANT_ID,
-          clientId: config.GRAPH_CLIENT_ID,
-          clientSecret: config.GRAPH_CLIENT_SECRET,
-          driveUser:
-            config.GRAPH_DRIVE_USER ||
-            "jladd@jakeofalltradespropertyserv.onmicrosoft.com",
-          folderPath:
-            config.GRAPH_FOLDER_PATH ||
-            "2026 Convention Parking/Documents for Distribution",
-        },
-      }),
-    );
+app.use(
+  "/webhook/sms",
+  smsWebhookRouter({
+    twilioAuthToken: config.TWILIO_AUTH_TOKEN,
+    logError,
+  }),
+);
+
+app.use(
+  "/",
+  oversightRouter({
+    csrfProtection,
+    logError,
+    twilioAccountSid: config.TWILIO_ACCOUNT_SID,
+    twilioAuthToken: config.TWILIO_AUTH_TOKEN,
+    twilioMsgSid: config.TWILIO_MSG_SID,
+    smtpConfig: {
+      host: config.IONOS_SMTP_HOST,
+      port: config.IONOS_SMTP_PORT,
+      user: config.IONOS_SMTP_USER_INFO,
+      pass: config.IONOS_SMTP_PASS,
+    },
+    serverPort: PORT,
+    graphConfig: {
+      tenantId: config.GRAPH_TENANT_ID,
+      clientId: config.GRAPH_CLIENT_ID,
+      clientSecret: config.GRAPH_CLIENT_SECRET,
+      driveUser:
+        config.GRAPH_DRIVE_USER ||
+        "jladd@jakeofalltradespropertyserv.onmicrosoft.com",
+      folderPath:
+        config.GRAPH_FOLDER_PATH ||
+        "2026 Convention Parking/Documents for Distribution",
+    },
+  }),
+);
     /**
      * GET /api/session/touch
      * Lightweight endpoint called by sessionKeepAlive.js to reset the

@@ -556,6 +556,16 @@ The first ADMIN must be granted directly in the database.
   photo exists. Permission key: `editRendezvous` (KEYMAN+ edit, OVERSEER+ create/delete).
   RV data is preloaded per day in the scheduler via `preloadRendezvousForDay()` on the
   `scheduler:dayChange` event.
+- **Parking Meeting shifts (2.57.0):** `is_meeting BIT` on `dbo.shifts` replaces the
+  Event Type dropdown with a toggle in the shift creation form. Meeting shifts are
+  crew-agnostic — no department, no schedule assignments. The Scheduler renders a
+  dedicated narrow "Meetings" column (col 2, fixed 140 px) to the left of crew
+  columns when any meeting shifts exist on the day; blocks are time-positioned but
+  carry no dropzones. T-15 alerts use a day-broadcast model: `getMeetingT15Candidates`
+  returns all volunteers with crew assignments on the day minus those whose crew shift
+  overlaps the meeting window (they receive their normal crew alert instead).
+  `dbo.campaign_meetings` holds standalone meeting events outside the Timelines
+  hierarchy, surfaced via `/api/campaign-meetings` CRUD routes.
 - **Volunteer Schedule Report (2.54.0):** `/my-schedule` (REGISTERED+, own assignments)
   and `/oversight/tools/volunteer-schedule` (OVERSEER+, search any volunteer). Shared EJS
   template with day/crew filters, print CSS, and SMS/email send modal.
@@ -587,11 +597,22 @@ Schema highlights:
 - `invitation_batches` — campaign metadata; `response_config` (JSON, nullable)
   stores dynamic RSVP configuration (type, options, allowOther, question)
 - `convention_days → sessions → shifts` — scheduling hierarchy
+  - `shifts.is_meeting BIT` — crew-agnostic meeting shift; no department,
+    no schedule assignments. Appears in a dedicated Meetings column in the
+    Scheduler and uses `MT` SMS code prefix. T-15 alerts broadcast to all
+    day volunteers not scheduled elsewhere during the meeting window.
+  - `shifts.event_type_id` — nullable; LEFT JOINed from `event_types`.
+    Retained for legacy data; effectively unused for new shifts.
   - `shifts.department` — department key for scheduler grid grouping
+    (crew shifts only; NULL for meeting shifts)
   - `schedule_assignments.vol_min / vol_max` — flanking `volunteer_need`
     (vol_ideal) for slot sizing and color-coding
   - `shift_slot_assignments` — live scheduler assignments (volunteer → slot);
     one row per slot, cascades on schedule_assignment delete
+- `campaign_meetings` — standalone meeting events not tied to a Timelines
+  session (e.g. pre-event all-hands). Fields: `year`, `label`, `meeting_date`,
+  `start_time`, `end_time`, `description`. Foundation for the planned
+  landing-page calendar view.
 - `oversight_structure` — oversight structure tree (`volunteer_id`, `parent_id`,
   `role_title`, `sort_order`)
 - `attendance` — check-in records (walk-ins + invited volunteers)

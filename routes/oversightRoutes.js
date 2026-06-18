@@ -140,6 +140,11 @@ import {
   logShiftAlerts,
   getAlertLog,
   getSchedulePreview,
+  generateShiftCode,
+  getCampaignMeetings,
+  createCampaignMeeting,
+  updateCampaignMeeting,
+  deleteCampaignMeeting,
 } from "../lib/dbSync.js";
 
 import { verifyPassword, hashPassword } from "../lib/passwordVer.js";
@@ -2751,17 +2756,22 @@ export function oversightRouter({
         volunteer_need,
         notes,
         sms_code,
+        is_meeting,
       } = req.body || {};
-      if (
-        !session_id ||
-        !event_type_id ||
-        !label?.trim() ||
-        !start_time ||
-        !end_time
-      )
+
+      const isMeeting = !!(is_meeting === true || is_meeting === "true" || is_meeting === 1);
+
+      if (!session_id || !label?.trim() || !start_time || !end_time)
         return res
           .status(400)
           .json({ success: false, error: "Missing required fields." });
+
+      // Crew shifts must have a department; meeting shifts do not
+      if (!isMeeting && !department?.trim())
+        return res
+          .status(400)
+          .json({ success: false, error: "Department is required for crew shifts." });
+
       const normStart = parseTimeString(start_time);
       const normEnd = parseTimeString(end_time);
       if (!normStart || !normEnd)
@@ -2772,15 +2782,16 @@ export function oversightRouter({
 
       try {
         const id = await createShift({
-          session_id: Number(session_id),
-          event_type_id: Number(event_type_id),
+          session_id:     Number(session_id),
+          event_type_id:  event_type_id ? Number(event_type_id) : null,
           label,
-          start_time: normStart,
-          end_time: normEnd,
-          department: department?.trim() || null,
+          start_time:     normStart,
+          end_time:       normEnd,
+          department:     isMeeting ? null : (department?.trim() || null),
           volunteer_need,
           notes,
-          sms_code: sms_code?.trim() || null,
+          sms_code:       sms_code?.trim() || null,
+          is_meeting:     isMeeting,
         });
         return res.json({ success: true, id });
       } catch (err) {
@@ -2807,11 +2818,21 @@ export function oversightRouter({
         notes,
         sms_code,
         invitable,
+        is_meeting,
       } = req.body || {};
-      if (!id || !event_type_id || !label?.trim() || !start_time || !end_time)
+
+      const isMeeting = !!(is_meeting === true || is_meeting === "true" || is_meeting === 1);
+
+      if (!id || !label?.trim() || !start_time || !end_time)
         return res
           .status(400)
           .json({ success: false, error: "Missing required fields." });
+
+      if (!isMeeting && !department?.trim())
+        return res
+          .status(400)
+          .json({ success: false, error: "Department is required for crew shifts." });
+
       const normStart = parseTimeString(start_time);
       const normEnd = parseTimeString(end_time);
       if (!normStart || !normEnd)
@@ -2822,16 +2843,16 @@ export function oversightRouter({
 
       try {
         const ok = await updateShift(id, {
-          event_type_id: Number(event_type_id),
+          event_type_id:  event_type_id ? Number(event_type_id) : null,
           label,
-          start_time: normStart,
-          end_time: normEnd,
-          department: department?.trim() || null,
+          start_time:     normStart,
+          end_time:       normEnd,
+          department:     isMeeting ? null : (department?.trim() || null),
           volunteer_need,
           notes,
-          sms_code:
-            sms_code !== undefined ? sms_code?.trim() || null : undefined,
-          invitable: !!invitable,
+          sms_code:       sms_code !== undefined ? sms_code?.trim() || null : undefined,
+          invitable:      !!invitable,
+          is_meeting:     isMeeting,
         });
         if (!ok)
           return res.status(404).json({ success: false, error: "Not found." });
@@ -5843,10 +5864,19 @@ export function oversightRouter({
 
   /**
    * GET /api/shifts/suggest-code
-   * Derive a suggested SMS reply code from shift context.
-   * Pure function — no DB required. Used by the Timelines UI.
+   * Suggest an SMS reply code for a new shift.
    *
-   * Query params: conventionDate, eventTypeName, shiftLabel
+   * For crew shifts: counts existing shifts with the same convention date
+   * and department, then generates the next sequential dept-based code.
+   *
+   * For meeting shifts: counts existing meeting shifts for the convention
+   * date and generates the next sequential MT-based code.
+   *
+   * Query params:
+   *   conventionDate  YYYY-MM-DD (required)
+   *   department      dbo.shifts.department value (required for crew shifts)
+   *   is_meeting      "true" to generate a meeting code (optional)
+   *
    * Response: { success: true, code: string }
    *
    * @requires manageShifts permission
@@ -5856,34 +5886,178 @@ export function oversightRouter({
     requireAuth,
     requirePermission("manageShifts"),
     async (req, res) => {
-      const { conventionDate, department } = req.query;
-      if (!conventionDate || !department) {
-        return res.status(400).json({
-          success: false,
-          error: "conventionDate and department are required.",
-        });
-      }
+      const { conventionDate, department, is_meeting } = req.query;
+      const isMeeting = is_meeting === "true" || is_meeting === "1";
+
+      if (!conventionDate)
+        return res.status(400).json({ success: false, error: "conventionDate is required." });
+
+      if (!isMeeting && !department)
+        return res.status(400).json({ success: false, error: "department is required for crew shifts." });
+
       try {
-        const countResult = await exec(
-          `
-            SELECT COUNT(*) AS cnt
-            FROM dbo.shifts sh
-            JOIN dbo.sessions        sess ON sess.id = sh.session_id
-            JOIN dbo.convention_days cd   ON cd.id  = sess.convention_day_id
-            WHERE CONVERT(DATE, cd.convention_date) = CONVERT(DATE, @conventionDate)
-              AND sh.department  = @department
-              AND sh.sms_code IS NOT NULL;
-        `,
-          (preq) => {
-            preq.input("conventionDate", sql.Date, conventionDate);
-            preq.input("department", sql.NVarChar(50), department);
-          },
-        );
-        const n = (countResult.recordset?.[0]?.cnt ?? 0) + 1;
-        const code = generateShiftCode(conventionDate, department, n);
+        let n;
+        if (isMeeting) {
+          const countResult = await exec(
+            `
+              SELECT COUNT(*) AS cnt
+              FROM dbo.shifts sh
+              JOIN dbo.sessions        sess ON sess.id = sh.session_id
+              JOIN dbo.convention_days cd   ON cd.id  = sess.convention_day_id
+              WHERE CONVERT(DATE, cd.convention_date) = CONVERT(DATE, @conventionDate)
+                AND sh.is_meeting = 1
+                AND sh.sms_code IS NOT NULL;
+            `,
+            (preq) => { preq.input("conventionDate", sql.Date, conventionDate); },
+          );
+          n = (countResult.recordset?.[0]?.cnt ?? 0) + 1;
+        } else {
+          const countResult = await exec(
+            `
+              SELECT COUNT(*) AS cnt
+              FROM dbo.shifts sh
+              JOIN dbo.sessions        sess ON sess.id = sh.session_id
+              JOIN dbo.convention_days cd   ON cd.id  = sess.convention_day_id
+              WHERE CONVERT(DATE, cd.convention_date) = CONVERT(DATE, @conventionDate)
+                AND sh.department  = @department
+                AND sh.sms_code IS NOT NULL;
+            `,
+            (preq) => {
+              preq.input("conventionDate", sql.Date,          conventionDate);
+              preq.input("department",     sql.NVarChar(50),  department);
+            },
+          );
+          n = (countResult.recordset?.[0]?.cnt ?? 0) + 1;
+        }
+
+        const code = generateShiftCode(conventionDate, department ?? null, n, isMeeting);
         return res.json({ success: true, code });
       } catch (err) {
         (logError || console.error)("api/shifts/suggest-code error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  // ===========================
+  // CAMPAIGN MEETINGS
+  // ===========================
+
+  /**
+   * GET /api/campaign-meetings?year=N
+   * Return all standalone campaign meetings for a year.
+   * @requires manageShifts permission
+   */
+  router.get(
+    "/api/campaign-meetings",
+    requireAuth,
+    requirePermission("manageShifts"),
+    async (req, res) => {
+      const year = req.query.year ? Number(req.query.year) : new Date().getFullYear();
+      try {
+        const meetings = await getCampaignMeetings(year);
+        return res.json({ success: true, meetings });
+      } catch (err) {
+        (logError || console.error)("api/campaign-meetings GET error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * POST /api/campaign-meetings
+   * Create a standalone campaign meeting.
+   * Body: { year, label, meeting_date, start_time, end_time, description? }
+   * @requires manageShifts permission
+   */
+  router.post(
+    "/api/campaign-meetings",
+    requireAuth,
+    requirePermission("manageShifts"),
+    csrfProtection,
+    async (req, res) => {
+      const { year, label, meeting_date, start_time, end_time, description } = req.body || {};
+      if (!year || !label?.trim() || !meeting_date || !start_time || !end_time)
+        return res.status(400).json({ success: false, error: "Missing required fields." });
+      const normStart = parseTimeString(start_time);
+      const normEnd   = parseTimeString(end_time);
+      if (!normStart || !normEnd)
+        return res.status(400).json({ success: false, error: "Invalid time format." });
+      try {
+        const id = await createCampaignMeeting({
+          year:         Number(year),
+          label:        label.trim(),
+          meeting_date,
+          start_time:   normStart,
+          end_time:     normEnd,
+          description:  description?.trim() || null,
+        });
+        return res.json({ success: true, id });
+      } catch (err) {
+        (logError || console.error)("api/campaign-meetings POST error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * PUT /api/campaign-meetings/:id
+   * Update a standalone campaign meeting.
+   * @requires manageShifts permission
+   */
+  router.put(
+    "/api/campaign-meetings/:id",
+    requireAuth,
+    requirePermission("manageShifts"),
+    csrfProtection,
+    async (req, res) => {
+      const id = Number(req.params.id);
+      const { label, meeting_date, start_time, end_time, description } = req.body || {};
+      if (!id || !label?.trim() || !meeting_date || !start_time || !end_time)
+        return res.status(400).json({ success: false, error: "Missing required fields." });
+      const normStart = parseTimeString(start_time);
+      const normEnd   = parseTimeString(end_time);
+      if (!normStart || !normEnd)
+        return res.status(400).json({ success: false, error: "Invalid time format." });
+      try {
+        const ok = await updateCampaignMeeting(id, {
+          label:        label.trim(),
+          meeting_date,
+          start_time:   normStart,
+          end_time:     normEnd,
+          description:  description?.trim() || null,
+        });
+        if (!ok)
+          return res.status(404).json({ success: false, error: "Not found." });
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("api/campaign-meetings PUT error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * DELETE /api/campaign-meetings/:id
+   * Delete a standalone campaign meeting.
+   * @requires manageShifts permission
+   */
+  router.delete(
+    "/api/campaign-meetings/:id",
+    requireAuth,
+    requirePermission("manageShifts"),
+    csrfProtection,
+    async (req, res) => {
+      const id = Number(req.params.id);
+      if (!id)
+        return res.status(400).json({ success: false, error: "Invalid id." });
+      try {
+        const ok = await deleteCampaignMeeting(id);
+        if (!ok)
+          return res.status(404).json({ success: false, error: "Not found." });
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("api/campaign-meetings DELETE error:", err);
         return res.status(500).json({ success: false, error: "Server error." });
       }
     },

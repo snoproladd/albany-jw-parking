@@ -963,14 +963,19 @@ order, and start/end time. Sessions group shifts for display purposes.
 #### Shifts
 
 Expand a session to manage its shifts. Each shift has:
-- **Event Type** — category (Ingress, Egress, Security, etc.)
+- **Parking Meeting toggle** — marks the shift as a crew-agnostic meeting (e.g.
+  a 6:15 AM keyman briefing). Meeting shifts have no department, appear in a
+  dedicated "Meetings" column in the Scheduler, and use the `MT` SMS code prefix.
+  Toggling this on hides the department selector.
 - **Label** — display name for the shift
 - **Start / End time**
+- **Scheduler Dept** — which crew column the shift occupies in the Scheduler grid.
+  Hidden when the Parking Meeting toggle is on.
 - **Volunteer need** — how many volunteers are required
 - **Schedule Assignments** — locations attached to this shift, each with
   **Min**, **Target**, and **Max** volunteer counts. These drive slot
   color-coding in the Scheduler (red = below min, grey = up to target,
-  faded = up to max).
+  faded = up to max). Meeting shifts have no schedule assignments.
 - **Invitable toggle** — the envelope button marks a shift as available for
   invitations in the Messaging Center. Yellow = invitable.
 
@@ -1002,8 +1007,7 @@ and an optional photo.
 
 The landing page shows an accordion of convention days. Expand a day to see all
 shift + location pairs that have a rendezvous point set. Click any card to open
-the editor panel. Use the **Filter by shift type** dropdown to narrow the list
-by event type (Ingress, Egress, etc.).
+the editor panel. Use the **Filter by shift type** dropdown to narrow the list by department.
 
 A green dot means a rendezvous point is set; grey means none exists yet.
 
@@ -1472,6 +1476,13 @@ conflict badge so you can review them.
 the volunteer normally. The `⚠` badge persists as long as the conflict exists
 in the tracker, but there is no separate "conflict acknowledged" record in the
 database.
+
+**Meeting shift T-15 alerts use a day-broadcast model.** When a meeting shift
+fires a T-15 alert, it goes to every volunteer with a crew assignment on that
+convention day — *except* those whose crew shift overlaps the meeting window.
+Those volunteers are "scheduled elsewhere" and receive their normal crew alert
+instead. No individual assignment to the meeting shift is needed; attendance
+at the meeting is implied unless the crew shift takes precedence.
 
 **SMS check-in requires a T-15 alert to have fired first.** Volunteers can only
 check themselves in via SMS (`CHECK` or their shift code) after the T-15 reminder
