@@ -697,7 +697,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (isMeeting) {
           params.set("is_meeting", "true");
         } else {
-          params.set("department", deptVal);
+          params.set("category_id", deptVal);
         }
         const res = await fetch(`/api/shifts/suggest-code?${params}`);
         const data = await res.json();
@@ -786,7 +786,7 @@ document.addEventListener("DOMContentLoaded", () => {
         codeAutoSuggested = false;
         shiftSmsCodeHint?.classList.add("d-none");
         const shiftDeptSel = document.getElementById("shiftDepartment");
-        if (shiftDeptSel) shiftDeptSel.value = btn.dataset.department || "";
+        if (shiftDeptSel) shiftDeptSel.value = btn.dataset.categoryId || "";
         shiftDeleteBtn.classList.remove("d-none");
         shiftFormTitle.textContent = `Edit Shift — ${btn.dataset.label}`;
         shiftFormStatus.innerHTML = "";
@@ -835,7 +835,7 @@ document.addEventListener("DOMContentLoaded", () => {
             start_time:    parsedShiftStart,
             end_time:      parsedShiftEnd,
             volunteer_need: null,
-            department:    isMeeting ? null : (deptVal || null),
+            category_id:   isMeeting ? null : (Number(deptVal) || null),
             sms_code:      shiftSmsCode.value.trim().toUpperCase() || null,
             notes:         shiftNotes.value.trim() || null,
             invitable:     shiftInvitable.checked,

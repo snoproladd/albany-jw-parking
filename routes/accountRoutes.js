@@ -23,6 +23,7 @@ import {
   getBlackoutsForVolunteer,
   createBlackout,
   deleteBlackoutForVolunteer,
+  getSchedulerCategoryAccessForVolunteer,
 } from "../lib/dbSync.js";
 import { verifyPassword, hashPassword } from "../lib/passwordVer.js";
 
@@ -741,6 +742,14 @@ export function loginRouter({ csrfProtection, logError }) {
       const extraPermissions = [];
       if (user.extra_signs_placement) extraPermissions.push("manageSigns");
       req.session.extraPermissions = extraPermissions;
+
+      // Populate sensitive scheduler category access.
+      // OVERSEER+ receives null as a sentinel meaning "no filter — see all."
+      // All other roles receive the explicit list of category_ids they may view.
+      const OVERSEER_PLUS = new Set(["OVERSEER", "ASSISTANT_ADMIN", "ADMIN"]);
+      req.session.sensitiveCategories = OVERSEER_PLUS.has(req.session.userRole)
+          ? null
+          : await getSchedulerCategoryAccessForVolunteer(user.id);
 
       // Login success → clear any leftover pendingEmail
       req.session.pendingEmail = null;

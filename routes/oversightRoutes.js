@@ -39,9 +39,13 @@ import {
   createLocationTask,
   updateLocationTask,
   setLocationTaskActive,
-  getEventTypes,
-  createEventType,
-  updateEventType,
+  getSchedulerCategories,
+  createSchedulerCategory,
+  updateSchedulerCategory,
+  toggleSchedulerCategorySensitivity,
+  getVolunteersForSchedulerCategory,
+  grantSchedulerCategoryAccess,
+  revokeSchedulerCategoryAccess,
   getConventionDays,
   createConventionDay,
   updateConventionDay,
@@ -2281,12 +2285,13 @@ export function oversightRouter({
     },
   );
   // ===========================
-  // TIMELINES — Event Types (ASSISTANT_ADMIN+)
+  // SCHEDULER CATEGORIES (replaces event-types — ASSISTANT_ADMIN+)
   // ===========================
 
   /**
    * GET /oversight/tools/timelines/event-types
-   * Render event types management page.
+   * Render scheduler categories management page.
+   * URL kept for backward-compat until Phase 6 UI rename.
    */
   router.get(
     "/oversight/tools/timelines/event-types",
@@ -2295,11 +2300,11 @@ export function oversightRouter({
     csrfProtection,
     async (req, res) => {
       try {
-        const eventTypes = await getEventTypes();
+        const schedulerCategories = await getSchedulerCategories();
         return res.render("authentication_and_accounts/timelines", {
           csrfToken: req.csrfToken(),
           view: "event-types",
-          eventTypes,
+          eventTypes: schedulerCategories,
           conventionDays: [],
           timeline: [],
           year: new Date().getFullYear(),
@@ -2308,36 +2313,48 @@ export function oversightRouter({
           locationsTasks: [],
         });
       } catch (err) {
-        (logError || console.error)("timelines/event-types GET error:", err);
+        (logError || console.error)("timelines/scheduler-categories GET error:", err);
         return res.status(500).send("Server error");
       }
     },
   );
 
+  /**
+   * POST /oversight/tools/timelines/event-types
+   * Create a scheduler category.
+   * Body: { dept_key, name, color, sort_order }
+   */
   router.post(
     "/oversight/tools/timelines/event-types",
     requireAuth,
     requirePermission("accessAdminConsole"),
     csrfProtection,
     async (req, res) => {
-      const { name, description, color } = req.body || {};
-      if (!name?.trim())
+      const { dept_key, name, color, sort_order } = req.body || {};
+      if (!dept_key?.trim() || !name?.trim())
         return res
           .status(400)
-          .json({ success: false, error: "Name is required." });
+          .json({ success: false, error: "dept_key and name are required." });
       try {
-        const id = await createEventType(
-          { name, description, color },
-          req.session.userEmail || "admin",
-        );
+        const id = await createSchedulerCategory({
+          dept_key,
+          name,
+          color,
+          sort_order: sort_order != null ? Number(sort_order) : 0,
+        });
         return res.json({ success: true, id });
       } catch (err) {
-        (logError || console.error)("timelines/event-types POST error:", err);
+        (logError || console.error)("timelines/scheduler-categories POST error:", err);
         return res.status(500).json({ success: false, error: "Server error." });
       }
     },
   );
 
+  /**
+   * PUT /oversight/tools/timelines/event-types/:id
+   * Update a scheduler category's display fields.
+   * Body: { name, color, active, sort_order }
+   */
   router.put(
     "/oversight/tools/timelines/event-types/:id",
     requireAuth,
@@ -2345,23 +2362,127 @@ export function oversightRouter({
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
-      const { name, description, color, active } = req.body || {};
+      const { name, color, active, sort_order } = req.body || {};
       if (!id || !name?.trim())
         return res
           .status(400)
           .json({ success: false, error: "Invalid request." });
       try {
-        const ok = await updateEventType(id, {
+        const ok = await updateSchedulerCategory(id, {
           name,
-          description,
           color,
           active: active !== false && active !== "false",
+          sort_order: sort_order != null ? Number(sort_order) : 0,
         });
         if (!ok)
           return res.status(404).json({ success: false, error: "Not found." });
         return res.json({ success: true });
       } catch (err) {
-        (logError || console.error)("timelines/event-types PUT error:", err);
+        (logError || console.error)("timelines/scheduler-categories PUT error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  // ===========================
+  // SCHEDULER CATEGORY SENSITIVITY (OVERSEER+)
+  // ===========================
+
+  /**
+   * PATCH /api/scheduler-categories/:id/sensitivity
+   * Toggle is_sensitive on a scheduler category.
+   * Body: { isSensitive: boolean }
+   */
+  router.patch(
+    "/api/scheduler-categories/:id/sensitivity",
+    requireAuth,
+    requirePermission("manageScheduleSensitivity"),
+    csrfProtection,
+    async (req, res) => {
+      const id = Number(req.params.id);
+      if (!id)
+        return res.status(400).json({ success: false, error: "Invalid category ID." });
+      const isSensitive = !!req.body?.isSensitive;
+      try {
+        const ok = await toggleSchedulerCategorySensitivity(id, isSensitive);
+        if (!ok)
+          return res.status(404).json({ success: false, error: "Category not found." });
+        return res.json({ success: true, isSensitive });
+      } catch (err) {
+        (logError || console.error)("scheduler-category sensitivity PATCH error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * GET /api/scheduler-categories/:id/sensitivity
+   * List volunteers granted access to a sensitive category.
+   */
+  router.get(
+    "/api/scheduler-categories/:id/sensitivity",
+    requireAuth,
+    requirePermission("manageScheduleSensitivity"),
+    async (req, res) => {
+      const id = Number(req.params.id);
+      if (!id)
+        return res.status(400).json({ success: false, error: "Invalid category ID." });
+      try {
+        const volunteers = await getVolunteersForSchedulerCategory(id);
+        return res.json({ success: true, volunteers });
+      } catch (err) {
+        (logError || console.error)("scheduler-category sensitivity GET error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * POST /api/scheduler-categories/:id/sensitivity
+   * Grant a volunteer access to a sensitive category.
+   * Body: { volunteerId: number }
+   */
+  router.post(
+    "/api/scheduler-categories/:id/sensitivity",
+    requireAuth,
+    requirePermission("manageScheduleSensitivity"),
+    csrfProtection,
+    async (req, res) => {
+      const categoryId  = Number(req.params.id);
+      const volunteerId = Number(req.body?.volunteerId);
+      if (!categoryId || !volunteerId)
+        return res.status(400).json({ success: false, error: "Invalid request." });
+      try {
+        await grantSchedulerCategoryAccess(volunteerId, categoryId, req.session.userId);
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("scheduler-category sensitivity POST error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * DELETE /api/scheduler-categories/:id/sensitivity/:volunteerId
+   * Revoke a volunteer's access to a sensitive category.
+   */
+  router.delete(
+    "/api/scheduler-categories/:id/sensitivity/:volunteerId",
+    requireAuth,
+    requirePermission("manageScheduleSensitivity"),
+    csrfProtection,
+    async (req, res) => {
+      const categoryId  = Number(req.params.id);
+      const volunteerId = Number(req.params.volunteerId);
+      if (!categoryId || !volunteerId)
+        return res.status(400).json({ success: false, error: "Invalid request." });
+      try {
+        const ok = await revokeSchedulerCategoryAccess(volunteerId, categoryId);
+        if (!ok)
+          return res.status(404).json({ success: false, error: "Grant not found." });
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("scheduler-category sensitivity DELETE error:", err);
         return res.status(500).json({ success: false, error: "Server error." });
       }
     },
@@ -2385,8 +2506,8 @@ export function oversightRouter({
       const year = parseInt(req.query.year) || new Date().getFullYear();
       const dayId = req.query.dayId ? Number(req.query.dayId) : null;
       try {
-        const [eventTypes, conventionDays, locationsTasks] = await Promise.all([
-          getEventTypes(),
+        const [schedulerCategories, conventionDays, locationsTasks] = await Promise.all([
+          getSchedulerCategories(),
           getConventionDays(year),
           getLocationsTasks(year),
         ]);
@@ -2404,7 +2525,8 @@ export function oversightRouter({
           view: "timelines",
           year,
           currentYear: new Date().getFullYear(),
-          eventTypes,
+          eventTypes: schedulerCategories,
+          schedulerCategories,
           conventionDays,
           selectedDay,
           timeline,
@@ -2748,11 +2870,10 @@ export function oversightRouter({
     async (req, res) => {
       const {
         session_id,
-        event_type_id,
+        category_id,
         label,
         start_time,
         end_time,
-        department,
         volunteer_need,
         notes,
         sms_code,
@@ -2766,11 +2887,11 @@ export function oversightRouter({
           .status(400)
           .json({ success: false, error: "Missing required fields." });
 
-      // Crew shifts must have a department; meeting shifts do not
-      if (!isMeeting && !department?.trim())
+      // Crew shifts must have a category; meeting shifts do not
+      if (!isMeeting && !category_id)
         return res
           .status(400)
-          .json({ success: false, error: "Department is required for crew shifts." });
+          .json({ success: false, error: "Category is required for crew shifts." });
 
       const normStart = parseTimeString(start_time);
       const normEnd = parseTimeString(end_time);
@@ -2783,11 +2904,10 @@ export function oversightRouter({
       try {
         const id = await createShift({
           session_id:     Number(session_id),
-          event_type_id:  event_type_id ? Number(event_type_id) : null,
+          category_id:    isMeeting ? null : (category_id ? Number(category_id) : null),
           label,
           start_time:     normStart,
           end_time:       normEnd,
-          department:     isMeeting ? null : (department?.trim() || null),
           volunteer_need,
           notes,
           sms_code:       sms_code?.trim() || null,
@@ -2809,11 +2929,10 @@ export function oversightRouter({
     async (req, res) => {
       const id = Number(req.params.id);
       const {
-        event_type_id,
+        category_id,
         label,
         start_time,
         end_time,
-        department,
         volunteer_need,
         notes,
         sms_code,
@@ -2828,10 +2947,10 @@ export function oversightRouter({
           .status(400)
           .json({ success: false, error: "Missing required fields." });
 
-      if (!isMeeting && !department?.trim())
+      if (!isMeeting && !category_id)
         return res
           .status(400)
-          .json({ success: false, error: "Department is required for crew shifts." });
+          .json({ success: false, error: "Category is required for crew shifts." });
 
       const normStart = parseTimeString(start_time);
       const normEnd = parseTimeString(end_time);
@@ -2843,11 +2962,10 @@ export function oversightRouter({
 
       try {
         const ok = await updateShift(id, {
-          event_type_id:  event_type_id ? Number(event_type_id) : null,
+          category_id:    isMeeting ? null : (category_id ? Number(category_id) : null),
           label,
           start_time:     normStart,
           end_time:       normEnd,
-          department:     isMeeting ? null : (department?.trim() || null),
           volunteer_need,
           notes,
           sms_code:       sms_code !== undefined ? sms_code?.trim() || null : undefined,
@@ -5886,17 +6004,18 @@ export function oversightRouter({
     requireAuth,
     requirePermission("manageShifts"),
     async (req, res) => {
-      const { conventionDate, department, is_meeting } = req.query;
+      const { conventionDate, category_id: categoryId, is_meeting } = req.query;
       const isMeeting = is_meeting === "true" || is_meeting === "1";
 
       if (!conventionDate)
         return res.status(400).json({ success: false, error: "conventionDate is required." });
 
-      if (!isMeeting && !department)
-        return res.status(400).json({ success: false, error: "department is required for crew shifts." });
+      if (!isMeeting && !categoryId)
+        return res.status(400).json({ success: false, error: "category_id is required for crew shifts." });
 
       try {
         let n;
+        let deptKey = null;
         if (isMeeting) {
           const countResult = await exec(
             `
@@ -5914,23 +6033,25 @@ export function oversightRouter({
         } else {
           const countResult = await exec(
             `
-              SELECT COUNT(*) AS cnt
+              SELECT COUNT(*) AS cnt, MAX(sc.dept_key) AS dept_key
               FROM dbo.shifts sh
+              JOIN dbo.scheduler_categories sc ON sc.id = sh.category_id
               JOIN dbo.sessions        sess ON sess.id = sh.session_id
               JOIN dbo.convention_days cd   ON cd.id  = sess.convention_day_id
               WHERE CONVERT(DATE, cd.convention_date) = CONVERT(DATE, @conventionDate)
-                AND sh.department  = @department
+                AND sh.category_id = @categoryId
                 AND sh.sms_code IS NOT NULL;
             `,
             (preq) => {
-              preq.input("conventionDate", sql.Date,          conventionDate);
-              preq.input("department",     sql.NVarChar(50),  department);
+              preq.input("conventionDate", sql.Date, conventionDate);
+              preq.input("categoryId",     sql.Int,  Number(categoryId));
             },
           );
-          n = (countResult.recordset?.[0]?.cnt ?? 0) + 1;
+          n       = (countResult.recordset?.[0]?.cnt      ?? 0) + 1;
+          deptKey = countResult.recordset?.[0]?.dept_key  || null;
         }
 
-        const code = generateShiftCode(conventionDate, department ?? null, n, isMeeting);
+        const code = generateShiftCode(conventionDate, deptKey, n, isMeeting);
         return res.json({ success: true, code });
       } catch (err) {
         (logError || console.error)("api/shifts/suggest-code error:", err);

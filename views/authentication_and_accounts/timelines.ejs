@@ -467,12 +467,9 @@
                             <label for="shiftDepartment" class="form-label small">Scheduler Dept <span class="text-danger">*</span></label>
                             <select id="shiftDepartment" class="form-select">
                               <option value="">Select…</option>
-                              <option value="lots_and_garages">Lots &amp; Garages</option>
-                              <option value="signs">Signs</option>
-                              <option value="security">Security</option>
-                              <option value="dropoff_pickup">Drop-off / Pickup</option>
-                              <option value="mobile_support">Mobile Support</option>
-                              <option value="desk">Desk</option>
+                              <% (schedulerCategories || []).filter(c => c.active).forEach(c => { %>
+                                <option value="<%= c.id %>" data-dept-key="<%= c.dept_key %>" data-color="<%= c.color || '#6c757d' %>"><%= c.name %></option>
+                              <% }) %>
                             </select>
                           </div>
                           <div class="col-12 col-md-2">
@@ -566,25 +563,7 @@
                   </div>
                 </div>
 
-                <%# Dept → color / display-label maps used in shift cards %>
-                <%
-                const SHIFT_DEPT_COLORS = {
-                    lots_and_garages: '#fd7e14',
-                    security:         '#dc3545',
-                    signs:            '#0d6efd',
-                    dropoff_pickup:   '#198754',
-                    mobile_support:   '#6f42c1',
-                    desk:             '#6610f2',
-                };
-                const SHIFT_DEPT_LABELS = {
-                    lots_and_garages: 'Lots & Garages',
-                    security:         'Security',
-                    signs:            'Signs',
-                    dropoff_pickup:   'Drop-off / Pickup',
-                    mobile_support:   'Mobile Support',
-                    desk:             'Desk',
-                };
-                %>
+                
 
                 <%# Sessions & Shifts accordion %>
                 <% if (timeline.length === 0) { %>
@@ -634,8 +613,8 @@
                             <% } else { %>
                               <div class="row g-3">
                                 <% block.shifts.forEach(({ shift, assignments }) => {
-                                   const _sc = shift.is_meeting ? '#0dcaf0' : (SHIFT_DEPT_COLORS[shift.department] || '#6c757d');
-                                   const _sl = shift.is_meeting ? 'Meeting' : (SHIFT_DEPT_LABELS[shift.department] || shift.department || '');
+                                   const _sc = shift.is_meeting ? '#0dcaf0' : (shift.category_color || '#6c757d');
+                                   const _sl = shift.is_meeting ? 'Meeting' : (shift.category_name || '');
                                    const _sd = _sl + ' \u2013 ' + shift.label;
                                 %>
                                   <div class="col-12 col-lg-6" id="shift-block-<%= shift.id %>">
@@ -690,7 +669,7 @@
                                               data-need="<%= shift.volunteer_need || '' %>"
                                               data-notes="<%= shift.notes || '' %>"
                                               data-sms-code="<%= shift.sms_code || '' %>"
-                                              data-department="<%= shift.department || '' %>"
+                                              data-category-id="<%= shift.category_id || '' %>"
                                               data-invitable="<%= shift.invitable ? 'true' : 'false' %>">
                                               <i class="fa-solid fa-pen"></i>
                                             </button>
