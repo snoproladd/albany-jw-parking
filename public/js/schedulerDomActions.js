@@ -96,6 +96,12 @@ let _hiddenDepts = new Set();
 /** The live calendar grid element. @type {HTMLElement|null} */
 let _gridEl = null;
 
+/** Whether the current day has any meeting shifts. @type {boolean} */
+let _hasMeetings = false;
+
+/** Whether the meeting column is currently hidden by the user. @type {boolean} */
+let _meetingHidden = false;
+
 /** Convention day currently shown — kept in sync for loadDayAssignments. @type {number|null} */
 let _currentDayId = null;
 
@@ -1063,6 +1069,8 @@ export async function initDomActions() {
     // Crew dept columns start at col 2 (no meetings) or col 3 (with meetings).
     const hasMeetings = (dayData.meetings?.length || 0) > 0;
     const crewColOffset = hasMeetings ? 3 : 2;
+    _hasMeetings = hasMeetings;
+    _meetingHidden = false;
 
     // ── Step 2: compute column indices ──────────────────────────────────
     let cursor = crewColOffset;
@@ -1154,9 +1162,16 @@ export async function initDomActions() {
       const meetingHeader = document.createElement("div");
       meetingHeader.classList.add("sched-dept-header", "sched-dept-header--meeting");
       meetingHeader.textContent = "Meetings";
-      meetingHeader.style.gridRow = "1 / 3";
+      meetingHeader.style.gridRow = "1";
       meetingHeader.style.gridColumn = "2";
       grid.appendChild(meetingHeader);
+
+      // Row 2 sub-header placeholder — keeps meeting column aligned with crew headers
+      const meetingSubHeader = document.createElement("div");
+      meetingSubHeader.classList.add("sched-loc-header", "sched-loc-header--meeting");
+      meetingSubHeader.style.gridRow = "2";
+      meetingSubHeader.style.gridColumn = "2";
+      grid.appendChild(meetingSubHeader);
 
       // One block per meeting shift, positioned on the time axis
       for (const meeting of dayData.meetings) {
@@ -1646,6 +1661,17 @@ export async function initDomActions() {
     toggles.classList.add("sched-dept-toggles");
     toggles.id = "deptToggles";
 
+    // Meeting toggle — always leftmost, not draggable/reorderable
+    if (_hasMeetings) {
+      const mtgBtn = document.createElement("button");
+      mtgBtn.type = "button";
+      mtgBtn.classList.add("sched-dept-toggle", "sched-dept-toggle--meeting");
+      mtgBtn.title = "Meetings — click to hide/show";
+      mtgBtn.textContent = "Meetings";
+      mtgBtn.addEventListener("click", () => _toggleMeetingVisibility(mtgBtn));
+      toggles.appendChild(mtgBtn);
+    }
+
     for (const { deptKey, deptData } of _deptMeta) {
       const btn = document.createElement("button");
       btn.type = "button";
@@ -1759,6 +1785,18 @@ export async function initDomActions() {
   // ─────────────────────────────────────────────
 
   /**
+   * Toggle the meeting column visibility.
+   *
+   * @param {HTMLElement} btn
+   * @returns {void}
+   */
+  function _toggleMeetingVisibility(btn) {
+    _meetingHidden = !_meetingHidden;
+    btn.classList.toggle("dept-hidden", _meetingHidden);
+    _applyColumnLayout();
+  }
+
+  /**
    * Toggle a department's column visibility.
    *
    * @param {string}      deptKey
@@ -1819,16 +1857,18 @@ export async function initDomActions() {
   function _applyColumnLayout() {
     if (!_gridEl) return;
 
-    // Recompute startCol/endCol in the new dept order
-    let cursor = 2;
+    // Recompute startCol/endCol — crew cols start at 2 or 3 depending on meeting col
+    const crewOffset = _hasMeetings ? 3 : 2;
+    let cursor = crewOffset;
     for (const meta of _deptMeta) {
       meta.startCol = cursor;
       meta.endCol = cursor + meta.subCols.length;
       cursor = meta.endCol;
     }
 
-    // Rebuild column template (hidden depts collapse to 0px)
+    // Rebuild column template (hidden cols collapse to 0px)
     const cols = ["60px"];
+    if (_hasMeetings) cols.push(_meetingHidden ? "0px" : "140px");
     const colMin =
       getComputedStyle(_gridEl).getPropertyValue("--sched-col-min").trim() ||
       "120px";
@@ -1843,6 +1883,17 @@ export async function initDomActions() {
       ?.classList.contains("is-scrolled");
     cols.push(isScrolled ? "60px" : "0px");
     _gridEl.style.gridTemplateColumns = cols.join(" ");
+
+    // Show/hide all meeting column elements together
+    if (_hasMeetings) {
+      const display = _meetingHidden ? "none" : "";
+      _gridEl
+        .querySelectorAll(
+          ".sched-dept-header--meeting, .sched-loc-header--meeting, " +
+          ".sched-shift-block--meeting, .sched-col-track--meeting",
+        )
+        .forEach((el) => { el.style.display = display; });
+    }
 
     // Update every cell's gridColumn for each dept
     for (const { deptKey, subCols, startCol, endCol } of _deptMeta) {
