@@ -124,6 +124,12 @@
                                     <button type="button" class="btn btn-outline-secondary active-filter-btn" data-filter-active="true">Active</button>
                                     <button type="button" class="btn btn-outline-secondary active-filter-btn" data-filter-active="false">Inactive</button>
                                   </div>
+                                  <%# Gender filter %>
+                                  <div class="btn-group btn-group-sm" role="group" aria-label="Gender filter">
+                                    <button type="button" class="btn btn-outline-secondary gender-filter-btn active" data-filter-gender="all">All</button>
+                                    <button type="button" class="btn btn-outline-secondary gender-filter-btn" data-filter-gender="male">Male</button>
+                                    <button type="button" class="btn btn-outline-secondary gender-filter-btn" data-filter-gender="female">Female</button>
+                                  </div>
                                   <%# Deleted checkbox — round-trips to server %>
                                   <% if (canDelete) { %>
                                     <div class="form-check mb-0 ms-1">
@@ -143,6 +149,7 @@
                                   <option value="<%= v.id %>"
                                     data-active="<%= v.active ? 'true' : 'false' %>"
                                     data-status="<%= v.registration_status %>"
+                                    data-gender="<%= v.gender || '' %>"
                                     <%= targetUser && targetUser.id === v.id ? 'selected' : '' %>>
                                     <%= v.lastName %>, <%= v.firstName %><%= v.suffix ? ' ' + v.suffix : '' %><%= !v.active ? ' (inactive)' : '' %><%= v.registration_status === 'deleted' ? ' 🗑 deleted' : '' %>
                                   </option>

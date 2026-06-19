@@ -283,6 +283,8 @@ document.addEventListener("DOMContentLoaded", () => {
     let activeStatus = "all";
     /** @type {string} */
     let activeApproval = "all";
+    /** @type {string} */
+    let activeGender = "all";
 
     /**
      * Apply current filter state to the select options.
@@ -300,7 +302,9 @@ document.addEventListener("DOMContentLoaded", () => {
           activeStatus === "all" || opt.dataset.status === activeStatus;
         const matchApproval =
           activeApproval === "all" || opt.dataset.active === activeApproval;
-        const show = matchStatus && matchApproval;
+        const matchGender =
+          activeGender === "all" || (opt.dataset.gender || "") === activeGender;
+        const show = matchStatus && matchApproval && matchGender;
 
         opt.hidden = !show;
         opt.disabled = !show;
@@ -338,6 +342,17 @@ document.addEventListener("DOMContentLoaded", () => {
           .forEach((b) => b.classList.remove("active"));
         btn.classList.add("active");
         activeApproval = btn.dataset.filterActive || "all";
+        applyFilter();
+      });
+    });
+
+    root.querySelectorAll(".gender-filter-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        root
+          .querySelectorAll(".gender-filter-btn")
+          .forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        activeGender = btn.dataset.filterGender || "all";
         applyFilter();
       });
     });

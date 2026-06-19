@@ -41,6 +41,9 @@ const visibleCount = /** @type {HTMLElement}             */ (
 const statusFilter = /** @type {HTMLSelectElement}       */ (
   document.getElementById("statusFilter")
 );
+const genderFilter = /** @type {HTMLSelectElement}       */ (
+  document.getElementById("genderFilter")
+);
 const searchInput = /** @type {HTMLInputElement}        */ (
   document.getElementById("reportSearch")
 );
@@ -137,6 +140,7 @@ function sortKey(v, col) {
  */
 function renderTable() {
   const statusVal = statusFilter.value;
+  const genderVal = genderFilter.value;
   const searchVal = searchInput.value.trim().toLowerCase();
 
   // 1. Filter
@@ -144,6 +148,8 @@ function renderTable() {
     if (statusVal === "completed" && v.registration_status !== "completed")
       return false;
     if (statusVal === "draft" && v.registration_status !== "draft")
+      return false;
+    if (genderVal && genderVal !== "all" && (v.gender || "") !== genderVal)
       return false;
 
     if (searchVal) {
@@ -253,6 +259,7 @@ sortableHeads.forEach((th) => {
 // ─── Filter wiring ────────────────────────────────────────────────────────
 
 statusFilter.addEventListener("change", renderTable);
+genderFilter.addEventListener("change", renderTable);
 searchInput.addEventListener("input", renderTable);
 
 // ─── Init ─────────────────────────────────────────────────────────────────

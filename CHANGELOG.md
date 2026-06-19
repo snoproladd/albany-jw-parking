@@ -3,6 +3,14 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.59.0] — 2026-06-19
+
+### Added
+- **Gender filter (All / Male / Female)** on seven pages: Crew Matrix, Scheduler volunteer pool, Volunteer Account Oversight, Attendance Report, Invitation Tracker, Campaign Center, and Volunteer Application Status. Control style matches each page's existing pattern — btn-group where other filters are btn-groups, select dropdown where they are selects.
+- **Campaign Center — Role filter** — select (All / Registered / Desk / Keyman / Overseer+) in the volunteer aside to narrow by role before selecting recipients.
+- **Campaign Center — Crew filter** — select (All / Lots & Garages / Signs / Security / Dropoff / Mobile Support / Desk) to target a specific department.
+- `gender` column added to six `dbSync.js` query functions: `getActiveVolunteers`, `getCrewMatrix`, `getSchedulerVolunteers`, `getShiftAttendanceData`, `getInvitationsForTracker`. `getVolunteersForMessaging` additionally gains `role` and all six crew assignment columns for Campaign Center filtering.
+
 ## [2.58.0] — 2026-06-18
 
 ### Added

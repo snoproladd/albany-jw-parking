@@ -3,7 +3,7 @@
  * @description Client-side logic for the Invitation Tracker page.
  *
  * Responsibilities:
- *  - Live filtering (campaign, day, response, revoked, name search)
+ *  - Live filtering (campaign, day, response, revoked, gender, name search)
  *    entirely client-side against rendered table rows.
  *  - Event dot color application (CSP-safe via data-color → JS).
  *  - Revoke / reinstate AJAX actions with inline row state update.
@@ -29,6 +29,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const revokedChk = document.getElementById("itIncludeRevoked");
   /** @type {HTMLInputElement|null} */
   const responseRequiredChk = document.getElementById("itResponseRequiredOnly");
+  /** @type {HTMLSelectElement|null} */
+  const genderFilter = document.getElementById("itGenderFilter");
   /** @type {HTMLButtonElement|null} */
   const resetBtn = document.getElementById("itResetFilters");
   /** @type {HTMLElement|null} */
@@ -119,10 +121,11 @@ document.addEventListener("DOMContentLoaded", () => {
    * @returns {void}
    */
   function applyFilters() {
-    const query = (searchInput?.value || "").trim().toLowerCase();
-    const batchVal = batchFilter?.value || "";
-    const dayVal = dayFilter?.value || "";
+    const query      = (searchInput?.value || "").trim().toLowerCase();
+    const batchVal   = batchFilter?.value   || "";
+    const dayVal     = dayFilter?.value     || "";
     const responseVal = responseFilter?.value || "all";
+    const genderVal  = genderFilter?.value  || "";
     const showRevoked          = revokedChk?.checked ?? true;
     const responseRequiredOnly = responseRequiredChk?.checked ?? false;
 
@@ -191,6 +194,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Response required filter
       if (responseRequiredOnly && row.dataset.responseNeeded !== "true") {
+        row.hidden = true;
+        return;
+      }
+
+      // Gender filter
+      if (genderVal && (row.dataset.gender || "") !== genderVal) {
         row.hidden = true;
         return;
       }
@@ -305,7 +314,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Wire all filter controls
-  [batchFilter, dayFilter, responseFilter].forEach((el) => {
+  [batchFilter, dayFilter, responseFilter, genderFilter].forEach((el) => {
     el?.addEventListener("change", applyFilters);
   });
   revokedChk?.addEventListener("change", applyFilters);
@@ -321,9 +330,10 @@ document.addEventListener("DOMContentLoaded", () => {
    * @returns {void}
    */
   resetBtn?.addEventListener("click", () => {
-    if (batchFilter) batchFilter.value = "";
-    if (dayFilter) dayFilter.value = "";
+    if (batchFilter)    batchFilter.value    = "";
+    if (dayFilter)      dayFilter.value      = "";
     if (responseFilter) responseFilter.value = "all";
+    if (genderFilter)   genderFilter.value   = "";
     if (revokedChk)          revokedChk.checked = true;
     if (responseRequiredChk) responseRequiredChk.checked = false;
     if (searchInput)         searchInput.value = "";

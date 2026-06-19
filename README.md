@@ -556,6 +556,7 @@ The first ADMIN must be granted directly in the database.
   photo exists. Permission key: `editRendezvous` (KEYMAN+ edit, OVERSEER+ create/delete).
   RV data is preloaded per day in the scheduler via `preloadRendezvousForDay()` on the
   `scheduler:dayChange` event.
+- **Gender / role / crew filters (2.59.0):** Male / Female / All gender filter added to seven pages (Crew Matrix, Scheduler pool, Volunteer Account Oversight, Attendance Report, Invitation Tracker, Campaign Center, Application Status). Campaign Center aside also gains Role and Crew selects. Backed by `gender`, `role`, and crew columns added to the relevant `dbSync.js` query functions; no schema changes required.
 - **Scheduler Categories (2.58.0):** `dbo.scheduler_categories` replaces
   `dbo.event_types` and the `shifts.department` / `shifts.event_type_id` columns.
   `shifts.category_id INT FK` is the sole link. Sensitivity flag (`is_sensitive`)

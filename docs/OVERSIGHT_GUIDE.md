@@ -759,7 +759,7 @@ the role editor. You can assign any role strictly below your own level.
 
 **Path:** Operations → Edit Volunteer (oversight tab)
 
-Filter volunteers by status: **Active**, **Inactive**, or **Deleted**.
+Filter the volunteer dropdown by **Active / Inactive**, **Male / Female**, or registration status. Filters combine — e.g. Active + Female shows only active female volunteers.
 
 - **Deactivate** — marks a volunteer as inactive for the current year
 - **Delete** — soft-deletes the account (preserves data, removes from active lists)
@@ -809,8 +809,7 @@ The primary tool for sending convention invitations to volunteers.
    - `{{firstName}}` — volunteer's first name
    - `{{lastName}}` — volunteer's last name
    - `{{rsvpLink}}` — the volunteer's unique RSVP link (required for invitations)
-6. Select volunteers from the list. Use the search and filter to narrow by
-   name, active status, or SMS capability.
+6. Select volunteers from the list. Use the filters to narrow by **Active** status, **Gender**, **Role**, or **Crew**, then use the search box to find by name. Filters combine — e.g. Active + Female + Lots & Garages shows only active female L&G volunteers. Selections persist when filters change, so you can build a send list across multiple filter passes.
 7. Click **Send**. If any selected volunteers already have an unanswered
    invitation for this event, a warning appears — confirm to re-send or
    deselect them. No confirmation dialog appears for a normal send.
@@ -865,6 +864,7 @@ View all sent invitations for the current year. Filter by:
 - **Campaign** — see all invitations from a specific batch
 - **Convention Day** — filter to a specific day
 - **Response** — Yes, No, Maybe, Pending (custom/poll responses display as badges in the response column)
+- **Gender** — Male or Female
 - **Show Revoked** — toggle to include/exclude revoked invitations
 
 #### Stat Cards
@@ -1087,6 +1087,7 @@ color-coding renders correctly.
 2. The **Volunteer Pool** in the sidebar lists all active registered volunteers.
    - Filter by **Rank** to narrow to Registered, Keyman, or Overseer+.
    - Filter by **Department** to show only volunteers with the matching crew flag.
+   - Filter by **Gender** to narrow to Male or Female volunteers.
    - Filter by **Sort** to order the pool by last name, rank, or department.
 3. **Drag** a name pill from the pool onto any highlighted drop zone in the grid.
    - Drop zones are color-coded: pink = required slots (below vol_min), blue =
@@ -1370,6 +1371,7 @@ Use the **filter bar** to narrow across all shifts simultaneously by:
 - **Type** — Invited or Walk-In
 - **RSVP** — Yes, No, Maybe, Pending
 - **Attended** — Attended or Not Recorded
+- **Gender** — Male or Female
 - **Name search** — fuzzy match on last/first name
 
 ---
@@ -1380,8 +1382,7 @@ Use the **filter bar** to narrow across all shifts simultaneously by:
 
 **Path:** Operations → Reports
 
-A table of all volunteers showing their registration completeness. Volunteers
-with missing required fields are flagged so oversight can follow up.
+A table of all volunteers showing their registration completeness. Volunteers with missing required fields are flagged so oversight can follow up. Filter by **Status** (All / Completed / Draft), **Gender** (All / Male / Female), or search by name or email.
 
 ### Master Conflict Grid *(OVERSEER+)*
 

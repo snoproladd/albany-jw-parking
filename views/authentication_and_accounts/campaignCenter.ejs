@@ -73,6 +73,39 @@
                 </div>
 
                 <div class="mc-filter-group">
+                    <label class="mc-filter-label">Gender</label>
+                    <div class="mc-filter-btns" role="group">
+                        <button type="button" class="mc-gender-btn active" data-filter-gender="all">All</button>
+                        <button type="button" class="mc-gender-btn" data-filter-gender="male">Male</button>
+                        <button type="button" class="mc-gender-btn" data-filter-gender="female">Female</button>
+                    </div>
+                </div>
+
+                <div class="mc-filter-group">
+                    <label class="mc-filter-label" for="mcRoleFilter">Role</label>
+                    <select id="mcRoleFilter" class="form-select form-select-sm">
+                        <option value="">All</option>
+                        <option value="REGISTERED">Registered</option>
+                        <option value="DESK">Desk</option>
+                        <option value="KEYMAN">Keyman</option>
+                        <option value="OVERSEER+">Overseer+</option>
+                    </select>
+                </div>
+
+                <div class="mc-filter-group">
+                    <label class="mc-filter-label" for="mcCrewFilter">Crew</label>
+                    <select id="mcCrewFilter" class="form-select form-select-sm">
+                        <option value="">All</option>
+                        <option value="lots_and_garages">Lots &amp; Garages</option>
+                        <option value="signs">Signs</option>
+                        <option value="security">Security</option>
+                        <option value="dropoff_pickup">Dropoff / Pickup</option>
+                        <option value="mobile_support">Mobile Support</option>
+                        <option value="desk">Desk</option>
+                    </select>
+                </div>
+
+                <div class="mc-filter-group">
                     <label class="mc-filter-label" for="mcSearch">Search</label>
                     <input
                         type="text"
@@ -103,6 +136,14 @@
                         const displayName = v.lastName + ', ' + v.firstName + (v.suffix ? ' ' + v.suffix : '');
                         const hasEmail    = !!v.email;
                         const hasSms      = !!v.phone && v.sms_capable;
+                        const crewKeys    = [
+                            v.crew_lots_garages   ? 'lots_and_garages' : null,
+                            v.crew_signs          ? 'signs'            : null,
+                            v.crew_security       ? 'security'         : null,
+                            v.crew_dropoff_pickup ? 'dropoff_pickup'   : null,
+                            v.crew_mobile_support ? 'mobile_support'   : null,
+                            v.crew_desk           ? 'desk'             : null,
+                        ].filter(Boolean).join(',');
                     %>
                     <li
                         class="mc-volunteer-item"
@@ -112,6 +153,9 @@
                         data-name="<%= displayName.toLowerCase() %>"
                         data-status="<%= v.registration_status %>"
                         data-active="<%= v.active_current_year %>"
+                        data-gender="<%= v.gender || '' %>"
+                        data-role="<%= v.role || '' %>"
+                        data-crews="<%= crewKeys %>"
                         data-has-email="<%= hasEmail %>"
                         data-has-sms="<%= hasSms %>"
                         data-sms-opted-out="<%= v.sms_opted_out ? '1' : '0' %>"

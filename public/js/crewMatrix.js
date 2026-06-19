@@ -5,7 +5,7 @@
  * Responsibilities:
  *  - Wire each crew toggle switch to an immediate AJAX PATCH save.
  *  - Toggle-all button per crew column (affects only visible rows).
- *  - Live name search, role filter, and crew assignment filter.
+ *  - Live name search, role filter, crew assignment filter, and gender filter.
  *  - Show an inline toast on save success or failure.
  */
 
@@ -265,9 +265,10 @@ document.addEventListener("DOMContentLoaded", () => {
   // ─────────────────────────────────────────────
 
   /**
-   * Apply name search, role filter, and crew filter to table rows.
-   * All three filters use AND logic between them.
+   * Apply name search, role filter, crew filter, and gender filter to table rows.
+   * All four filters use AND logic between them.
    * Role and crew filters use OR logic within their own selections.
+   * Gender filter is a single-value radio selection (all | male | female).
    *
    * @returns {void}
    */
@@ -276,13 +277,17 @@ document.addEventListener("DOMContentLoaded", () => {
       .trim()
       .toLowerCase();
 
-const selectedRoles = Array.from(
-            document.querySelectorAll('#crewRoleFilter .crew-filter-btn.active'),
-        ).map((b) => b.dataset.value || '');
+    const selectedRoles = Array.from(
+      document.querySelectorAll("#crewRoleFilter .crew-filter-btn.active"),
+    ).map((b) => b.dataset.value || "");
 
-        const selectedCrewFilters = Array.from(
-            document.querySelectorAll('#crewCrewFilter .crew-filter-btn.active'),
-        ).map((b) => b.dataset.value || '');
+    const selectedCrewFilters = Array.from(
+      document.querySelectorAll("#crewCrewFilter .crew-filter-btn.active"),
+    ).map((b) => b.dataset.value || "");
+
+    const genderVal =
+      document.querySelector("#crewGenderFilter .crew-filter-btn.active")
+        ?.dataset.value || "all";
 
     let visible = 0;
 
@@ -292,8 +297,10 @@ const selectedRoles = Array.from(
         selectedRoles.length === 0 ||
         selectedRoles.includes(row.dataset.role || "");
       const crewMatch = _matchesCrewFilter(row, selectedCrewFilters);
+      const genderMatch =
+        genderVal === "all" || (row.dataset.gender || "") === genderVal;
 
-      const show = nameMatch && roleMatch && crewMatch;
+      const show = nameMatch && roleMatch && crewMatch && genderMatch;
       row.classList.toggle("d-none", !show);
       if (show) visible++;
     });
@@ -333,15 +340,28 @@ const selectedRoles = Array.from(
 
 document.getElementById("crewSearch")?.addEventListener("input", _applyFilters);
 
-// Toggle-button group click handler — shared by both filter groups
-document.querySelectorAll(".crew-filter-btngroup").forEach((group) => {
-  group.addEventListener("click", (e) => {
+  // Toggle-button groups — role and crew use multi-select (toggle) behavior
+  ["crewRoleFilter", "crewCrewFilter"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("click", (e) => {
+      const btn = /** @type {HTMLElement} */ (e.target).closest(
+        ".crew-filter-btn",
+      );
+      if (!btn) return;
+      btn.classList.toggle("active");
+      _applyFilters();
+    });
+  });
+
+  // Gender filter — radio-style: exactly one button active at a time
+  document.getElementById("crewGenderFilter")?.addEventListener("click", (e) => {
     const btn = /** @type {HTMLElement} */ (e.target).closest(
       ".crew-filter-btn",
     );
     if (!btn) return;
-    btn.classList.toggle("active");
+    document
+      .querySelectorAll("#crewGenderFilter .crew-filter-btn")
+      .forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
     _applyFilters();
   });
-});
 });

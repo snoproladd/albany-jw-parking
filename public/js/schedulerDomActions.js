@@ -653,6 +653,7 @@ export async function initDomActions() {
       pill.dataset.phone = v.phone || "";
       pill.dataset.email = v.email || "";
       pill.dataset.suffix = v.suffix || "";
+      pill.dataset.gender = v.gender || "";
 
       // Name row
       const nameSpan = document.createElement("span");
@@ -732,6 +733,7 @@ export async function initDomActions() {
       id === "vol-rank-filter" ||
       id === "vol-department-filter" ||
       id === "vol-usage-filter" ||
+      id === "vol-gender-filter" ||
       id === "vol-sort-order" ||
       id === "vol-search"
     ) {
@@ -759,11 +761,11 @@ export async function initDomActions() {
    * @returns {void}
    */
   function _applyVolunteerFilters() {
-    const rankValue = document.getElementById("vol-rank-filter")?.value ?? "";
-    const deptValue =
-      document.getElementById("vol-department-filter")?.value ?? "";
-    const usageValue = document.getElementById("vol-usage-filter")?.value ?? "";
-    const searchTerm = (document.getElementById("vol-search")?.value ?? "")
+    const rankValue   = document.getElementById("vol-rank-filter")?.value   ?? "";
+    const deptValue   = document.getElementById("vol-department-filter")?.value ?? "";
+    const usageValue  = document.getElementById("vol-usage-filter")?.value  ?? "";
+    const genderValue = document.getElementById("vol-gender-filter")?.value ?? "";
+    const searchTerm  = (document.getElementById("vol-search")?.value ?? "")
       .trim()
       .toLowerCase();
     const sortOrder =
@@ -787,6 +789,7 @@ export async function initDomActions() {
         _matchesRank(v, rankValue) &&
         _matchesDept(v, deptValue) &&
         _matchesUsage(v, usageValue) &&
+        _matchesGender(v, genderValue) &&
         _matchesSearch(v, searchTerm);
 
       pill.style.display = show ? "" : "none";
@@ -893,6 +896,16 @@ export async function initDomActions() {
     const full = `${v.firstName} ${v.lastName}`.toLowerCase();
     const reverse = `${v.lastName} ${v.firstName}`.toLowerCase();
     return full.includes(searchTerm) || reverse.includes(searchTerm);
+  }
+
+  /**
+   * @param {object} v           - Volunteer row.
+   * @param {string} genderValue - '' for any, 'male' or 'female' to restrict.
+   * @returns {boolean}
+   */
+  function _matchesGender(v, genderValue) {
+    if (!genderValue) return true;
+    return (v.gender || "") === genderValue;
   }
 
   // ─────────────────────────────────────────────

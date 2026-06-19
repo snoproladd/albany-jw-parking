@@ -128,7 +128,8 @@
 }
 
 .mc-filter-btn,
-.mc-active-btn {
+.mc-active-btn,
+.mc-gender-btn {
     font-size: 0.75rem;
     padding: 0.2rem 0.55rem;
     border-radius: 999px;
@@ -141,12 +142,14 @@
 }
 
 .mc-filter-btn:hover,
-.mc-active-btn:hover {
+.mc-active-btn:hover,
+.mc-gender-btn:hover {
     background: var(--bs-tertiary-bg, #f8f9fa);
 }
 
 .mc-filter-btn.active,
-.mc-active-btn.active {
+.mc-active-btn.active,
+.mc-gender-btn.active {
     background: var(--bs-primary, #0d6efd);
     border-color: var(--bs-primary, #0d6efd);
     color: #fff;

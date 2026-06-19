@@ -3,8 +3,8 @@
  * @description Client-side logic for the Campaign Center oversight tool.
  *
  * Responsibilities:
- *  - Volunteer list rendering, filtering, and multi-select
- *    (checkbox, CTRL+click, SHIFT+click, Select All Visible).
+ *  - Volunteer list rendering, filtering (status, active, gender, role, crew,
+ *    name search), and multi-select (checkbox, CTRL+click, SHIFT+click, Select All Visible).
  *  - Send list chip management.
  *  - Campaign mode toggle (New Campaign / Add to Existing).
  *  - Event picker (invitable shifts only, cascading day → shift).
@@ -39,6 +39,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const clearAllBtn = document.getElementById("mcClearAll");
   const clearSendListBtn = document.getElementById("mcClearSendList");
   const searchInput = document.getElementById("mcSearch");
+  const roleFilter  = /** @type {HTMLSelectElement|null} */ (document.getElementById("mcRoleFilter"));
+  const crewFilter  = /** @type {HTMLSelectElement|null} */ (document.getElementById("mcCrewFilter"));
   const sendEmailChk = document.getElementById("mcSendEmail");
   const sendSmsChk = document.getElementById("mcSendSms");
   const subjectWrap = document.getElementById("mcSubjectWrap");
@@ -221,10 +223,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let activeStatus = "all";
   let activeActive = "all";
+  let activeGender = "all";
+  let activeRole   = "all";
+  let activeCrew   = "";
   let activeSearch = "";
+
+  /** Role keys that satisfy the "Overseer+" filter bucket. */
+  const OVERSEER_PLUS = new Set(["OVERSEER", "ASSISTANT_ADMIN", "ADMIN"]);
 
   /**
    * Apply all active filters to the volunteer list.
+   * Filters: status, active, gender, role, crew, name search.
+   * All filters use AND logic. Selections persist across filter changes.
    * @returns {void}
    */
   function applyFilters() {
@@ -236,10 +246,21 @@ document.addEventListener("DOMContentLoaded", () => {
         activeStatus === "all" || li.dataset.status === activeStatus;
       const matchActive =
         activeActive === "all" || li.dataset.active === activeActive;
+      const matchGender =
+        activeGender === "all" || (li.dataset.gender || "") === activeGender;
+      const matchRole =
+        activeRole === "all" ||
+        (activeRole === "OVERSEER+"
+          ? OVERSEER_PLUS.has(li.dataset.role || "")
+          : li.dataset.role === activeRole);
+      const matchCrew =
+        !activeCrew ||
+        (li.dataset.crews || "").split(",").includes(activeCrew);
       const matchSearch =
         activeSearch === "" ||
         li.dataset.name.includes(activeSearch.toLowerCase());
-      const show = matchStatus && matchActive && matchSearch;
+      const show =
+        matchStatus && matchActive && matchGender && matchRole && matchCrew && matchSearch;
       li.hidden = !show;
 
       // Filtering only affects visibility — selections persist across filter
@@ -276,6 +297,30 @@ document.addEventListener("DOMContentLoaded", () => {
       lastClickedIndex = -1;
       applyFilters();
     });
+  });
+
+  root.querySelectorAll(".mc-gender-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      root
+        .querySelectorAll(".mc-gender-btn")
+        .forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      activeGender = btn.dataset.filterGender || "all";
+      lastClickedIndex = -1;
+      applyFilters();
+    });
+  });
+
+  roleFilter?.addEventListener("change", () => {
+    activeRole = roleFilter.value || "all";
+    lastClickedIndex = -1;
+    applyFilters();
+  });
+
+  crewFilter?.addEventListener("change", () => {
+    activeCrew = crewFilter.value || "";
+    lastClickedIndex = -1;
+    applyFilters();
   });
 
   searchInput?.addEventListener("input", () => {

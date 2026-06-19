@@ -39,6 +39,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const filterAtt   = document.getElementById("arFilterAttended");
   /** @type {HTMLInputElement|null} */
   const filterName  = document.getElementById("arFilterName");
+  /** @type {HTMLSelectElement|null} */
+  const filterGender = document.getElementById("arFilterGender");
   /** @type {HTMLButtonElement|null} */
   const filterReset = document.getElementById("arFilterReset");
   /** @type {HTMLElement|null} */
@@ -101,12 +103,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if (emptyState) emptyState.classList.add("d-none");
     if (daySummary) daySummary.classList.add("d-none");
-    if (filterBar)   filterBar.classList.add("d-none");
-    if (filterType)  filterType.value  = "";
-    if (filterRsvp)  filterRsvp.value  = "";
-    if (filterAtt)   filterAtt.value   = "";
-    if (filterName)  filterName.value  = "";
-    if (filterCount) filterCount.textContent = "";
+    if (filterBar)    filterBar.classList.add("d-none");
+    if (filterType)   filterType.value   = "";
+    if (filterRsvp)   filterRsvp.value   = "";
+    if (filterAtt)    filterAtt.value    = "";
+    if (filterGender) filterGender.value = "";
+    if (filterName)   filterName.value   = "";
+    if (filterCount)  filterCount.textContent = "";
   }
 
   /**
@@ -435,6 +438,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     data-attended="${v.attended ? "true" : "false"}"
                     data-walk-in="${v.walk_in ? "true" : "false"}"
                     data-rsvp="${v.rsvp_response || (v.walk_in ? "na" : "pending")}"
+                    data-gender="${v.gender || ""}"
                     data-name="${escAttr(`${v.lastName} ${v.firstName}`.toLowerCase())}"
                     data-shift-id="${shiftId}"
                     data-day-id="${dayId}"
@@ -496,36 +500,39 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /**
    * Apply all active filters to every .at-row across the accordion.
-   * Handles Type, RSVP, Attended dropdowns and fuzzy name search.
+   * Handles Type, RSVP, Attended, Gender dropdowns and fuzzy name search.
    * Updates the visible count label after each run.
    * @returns {void}
    */
   function applyReportFilters() {
-    const query   = (filterName?.value || "").trim().toLowerCase();
-    const typeVal = filterType?.value  || "";
-    const rsvpVal = filterRsvp?.value  || "";
-    const attVal  = filterAtt?.value   || "";
-    const rows    = Array.from(accordion?.querySelectorAll(".at-row") || []);
-    let visible   = 0;
+    const query      = (filterName?.value || "").trim().toLowerCase();
+    const typeVal    = filterType?.value   || "";
+    const rsvpVal    = filterRsvp?.value   || "";
+    const attVal     = filterAtt?.value    || "";
+    const genderVal  = filterGender?.value || "";
+    const rows       = Array.from(accordion?.querySelectorAll(".at-row") || []);
+    let visible      = 0;
 
     rows.forEach((row) => {
       const name     = row.dataset.name     || "";
       const walkIn   = row.dataset.walkIn   === "true";
       const attended = row.dataset.attended === "true";
       const rsvp     = row.dataset.rsvp     || "";
+      const gender   = row.dataset.gender   || "";
 
-      if (typeVal === "invited" && walkIn)       { row.hidden = true; return; }
-      if (typeVal === "walkin"  && !walkIn)      { row.hidden = true; return; }
-      if (rsvpVal && rsvp !== rsvpVal)           { row.hidden = true; return; }
-      if (attVal  === "yes"    && !attended)     { row.hidden = true; return; }
-      if (attVal  === "no"     && attended)      { row.hidden = true; return; }
-      if (query   && !fuzzyMatch(query, name))   { row.hidden = true; return; }
+      if (typeVal === "invited" && walkIn)            { row.hidden = true; return; }
+      if (typeVal === "walkin"  && !walkIn)           { row.hidden = true; return; }
+      if (rsvpVal && rsvp !== rsvpVal)                { row.hidden = true; return; }
+      if (attVal  === "yes"    && !attended)          { row.hidden = true; return; }
+      if (attVal  === "no"     && attended)           { row.hidden = true; return; }
+      if (genderVal && gender !== genderVal)          { row.hidden = true; return; }
+      if (query   && !fuzzyMatch(query, name))        { row.hidden = true; return; }
 
       row.hidden = false;
       visible++;
     });
 
-    const anyActive = query || typeVal || rsvpVal || attVal;
+    const anyActive = query || typeVal || rsvpVal || attVal || genderVal;
     if (filterCount) {
       filterCount.textContent = anyActive
         ? `${visible} volunteer${visible !== 1 ? "s" : ""}`
@@ -534,14 +541,15 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   filterName?.addEventListener("input", applyReportFilters);
-  [filterType, filterRsvp, filterAtt].forEach((el) =>
+  [filterType, filterRsvp, filterAtt, filterGender].forEach((el) =>
     el?.addEventListener("change", applyReportFilters)
   );
   filterReset?.addEventListener("click", () => {
-    if (filterType)  filterType.value  = "";
-    if (filterRsvp)  filterRsvp.value  = "";
-    if (filterAtt)   filterAtt.value   = "";
-    if (filterName)  filterName.value  = "";
+    if (filterType)   filterType.value   = "";
+    if (filterRsvp)   filterRsvp.value   = "";
+    if (filterAtt)    filterAtt.value    = "";
+    if (filterGender) filterGender.value = "";
+    if (filterName)   filterName.value   = "";
     applyReportFilters();
   });
 

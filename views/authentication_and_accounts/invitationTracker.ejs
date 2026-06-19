@@ -176,6 +176,15 @@
                     </div>
 
                     <div>
+                        <label class="form-label form-label-sm mb-1" for="itGenderFilter">Gender</label>
+                        <select class="form-select form-select-sm it-filter-select" id="itGenderFilter">
+                            <option value="">All</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                        </select>
+                    </div>
+
+                    <div>
                         <button type="button" class="btn btn-outline-secondary btn-sm" id="itResetFilters">
                             <i class="fa-solid fa-xmark me-1"></i>Reset
                         </button>
@@ -239,6 +248,7 @@
                                     <tr class="it-row <%= inv.revoked ? 'it-row--revoked' : '' %>"
                                         data-id="<%= inv.id %>"
                                         data-name="<%= volName.toLowerCase() %>"
+                                        data-gender="<%= inv.gender || '' %>"
                                         data-revoked="<%= inv.revoked ? 'true' : 'false' %>"
                                         data-batch-id="<%= inv.batch_id || '' %>"
                                         data-family-root-id="<%= inv.family_root_id || inv.batch_id || '' %>"
