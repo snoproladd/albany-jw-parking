@@ -3,6 +3,14 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.60.0] — 2026-06-21
+
+### Added
+- **Per-shift Keyman / Keyman Assistant slot control** — two new toggles in the Timelines shift form: **Keyman** and **KM Asst**. When enabled, KM and KA drop zones are prepended to the shift block in the Scheduler. Both toggles are hidden for meeting shifts. KA requires KM — disabling Keyman automatically disables and unchecks KM Asst.
+- `has_keyman` and `has_keyman_asst` `BIT` columns added to `dbo.shifts` (migration F; `DEFAULT 1` preserves all existing live slot assignments). Both columns flow through `getShifts`, `createShift`, `updateShift`, `getSchedulerData`, and `getSchedulerReportData` in `dbSync.js`, and through the POST and PUT shift handlers in `oversightRoutes.js`.
+- **Leadership slots count toward shift total** — KM and KA slots reduce the volunteer slot budget so Min / Target / Max always reflect total headcount including leadership. Example: min=4, target=6, max=8 with both slots enabled → 1 KM + 1 KA + 2 required + 2 ideal + 2 extra volunteer slots.
+- Schedule report suppresses KM and KA rows when the respective shift flag is off, even if a legacy DB assignment exists for that slot.
+
 ## [2.59.0] — 2026-06-19
 
 ### Added

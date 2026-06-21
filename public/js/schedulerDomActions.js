@@ -1258,7 +1258,6 @@ export async function initDomActions() {
 
         const startRow = timeToRow(startMins, earliest) + 3;
         const endRow = timeToRow(endMins, earliest) + 3;
-        const isMS = deptKey === "mobile_support";
         const locValues = Object.values(shift.location);
 
         if (subCols[0] === null || locValues.every((l) => !l.name)) {
@@ -1284,7 +1283,8 @@ export async function initDomActions() {
           block.dataset.assignmentId = String(locValues[0]?.id ?? "");
           _appendDropzones(
             block,
-            isMS,
+            !!shift.has_keyman,
+            !!shift.has_keyman_asst,
             aggMin,
             aggIdeal,
             aggMax,
@@ -1315,7 +1315,8 @@ export async function initDomActions() {
             block.dataset.assignmentId = String(loc.id ?? "");
             _appendDropzones(
               block,
-              isMS,
+              !!shift.has_keyman,
+              !!shift.has_keyman_asst,
               min,
               ideal,
               max,
@@ -1995,22 +1996,24 @@ export async function initDomActions() {
 
   /**
    * Build and append a dropzone area into a shift block.
-   * KM/KA leadership slots are prepended (except for mobile_support),
+   * KM/KA leadership slots are prepended based on per-shift flags,
    * followed by regular volunteer slots color-coded by min/ideal/max tier.
    *
    * @param {HTMLElement} block
-   * @param {boolean}     isMS         - True for mobile_support (skip KM/KA slots).
+   * @param {boolean}     hasKeyman      - Whether this shift has a Keyman slot.
+   * @param {boolean}     hasKeymanAsst  - Whether this shift has a Keyman Assistant slot.
    * @param {number}      min
    * @param {number}      ideal
    * @param {number}      max
-   * @param {number|null} assignmentId  - The schedule_assignments.id for persistence.
+   * @param {number|null} assignmentId   - The schedule_assignments.id for persistence.
    * @param {number}      shiftStartMins - Shift start in minutes from midnight.
    * @param {number}      shiftEndMins   - Shift end in minutes from midnight.
    * @returns {void}
    */
   function _appendDropzones(
     block,
-    isMS,
+    hasKeyman,
+    hasKeymanAsst,
     min,
     ideal,
     max,
@@ -2021,7 +2024,7 @@ export async function initDomActions() {
     const dzArea = document.createElement("div");
     dzArea.classList.add("sched-dropzone-area");
 
-    if (!isMS) {
+    if (hasKeyman) {
       const kmDz = _makeDropzoneEl(
         "keyman",
         "dz-keyman",
@@ -2033,7 +2036,9 @@ export async function initDomActions() {
       );
       dzArea.appendChild(kmDz);
       makeDroppable(kmDz, {}, { "droppable:drop": onDrop });
+    }
 
+    if (hasKeymanAsst) {
       const kaDz = _makeDropzoneEl(
         "keyman_asst",
         "dz-keyman-asst",
@@ -2047,16 +2052,23 @@ export async function initDomActions() {
       makeDroppable(kaDz, {}, { "droppable:drop": onDrop });
     }
 
-    if (max === 0) {
+    // KM and KA count toward the shift total, so subtract them from the
+    // volunteer slot budget to keep the aggregate at min/ideal/max.
+    const leaderCount = (hasKeyman ? 1 : 0) + (hasKeymanAsst ? 1 : 0);
+    const volMin   = Math.max(0, min   - leaderCount);
+    const volIdeal = Math.max(0, ideal - leaderCount);
+    const volMax   = Math.max(0, max   - leaderCount);
+
+    if (volMax === 0 && leaderCount === 0) {
       const hint = document.createElement("p");
       hint.classList.add("sched-no-slots-hint");
       hint.textContent = "No slots defined";
       dzArea.appendChild(hint);
     } else {
-      for (let i = 0; i < max; i++) {
+      for (let i = 0; i < volMax; i++) {
         let dzClass;
-        if (i < min) dzClass = "dz-required";
-        else if (i < ideal) dzClass = "dz-ideal";
+        if (i < volMin) dzClass = "dz-required";
+        else if (i < volIdeal) dzClass = "dz-ideal";
         else dzClass = "dz-extra";
 
         const dz = _makeDropzoneEl(

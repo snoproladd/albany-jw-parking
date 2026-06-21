@@ -553,9 +553,25 @@
                               <i class="fa-solid fa-wand-magic-sparkles me-1"></i>Auto-suggested — edit to override
                             </div>
                           </div>
-                          <div class="col-12 col-md-7">
+                          <div class="col-12 col-md-5">
                             <label for="shiftNotes" class="form-label small">Notes</label>
                             <input type="text" id="shiftNotes" class="form-control" maxlength="500" />
+                          </div>
+                          <div class="col-12 col-md-4 d-flex gap-4 align-items-end pb-1" id="shiftKeymanGroup">
+                            <div class="form-check form-switch mb-1">
+                              <input class="form-check-input" type="checkbox" id="shiftHasKeyman" checked />
+                              <label class="form-check-label small" for="shiftHasKeyman">
+                                Keyman
+                                <small class="text-muted d-block">KM slot</small>
+                              </label>
+                            </div>
+                            <div class="form-check form-switch mb-1">
+                              <input class="form-check-input" type="checkbox" id="shiftHasKeymanAsst" checked />
+                              <label class="form-check-label small" for="shiftHasKeymanAsst">
+                                KM Asst
+                                <small class="text-muted d-block">KA slot</small>
+                              </label>
+                            </div>
                           </div>
                           <div class="col-12 col-md-3 d-flex align-items-end pb-1">
                             <div class="form-check form-switch mb-1">
@@ -566,6 +582,7 @@
                               </label>
                             </div>
                           </div>
+
                         </div>
                         <div id="shiftFormStatus" class="mt-3"></div>
                       </div>
@@ -743,7 +760,9 @@
                                               data-notes="<%= shift.notes || '' %>"
                                               data-sms-code="<%= shift.sms_code || '' %>"
                                               data-category-id="<%= shift.category_id || '' %>"
-                                              data-invitable="<%= shift.invitable ? 'true' : 'false' %>">
+                                              data-invitable="<%= shift.invitable ? 'true' : 'false' %>"
+                                              data-has-keyman="<%= shift.has_keyman ? 'true' : 'false' %>"
+                                              data-has-keyman-asst="<%= shift.has_keyman_asst ? 'true' : 'false' %>">
                                               <i class="fa-solid fa-pen"></i>
                                             </button>
                                             <button type="button"

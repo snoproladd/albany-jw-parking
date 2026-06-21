@@ -2878,6 +2878,8 @@ export function oversightRouter({
         notes,
         sms_code,
         is_meeting,
+        has_keyman,
+        has_keyman_asst,
       } = req.body || {};
 
       const isMeeting = !!(is_meeting === true || is_meeting === "true" || is_meeting === 1);
@@ -2903,15 +2905,17 @@ export function oversightRouter({
 
       try {
         const id = await createShift({
-          session_id:     Number(session_id),
-          category_id:    isMeeting ? null : (category_id ? Number(category_id) : null),
+          session_id:      Number(session_id),
+          category_id:     isMeeting ? null : (category_id ? Number(category_id) : null),
           label,
-          start_time:     normStart,
-          end_time:       normEnd,
+          start_time:      normStart,
+          end_time:        normEnd,
           volunteer_need,
           notes,
-          sms_code:       sms_code?.trim() || null,
-          is_meeting:     isMeeting,
+          sms_code:        sms_code?.trim() || null,
+          is_meeting:      isMeeting,
+          has_keyman:      isMeeting ? false : (has_keyman !== false && has_keyman !== "false"),
+          has_keyman_asst: isMeeting ? false : (has_keyman_asst !== false && has_keyman_asst !== "false"),
         });
         return res.json({ success: true, id });
       } catch (err) {
@@ -2938,6 +2942,8 @@ export function oversightRouter({
         sms_code,
         invitable,
         is_meeting,
+        has_keyman,
+        has_keyman_asst,
       } = req.body || {};
 
       const isMeeting = !!(is_meeting === true || is_meeting === "true" || is_meeting === 1);
@@ -2962,15 +2968,17 @@ export function oversightRouter({
 
       try {
         const ok = await updateShift(id, {
-          category_id:    isMeeting ? null : (category_id ? Number(category_id) : null),
+          category_id:     isMeeting ? null : (category_id ? Number(category_id) : null),
           label,
-          start_time:     normStart,
-          end_time:       normEnd,
+          start_time:      normStart,
+          end_time:        normEnd,
           volunteer_need,
           notes,
-          sms_code:       sms_code !== undefined ? sms_code?.trim() || null : undefined,
-          invitable:      !!invitable,
-          is_meeting:     isMeeting,
+          sms_code:        sms_code !== undefined ? sms_code?.trim() || null : undefined,
+          invitable:       !!invitable,
+          is_meeting:      isMeeting,
+          has_keyman:      isMeeting ? false : (has_keyman !== false && has_keyman !== "false"),
+          has_keyman_asst: isMeeting ? false : (has_keyman_asst !== false && has_keyman_asst !== "false"),
         });
         if (!ok)
           return res.status(404).json({ success: false, error: "Not found." });

@@ -866,6 +866,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const shiftCancelBtn = document.getElementById("shiftCancelBtn");
     const shiftDeleteBtn = document.getElementById("shiftDeleteBtn");
     const shiftFormClose = document.getElementById("shiftFormClose");
+    const shiftHasKeyman = document.getElementById("shiftHasKeyman");
+    const shiftHasKeymanAsst = document.getElementById("shiftHasKeymanAsst");
+    const shiftKeymanGroup = document.getElementById("shiftKeymanGroup");
 
     /** Convention date (YYYY-MM-DD) for the currently open add-shift form. */
     let shiftContextDate = "";
@@ -936,10 +939,11 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!shiftEditId.value) refreshSmsCodeSuggestion();
     });
 
-    // Meeting toggle — show/hide dept group and re-suggest
+    // Meeting toggle — show/hide dept group, KM/KA group, and re-suggest
     shiftIsMeeting?.addEventListener("change", () => {
       const isMeeting = shiftIsMeeting.checked;
       shiftDeptGroup?.classList.toggle("d-none", isMeeting);
+      shiftKeymanGroup?.classList.toggle("d-none", isMeeting);
       if (!shiftEditId.value) {
         codeAutoSuggested = false;
         shiftSmsCode.value = "";
@@ -952,6 +956,21 @@ document.addEventListener("DOMContentLoaded", () => {
     shiftSmsCode.addEventListener("input", () => {
       codeAutoSuggested = false;
       shiftSmsCodeHint?.classList.add("d-none");
+    });
+
+    /**
+     * When the Keyman toggle changes, enforce the KA-requires-KM rule:
+     * disabling KM also disables and unchecks KA.
+     */
+    shiftHasKeyman?.addEventListener("change", () => {
+      if (!shiftHasKeyman.checked) {
+        if (shiftHasKeymanAsst) {
+          shiftHasKeymanAsst.checked = false;
+          shiftHasKeymanAsst.disabled = true;
+        }
+      } else {
+        if (shiftHasKeymanAsst) shiftHasKeymanAsst.disabled = false;
+      }
     });
 
     /**
@@ -968,6 +987,12 @@ document.addEventListener("DOMContentLoaded", () => {
       shiftSmsCode.value = "";
       shiftNotes.value = "";
       shiftInvitable.checked = false;
+      if (shiftHasKeyman) shiftHasKeyman.checked = true;
+      if (shiftHasKeymanAsst) {
+        shiftHasKeymanAsst.checked = true;
+        shiftHasKeymanAsst.disabled = false;
+      }
+      shiftKeymanGroup?.classList.remove("d-none");
       codeAutoSuggested = false;
       shiftSmsCodeHint?.classList.add("d-none");
       const shiftDepartment = document.getElementById("shiftDepartment");
@@ -1003,6 +1028,13 @@ document.addEventListener("DOMContentLoaded", () => {
         shiftSmsCode.value = btn.dataset.smsCode || "";
         shiftNotes.value = btn.dataset.notes || "";
         shiftInvitable.checked = btn.dataset.invitable === "true";
+        const hasKm = btn.dataset.hasKeyman !== "false";
+        if (shiftHasKeyman) shiftHasKeyman.checked = hasKm;
+        if (shiftHasKeymanAsst) {
+          shiftHasKeymanAsst.checked = btn.dataset.hasKeymanAsst !== "false";
+          shiftHasKeymanAsst.disabled = !hasKm;
+        }
+        shiftKeymanGroup?.classList.toggle("d-none", isMtg);
         codeAutoSuggested = false;
         shiftSmsCodeHint?.classList.add("d-none");
         const shiftDeptSel = document.getElementById("shiftDepartment");
@@ -1058,8 +1090,10 @@ document.addEventListener("DOMContentLoaded", () => {
             category_id:   isMeeting ? null : (Number(deptVal) || null),
             sms_code:      shiftSmsCode.value.trim().toUpperCase() || null,
             notes:         shiftNotes.value.trim() || null,
-            invitable:     shiftInvitable.checked,
-            is_meeting:    isMeeting,
+            invitable:       shiftInvitable.checked,
+            is_meeting:      isMeeting,
+            has_keyman:      isMeeting ? false : (shiftHasKeyman?.checked ?? true),
+            has_keyman_asst: isMeeting ? false : (shiftHasKeymanAsst?.checked ?? true),
           });
           window.location.reload();
         } catch (err) {

@@ -168,8 +168,8 @@
                     <div class="report-location-header"><%= loc.name %></div>
                     <div class="report-location-body">
 
-                      <% if (loc.keyman) { %>
-                        <div class="report-vol-row is-keyman">
+                      <% if (shift.has_keyman_asst && loc.keyman_asst) { %>
+                        <div class="report-vol-row is-keyman-asst">
                           <span class="report-vol-role-badge role-km">KM</span>
                           <div class="report-vol-info">
                             <span class="report-vol-name"><%= loc.keyman.lastName %>, <%= loc.keyman.firstName %></span>

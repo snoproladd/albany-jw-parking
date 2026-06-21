@@ -966,11 +966,17 @@ Expand a session to manage its shifts. Each shift has:
 - **Parking Meeting toggle** — marks the shift as a crew-agnostic meeting (e.g.
   a 6:15 AM keyman briefing). Meeting shifts have no department, appear in a
   dedicated "Meetings" column in the Scheduler, and use the `MT` SMS code prefix.
-  Toggling this on hides the department selector.
+  Toggling this on hides the department selector and the KM/KA toggles.
 - **Label** — display name for the shift
 - **Start / End time**
 - **Scheduler Dept** — which crew column the shift occupies in the Scheduler grid.
   Hidden when the Parking Meeting toggle is on.
+- **Keyman / KM Asst toggles** — control whether a Keyman (KM) and/or Keyman
+  Assistant (KA) drop zone appear in the Scheduler for this shift. Both default to
+  on. KA requires KM — disabling Keyman automatically disables KM Asst. Hidden for
+  meeting shifts. These slots count toward the shift's total headcount: a shift with
+  Min=4 / Target=6 / Max=8 and both leadership slots enabled will show 1 KM + 1 KA +
+  2 required + 2 ideal + 2 extra volunteer drop zones (total 8).
 - **Volunteer need** — how many volunteers are required
 - **Schedule Assignments** — locations attached to this shift, each with
   **Min**, **Target**, and **Max** volunteer counts. These drive slot
@@ -1093,7 +1099,9 @@ color-coding renders correctly.
    - Drop zones are color-coded: pink = required slots (below vol_min), blue =
      ideal slots (up to vol_target), grey = extra slots (up to vol_max).
    - **KM** slots (deeper blue) require KEYMAN or above. **KA** slots (cyan)
-     accept any rank.
+     accept any rank. Both are controlled per-shift via the Keyman / KM Asst
+     toggles in Timelines — if a shift has no KM slot, the drop zone does not
+     appear and no KM can be assigned to it.
    - Department drop guards automatically reject volunteers who lack the crew
      flag for that department — the zone will not highlight for ineligible drags.
    - **Auto-routing:** dropping a pill on an occupied slot, or on a KM/KA slot
