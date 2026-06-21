@@ -67,6 +67,14 @@
           "icon": "fa-solid fa-map",
           "minRole": "REGISTERED",
           "permission": "viewMaps"
+        },
+        {
+          "title": "Schedules",
+          "path": "/schedules",
+          "description": "Published convention day shift schedules for all departments.",
+          "icon": "fa-solid fa-calendar-check",
+          "minRole": "REGISTERED",
+          "permission": "viewSchedules"
         }
       ]
     },

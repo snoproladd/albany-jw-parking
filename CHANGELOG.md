@@ -3,6 +3,21 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.61.0] — 2026-06-21
+
+### Added
+- **Schedules resources page** (`/schedules`) — lists published convention day schedule PDFs sourced from OneDrive (`Documents for Distribution/Schedules/`). Tile layout mirrors the Maps page. Available to REGISTERED+ via the existing `viewSchedules` permission. New files: `routes/schedulesRoutes.js`, `views/schedules.ejs`, `public/js/schedules.js`, `public/styles/schedules.css`. Sitemap entry added to the Resources group.
+- **Docs section** — Operations nav dropdown, Operations Hub card grid, and Operations Hub page sidebar now include a **Docs** subsection linking to Maps and Schedules, gated per-link by `viewMaps` and `viewSchedules` permissions respectively.
+- **Scheduler pill name dataset** — pool pills now carry `data-sort-order` (integer index precomputed at pool-load time by last-name-then-first-name sort), `data-first-name`, and `data-last-name`. All three propagate automatically to DZ clones via `cloneNode(true)`.
+
+### Fixed
+- **Scheduler — sticky day banner** — the day banner (day label, Undo/Redo, Report, Check-ins, Columns toggles) now lives in a `.scheduler-banner-slot` div above `.scheduler-main` and no longer scrolls with the grid on either axis. New `.scheduler-content-area` flex column wraps the banner slot and the scrollable main area.
+- **Scheduler — right-side time column clipping** — the sticky right-side time mirror column was in a `0px` grid column, causing it to overlay the rightmost shift block at maximum horizontal scroll. Column widened to `60px` (matching the left time column); `display: none` replaced with `visibility: hidden` so the column always reserves layout space without showing phantom content.
+- **Scheduler — dropzone pill sort** — volunteer slots within a shift dropzone area now auto-sort alphabetically (last name → first name) after every interactive drop, DZ-to-DZ move, return to pool, and on full day load. Sort is an integer comparison on `data-sort-order` — no runtime `localeCompare` needed. KM and KA slots are excluded and stay pinned. Implemented as `_sortDzAreaByName()` in `schedulerDraggable.js`; exported as `sortDzAreaByName` for the post-load pass in `schedulerDomActions.js`.
+- **Schedule report — blank first page on print/publish** — `break-inside: avoid` at the `.report-dept` level caused browsers and Puppeteer to push an entire large first department to page 2, leaving page 1 with only the title header. Fixed by moving `break-inside: avoid` to `.report-shift` and adding `break-after: avoid` to `.report-page-header`.
+- **Schedule report — sort order** — departments now appear alphabetically by name (`sc.name` instead of `sc.sort_order`); regular volunteers within each location now sort by last name then first name (`v.lastName, v.firstName`) instead of slot drop order.
+- **Schedule report — JS sort bug** — shifts and locations in the compiled report structure were being silently re-sorted by numeric database ID after the SQL `ORDER BY`, because plain objects with integer-like keys return values in ascending numeric order via `Object.values()`. Both levels now use `Map` to preserve SQL insertion order throughout `getSchedulerReportData()`.
+
 ## [2.60.0] — 2026-06-21
 
 ### Added

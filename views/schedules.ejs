@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Schedules — Albany JW Parking</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/schedules.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+    <meta name="csrf-token" content="<%= csrfToken %>" />
+</head>
+<body data-authed="true" class="bg-body-tertiary min-vh-100">
+
+    <%- include('partials/header') %>
+
+    <main class="container py-4 px-3 px-md-4">
+        <div class="row justify-content-center">
+            <div class="col-12 col-lg-10 col-xl-9">
+
+                <%# ── Page header ──────────────────────────────── %>
+                <div class="schedules-page-header mb-4">
+                    <h1 class="schedules-page-title">
+                        <i class="fa-solid fa-calendar-check me-2"></i>Schedules
+                    </h1>
+                    <p class="schedules-page-subtitle mb-0">
+                        Published convention day shift schedules.
+                    </p>
+                </div>
+
+                <%# ── Error state ──────────────────────────────── %>
+                <% if (loadError) { %>
+                <div class="alert schedules-load-error d-flex align-items-center gap-2" role="alert">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span><%= loadError %></span>
+                </div>
+                <% } %>
+
+                <%# ── Empty state ───────────────────────────────── %>
+                <% if (!loadError && sections.length === 0) { %>
+                <div class="schedules-empty-state text-center py-5">
+                    <i class="fa-solid fa-calendar-xmark fa-3x mb-3 text-secondary"></i>
+                    <p class="schedules-empty-text mb-0">No schedules have been published yet.</p>
+                </div>
+                <% } %>
+
+                <%# ── Sections ──────────────────────────────────── %>
+                <% sections.forEach(function(section) { %>
+                <% if (section.files.length === 0) { return; } %>
+
+                <section class="schedules-section mb-5">
+                    <h2 class="schedules-section-heading">
+                        <i class="fa-solid fa-folder-open me-2"></i><%= section.folderName %>
+                    </h2>
+
+                    <div class="row g-3">
+                        <% section.files.forEach(function(file) { %>
+                        <%
+                            let iconClass = 'fa-solid fa-file';
+                            if (file.mimeType) {
+                                if (file.mimeType === 'application/pdf') {
+                                    iconClass = 'fa-solid fa-file-pdf';
+                                } else if (file.mimeType.startsWith('image/')) {
+                                    iconClass = 'fa-solid fa-file-image';
+                                } else if (file.mimeType.includes('word') || file.mimeType.includes('document')) {
+                                    iconClass = 'fa-solid fa-file-word';
+                                }
+                            }
+                        %>
+                        <div class="col-12 col-sm-6 col-xl-4">
+                            <div class="schedules-tile h-100">
+
+                                <div class="schedules-tile-content">
+                                    <div class="schedules-tile-icon-wrap">
+                                        <i class="<%= iconClass %> schedules-tile-icon"></i>
+                                    </div>
+
+                                    <div class="schedules-tile-body">
+                                        <div class="schedules-tile-name"><%= file.name %></div>
+                                        <% if (file.description) { %>
+                                        <p class="schedules-tile-description"><%= file.description %></p>
+                                        <% } %>
+                                        <div class="schedules-tile-meta">
+                                            <% if (file.lastModified) { %>
+                                            <span class="schedules-tile-date" data-raw="<%= file.lastModified %>"></span>
+                                            <% } %>
+                                            <span class="schedules-tile-size" data-bytes="<%= file.size %>"></span>
+                                        </div>
+                                    </div>
+
+                                    <div class="schedules-tile-actions">
+                                        <a href="<%= file.webUrl %>"
+                                           target="_blank"
+                                           rel="noopener noreferrer"
+                                           class="schedules-tile-btn schedules-tile-btn--download">
+                                            <i class="fa-solid fa-arrow-down me-1"></i>View / Download
+                                        </a>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                        <% }); %>
+                    </div>
+                </section>
+
+                <% }); %>
+
+            </div>
+        </div>
+    </main>
+
+    <%- include('partials/footer') %>
+
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="/js/schedules.js"></script>
+</body>
+</html>

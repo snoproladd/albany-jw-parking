@@ -357,15 +357,34 @@
         padding: 0.5cm 1cm;
     }
 
+    /*
+     * Prevent the page header from being stranded alone on page 1 when
+     * the first department section is tall enough to push to page 2.
+     */
+    .report-page-header {
+        page-break-after: avoid;
+        break-after: avoid;
+    }
+
     .report-dept + .report-dept {
         page-break-before: always;
         break-before: page;
     }
 
+    /*
+     * Do NOT apply break-inside: avoid at the department level — with
+     * enough data a department can span more than one page, which caused
+     * browsers / Puppeteer to bump the whole first dept to page 2 and
+     * leave a blank-looking first page. Keep individual shifts together
+     * instead, which are small enough to honour the hint reliably.
+     */
     .report-dept {
+        margin-bottom: 1.2rem;
+    }
+
+    .report-shift {
         page-break-inside: avoid;
         break-inside: avoid;
-        margin-bottom: 1.2rem;
     }
 
     .report-location {

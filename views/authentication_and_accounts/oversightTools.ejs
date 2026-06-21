@@ -57,7 +57,10 @@
             <% if (can('manageRoles') && isAtLeast('ADMIN')) { %>
               <option value="administration">⚙️ Administration</option>
             <% } %>
-            <option value="site-map">Site Map</option>
+            <a class="ot-sidebar-link" href="#site-map">
+                <i class="fa-solid fa-sitemap"></i> Site Map
+              </a>
+          </nav>
           </select>
         </div>
 
@@ -676,7 +679,49 @@
             <% } %>
 
           <%# ══════════════════════════════════════════════
-                7. SITE MAP
+                7. DOCS
+            ══════════════════════════════════════════════ %>
+            <% if (can('viewMaps') || can('viewSchedules')) { %>
+              <h2 class="tools-group-heading" id="docs">
+                <i class="fa-solid fa-folder-open me-2"></i>Docs
+              </h2>
+              <div class="row g-4 mb-5">
+
+                <% if (can('viewMaps')) { %>
+                  <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="admin-tool-card h-100">
+                      <div class="admin-tool-icon text-primary">
+                        <i class="fa-solid fa-map"></i>
+                      </div>
+                      <h3 class="admin-tool-title">Maps</h3>
+                      <p class="admin-tool-desc">Convention parking maps, pedestrian routes, sign placement guides, and other reference materials.</p>
+                      <a href="/maps" class="btn btn-primary admin-tool-btn">
+                        Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                      </a>
+                    </div>
+                  </div>
+                <% } %>
+
+                <% if (can('viewSchedules')) { %>
+                  <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="admin-tool-card h-100">
+                      <div class="admin-tool-icon text-success">
+                        <i class="fa-solid fa-calendar-check"></i>
+                      </div>
+                      <h3 class="admin-tool-title">Schedules</h3>
+                      <p class="admin-tool-desc">Published convention day shift schedules for all departments.</p>
+                      <a href="/schedules" class="btn btn-success admin-tool-btn">
+                        Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                      </a>
+                    </div>
+                  </div>
+                <% } %>
+
+              </div>
+            <% } %>
+
+          <%# ══════════════════════════════════════════════
+                8. SITE MAP
             ══════════════════════════════════════════════ %>
             <h2 class="tools-group-heading" id="site-map">
               <i class="fa-solid fa-sitemap me-2"></i>Site Map

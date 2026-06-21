@@ -131,7 +131,9 @@
     <%#-- ═══════════════════════════
          MAIN SCHEDULE AREA
     ═══════════════════════════ --%>
-    <main class="scheduler-main" id="schedulerMain">
+    <div class="scheduler-content-area">
+      <div id="schedulerBannerSlot" class="scheduler-banner-slot d-none"></div>
+      <main class="scheduler-main" id="schedulerMain">
       <div class="sched-peek sched-peek--left d-none" id="schedPeekLeft">
         <i class="fa-solid fa-chevron-left"></i>
         <span class="sched-peek-label"></span>
@@ -173,6 +175,7 @@
       <div id="daySchedule" class="scheduler-grid-wrap d-none"></div>
 
     </main>
+    </div><%#-- /.scheduler-content-area --%>
 
   </div><%#-- /.scheduler-layout --%>
 

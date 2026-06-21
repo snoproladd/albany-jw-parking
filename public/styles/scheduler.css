@@ -35,6 +35,23 @@
     border-top: 1px solid var(--bs-border-color);
 }
 
+/* Flex column wrapper: contains the sticky banner slot + the scrollable main area. */
+.scheduler-content-area {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Out-of-flow banner slot — sits above scheduler-main, never scrolls. */
+.scheduler-banner-slot {
+    flex-shrink: 0;
+    padding: 0.5rem 1.5rem;
+    background: var(--bs-tertiary-bg);
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
 
 /* ─────────────────────────────────────────────
    Sidebar
@@ -200,7 +217,7 @@
     flex: 1 1 0;
     min-width: 0;
     overflow: auto;
-    padding: 1.25rem 1.5rem;
+    padding: 0.75rem 1.5rem 1.25rem;
     background: var(--bs-tertiary-bg);
 }
 
@@ -234,7 +251,6 @@
     align-items: center;
     gap: 1rem;
     padding: 0.4rem 0.75rem;
-    margin-bottom: 0.5rem;
     background: var(--bs-warning-bg-subtle);
     border: 1px solid var(--bs-warning-border-subtle);
     border-radius: 0.375rem;
@@ -307,7 +323,8 @@
 
 /* Right-side time mirror — hidden until horizontal scroll */
 .sched-time-label-right {
-    display: none;
+    display: flex;
+    visibility: hidden;
     align-items: flex-start;
     justify-content: flex-start;
     padding: 0.15rem 0 0 0.4rem;
@@ -322,7 +339,8 @@
 }
 
 .sched-time-corner-right {
-    display: none;
+    display: flex;
+    visibility: hidden;
     position: sticky;
     right: 0;
     z-index: 4;
@@ -338,7 +356,7 @@
 
 .scheduler-calendar-outer.is-scrolled .sched-time-label-right,
 .scheduler-calendar-outer.is-scrolled .sched-time-corner-right {
-    display: flex;
+    visibility: visible;
 }
 
 .sched-dept-header {

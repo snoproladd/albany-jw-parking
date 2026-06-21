@@ -111,6 +111,34 @@
                   </a>
                 </li>
 
+                <% if (can('viewMaps') || can('viewSchedules')) { %>
+                <%# ── Docs ────────────────────────────────────────── %>
+                <li>
+                  <button class="ot-nav-category" type="button"
+                          data-bs-toggle="collapse"
+                          data-bs-target="#otNavDocs">
+                    <span><i class="fa-solid fa-folder-open me-2"></i>Docs</span>
+                    <i class="fa-solid fa-chevron-down ot-nav-chevron"></i>
+                  </button>
+                </li>
+                <li>
+                  <div class="collapse show" id="otNavDocs">
+                    <ul class="ot-nav-items">
+                      <% if (can('viewMaps')) { %>
+                        <li><a class="ot-nav-item" href="/maps">
+                          <i class="fa-solid fa-map"></i>Maps
+                        </a></li>
+                      <% } %>
+                      <% if (can('viewSchedules')) { %>
+                        <li><a class="ot-nav-item" href="/schedules">
+                          <i class="fa-solid fa-calendar-check"></i>Schedules
+                        </a></li>
+                      <% } %>
+                    </ul>
+                  </div>
+                </li>
+                <% } %>
+
                 <% if (can('accessAdminConsole')) { %>
                 <%# ── Communications ─────────────────────────────── %>
                 <li>

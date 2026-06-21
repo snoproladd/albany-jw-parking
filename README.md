@@ -204,6 +204,7 @@ parking/
 │   ├── accountRoutes.js       # Login, My Account, password change
 │   ├── apiRoutes.js           # Internal API endpoints (session touch, etc.)
 │   ├── mapsRoutes.js          # Maps page — OneDrive file listing with ScribbleMaps integration
+│   ├── schedulesRoutes.js     # Schedules page — OneDrive PDF listing for published day schedules
 │   ├── oversightRoutes.js     # All Oversight Tools routes
 │   ├── registrationRoutes.js  # Registration flow (multi-step draft)
 │   ├── signsRoutes.js         # Sign Library, Sign Builder, Sign Map — templates, locations, and attachments CRUD
@@ -223,6 +224,7 @@ parking/
 ├── views/
 │   ├── index.ejs              # Home / dashboard page
 │   ├── maps.ejs               # Maps page (OneDrive listing)
+│   ├── schedules.ejs          # Schedules page (OneDrive PDF listing)
 │   ├── privacy.ejs            # Privacy policy
 │   ├── terms.ejs              # Terms of use
 │   ├── sitemap.ejs            # Role-filtered sitemap
@@ -331,6 +333,7 @@ parking/
 │   │   ├── inviteRespond.js           # Invitation RSVP response page
 │   │   ├── locationsAndTasks.js       # Locations & tasks management
 │   │   ├── maps.js                    # Maps page (OneDrive listing)
+│   │   ├── schedules.js               # Schedules page (OneDrive PDF listing)
 │   │   ├── oversightStructure.js      # Oversight structure admin tree
 │   │   ├── oversightTools.js          # Operations hub page
 │   │   ├── permissionMatrix.js        # Permission matrix editor
@@ -394,6 +397,7 @@ parking/
 │   │   ├── crewMatrix.css             # Crew matrix
 │   │   ├── invitationTracker.css      # Invitation tracker
 │   │   ├── maps.css                   # Maps page
+│   │   ├── schedules.css              # Schedules page
 │   │   ├── oversightStructure.css     # Oversight structure admin tree
 │   │   ├── permissionMatrix.css       # Permission matrix
 │   │   ├── rendezvous.css             # Rendezvous editor panel + landing page
@@ -556,7 +560,8 @@ The first ADMIN must be granted directly in the database.
   photo exists. Permission key: `editRendezvous` (KEYMAN+ edit, OVERSEER+ create/delete).
   RV data is preloaded per day in the scheduler via `preloadRendezvousForDay()` on the
   `scheduler:dayChange` event.
-- **Per-shift KM/KA slot control (2.60.0):** Two `BIT` columns (`has_keyman`, `has_keyman_asst`) on `dbo.shifts` control whether Keyman and Keyman Assistant drop zones appear in the Scheduler for each shift. Configured via toggles in the Timelines shift form (hidden for meeting shifts; KA requires KM). Leadership slots count toward the shift's Min/Target/Max headcount — the volunteer slot budget is reduced by the number of enabled leadership slots so totals remain accurate. The schedule report suppresses KM/KA rows when the flag is off. Migration F (`migration_F.sql` / `migration_F_demo.sql`), `DEFAULT 1` to preserve all existing scheduler assignments.
+- **Schedules page + Docs section (2.61.0):** New `/schedules` resources page lists published schedule PDFs from OneDrive (`Documents for Distribution/Schedules/`), mirroring the Maps tile layout (`routes/schedulesRoutes.js`, `views/schedules.ejs`, `public/js/schedules.js`, `public/styles/schedules.css`). Docs section (Maps + Schedules, permission-gated) added to Operations nav dropdown, Operations Hub card grid, and Operations Hub sidebar.
+- **Scheduler UX + report fixes (2.61.0):** Day banner extracted into a fixed `.scheduler-banner-slot` above `.scheduler-main` (no longer scrolls on either axis). Right-side time mirror column widened `0px → 60px` so shift content is never hidden at max scroll. Volunteer DZ slots auto-sort alphabetically by name on every drop, move, return-to-pool, and day load using a precomputed `data-sort-order` index (propagated via `cloneNode(true)`). Schedule report blank-first-page fixed (`break-inside: avoid` moved to `.report-shift`; `break-after: avoid` on `.report-page-header`). Report sort order corrected — departments alphabetical, volunteers by last/first name. `Object.values()` integer-key reordering bug in `getSchedulerReportData()` fixed by using `Map` for shifts and locations.
 - **Per-shift KM/KA slot control (2.60.0):** Two `BIT` columns (`has_keyman`, `has_keyman_asst`) on `dbo.shifts` control whether Keyman and Keyman Assistant drop zones appear in the Scheduler for each shift. Configured via toggles in the Timelines shift form (hidden for meeting shifts; KA requires KM). Leadership slots count toward the shift's Min/Target/Max headcount — the volunteer slot budget is reduced by the number of enabled leadership slots so totals remain accurate. The schedule report suppresses KM/KA rows when the flag is off. Migration F (`migration_F.sql` / `migration_F_demo.sql`), `DEFAULT 1` to preserve all existing scheduler assignments.
 - **Gender / role / crew filters (2.59.0):** Male / Female / All gender filter added to seven pages (Crew Matrix, Scheduler pool, Volunteer Account Oversight, Attendance Report, Invitation Tracker, Campaign Center, Application Status). Campaign Center aside also gains Role and Crew selects. Backed by `gender`, `role`, and crew columns added to the relevant `dbSync.js` query functions; no schema changes required.
 - **Scheduler Categories (2.58.0):** `dbo.scheduler_categories` replaces

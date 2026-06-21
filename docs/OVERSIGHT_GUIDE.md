@@ -11,6 +11,7 @@ send invitations, track RSVPs, log attendance, and administer the platform.
 1. [Getting Started](#1-getting-started)
    - [Site Map](#site-map)
    - [Maps](#maps)
+   - [Schedules](#schedules)
    - [Signs](#signs)
      - [Sign Library](#sign-library-registered)
      - [Sign Builder](#sign-builder-overseer)
@@ -109,6 +110,28 @@ To add or update maps, place files in the appropriate subfolder under
 ScribbleMaps counterpart, add or update the `_meta.json` sidecar file in
 the same subfolder. See the developer notes in `lib/graphClient.js` for the
 JSON format.
+
+### Schedules
+
+**Path:** Resources → Schedules (navigation bar), or `/schedules`
+
+Available to all registered volunteers (REGISTERED and above). The Schedules
+page lists published convention day shift schedule PDFs sourced from OneDrive,
+grouped by subfolder (typically one subfolder per convention day or event).
+
+Each tile shows the file name, description if provided, last-modified date,
+and file size. Click **View / Download** to open the PDF in OneDrive.
+
+**Publishing a schedule** — use the **Publish** button on the
+[Schedule Report](#schedule-report-overseer) page. This generates the PDF
+from the current day's assignments and uploads it to the `Schedules` folder
+in OneDrive automatically; the Schedules page reflects the upload immediately
+on next load.
+
+**Adding files manually** — place PDFs in a subfolder under
+`Documents for Distribution/Schedules/` in OneDrive.
+
+---
 
 ### Signs
 
@@ -1135,18 +1158,24 @@ assigning volunteers in the Scheduler, click **Report** in the day banner
 to open the report in a new tab.
 
 **Layout:**
-- Each department (Lots & Garages, Signs, Security, Drop-off/Pickup,
-  Mobile Support, Desk) renders as its own section, with a page break between
-  departments when printed.
-- Within each department, shifts appear as sub-sections showing the time
-  range. Each location is a column card listing the **KM** (blue),
-  **KA** (teal), and regular volunteers in order.
+- Departments appear in alphabetical order, each as its own section, with a
+  page break between departments when printed.
+- Within each department, shifts appear in time order (earliest first). Each
+  location is a column card listing the **KM** (blue), **KA** (teal), and
+  regular volunteers sorted alphabetically by last name.
 - The **Day** picker in the toolbar switches days without leaving the page.
 
 **Printing / Downloading:**
 Click **Print / Save PDF** to open the browser print dialog. Choose
 *Save as PDF* in the destination to download a PDF version. The report
 hides all browser chrome and navigation when printed.
+
+**Publishing:**
+Click **Publish** to generate a PDF of the current schedule, upload it to
+OneDrive, and notify all Overseers+ and scheduled volunteers via email and
+SMS. A **Dry run** option uploads the PDF without sending notifications —
+useful for verifying layout before a real publish. The uploaded PDF appears
+automatically on the [Schedules](#schedules) resources page.
 
 ---
 

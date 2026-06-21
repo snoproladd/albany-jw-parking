@@ -20,6 +20,7 @@ import {
   onReturnToPool,
   initPoolPills,
   setVolunteers,
+  sortDzAreaByName,
 } from "./schedulerDraggable.js";
 
 import {
@@ -584,7 +585,8 @@ export async function initDomActions() {
   };
 
   /**
-   * Show one display panel and hide the other three.
+   * Show one display panel and hide the other three. Also toggles the
+   * out-of-flow banner slot: visible only when state is 'grid'.
    *
    * @param {'empty'|'loading'|'nodata'|'grid'} state
    * @returns {void}
@@ -594,6 +596,10 @@ export async function initDomActions() {
       const el = document.getElementById(id);
       if (!el) continue;
       el.classList.toggle("d-none", key !== state);
+    }
+    const bannerSlot = document.getElementById("schedulerBannerSlot");
+    if (bannerSlot) {
+      bannerSlot.classList.toggle("d-none", state !== "grid");
     }
   }
 
@@ -645,15 +651,26 @@ export async function initDomActions() {
       return;
     }
 
-    for (const v of volunteers) {
+    // Pre-sort by last name then first name and stamp a stable numeric key
+    // onto each pill. _sortDzAreaByName compares these integers rather than
+    // running localeCompare on every drop.
+    const sortedVolunteers = [...volunteers].sort((a, b) =>
+      (a.lastName  || "").localeCompare(b.lastName  || "") ||
+      (a.firstName || "").localeCompare(b.firstName || ""),
+    );
+
+    for (const [sortOrder, v] of sortedVolunteers.entries()) {
       const pill = document.createElement("div");
       pill.classList.add("name-pill", "in-pool");
-      pill.dataset.id = String(v.id);
-      pill.dataset.role = v.role || "REGISTERED";
-      pill.dataset.phone = v.phone || "";
-      pill.dataset.email = v.email || "";
-      pill.dataset.suffix = v.suffix || "";
-      pill.dataset.gender = v.gender || "";
+      pill.dataset.id        = String(v.id);
+      pill.dataset.sortOrder = String(sortOrder);
+      pill.dataset.firstName = v.firstName || "";
+      pill.dataset.lastName  = v.lastName  || "";
+      pill.dataset.role      = v.role || "REGISTERED";
+      pill.dataset.phone     = v.phone || "";
+      pill.dataset.email     = v.email || "";
+      pill.dataset.suffix    = v.suffix || "";
+      pill.dataset.gender    = v.gender || "";
 
       // Name row
       const nameSpan = document.createElement("span");
@@ -1105,13 +1122,19 @@ export async function initDomActions() {
       "120px";
     const crewCols = Array(subColCount).fill(`minmax(${colMin}, 1fr)`).join(" ");
     const colTemplate = hasMeetings
-      ? `60px 140px ${crewCols} 0px`
-      : `60px ${crewCols} 0px`;
+      ? `60px 140px ${crewCols} 60px`
+      : `60px ${crewCols} 60px`;
     const rowTemplate = `30px 20px repeat(${totalRows}, 22px)`;
 
     const wrap = document.createElement("div");
     wrap.classList.add("scheduler-calendar-outer");
-    wrap.appendChild(_buildDayBanner(dayLabel));
+
+    // Render the banner into the fixed slot above the scroll area so it
+    // never moves with the grid on either scroll axis.
+    const bannerSlot = document.getElementById("schedulerBannerSlot");
+    if (bannerSlot) {
+      bannerSlot.replaceChildren(_buildDayBanner(dayLabel));
+    }
 
     const grid = document.createElement("div");
     grid.classList.add("scheduler-calendar");
@@ -2275,6 +2298,17 @@ export async function initDomActions() {
       // pill creates a bidirectional conflict.
       for (const volId of loadedVolIds) {
         _recheckConflictBadges(volId);
+      }
+
+      // Sort every restored dropzone area alphabetically by volunteer name,
+      // matching the order applied on interactive drops.
+      if (_gridEl) {
+        for (const area of _gridEl.querySelectorAll(".sched-dropzone-area")) {
+          const firstDz = area.querySelector(
+            ".scheduler-dropzone:not(.dz-keyman):not(.dz-keyman-asst)",
+          );
+          if (firstDz) sortDzAreaByName(firstDz);
+        }
       }
 
       _updatePoolCount();

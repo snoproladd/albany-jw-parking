@@ -219,6 +219,7 @@ export function onDrop(event) {
     const clone = _clonePill(pill);
     dz.appendChild(clone);
     _resetPillTransform(clone);
+    _sortDzAreaByName(dz);
 
     makeDraggable(
       clone,
@@ -237,6 +238,8 @@ export function onDrop(event) {
     pill.classList.remove('pill-dragging');
     dz.appendChild(pill);
     _resetPillTransform(pill);
+    _sortDzAreaByName(dz);
+    if (fromDz) _sortDzAreaByName(fromDz);
 
     event.draggable.destroy();
     unbindDraggable(pill);
@@ -292,6 +295,7 @@ export function onReturnToPool(event) {
   event.draggable.destroy();
   unbindDraggable(pill);
   pill.remove();
+  if (fromDz) _sortDzAreaByName(fromDz);
 
   document.dispatchEvent(new CustomEvent('scheduler:slotUnassigned', {
     detail: { pill, fromDz, record: fromDz !== null },
@@ -480,6 +484,43 @@ function _resetPillTransform(pill) {
  * @param {HTMLElement} poolPill
  * @returns {HTMLElement}
  */
+/**
+ * Sort all regular volunteer dropzone elements within a shift dropzone area
+ * by the name of their occupying pill — last name then first name,
+ * case-insensitive. Empty slots float to the bottom of the group.
+ * KM and KA slots are never moved.
+ *
+ * Relies on `dataset.lastName` / `dataset.firstName` being present on
+ * every DZ pill, propagated automatically through cloneNode(true) from
+ * the pool pill built in schedulerDomActions.js.
+ *
+ * @param {HTMLElement} dz - Any dropzone element within the target area.
+ * @returns {void}
+ */
+function _sortDzAreaByName(dz) {
+  const area = dz.closest('.sched-dropzone-area');
+  if (!area) return;
+
+  // Only regular volunteer slots — KM / KA stay pinned at their fixed positions.
+  const volDzs = [
+    ...area.querySelectorAll('.scheduler-dropzone:not(.dz-keyman):not(.dz-keyman-asst)'),
+  ];
+  if (volDzs.length < 2) return;
+
+  const filled = volDzs.filter((d) => d.querySelector('.name-pill'));
+  const empty  = volDzs.filter((d) => !d.querySelector('.name-pill'));
+
+  filled.sort((a, b) => {
+    const pa = a.querySelector('.name-pill');
+    const pb = b.querySelector('.name-pill');
+    return Number(pa?.dataset.sortOrder ?? 0) - Number(pb?.dataset.sortOrder ?? 0);
+  });
+
+  for (const d of [...filled, ...empty]) {
+    area.appendChild(d);
+  }
+}
+
 function _clonePill(poolPill) {
   const clone = poolPill.cloneNode(true);
   clone.classList.remove('in-pool');
@@ -488,3 +529,7 @@ function _clonePill(poolPill) {
   _abbreviatePillName(clone);
   return clone;
 }
+
+// Expose so schedulerDomActions can run a post-load sort pass after
+// silently restoring saved assignments via silentlyPlacePill.
+export { _sortDzAreaByName as sortDzAreaByName };
