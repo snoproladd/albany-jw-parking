@@ -19,11 +19,13 @@
   },
   "scripts": {
     "start": "node index.js",
+    "webhook:prod": "node scripts/twilioWebhook.js prod",
+    "webhook:dev": "node scripts/twilioWebhook.js dev",
+    "dev:sms": "node scripts/devSms.js",
+"dev:full": "concurrently --kill-others --shell=bash -n server,sms -c blue,green \"node index.js\" \"node scripts/devSms.js\"",
     "dev": "nodemon --require ./set-local-env.js index.js"
   },
-  "overrides": {
-    
-  },
+  "overrides": {},
   "dependencies": {
     "@azure/identity": "^4.5.0",
     "@azure/keyvault-secrets": "^4.10.0",
@@ -54,6 +56,7 @@
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",
+    "concurrently": "^10.0.3",
     "nodemon": "^3.1.14",
     "vite": "^7.2.7"
   },
