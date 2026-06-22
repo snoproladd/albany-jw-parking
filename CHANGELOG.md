@@ -3,6 +3,31 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.62.0] — 2026-06-22
+
+### Added
+- **Notes Report** (`/oversight/tools/notes-report`, OVERSEER+) — new volunteer
+  management tool for reviewing free-text intake notes from registration.
+  Four tabs: All Notes (click-to-read tracking per overseer via
+  `volunteer_note_reads`), Actionable (action items with solution/completion
+  lifecycle, auto-drops completed items), Solutions Summary, Dismissed bin
+  (team-level dismiss/restore with active-action guard).
+- **Scheduler — NOTE badge** on volunteer pool pills when the volunteer has an
+  active non-dismissed intake note. Computed server-side via `has_note` field
+  added to `getSchedulerVolunteers()`.
+- **Scheduler — View Note** context menu item on pills with `data-has-note="1"`.
+  Opens `schedulerNotePanel.js` — a floating panel showing note text, reads,
+  action statuses, Create Action button, and a link to the full Notes Report.
+- **New DB tables:** `volunteer_note_reads`, `volunteer_actions`.
+- **New `volunteer_in` columns:** `note_dismissed BIT`, `note_dismissed_at
+  DATETIME`, `note_dismissed_by INT FK`.
+- **New `dbSync.js` functions:** `getNotesReportVolunteers`,
+  `getVolunteerNoteById`, `recordNoteRead`, `createVolunteerAction`,
+  `getVolunteerActions`, `updateActionSolution`, `completeAction`,
+  `deleteVolunteerAction`, `dismissNote`, `restoreNote`.
+- **New files:** `views/notesReport.ejs`, `public/js/notesReport.js`,
+  `public/styles/notesReport.css`, `public/js/schedulerNotePanel.js`.
+
 ## [2.61.0] — 2026-06-21
 
 ### Added

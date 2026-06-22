@@ -671,6 +671,7 @@ export async function initDomActions() {
       pill.dataset.email     = v.email || "";
       pill.dataset.suffix    = v.suffix || "";
       pill.dataset.gender    = v.gender || "";
+      pill.dataset.hasNote   = v.has_note ? "1" : "0";
 
       // Name row
       const nameSpan = document.createElement("span");
@@ -678,7 +679,7 @@ export async function initDomActions() {
       nameSpan.textContent = `${v.firstName} ${v.lastName}`;
       pill.appendChild(nameSpan);
 
-      // Crew badge row — one badge per assigned crew
+      // Crew badge row — one badge per assigned crew; intake note badge if present
       const crewsDiv = document.createElement("div");
       crewsDiv.classList.add("pill-crews");
 
@@ -688,6 +689,13 @@ export async function initDomActions() {
         badge.classList.add("crew-badge", `crew-${key.replace(/_/g, "-")}`);
         badge.textContent = CREW_ABBREV[key] || key;
         crewsDiv.appendChild(badge);
+      }
+
+      if (v.has_note) {
+        const noteBadge = document.createElement("span");
+        noteBadge.classList.add("pill-intake-badge");
+        noteBadge.textContent = "NOTE";
+        crewsDiv.appendChild(noteBadge);
       }
 
       pill.appendChild(crewsDiv);

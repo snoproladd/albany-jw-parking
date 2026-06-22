@@ -18,6 +18,7 @@ send invitations, track RSVPs, log attendance, and administer the platform.
      - [Sign Map](#sign-map-registered--to-view-overseer-to-edit)
 2. [My Account](#2-my-account)
 3. [Volunteer Management](#3-volunteer-management)
+   - [Notes Report](#notes-report-overseer)
    - [SMS Management](#sms-management-assistant_admin)
 4. [Communications](#4-communications)
 5. [Scheduling](#5-scheduling)
@@ -728,6 +729,54 @@ Click **Finalize Changes** after editing to save all sections at once.
 
 ## 3. Volunteer Management
 
+### Notes Report *(OVERSEER+)*
+
+**Path:** Operations → Volunteer Management → Notes Report, or
+`/oversight/tools/notes-report`
+
+Surfaces the free-text intake notes volunteers submit during registration and
+provides a structured workflow for acknowledging, actioning, and resolving them.
+
+**Four tabs:**
+
+**All Notes** — every volunteer with a non-null intake note. Click any row to
+open the detail modal. Opening a note records your read (per-overseer — each
+overseer's first click is logged independently; re-reading updates the timestamp).
+The modal shows the full note text, a read-by chip list, linked action items, and
+a Dismiss button (visible when there are no active action items).
+
+**Actionable** — action items created from notes, filtered to incomplete items
+only. Each card shows the volunteer name, note preview, and a status badge:
+*Needs review* (null), *Solution found* (true), or *No solution* (false).
+Completed items automatically drop off this tab. Click a card to open the action
+detail modal where you can set the solution state, enter a solution description,
+and mark it complete.
+
+**Solutions Summary** — all action items where a solution has been identified,
+grouped by completion state. Filter between All, Pending, and Completed. Mark
+actions complete here via the action detail modal.
+
+**Dismissed bin** — notes dismissed by the team. Dismissal is team-level (one
+overseer dismissing removes the note for everyone). A note can only be dismissed
+when it has no active action items. Each card shows who dismissed it and when.
+Click **Restore** to return the note to All Notes.
+
+**Creating an action item:**
+Open a note from All Notes, then click **Create Action Item**. The action detail
+modal opens immediately for you to set the solution state and description.
+Multiple action items can exist per volunteer. Use the action detail modal to:
+- Set *Solution found* (Yes / No / Not possible / Reset to pending)
+- Enter a solution description (shown when Yes is selected)
+- Mark the action complete once the solution is implemented
+- Delete the action if created in error
+
+**Scheduler integration:**
+Volunteer pool pills in the Scheduler show a `NOTE` amber badge when the
+volunteer has an active, non-dismissed intake note. Right-click any such pill and
+choose **View Note** to open a floating note panel without leaving the Scheduler.
+The panel shows the note text, read-by list, action item statuses, a Create Action
+button, and a link to the full Notes Report.
+
 ### Edit Volunteer *(OVERSEER+)*
 
 **Path:** Operations → Edit Volunteer
@@ -1201,9 +1250,13 @@ Right-clicking any volunteer name pill opens a context-sensitive menu.
 - All pool actions below also appear.
 
 **When right-clicking a pill in the pool (or in a slot):**
-- **View / Edit Volunteer** — opens the volunteer’s oversight profile in a
+- **View / Edit Volunteer** — opens the volunteer's oversight profile in a
   new tab.
-- **Today’s Assignments (N)** — opens a floating panel showing every shift
+- **View Note** — appears only when the volunteer has an active intake note
+  (amber `NOTE` badge on their pill). Opens a floating note panel showing
+  note text, reads, action statuses, a Create Action button, and a link to
+  the full Notes Report.
+- **Today's Assignments (N)** — opens a floating panel showing every shift
   the volunteer is currently placed in, grouped by department with times.
   The panel stays open until you click × or press Escape.
 - **Highlight on Grid** — pulses a gold outline on every shift block the

@@ -241,6 +241,21 @@
                   </div>
                 <% } %>
 
+                <% if (isAtLeast('OVERSEER')) { %>
+                  <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="admin-tool-card h-100">
+                      <div class="admin-tool-icon text-warning">
+                        <i class="fa-solid fa-note-sticky"></i>
+                      </div>
+                      <h3 class="admin-tool-title">Notes Report</h3>
+                      <p class="admin-tool-desc">Review intake notes from volunteer registration. Acknowledge notes, create action items, and track resolutions.</p>
+                      <a href="/oversight/tools/notes-report" class="btn btn-warning admin-tool-btn">
+                        Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                      </a>
+                    </div>
+                  </div>
+                <% } %>
+
                 <% if (can('deleteVolunteer')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">

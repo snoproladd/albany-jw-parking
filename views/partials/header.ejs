@@ -194,6 +194,11 @@
                           <i class="fa-solid fa-user-shield"></i>Role Management
                         </a></li>
                       <% } %>
+                      <% if (isAtLeast('OVERSEER')) { %>
+                        <li><a class="ot-nav-item" href="/oversight/tools/notes-report">
+                          <i class="fa-solid fa-note-sticky"></i>Notes Report
+                        </a></li>
+                      <% } %>
                     </ul>
                   </div>
                 </li>

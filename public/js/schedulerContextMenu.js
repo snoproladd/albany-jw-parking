@@ -16,6 +16,7 @@
 import { unbindDraggable } from './schedulerDraggable.js';
 import { trackAssign, untrackBlackout, getConflicts } from './schedulerConflicts.js';
 import { openRendezvousPanel, dismissRendezvousPanel, getCachedRendezvous } from './rendezvous.js';
+import { openNotePanel, closeNotePanel } from './schedulerNotePanel.js';
 
 // ─────────────────────────────────────────────
 //  Module state
@@ -58,7 +59,7 @@ export function initContextMenu() {
     });
 
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') { _dismissMenu(); _dismissPanel(); dismissRendezvousPanel(); }
+        if (e.key === 'Escape') { _dismissMenu(); _dismissPanel(); dismissRendezvousPanel(); closeNotePanel(); }
     });
 }
 
@@ -241,6 +242,20 @@ function _buildMenu(volId, volName, pill, inDz) {
     menu.appendChild(_item('fa-solid fa-user-pen', 'View / Edit Volunteer', [], () => {
         window.open('/editVolunteer', '_blank');
     }));
+
+    if (pill.dataset.hasNote === '1') {
+        const actorId = parseInt(document.body.dataset.actorId || '0', 10);
+        menu.appendChild(_item('fa-solid fa-note-sticky', 'View Note', [], () => {
+            _dismissMenu();
+            openNotePanel({
+                volId:   volId,
+                volName: volName,
+                anchorX: _lastPos?.x ?? 0,
+                anchorY: _lastPos?.y ?? 0,
+                actorId: actorId,
+            });
+        }));
+    }
 
     menu.appendChild(_item(
         'fa-solid fa-calendar-check',

@@ -149,6 +149,16 @@ import {
   createCampaignMeeting,
   updateCampaignMeeting,
   deleteCampaignMeeting,
+  getNotesReportVolunteers,
+  getVolunteerNoteById,
+  recordNoteRead,
+  createVolunteerAction,
+  getVolunteerActions,
+  updateActionSolution,
+  completeAction,
+  deleteVolunteerAction,
+  dismissNote,
+  restoreNote,
 } from "../lib/dbSync.js";
 
 import { verifyPassword, hashPassword } from "../lib/passwordVer.js";
@@ -5449,6 +5459,7 @@ export function oversightRouter({
           csrfToken: req.csrfToken(),
           conventionDays,
           year,
+          actorId: req.session.userId || 0,
         });
       } catch (err) {
         (logError || console.error)("scheduler GET error:", err);
@@ -7301,6 +7312,280 @@ export function oversightRouter({
       } catch (err) {
         (logError || console.error)("GET /api/reports/day-staffing error:", err);
         return res.status(500).json({ error: "Failed to fetch day staffing data." });
+      }
+    },
+  );
+
+  // ============================================================
+  // NOTES REPORT
+  // ============================================================
+
+  /**
+   * GET /oversight/tools/notes-report
+   * Renders the Notes Report page. Requires OVERSEER or above.
+   */
+  router.get(
+    "/oversight/tools/notes-report",
+    requireAuth,
+    requirePermission("viewVolunteerInfo"),
+    async (req, res) => {
+      try {
+        return res.render("notesReport", {
+          actorId:   req.session.userId,
+          actorRole: req.session.userRole || "NON_REGISTERED",
+        });
+      } catch (err) {
+        (logError || console.error)("GET /oversight/tools/notes-report error:", err);
+        return res.status(500).send("Server error");
+      }
+    },
+  );
+
+  /**
+   * GET /api/notes-report/volunteers
+   * All active (non-dismissed) volunteer notes.
+   * Permission: viewVolunteerInfo (OVERSEER+)
+   */
+  router.get(
+    "/api/notes-report/volunteers",
+    requireAuth,
+    requirePermission("viewVolunteerInfo"),
+    async (req, res) => {
+      try {
+        const volunteers = await getNotesReportVolunteers();
+        return res.json({ volunteers });
+      } catch (err) {
+        (logError || console.error)("GET /api/notes-report/volunteers error:", err);
+        return res.status(500).json({ error: "Failed to fetch notes report data." });
+      }
+    },
+  );
+
+  /**
+   * GET /api/notes-report/volunteers/dismissed
+   * Dismissed volunteer notes (the bin).
+   * Permission: viewVolunteerInfo (OVERSEER+)
+   */
+  router.get(
+    "/api/notes-report/volunteers/dismissed",
+    requireAuth,
+    requirePermission("viewVolunteerInfo"),
+    async (req, res) => {
+      try {
+        const volunteers = await getNotesReportVolunteers({ includeDismissed: true });
+        return res.json({ volunteers });
+      } catch (err) {
+        (logError || console.error)("GET /api/notes-report/volunteers/dismissed error:", err);
+        return res.status(500).json({ error: "Failed to fetch dismissed notes." });
+      }
+    },
+  );
+
+  /**
+   * GET /api/notes-report/volunteers/:id
+   * Single-volunteer note data for the scheduler note panel.
+   * Must be registered AFTER /dismissed to prevent Express matching
+   * "dismissed" as a volunteer ID parameter.
+   * Permission: viewVolunteerInfo (OVERSEER+)
+   */
+  router.get(
+    "/api/notes-report/volunteers/:id",
+    requireAuth,
+    requirePermission("viewVolunteerInfo"),
+    async (req, res) => {
+      try {
+        const volunteerId = parseInt(req.params.id, 10);
+        if (!volunteerId) return res.status(400).json({ error: "Volunteer ID is required." });
+        const volunteer = await getVolunteerNoteById(volunteerId);
+        if (!volunteer) return res.status(404).json({ error: "Volunteer not found." });
+        return res.json({ volunteer });
+      } catch (err) {
+        (logError || console.error)("GET /api/notes-report/volunteers/:id error:", err);
+        return res.status(500).json({ error: "Failed to fetch volunteer note." });
+      }
+    },
+  );
+
+  /**
+   * POST /api/notes-report/read
+   * Records that the authenticated overseer has read a volunteer's note.
+   * Body: { volunteerId: number }
+   */
+  router.post(
+    "/api/notes-report/read",
+    requireAuth,
+    requirePermission("viewVolunteerInfo"),
+    async (req, res) => {
+      try {
+        const volunteerId = parseInt(req.body.volunteerId, 10);
+        if (!volunteerId) return res.status(400).json({ error: "volunteerId is required." });
+        await recordNoteRead(volunteerId, req.session.userId);
+        return res.json({ ok: true });
+      } catch (err) {
+        (logError || console.error)("POST /api/notes-report/read error:", err);
+        return res.status(500).json({ error: "Failed to record note read." });
+      }
+    },
+  );
+
+  /**
+   * GET /api/notes-report/actions
+   * All intake_note action items.
+   */
+  router.get(
+    "/api/notes-report/actions",
+    requireAuth,
+    requirePermission("viewVolunteerInfo"),
+    async (req, res) => {
+      try {
+        const actions = await getVolunteerActions({ sourceType: "intake_note" });
+        return res.json({ actions });
+      } catch (err) {
+        (logError || console.error)("GET /api/notes-report/actions error:", err);
+        return res.status(500).json({ error: "Failed to fetch action items." });
+      }
+    },
+  );
+
+  /**
+   * POST /api/notes-report/actions
+   * Creates a new action item. Body: { volunteerId: number }
+   */
+  router.post(
+    "/api/notes-report/actions",
+    requireAuth,
+    requirePermission("viewVolunteerInfo"),
+    async (req, res) => {
+      try {
+        const volunteerId = parseInt(req.body.volunteerId, 10);
+        if (!volunteerId) return res.status(400).json({ error: "volunteerId is required." });
+        const id = await createVolunteerAction({
+          volunteerId,
+          sourceType: "intake_note",
+          sourceId:   null,
+          createdBy:  req.session.userId,
+        });
+        return res.status(201).json({ id });
+      } catch (err) {
+        (logError || console.error)("POST /api/notes-report/actions error:", err);
+        return res.status(500).json({ error: "Failed to create action item." });
+      }
+    },
+  );
+
+  /**
+   * PATCH /api/notes-report/actions/:id/solution
+   * Body: { solutionFound: boolean|null, solution?: string }
+   */
+  router.patch(
+    "/api/notes-report/actions/:id/solution",
+    requireAuth,
+    requirePermission("viewVolunteerInfo"),
+    async (req, res) => {
+      try {
+        const actionId = parseInt(req.params.id, 10);
+        if (!actionId) return res.status(400).json({ error: "Action ID is required." });
+        const rawSf        = req.body.solutionFound;
+        const solutionFound = (rawSf === null || rawSf === undefined)
+            ? null
+            : (rawSf === true || rawSf === 'true');
+        const solution = req.body.solution ?? null;
+        await updateActionSolution(actionId, { solutionFound, solution }, req.session.userId);
+        return res.json({ ok: true });
+      } catch (err) {
+        (logError || console.error)("PATCH /api/notes-report/actions/:id/solution error:", err);
+        return res.status(500).json({ error: "Failed to update action solution." });
+      }
+    },
+  );
+
+  /**
+   * PATCH /api/notes-report/actions/:id/complete
+   */
+  router.patch(
+    "/api/notes-report/actions/:id/complete",
+    requireAuth,
+    requirePermission("viewVolunteerInfo"),
+    async (req, res) => {
+      try {
+        const actionId = parseInt(req.params.id, 10);
+        if (!actionId) return res.status(400).json({ error: "Action ID is required." });
+        await completeAction(actionId, req.session.userId);
+        return res.json({ ok: true });
+      } catch (err) {
+        (logError || console.error)("PATCH /api/notes-report/actions/:id/complete error:", err);
+        return res.status(500).json({ error: "Failed to mark action complete." });
+      }
+    },
+  );
+
+  /**
+   * DELETE /api/notes-report/actions/:id
+   */
+  router.delete(
+    "/api/notes-report/actions/:id",
+    requireAuth,
+    requirePermission("viewVolunteerInfo"),
+    async (req, res) => {
+      try {
+        const actionId = parseInt(req.params.id, 10);
+        if (!actionId) return res.status(400).json({ error: "Action ID is required." });
+        await deleteVolunteerAction(actionId);
+        return res.json({ ok: true });
+      } catch (err) {
+        (logError || console.error)("DELETE /api/notes-report/actions/:id error:", err);
+        return res.status(500).json({ error: "Failed to delete action item." });
+      }
+    },
+  );
+
+  /**
+   * POST /api/notes-report/dismiss
+   * Body: { volunteerId: number }
+   */
+  router.post(
+    "/api/notes-report/dismiss",
+    requireAuth,
+    requirePermission("viewVolunteerInfo"),
+    async (req, res) => {
+      try {
+        const volunteerId = parseInt(req.body.volunteerId, 10);
+        if (!volunteerId) return res.status(400).json({ error: "volunteerId is required." });
+        const actions = await getVolunteerActions({ sourceType: "intake_note" });
+        const hasActiveActions = actions.some(
+          (a) => a.volunteer_id === volunteerId && !a.completed,
+        );
+        if (hasActiveActions) {
+          return res.status(409).json({
+            error: "Cannot dismiss a note with active action items. Complete or delete them first.",
+          });
+        }
+        await dismissNote(volunteerId, req.session.userId);
+        return res.json({ ok: true });
+      } catch (err) {
+        (logError || console.error)("POST /api/notes-report/dismiss error:", err);
+        return res.status(500).json({ error: "Failed to dismiss note." });
+      }
+    },
+  );
+
+  /**
+   * POST /api/notes-report/restore
+   * Body: { volunteerId: number }
+   */
+  router.post(
+    "/api/notes-report/restore",
+    requireAuth,
+    requirePermission("viewVolunteerInfo"),
+    async (req, res) => {
+      try {
+        const volunteerId = parseInt(req.body.volunteerId, 10);
+        if (!volunteerId) return res.status(400).json({ error: "volunteerId is required." });
+        await restoreNote(volunteerId);
+        return res.json({ ok: true });
+      } catch (err) {
+        (logError || console.error)("POST /api/notes-report/restore error:", err);
+        return res.status(500).json({ error: "Failed to restore note." });
       }
     },
   );

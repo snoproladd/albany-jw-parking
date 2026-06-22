@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Notes Report — Albany JW Parking</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/notesReport.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+</head>
+
+<body class="min-vh-100 bg-body-tertiary" data-authed="true">
+    <%- include('partials/header') %>
+
+    <main
+        class="container py-4 px-3 px-md-4"
+        id="notesReportRoot"
+        data-actor-id="<%= actorId %>"
+        data-actor-role="<%= actorRole %>"
+    >
+        <div class="row justify-content-center">
+            <div class="col-12 col-xl-11">
+
+                <%# ── Page header ───────────────────────────────── %>
+                <div class="nr-page-header mb-4">
+                    <h1 class="nr-page-title">
+                        <i class="fa-solid fa-note-sticky me-2"></i>Notes Report
+                    </h1>
+                    <p class="nr-page-subtitle text-muted">
+                        Review intake notes from volunteer registration. Acknowledge notes,
+                        flag actionable items, and track resolutions.
+                    </p>
+                </div>
+
+                <%# ── Tab nav ───────────────────────────────────── %>
+                <ul class="nav nav-tabs nr-tabs mb-0" id="notesReportTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button
+                            class="nav-link active"
+                            id="tab-all-notes"
+                            data-bs-toggle="tab"
+                            data-bs-target="#panel-all-notes"
+                            type="button"
+                            role="tab"
+                            aria-controls="panel-all-notes"
+                            aria-selected="true"
+                        >
+                            <i class="fa-solid fa-list me-1"></i>
+                            All Notes
+                            <span class="badge nr-tab-badge ms-1 d-none" id="badge-all-notes"></span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button
+                            class="nav-link"
+                            id="tab-actionable"
+                            data-bs-toggle="tab"
+                            data-bs-target="#panel-actionable"
+                            type="button"
+                            role="tab"
+                            aria-controls="panel-actionable"
+                            aria-selected="false"
+                        >
+                            <i class="fa-solid fa-bolt me-1"></i>
+                            Actionable
+                            <span class="badge nr-tab-badge ms-1 d-none" id="badge-actionable"></span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button
+                            class="nav-link"
+                            id="tab-solutions"
+                            data-bs-toggle="tab"
+                            data-bs-target="#panel-solutions"
+                            type="button"
+                            role="tab"
+                            aria-controls="panel-solutions"
+                            aria-selected="false"
+                        >
+                            <i class="fa-solid fa-check-circle me-1"></i>
+                            Solutions Summary
+                            <span class="badge nr-tab-badge ms-1 d-none" id="badge-solutions"></span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button
+                            class="nav-link"
+                            id="tab-dismissed"
+                            data-bs-toggle="tab"
+                            data-bs-target="#panel-dismissed"
+                            type="button"
+                            role="tab"
+                            aria-controls="panel-dismissed"
+                            aria-selected="false"
+                        >
+                            <i class="fa-solid fa-trash-can me-1"></i>
+                            Dismissed
+                            <span class="badge nr-tab-badge ms-1 d-none" id="badge-dismissed"></span>
+                        </button>
+                    </li>
+                </ul>
+
+                <%# ── Tab panels ────────────────────────────────── %>
+                <div class="tab-content nr-tab-content">
+
+                    <%# All Notes panel %>
+                    <div
+                        class="tab-pane fade show active"
+                        id="panel-all-notes"
+                        role="tabpanel"
+                        aria-labelledby="tab-all-notes"
+                    >
+                        <div class="nr-panel-toolbar">
+                            <div class="input-group nr-search-wrap">
+                                <span class="input-group-text bg-transparent border-end-0">
+                                    <i class="fa-solid fa-magnifying-glass text-muted"></i>
+                                </span>
+                                <input
+                                    id="searchAllNotes"
+                                    type="search"
+                                    class="form-control border-start-0"
+                                    placeholder="Search by name or note…"
+                                    autocomplete="off"
+                                    aria-label="Search notes"
+                                />
+                            </div>
+                            <div class="nr-filter-pills" id="filterAllNotes">
+                                <button class="btn btn-sm nr-pill nr-pill--active" data-filter="all">All</button>
+                                <button class="btn btn-sm nr-pill" data-filter="unread">Unread by me</button>
+                                <button class="btn btn-sm nr-pill" data-filter="no-action">No action yet</button>
+                            </div>
+                        </div>
+
+                        <div id="allNotesLoading" class="nr-loading" aria-live="polite">
+                            <div class="spinner-border spinner-border-sm text-secondary me-2" role="status">
+                                <span class="visually-hidden">Loading…</span>
+                            </div>
+                            Loading notes…
+                        </div>
+                        <div id="allNotesError" class="alert alert-danger d-none" role="alert"></div>
+                        <div id="allNotesList" class="nr-list d-none" aria-live="polite"></div>
+                        <div id="allNotesEmpty" class="nr-empty d-none">
+                            <i class="fa-solid fa-inbox fa-2x mb-2 text-muted"></i>
+                            <p class="mb-0 text-muted">No notes found.</p>
+                        </div>
+                    </div>
+
+                    <%# Actionable panel %>
+                    <div
+                        class="tab-pane fade"
+                        id="panel-actionable"
+                        role="tabpanel"
+                        aria-labelledby="tab-actionable"
+                    >
+                        <div class="nr-panel-toolbar">
+                            <div class="input-group nr-search-wrap">
+                                <span class="input-group-text bg-transparent border-end-0">
+                                    <i class="fa-solid fa-magnifying-glass text-muted"></i>
+                                </span>
+                                <input
+                                    id="searchActionable"
+                                    type="search"
+                                    class="form-control border-start-0"
+                                    placeholder="Search by name…"
+                                    autocomplete="off"
+                                    aria-label="Search actionable items"
+                                />
+                            </div>
+                            <div class="nr-filter-pills" id="filterActionable">
+                                <button class="btn btn-sm nr-pill nr-pill--active" data-filter="all">All</button>
+                                <button class="btn btn-sm nr-pill" data-filter="pending">Needs review</button>
+                                <button class="btn btn-sm nr-pill" data-filter="solution-found">Solution found</button>
+                                <button class="btn btn-sm nr-pill" data-filter="no-solution">No solution</button>
+                            </div>
+                        </div>
+
+                        <div id="actionableLoading" class="nr-loading" aria-live="polite">
+                            <div class="spinner-border spinner-border-sm text-secondary me-2" role="status">
+                                <span class="visually-hidden">Loading…</span>
+                            </div>
+                            Loading action items…
+                        </div>
+                        <div id="actionableError" class="alert alert-danger d-none" role="alert"></div>
+                        <div id="actionableList" class="nr-list d-none" aria-live="polite"></div>
+                        <div id="actionableEmpty" class="nr-empty d-none">
+                            <i class="fa-solid fa-circle-check fa-2x mb-2 text-muted"></i>
+                            <p class="mb-0 text-muted">No action items yet.</p>
+                        </div>
+                    </div>
+
+                    <%# Solutions Summary panel %>
+                    <div
+                        class="tab-pane fade"
+                        id="panel-solutions"
+                        role="tabpanel"
+                        aria-labelledby="tab-solutions"
+                    >
+                        <div class="nr-panel-toolbar">
+                            <div class="input-group nr-search-wrap">
+                                <span class="input-group-text bg-transparent border-end-0">
+                                    <i class="fa-solid fa-magnifying-glass text-muted"></i>
+                                </span>
+                                <input
+                                    id="searchSolutions"
+                                    type="search"
+                                    class="form-control border-start-0"
+                                    placeholder="Search by name or solution…"
+                                    autocomplete="off"
+                                    aria-label="Search solutions"
+                                />
+                            </div>
+                            <div class="nr-filter-pills" id="filterSolutions">
+                                <button class="btn btn-sm nr-pill nr-pill--active" data-filter="all">All</button>
+                                <button class="btn btn-sm nr-pill" data-filter="pending">Pending</button>
+                                <button class="btn btn-sm nr-pill" data-filter="completed">Completed</button>
+                            </div>
+                        </div>
+
+                        <div id="solutionsLoading" class="nr-loading" aria-live="polite">
+                            <div class="spinner-border spinner-border-sm text-secondary me-2" role="status">
+                                <span class="visually-hidden">Loading…</span>
+                            </div>
+                            Loading solutions…
+                        </div>
+                        <div id="solutionsError" class="alert alert-danger d-none" role="alert"></div>
+                        <div id="solutionsList" class="nr-list d-none" aria-live="polite"></div>
+                        <div id="solutionsEmpty" class="nr-empty d-none">
+                            <i class="fa-solid fa-magnifying-glass fa-2x mb-2 text-muted"></i>
+                            <p class="mb-0 text-muted">No solutions recorded yet.</p>
+                        </div>
+                    </div>
+
+                <%# Dismissed bin panel %>
+                    <div
+                        class="tab-pane fade"
+                        id="panel-dismissed"
+                        role="tabpanel"
+                        aria-labelledby="tab-dismissed"
+                    >
+                        <div class="nr-panel-toolbar">
+                            <div class="input-group nr-search-wrap">
+                                <span class="input-group-text bg-transparent border-end-0">
+                                    <i class="fa-solid fa-magnifying-glass text-muted"></i>
+                                </span>
+                                <input
+                                    id="searchDismissed"
+                                    type="search"
+                                    class="form-control border-start-0"
+                                    placeholder="Search by name or note…"
+                                    autocomplete="off"
+                                    aria-label="Search dismissed notes"
+                                />
+                            </div>
+                        </div>
+
+                        <div id="dismissedLoading" class="nr-loading" aria-live="polite">
+                            <div class="spinner-border spinner-border-sm text-secondary me-2" role="status">
+                                <span class="visually-hidden">Loading…</span>
+                            </div>
+                            Loading dismissed notes…
+                        </div>
+                        <div id="dismissedError" class="alert alert-danger d-none" role="alert"></div>
+                        <div id="dismissedList" class="nr-list d-none" aria-live="polite"></div>
+                        <div id="dismissedEmpty" class="nr-empty d-none">
+                            <i class="fa-solid fa-trash-can fa-2x mb-2 text-muted"></i>
+                            <p class="mb-0 text-muted">No dismissed notes.</p>
+                        </div>
+                    </div>
+
+                </div><%# /tab-content %>
+
+            </div>
+        </div>
+    </main>
+
+    <%# ── Note Detail Modal ──────────────────────────────────────── %>
+    <div
+        class="modal fade"
+        id="noteDetailModal"
+        tabindex="-1"
+        aria-labelledby="noteDetailModalLabel"
+        aria-hidden="true"
+    >
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title h5 mb-0" id="noteDetailModalLabel">
+                        <i class="fa-solid fa-note-sticky me-2"></i>
+                        <span id="noteDetailName"></span>
+                    </h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+
+                    <%# Note text %>
+                    <div class="mb-4">
+                        <p class="nr-modal-label">Intake Note</p>
+                        <div class="nr-note-body" id="noteDetailText"></div>
+                    </div>
+
+                    <%# Read-by list %>
+                    <div class="mb-4">
+                        <p class="nr-modal-label">Read by</p>
+                        <div id="noteDetailReads" class="nr-reads-list"></div>
+                    </div>
+
+                    <%# Existing actions for this volunteer %>
+                    <div id="noteDetailActionsWrap">
+                        <p class="nr-modal-label">Action Items</p>
+                        <div id="noteDetailActions" class="nr-actions-list mb-2"></div>
+                        <button
+                            type="button"
+                            class="btn btn-sm btn-outline-primary"
+                            id="noteDetailCreateActionBtn"
+                        >
+                            <i class="fa-solid fa-plus me-1"></i>Create Action Item
+                        </button>
+                    </div>
+
+                </div>
+                <div class="modal-footer d-flex justify-content-between">
+                    <button
+                        type="button"
+                        class="btn btn-outline-secondary btn-sm d-none"
+                        id="noteDismissBtn"
+                        title="Dismiss this note — moves it to the Dismissed bin"
+                    >
+                        <i class="fa-solid fa-trash-can me-1"></i>Dismiss
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <%# ── Action Detail Modal ────────────────────────────────────── %>
+    <div
+        class="modal fade"
+        id="actionDetailModal"
+        tabindex="-1"
+        aria-labelledby="actionDetailModalLabel"
+        aria-hidden="true"
+    >
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title h5 mb-0" id="actionDetailModalLabel">
+                        <i class="fa-solid fa-bolt me-2"></i>Action Item
+                    </h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+
+                    <input type="hidden" id="actionDetailId" />
+
+                    <%# Volunteer name + note context %>
+                    <div class="mb-3">
+                        <p class="nr-modal-label">Volunteer</p>
+                        <p class="mb-0 fw-semibold" id="actionDetailVolunteerName"></p>
+                    </div>
+                    <div class="mb-4">
+                        <p class="nr-modal-label">Intake Note</p>
+                        <div class="nr-note-body nr-note-body--sm" id="actionDetailNote"></div>
+                    </div>
+
+                    <%# Solution found toggle %>
+                    <div class="mb-3">
+                        <p class="nr-modal-label">Solution Found?</p>
+                        <div class="d-flex gap-2" id="actionSolutionBtns">
+                            <button type="button" class="btn btn-sm btn-outline-success" id="btnSolutionYes">
+                                <i class="fa-solid fa-check me-1"></i>Yes
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger" id="btnSolutionNo">
+                                <i class="fa-solid fa-xmark me-1"></i>No / Not possible
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="btnSolutionClear">
+                                <i class="fa-solid fa-rotate-left me-1"></i>Reset to pending
+                            </button>
+                        </div>
+                    </div>
+
+                    <%# Solution text — shown when solution_found = true %>
+                    <div class="mb-3 d-none" id="solutionTextWrap">
+                        <label for="actionSolutionText" class="nr-modal-label">Solution Description</label>
+                        <textarea
+                            id="actionSolutionText"
+                            class="form-control"
+                            rows="3"
+                            maxlength="4000"
+                            placeholder="Describe what was done or what the plan is…"
+                        ></textarea>
+                    </div>
+
+                    <%# Meta info %>
+                    <div class="nr-action-meta" id="actionDetailMeta"></div>
+
+                    <div id="actionDetailError" class="alert alert-danger d-none mt-3" role="alert"></div>
+
+                </div>
+                <div class="modal-footer d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-danger btn-sm" id="actionDeleteBtn">
+                        <i class="fa-solid fa-trash me-1"></i>Delete
+                    </button>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-success d-none" id="actionCompleteBtn">
+                            <i class="fa-solid fa-circle-check me-1"></i>Mark Complete
+                        </button>
+                        <button type="button" class="btn btn-primary" id="actionSaveBtn">
+                            <i class="fa-solid fa-floppy-disk me-1"></i>Save
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <%- include('partials/footer') %>
+
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/notesReport.js" type="module"></script>
+</body>
+</html>

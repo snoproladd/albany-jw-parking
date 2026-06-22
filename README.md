@@ -563,6 +563,13 @@ The first ADMIN must be granted directly in the database.
 - **Schedules page + Docs section (2.61.0):** New `/schedules` resources page lists published schedule PDFs from OneDrive (`Documents for Distribution/Schedules/`), mirroring the Maps tile layout (`routes/schedulesRoutes.js`, `views/schedules.ejs`, `public/js/schedules.js`, `public/styles/schedules.css`). Docs section (Maps + Schedules, permission-gated) added to Operations nav dropdown, Operations Hub card grid, and Operations Hub sidebar.
 - **Scheduler UX + report fixes (2.61.0):** Day banner extracted into a fixed `.scheduler-banner-slot` above `.scheduler-main` (no longer scrolls on either axis). Right-side time mirror column widened `0px → 60px` so shift content is never hidden at max scroll. Volunteer DZ slots auto-sort alphabetically by name on every drop, move, return-to-pool, and day load using a precomputed `data-sort-order` index (propagated via `cloneNode(true)`). Schedule report blank-first-page fixed (`break-inside: avoid` moved to `.report-shift`; `break-after: avoid` on `.report-page-header`). Report sort order corrected — departments alphabetical, volunteers by last/first name. `Object.values()` integer-key reordering bug in `getSchedulerReportData()` fixed by using `Map` for shifts and locations.
 - **Per-shift KM/KA slot control (2.60.0):** Two `BIT` columns (`has_keyman`, `has_keyman_asst`) on `dbo.shifts` control whether Keyman and Keyman Assistant drop zones appear in the Scheduler for each shift. Configured via toggles in the Timelines shift form (hidden for meeting shifts; KA requires KM). Leadership slots count toward the shift's Min/Target/Max headcount — the volunteer slot budget is reduced by the number of enabled leadership slots so totals remain accurate. The schedule report suppresses KM/KA rows when the flag is off. Migration F (`migration_F.sql` / `migration_F_demo.sql`), `DEFAULT 1` to preserve all existing scheduler assignments.
+- **Notes Report (2.62.0):** `/oversight/tools/notes-report` (OVERSEER+). Reviews
+  free-text intake notes from volunteer registration. Four tabs: All Notes (click-to-read
+  tracking per overseer via `volunteer_note_reads`), Actionable (action items from
+  `volunteer_actions` with solution/completion lifecycle), Solutions Summary, Dismissed
+  bin (team-level dismiss/restore). Scheduler integration: `NOTE` amber badge on pool
+  pills (`has_note` field in `getSchedulerVolunteers()`), View Note context menu item
+  opens `schedulerNotePanel.js` floating panel.
 - **Gender / role / crew filters (2.59.0):** Male / Female / All gender filter added to seven pages (Crew Matrix, Scheduler pool, Volunteer Account Oversight, Attendance Report, Invitation Tracker, Campaign Center, Application Status). Campaign Center aside also gains Role and Crew selects. Backed by `gender`, `role`, and crew columns added to the relevant `dbSync.js` query functions; no schema changes required.
 - **Scheduler Categories (2.58.0):** `dbo.scheduler_categories` replaces
   `dbo.event_types` and the `shifts.department` / `shifts.event_type_id` columns.
@@ -651,6 +658,8 @@ Schema highlights:
 - `bug_reports` — full lifecycle bug tracking with resolution fields
 - `schedule_publishes` — audit log for schedule PDF publish events
 - `published_files` — generic published file tracking (sign map PDFs, etc.); stores blob name, SharePoint URL, publisher, and timestamp
+- `volunteer_note_reads` — per-overseer read records for intake notes. Fields: `volunteer_id FK`, `read_by FK`, `read_at DATETIME`. Unique on `(volunteer_id, read_by)`; MERGE upsert on re-read updates `read_at`.
+- `volunteer_actions` — actionable items from intake notes (and future sources). Fields: `volunteer_id FK`, `source_type NVARCHAR(50)`, `source_id` (nullable), `solution_found BIT` (null/false/true), `solution NVARCHAR(MAX)`, solution stamp columns, `completed BIT`, completion stamp columns, `created_by FK`, `created_at`. Three new columns on `volunteer_in`: `note_dismissed BIT`, `note_dismissed_at DATETIME`, `note_dismissed_by INT FK`.
 - `volunteer_tour_dismissals` — tracks which guided tour prompts a volunteer has permanently dismissed; composite PK `(volunteer_id, tour_id)`, FK to `volunteer_in(id)`. Special `tour_id = '_all'` disables all first-visit prompts site-wide.
 - `shift_rendezvous_points` — one optional meeting point per schedule assignment
   (shift + location pair). Fields: `description`, `address`, `latitude`/`longitude`

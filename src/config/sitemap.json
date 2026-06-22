@@ -222,6 +222,14 @@
           "minRole": "OVERSEER",
           "permission": null,
           "tourId": "roles"
+        },
+        {
+          "title": "Notes Report",
+          "path": "/oversight/tools/notes-report",
+          "description": "Review intake notes submitted by volunteers during registration. Acknowledge notes, create action items, and track resolutions.",
+          "icon": "fa-solid fa-note-sticky",
+          "minRole": "OVERSEER",
+          "permission": null
         }
       ]
     },
