@@ -4,6 +4,30 @@ All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 
+## [2.63.1] — 2026-06-24
+
+### Fixed
+- **Scheduler — Signs conflict guard:** Signs department drops were hard-blocked by
+  `canDrop` whenever the volunteer had a concurrent shift assignment, the same way
+  all non-Security departments are blocked. Signs volunteers routinely work overlapping
+  windows (e.g., Egress + afternoon Signs placement), so Signs is now exempt from the
+  hard block alongside Security. A conflict modal ("Place Anyway / Return to Pool")
+  appears instead, and the ⚠ badge is applied on confirmation. Updated in
+  `schedulerDraggable.js` (`canDrop`) and `schedulerDomActions.js`
+  (`isConflictPermitted` variable replacing bare `isSecurity` checks in
+  `needsModal`, `conflictsForModal`, and the slip-through bug guard).
+- **Scheduler — horizontal scroll jank:** the scroll listener on `.scheduler-main`
+  was calling `getBoundingClientRect()` on every header element on every scroll tick
+  after mutating `gridTemplateColumns`, causing forced synchronous layout reflows at
+  full event fire rate. Fixed by: (1) adding a `requestAnimationFrame` throttle gate
+  so layout work runs at most once per paint frame; (2) reordering so all DOM reads
+  (`getBoundingClientRect` via `_updateScrollPeeks`) happen before any writes; (3)
+  caching `.scheduler-calendar-outer` rather than re-querying each tick.
+  `overscroll-behavior-x: contain` added to `.scheduler-main` to prevent elastic
+  bounce at the horizontal scroll edges.
+
+
+
 ## [2.63.0] — 2026-06-24
 
 ### Added

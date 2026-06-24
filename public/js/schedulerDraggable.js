@@ -337,7 +337,7 @@ function canDrop(pill, dz) {
   const dzEnd = Number(targetDz.dataset.shiftEndMins);
   if (dzStart > 0 && dzEnd > 0) {
     const targetDept = targetDz.closest("[data-department]")?.dataset.department;
-    if (targetDept !== "security") {
+    if (targetDept !== "security" && targetDept !== "signs") {
       const volId = Number(pill.dataset.id);
       const fromDz = pill.classList.contains("in-pool")
         ? null

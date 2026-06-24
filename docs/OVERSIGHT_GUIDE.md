@@ -1306,13 +1306,18 @@ appear in the pool.
 If a volunteer already has an assignment or blackout window that overlaps
 the target slot's time range, a **conflict modal** appears describing the
 clash. You can choose **Place Anyway** to override, or **Return to Pool**
-to cancel the drop. Security department drops bypass the modal but still
-badge the pill silently with a `⚠` warning icon.
+to cancel the drop.
 
-If a conflict is overridden or a security overlap exists, the DZ pill
-displays a `⚠` badge. Right-clicking that pill lists the specific conflicts
-under the **Remove from Slot** action so oversight can see exactly what
-is clashing.
+**Security and Signs** departments are exempt from the drag-level hard block
+because overlapping coverage is by design for both (e.g., a Signs volunteer
+on morning Ingress and afternoon signs placement). For these departments a
+conflict modal still appears — choose **Place Anyway** to confirm the
+overlap or **Return to Pool** to cancel. All other departments are blocked
+at the drag level and cannot be dropped into a conflicting slot at all.
+
+If a conflict is overridden, the DZ pill displays a `⚠` badge. Right-clicking
+that pill lists the specific conflicts under the **Remove from Slot** action
+so oversight can see exactly what is clashing.
 
 ### Blackout windows
 

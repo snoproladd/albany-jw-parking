@@ -229,28 +229,42 @@ export async function initDomActions() {
   );
   document.addEventListener("filter:select", (e) => _onFilterSelect(e.detail));
 
-  // Horizontal-scroll listener — toggle right time mirror column
+  // Horizontal-scroll listener — toggle right time mirror column.
+  // rAF-throttled so layout reads and writes are batched once per frame,
+  // preventing the forced-reflow thrashing that caused jank on every tick.
   const _mainEl = document.querySelector(".scheduler-main");
-  if (_mainEl) {
+  const _outerEl = _mainEl?.querySelector(".scheduler-calendar-outer");
+  if (_mainEl && _outerEl) {
+    let _scrollRafPending = false;
     _mainEl.addEventListener("scroll", () => {
-      const outer = _mainEl.querySelector(".scheduler-calendar-outer");
-      if (!outer || !_gridEl) return;
-      const wasScrolled = outer.classList.contains("is-scrolled");
-      const isScrolled = _mainEl.scrollLeft > 0;
-      if (isScrolled !== wasScrolled) {
-        outer.classList.toggle("is-scrolled", isScrolled);
-        const cols = _gridEl.style.gridTemplateColumns.split(" ");
-        cols[cols.length - 1] = isScrolled ? "60px" : "0px";
-        _gridEl.style.gridTemplateColumns = cols.join(" ");
-      }
-      _updateScrollPeeks();
+      if (_scrollRafPending) return;
+      _scrollRafPending = true;
+      requestAnimationFrame(() => {
+        _scrollRafPending = false;
+
+        // ── Reads first (before any writes) ─────────────────────────
+        const scrollLeft   = _mainEl.scrollLeft;
+        const wasScrolled  = _outerEl.classList.contains("is-scrolled");
+        const isScrolled   = scrollLeft > 0;
+
+        // ── getBoundingClientRect pass (reads) ───────────────────────
+        _updateScrollPeeks();
+
+        // ── Writes last ──────────────────────────────────────────────
+        if (_gridEl && isScrolled !== wasScrolled) {
+          _outerEl.classList.toggle("is-scrolled", isScrolled);
+          const cols = _gridEl.style.gridTemplateColumns.split(" ");
+          cols[cols.length - 1] = isScrolled ? "60px" : "0px";
+          _gridEl.style.gridTemplateColumns = cols.join(" ");
+        }
+      });
     });
   }
 
   // Persist + track assignment on drop.
   // Conflict logic:
-  //   - Non-security shift conflicts: blocked in canDrop (shouldn't reach here)
-  //   - Security dept + shift conflicts: modal with Place Anyway
+  //   - Non-security/non-signs shift conflicts: blocked in canDrop (shouldn't reach here)
+  //   - Security / Signs dept + shift conflicts: modal with Place Anyway
   //   - Any dept + blackout conflicts: modal with Place Anyway
   //   - Place Anyway: auto-note saved to DB, badge applied to pill
   //   - Silent load (record=false): apply saved note badge if present
@@ -266,7 +280,11 @@ export async function initDomActions() {
     const shiftStart = Number(dz.dataset.shiftStartMins);
     const shiftEnd = Number(dz.dataset.shiftEndMins);
     const dept = dz.closest("[data-department]")?.dataset.department;
-    const isSecurity = dept === "security";
+    const isSecurity           = dept === "security";
+    // Signs volunteers legitimately work overlapping shifts (ingress + signs
+    // placement / direction). Treat them identically to Security — show the
+    // conflict modal rather than hard-blocking the drop.
+    const isConflictPermitted  = isSecurity || dept === "signs";
 
     // Track assignment
     if (shiftStart > 0 && shiftEnd > 0) {
@@ -301,12 +319,12 @@ export async function initDomActions() {
     let noteToSave = null;
 
     const needsModal =
-      blackoutConflicts.length > 0 || (isSecurity && shiftConflicts.length > 0);
+      blackoutConflicts.length > 0 || (isConflictPermitted && shiftConflicts.length > 0);
 
     if (needsModal) {
       const conflictsForModal = [
         ...blackoutConflicts,
-        ...(isSecurity ? shiftConflicts : []),
+        ...(isConflictPermitted ? shiftConflicts : []),
       ];
       const volName =
         pill.querySelector(".pill-name")?.textContent?.trim() ||
@@ -347,7 +365,7 @@ export async function initDomActions() {
       pill.dataset.conflictNote = noteToSave;
       // Badges for all affected pills handled by _recheckConflictBadges below —
       // this ensures the FIRST pill (already placed) also gets its badge updated.
-    } else if (!isSecurity && shiftConflicts.length > 0) {
+    } else if (!isConflictPermitted && shiftConflicts.length > 0) {
       // Shift conflict slipped through canDrop — remove as bug guard
       trackUnassign(dz);
       _updatePillBadge(volId);
