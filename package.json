@@ -1,6 +1,6 @@
 {
   "name": "parking",
-  "version": "2.63.0",
+  "version": "2.63.1",
   "description": "Volunteer management platform for Albany JW Regional Convention parking operations — registration, scheduling, messaging, and oversight tools.",
   "homepage": "https://github.com/snoproladd/legendary-waffle#readme",
   "bugs": {
@@ -56,7 +56,7 @@
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",
-    "concurrently": "^10.3.0",
+    "concurrently": "^10.0.3",
     "nodemon": "^3.1.14",
     "vite": "^7.2.7"
   },
