@@ -120,6 +120,7 @@ import {
   getBlackoutsForVolunteer,
   createBlackout,
   deleteBlackout,
+  getBlackoutPickerData,
   getConflictGridData,
   getOversightStructure,
   addOversightStructureNode,
@@ -5490,6 +5491,32 @@ export function oversightRouter({
       } catch (err) {
         (logError || console.error)("api/scheduler/volunteers GET error:", err);
         return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * GET /api/scheduler/blackout-picker
+   * Return the full day → session → shift tree for the current convention
+   * year, with all times pre-converted to minutes-from-midnight.
+   * Used to populate the Manage Blackouts panel mode selects.
+   *
+   * Response: { days: Array<object> }
+   *
+   * @requires createAssignments permission
+   */
+  router.get(
+    "/api/scheduler/blackout-picker",
+    requireAuth,
+    requirePermission("createAssignments"),
+    async (req, res) => {
+      try {
+        const year = new Date().getFullYear();
+        const days = await getBlackoutPickerData(year);
+        return res.json({ days });
+      } catch (err) {
+        (logError || console.error)("api/scheduler/blackout-picker GET error:", err);
+        return res.status(500).json({ days: [] });
       }
     },
   );

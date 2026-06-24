@@ -123,6 +123,33 @@
     opacity: 0.6;
 }
 
+/* ── Gender tints ─────────────────────────────────────────
+   color-mix() keeps tints relative to the current theme
+   background so light/dark mode both look correct.
+   Specificity is intentionally lower than .name-pill.assigned
+   so the "has assignments" green always takes priority.
+──────────────────────────────────────────────────────────── */
+
+.name-pill--male {
+    background: color-mix(in srgb, #4fc3f7 22%, var(--bs-body-bg));
+    border-color: color-mix(in srgb, #4fc3f7 50%, var(--bs-border-color));
+}
+
+.name-pill--female {
+    background: color-mix(in srgb, #f48fb1 22%, var(--bs-body-bg));
+    border-color: color-mix(in srgb, #f48fb1 50%, var(--bs-border-color));
+}
+
+.name-pill--male:hover {
+    background: color-mix(in srgb, #4fc3f7 32%, var(--bs-tertiary-bg));
+    border-color: color-mix(in srgb, #4fc3f7 65%, var(--bs-secondary-border-subtle));
+}
+
+.name-pill--female:hover {
+    background: color-mix(in srgb, #f48fb1 32%, var(--bs-tertiary-bg));
+    border-color: color-mix(in srgb, #f48fb1 65%, var(--bs-secondary-border-subtle));
+}
+
 .name-pill.assigned {
     background: var(--bs-success-bg-subtle);
     border-color: var(--bs-success-border-subtle);
@@ -395,6 +422,10 @@
 
 .sched-dept-header[data-dept="desk"] {
     border-bottom-color: #6610f2;
+}
+
+.sched-dept-header[data-dept="support"] {
+    border-bottom-color: #fd7e14;
 }
 
 .sched-loc-header {
@@ -1210,12 +1241,14 @@
     z-index: 9998;
     min-width: 260px;
     max-width: 340px;
+    max-height: calc(100dvh - 24px);
     background: var(--bs-body-bg);
     border: 1px solid var(--bs-border-color);
     border-radius: 0.45rem;
     box-shadow: 0 6px 20px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.08);
     font-size: 0.83rem;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 .sched-assign-panel-header {
@@ -1340,6 +1373,202 @@
 
 .sched-blackout-del-btn:hover {
     background: var(--bs-danger-bg-subtle);
+}
+
+/* ── Blackout panel — add form ────────────────────────── */
+
+.sched-blackout-panel {
+    min-width: 300px;
+    max-width: 360px;
+}
+
+.sched-blackout-add {
+    padding: 0.6rem 0.85rem 0.75rem;
+    border-top: 1px solid var(--bs-border-color);
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.sched-blackout-add-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--bs-secondary-color);
+}
+
+/* ── Mode radio pills ─────────────────────────────────── */
+
+.sched-blackout-modes {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.sched-blackout-mode-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 9px;
+    border-radius: 12px;
+    border: 1px solid var(--bs-border-color);
+    font-size: 0.74rem;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+
+.sched-blackout-mode-pill input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+.sched-blackout-mode-pill:has(input:checked) {
+    background: var(--bs-primary);
+    border-color: var(--bs-primary);
+    color: #fff;
+}
+
+.sched-blackout-mode-pill:hover:not(:has(input:checked)) {
+    background: var(--bs-secondary-bg);
+}
+
+/* ── Mode-specific field area ─────────────────────────── */
+
+.sched-blackout-field-section {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.sched-blackout-time-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sched-blackout-time-input {
+    flex: 1;
+    min-width: 0;
+    padding: 3px 5px;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 4px;
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    font-size: 0.8rem;
+}
+
+.sched-blackout-sep {
+    color: var(--bs-secondary-color);
+    font-size: 0.8rem;
+}
+
+.sched-blackout-select {
+    width: 100%;
+    padding: 3px 6px;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 4px;
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    font-size: 0.8rem;
+}
+
+.sched-blackout-select:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.sched-blackout-preview {
+    font-size: 0.75rem;
+    color: var(--bs-secondary-color);
+    min-height: 1.1em;
+    font-style: italic;
+}
+
+/* ── Day checkboxes ───────────────────────────────────── */
+
+.sched-blackout-days-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--bs-secondary-color);
+}
+
+.sched-blackout-days-row {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.sched-blackout-day-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 9px;
+    border-radius: 12px;
+    border: 1px solid var(--bs-border-color);
+    font-size: 0.74rem;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+
+.sched-blackout-day-pill input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+.sched-blackout-day-pill:has(input:checked) {
+    background: var(--bs-success);
+    border-color: var(--bs-success);
+    color: #fff;
+}
+
+.sched-blackout-day-pill:hover:not(:has(input:checked)) {
+    background: var(--bs-secondary-bg);
+}
+
+/* ── Shared inputs + status ───────────────────────────── */
+
+.sched-blackout-reason-input {
+    width: 100%;
+    padding: 3px 6px;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 4px;
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    font-size: 0.8rem;
+}
+
+.sched-blackout-add-btn {
+    align-self: flex-start;
+    padding: 3px 12px;
+    background: var(--bs-primary);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+.sched-blackout-add-btn:hover {
+    background: var(--bs-primary-text-emphasis);
+}
+
+.sched-blackout-add-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.sched-blackout-status {
+    font-size: 0.75rem;
+    min-height: 1em;
 }/* ─────────────────────────────────────────────
    Scroll peek indicators
 ───────────────────────────────────────────── */

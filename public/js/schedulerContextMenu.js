@@ -34,6 +34,9 @@ let _panelEl = null;
 /** @type {{ x:number, y:number }|null} Position of last right-click. */
 let _lastPos = null;
 
+/** @type {{ days: Array<object> }|null} Cached picker payload (days → sessions → shifts). */
+let _pickerData = null;
+
 // ─────────────────────────────────────────────
 //  Initialisation
 // ─────────────────────────────────────────────
@@ -274,10 +277,14 @@ function _buildMenu(volId, volName, pill, inDz) {
 
     // ── Future stubs ─────────────────────────────────────────────────
     menu.appendChild(_divider());
-    menu.appendChild(_item('fa-solid fa-clock-rotate-left', 'Manage Blackouts', [], () => {
-        _dismissMenu();
-        _showBlackoutsPanel(volId, volName);
-    }));
+    const bkItem = _item(
+        'fa-solid fa-clock-rotate-left',
+        'Manage Blackouts',
+        _currentDayId ? [] : ['muted'],
+        _currentDayId ? () => { _showBlackoutsPanel(volId, volName); } : null,
+    );
+    if (!_currentDayId) bkItem.title = 'Select a convention day first';
+    menu.appendChild(bkItem);
     menu.appendChild(_item('fa-solid fa-envelope', 'Message Volunteer', ['muted'], null, true));
 
     return menu;
@@ -335,7 +342,22 @@ function _divider() {
 // ─────────────────────────────────────────────
 
 /**
+ * Fetch and cache the blackout picker payload (days → sessions → shifts).
+ * Subsequent calls within the same page session return the cached result.
+ *
+ * @returns {Promise<{ days: Array<object> }>}
+ */
+async function _loadPickerData() {
+    if (_pickerData) return _pickerData;
+    const res  = await fetch('/api/scheduler/blackout-picker');
+    const data = await res.json().catch(() => ({ days: [] }));
+    _pickerData = data;
+    return data;
+}
+
+/**
  * Convert an HH:MM string (from <input type="time">) to minutes from midnight.
+ *
  * @param {string} str
  * @returns {number}
  */
@@ -346,10 +368,11 @@ function _timeToMins(str) {
 
 /**
  * Open the Manage Blackouts panel for a volunteer on the current day.
- * Shows existing blackout windows and provides an add form.
+ * Provides four add modes — Custom, Session, Shift, and Pre-session —
+ * each supporting multi-day blackout creation via day checkboxes.
  *
- * @param {number} volId
- * @param {string} volName
+ * @param {number} volId   - Volunteer ID.
+ * @param {string} volName - Volunteer display name.
  * @returns {Promise<void>}
  */
 async function _showBlackoutsPanel(volId, volName) {
@@ -360,10 +383,10 @@ async function _showBlackoutsPanel(volId, volName) {
 
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
+    // ── Panel shell ───────────────────────────────────────────────────
     const panel = document.createElement('div');
     panel.classList.add('sched-assign-panel', 'sched-blackout-panel');
 
-    // ── Header ───────────────────────────────────────────────────────
     const hdr = document.createElement('div');
     hdr.classList.add('sched-assign-panel-header');
 
@@ -379,43 +402,34 @@ async function _showBlackoutsPanel(volId, volName) {
     hdr.appendChild(closeBtn);
     panel.appendChild(hdr);
 
-    // ── Blackout list ─────────────────────────────────────────────────
+    // ── Existing blackout list ────────────────────────────────────────
     const listEl = document.createElement('div');
     listEl.classList.add('sched-blackout-list');
     panel.appendChild(listEl);
 
-    // ── Add form ──────────────────────────────────────────────────────
+    // ── Add section placeholder while picker data loads ───────────────
     const addSection = document.createElement('div');
     addSection.classList.add('sched-blackout-add');
     addSection.innerHTML = `
         <div class="sched-blackout-add-label">Add blackout</div>
-        <div class="sched-blackout-time-row">
-            <input type="time" class="sched-blackout-time-input" id="bkStart" />
-            <span class="sched-blackout-sep">–</span>
-            <input type="time" class="sched-blackout-time-input" id="bkEnd" />
-        </div>
-        <input type="text" class="sched-blackout-reason-input" id="bkReason"
-               placeholder="Reason (optional)" maxlength="200" />
-        <button type="button" class="sched-blackout-add-btn" id="bkAddBtn">
-            <i class="fa-solid fa-plus"></i> Add
-        </button>
-        <div class="sched-blackout-status"></div>
-    `;
+        <p class="sched-assign-panel-empty">
+            <span class="spinner-border spinner-border-sm me-1"></span>Loading…
+        </p>`;
     panel.appendChild(addSection);
 
     document.body.appendChild(panel);
     _panelEl = panel;
     if (_lastPos) _positionEl(panel, _lastPos.x, _lastPos.y);
 
-    // ── Load + render list ────────────────────────────────────────────
+    // ── List helpers ──────────────────────────────────────────────────
 
     /**
+     * Render the existing blackout list.
      * @param {Array<object>} blackouts
      * @returns {void}
      */
     function renderList(blackouts) {
         listEl.innerHTML = '';
-
         if (blackouts.length === 0) {
             const p = document.createElement('p');
             p.classList.add('sched-assign-panel-empty');
@@ -423,7 +437,6 @@ async function _showBlackoutsPanel(volId, volName) {
             listEl.appendChild(p);
             return;
         }
-
         for (const bk of blackouts) {
             const row = document.createElement('div');
             row.classList.add('sched-blackout-row');
@@ -445,7 +458,7 @@ async function _showBlackoutsPanel(volId, volName) {
 
             const delBtn = document.createElement('button');
             delBtn.classList.add('sched-blackout-del-btn');
-            delBtn.title = 'Remove this blackout';
+            delBtn.title     = 'Remove this blackout';
             delBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
 
             delBtn.addEventListener('click', async () => {
@@ -480,6 +493,7 @@ async function _showBlackoutsPanel(volId, volName) {
     }
 
     /**
+     * Fetch and render the blackout list for the current volunteer + day.
      * @returns {Promise<void>}
      */
     async function loadList() {
@@ -495,73 +509,445 @@ async function _showBlackoutsPanel(volId, volName) {
         }
     }
 
-    // ── Add button handler ────────────────────────────────────────────
+    // ── Add section builder ───────────────────────────────────────────
 
-    const addBtn     = addSection.querySelector('#bkAddBtn');
-    const startInput = addSection.querySelector('#bkStart');
-    const endInput   = addSection.querySelector('#bkEnd');
-    const reasonInput = addSection.querySelector('#bkReason');
-    const statusEl   = addSection.querySelector('.sched-blackout-status');
+    /**
+     * Build the full add form once picker data is available.
+     * @param {{ days: Array<object> }} pickerData
+     * @returns {void}
+     */
+    function buildAddSection(pickerData) {
+        const pickerDays = pickerData.days || [];
+        addSection.innerHTML = '';
 
-    addBtn?.addEventListener('click', async () => {
-        const startVal = /** @type {HTMLInputElement} */ (startInput)?.value;
-        const endVal   = /** @type {HTMLInputElement} */ (endInput)?.value;
+        const addLabel = document.createElement('div');
+        addLabel.classList.add('sched-blackout-add-label');
+        addLabel.textContent = 'Add blackout';
+        addSection.appendChild(addLabel);
 
-        if (!startVal || !endVal) {
-            statusEl.textContent = 'Start and end times are required.';
-            statusEl.className   = 'sched-blackout-status text-danger';
-            return;
+        // ── Mode radio pills ──────────────────────────────────────────
+        const modeRow = document.createElement('div');
+        modeRow.classList.add('sched-blackout-modes');
+
+        [
+            { key: 'custom',     label: 'Custom' },
+            { key: 'session',    label: 'Session' },
+            { key: 'shift',      label: 'Shift' },
+            { key: 'presession', label: 'Pre-session' },
+            { key: 'fullday',    label: 'Full Day' },
+        ].forEach(({ key, label }) => {
+            const lbl   = document.createElement('label');
+            lbl.classList.add('sched-blackout-mode-pill');
+            const radio = document.createElement('input');
+            radio.type  = 'radio';
+            radio.name  = `bk-mode-${volId}`;
+            radio.value = key;
+            if (key === 'custom') radio.checked = true;
+            lbl.appendChild(radio);
+            lbl.appendChild(document.createTextNode(label));
+            modeRow.appendChild(lbl);
+        });
+        addSection.appendChild(modeRow);
+
+        // ── Dynamic mode fields ───────────────────────────────────────
+        const fieldsEl = document.createElement('div');
+        fieldsEl.classList.add('sched-blackout-field-section');
+        addSection.appendChild(fieldsEl);
+
+        // ── Day checkboxes ────────────────────────────────────────────
+        const daysWrap = document.createElement('div');
+        daysWrap.classList.add('sched-blackout-days');
+
+        const daysLbl = document.createElement('div');
+        daysLbl.classList.add('sched-blackout-days-label');
+        daysLbl.textContent = 'Days';
+        daysWrap.appendChild(daysLbl);
+
+        const daysRow = document.createElement('div');
+        daysRow.classList.add('sched-blackout-days-row');
+
+        // "All" toggle
+        const allLbl = document.createElement('label');
+        allLbl.classList.add('sched-blackout-day-pill');
+        const allCb = document.createElement('input');
+        allCb.type = 'checkbox';
+        allLbl.appendChild(allCb);
+        allLbl.appendChild(document.createTextNode('All'));
+        daysRow.appendChild(allLbl);
+
+        /** @type {HTMLInputElement[]} */
+        const dayCbs = [];
+        for (const d of pickerDays) {
+            const lbl = document.createElement('label');
+            lbl.classList.add('sched-blackout-day-pill');
+            const cb  = document.createElement('input');
+            cb.type          = 'checkbox';
+            cb.dataset.dayId = String(d.dayId);
+            cb.checked       = d.dayId === dayId;
+            lbl.appendChild(cb);
+            lbl.appendChild(document.createTextNode(d.dayLabel));
+            daysRow.appendChild(lbl);
+            dayCbs.push(cb);
         }
 
-        const startMins = _timeToMins(startVal);
-        const endMins   = _timeToMins(endVal);
+        allCb.addEventListener('change', () => dayCbs.forEach((cb) => { cb.checked = allCb.checked; }));
+        dayCbs.forEach((cb) => {
+            cb.addEventListener('change', () => { allCb.checked = dayCbs.every((c) => c.checked); });
+        });
+        allCb.checked = dayCbs.length > 0 && dayCbs.every((c) => c.checked);
 
-        if (endMins <= startMins) {
-            statusEl.textContent = 'End must be after start.';
-            statusEl.className   = 'sched-blackout-status text-danger';
-            return;
+        daysWrap.appendChild(daysRow);
+        addSection.appendChild(daysWrap);
+
+        // ── Shared reason input ───────────────────────────────────────
+        const reasonInput = document.createElement('input');
+        reasonInput.type        = 'text';
+        reasonInput.classList.add('sched-blackout-reason-input');
+        reasonInput.placeholder = 'Reason (optional)';
+        reasonInput.maxLength   = 200;
+        addSection.appendChild(reasonInput);
+
+        // ── Add button + status ───────────────────────────────────────
+        const addBtn = document.createElement('button');
+        addBtn.type  = 'button';
+        addBtn.classList.add('sched-blackout-add-btn');
+        addBtn.innerHTML = '<i class="fa-solid fa-plus"></i> Add';
+        addSection.appendChild(addBtn);
+
+        const statusEl = document.createElement('div');
+        statusEl.classList.add('sched-blackout-status');
+        addSection.appendChild(statusEl);
+
+        // ── Mode field helpers ────────────────────────────────────────
+
+        /**
+         * Return unique session labels across all picker days.
+         * @returns {string[]}
+         */
+        function _sessionLabels() {
+            const seen = new Set();
+            for (const d of pickerDays) for (const s of d.sessions) seen.add(s.sessionLabel);
+            return Array.from(seen);
         }
 
-        addBtn.disabled      = true;
-        statusEl.textContent = 'Saving…';
-        statusEl.className   = 'sched-blackout-status text-muted';
+        /**
+         * Build a session <select> element populated with unique labels.
+         * @returns {HTMLSelectElement}
+         */
+        function _buildSessionSel() {
+            const sel = document.createElement('select');
+            sel.classList.add('sched-blackout-select');
+            const ph = document.createElement('option');
+            ph.value = ''; ph.textContent = 'Select session…';
+            sel.appendChild(ph);
+            for (const label of _sessionLabels()) {
+                const opt = document.createElement('option');
+                opt.value = label; opt.textContent = label;
+                sel.appendChild(opt);
+            }
+            return sel;
+        }
 
-        try {
-            const res = await fetch('/api/scheduler/blackouts', {
-                method:  'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
-                body: JSON.stringify({
-                    volunteerId:     volId,
-                    conventionDayId: dayId,
-                    startMins,
-                    endMins,
-                    reason: /** @type {HTMLInputElement} */ (reasonInput)?.value.trim() || null,
-                }),
+        /**
+         * Populate a shift <select> with unique labels for the given session.
+         * @param {string}            sessionLabel
+         * @param {HTMLSelectElement} shiftSel
+         * @returns {void}
+         */
+        function _fillShiftSel(sessionLabel, shiftSel) {
+            shiftSel.innerHTML = '';
+            const ph = document.createElement('option');
+            ph.value = ''; ph.textContent = 'Select shift…';
+            shiftSel.appendChild(ph);
+            const seen = new Set();
+            for (const d of pickerDays) {
+                const sess = d.sessions.find((s) => s.sessionLabel === sessionLabel);
+                if (!sess) continue;
+                for (const sh of sess.shifts) {
+                    if (!seen.has(sh.shiftLabel)) {
+                        seen.add(sh.shiftLabel);
+                        const opt = document.createElement('option');
+                        opt.value = sh.shiftLabel; opt.textContent = sh.shiftLabel;
+                        shiftSel.appendChild(opt);
+                    }
+                }
+            }
+        }
+
+        /**
+         * Update the pre-session preview line.
+         * Uses the current day's session data, falling back to the first available day.
+         * @param {string}      sessionLabel
+         * @param {HTMLElement} previewEl
+         * @returns {void}
+         */
+        function _updatePreview(sessionLabel, previewEl) {
+            if (!sessionLabel) { previewEl.textContent = ''; return; }
+            const ref  = pickerDays.find((d) => d.dayId === dayId) || pickerDays[0];
+            const sess = ref?.sessions.find((s) => s.sessionLabel === sessionLabel);
+            if (!sess || sess.firstShiftStartMins == null) {
+                previewEl.textContent = 'No shifts defined for this session.';
+                return;
+            }
+            previewEl.textContent =
+                `${_fmtMins(sess.firstShiftStartMins)} – ${_fmtMins(sess.startMins)}`;
+        }
+
+        /**
+         * Render the mode-specific input fields, resetting status and reason.
+         * @param {string} mode
+         * @returns {void}
+         */
+        function renderFields(mode) {
+            fieldsEl.innerHTML   = '';
+            reasonInput.value    = '';
+            statusEl.textContent = '';
+            statusEl.className   = 'sched-blackout-status';
+
+            if (mode === 'custom') {
+                const timeRow    = document.createElement('div');
+                timeRow.classList.add('sched-blackout-time-row');
+                const startInput = document.createElement('input');
+                startInput.type  = 'time';
+                startInput.classList.add('sched-blackout-time-input');
+                startInput.id    = 'bkStart';
+                const sep        = document.createElement('span');
+                sep.classList.add('sched-blackout-sep');
+                sep.textContent  = '–';
+                const endInput   = document.createElement('input');
+                endInput.type    = 'time';
+                endInput.classList.add('sched-blackout-time-input');
+                endInput.id      = 'bkEnd';
+                timeRow.appendChild(startInput);
+                timeRow.appendChild(sep);
+                timeRow.appendChild(endInput);
+                fieldsEl.appendChild(timeRow);
+
+            } else if (mode === 'session') {
+                const sel = _buildSessionSel();
+                sel.addEventListener('change', () => {
+                    reasonInput.value = sel.value ? `Session: ${sel.value}` : '';
+                });
+                fieldsEl.appendChild(sel);
+
+            } else if (mode === 'shift') {
+                const sessionSel  = _buildSessionSel();
+                const shiftSel    = document.createElement('select');
+                shiftSel.classList.add('sched-blackout-select');
+                shiftSel.disabled = true;
+                const shiftPh     = document.createElement('option');
+                shiftPh.value     = ''; shiftPh.textContent = 'Select shift…';
+                shiftSel.appendChild(shiftPh);
+
+                sessionSel.addEventListener('change', () => {
+                    _fillShiftSel(sessionSel.value, shiftSel);
+                    shiftSel.disabled = !sessionSel.value;
+                    reasonInput.value = '';
+                });
+                shiftSel.addEventListener('change', () => {
+                    reasonInput.value = (sessionSel.value && shiftSel.value)
+                        ? `Shift: ${shiftSel.value}` : '';
+                });
+
+                fieldsEl.appendChild(sessionSel);
+                fieldsEl.appendChild(shiftSel);
+
+            } else if (mode === 'presession') {
+                const sel     = _buildSessionSel();
+                const preview = document.createElement('div');
+                preview.classList.add('sched-blackout-preview');
+
+                sel.addEventListener('change', () => {
+                    _updatePreview(sel.value, preview);
+                    reasonInput.value = sel.value ? `Pre-session: ${sel.value}` : '';
+                });
+
+                fieldsEl.appendChild(sel);
+                fieldsEl.appendChild(preview);
+
+            } else if (mode === 'fullday') {
+                reasonInput.value    = 'Full day unavailable';
+                const note           = document.createElement('p');
+                note.classList.add('sched-blackout-preview');
+                note.textContent     = 'Blocks all shifts for the selected day(s).';
+                fieldsEl.appendChild(note);
+            }
+        }
+
+        // Wire mode radio buttons
+        modeRow.querySelectorAll('input[type="radio"]').forEach((radio) => {
+            radio.addEventListener('change', () => {
+                if (/** @type {HTMLInputElement} */ (radio).checked) {
+                    renderFields(/** @type {HTMLInputElement} */ (radio).value);
+                }
             });
-            const data = await res.json().catch(() => ({}));
+        });
 
-            if (data.success) {
-                trackAssign(volId, startMins, endMins, null);
-                document.dispatchEvent(new CustomEvent('scheduler:blackoutChanged', { detail: { volId } }));
-                /** @type {HTMLInputElement} */ (startInput).value  = '';
-                /** @type {HTMLInputElement} */ (endInput).value    = '';
-                /** @type {HTMLInputElement} */ (reasonInput).value = '';
-                statusEl.textContent = '';
+        renderFields('custom');
+
+        // ── Add button handler ────────────────────────────────────────
+        addBtn.addEventListener('click', async () => {
+            const mode = /** @type {HTMLInputElement|null} */ (
+                modeRow.querySelector(`input[name="bk-mode-${volId}"]:checked`)
+            )?.value || 'custom';
+
+            const selectedDayIds = dayCbs
+                .filter((cb) => cb.checked)
+                .map((cb) => Number(cb.dataset.dayId));
+
+            if (selectedDayIds.length === 0) {
+                statusEl.textContent = 'Select at least one day.';
+                statusEl.className   = 'sched-blackout-status text-danger';
+                return;
+            }
+
+            /** @type {Array<{ dayId: number, startMins: number, endMins: number }>} */
+            const toPost = [];
+
+            if (mode === 'custom') {
+                const startInput = /** @type {HTMLInputElement|null} */ (fieldsEl.querySelector('#bkStart'));
+                const endInput   = /** @type {HTMLInputElement|null} */ (fieldsEl.querySelector('#bkEnd'));
+                if (!startInput?.value || !endInput?.value) {
+                    statusEl.textContent = 'Start and end times are required.';
+                    statusEl.className   = 'sched-blackout-status text-danger';
+                    return;
+                }
+                const startMins = _timeToMins(startInput.value);
+                const endMins   = _timeToMins(endInput.value);
+                if (endMins <= startMins) {
+                    statusEl.textContent = 'End must be after start.';
+                    statusEl.className   = 'sched-blackout-status text-danger';
+                    return;
+                }
+                for (const dId of selectedDayIds) toPost.push({ dayId: dId, startMins, endMins });
+
+            } else if (mode === 'session') {
+                const label = /** @type {HTMLSelectElement|null} */ (
+                    fieldsEl.querySelector('select')
+                )?.value || '';
+                if (!label) {
+                    statusEl.textContent = 'Select a session.';
+                    statusEl.className   = 'sched-blackout-status text-danger';
+                    return;
+                }
+                for (const dId of selectedDayIds) {
+                    const day  = pickerDays.find((d) => d.dayId === dId);
+                    const sess = day?.sessions.find((s) => s.sessionLabel === label);
+                    if (sess) toPost.push({ dayId: dId, startMins: sess.startMins, endMins: sess.endMins });
+                }
+
+            } else if (mode === 'shift') {
+                const [sessionSel, shiftSel] = /** @type {HTMLSelectElement[]} */ (
+                    Array.from(fieldsEl.querySelectorAll('select'))
+                );
+                const sessLabel  = sessionSel?.value || '';
+                const shiftLabel = shiftSel?.value   || '';
+                if (!sessLabel || !shiftLabel) {
+                    statusEl.textContent = 'Select a session and shift.';
+                    statusEl.className   = 'sched-blackout-status text-danger';
+                    return;
+                }
+                for (const dId of selectedDayIds) {
+                    const day    = pickerDays.find((d) => d.dayId === dId);
+                    const sess   = day?.sessions.find((s) => s.sessionLabel === sessLabel);
+                    const shifts = sess?.shifts.filter((sh) => sh.shiftLabel === shiftLabel) || [];
+                    for (const sh of shifts) {
+                        toPost.push({ dayId: dId, startMins: sh.startMins, endMins: sh.endMins });
+                    }
+                }
+
+            } else if (mode === 'presession') {
+                const label = /** @type {HTMLSelectElement|null} */ (
+                    fieldsEl.querySelector('select')
+                )?.value || '';
+                if (!label) {
+                    statusEl.textContent = 'Select a session.';
+                    statusEl.className   = 'sched-blackout-status text-danger';
+                    return;
+                }
+                for (const dId of selectedDayIds) {
+                    const day  = pickerDays.find((d) => d.dayId === dId);
+                    const sess = day?.sessions.find((s) => s.sessionLabel === label);
+                    if (sess?.firstShiftStartMins != null && sess.startMins != null) {
+                        toPost.push({
+                            dayId:     dId,
+                            startMins: sess.firstShiftStartMins,
+                            endMins:   sess.startMins,
+                        });
+                    }
+                }
+
+            } else if (mode === 'fullday') {
+                // 0 → 1440 spans midnight-to-midnight, overlapping every possible shift.
+                for (const dId of selectedDayIds) {
+                    toPost.push({ dayId: dId, startMins: 0, endMins: 1440 });
+                }
+            }
+
+            if (toPost.length === 0) {
+                statusEl.textContent = 'No matching data for the selected days.';
+                statusEl.className   = 'sched-blackout-status text-danger';
+                return;
+            }
+
+            addBtn.disabled      = true;
+            statusEl.textContent = 'Saving…';
+            statusEl.className   = 'sched-blackout-status text-muted';
+
+            let ok = 0, fail = 0;
+            const reason = reasonInput.value.trim() || null;
+
+            for (const { dayId: dId, startMins, endMins } of toPost) {
+                try {
+                    const res  = await fetch('/api/scheduler/blackouts', {
+                        method:  'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+                        body:    JSON.stringify({
+                            volunteerId:     volId,
+                            conventionDayId: dId,
+                            startMins,
+                            endMins,
+                            reason,
+                        }),
+                    });
+                    const d = await res.json().catch(() => ({}));
+                    if (d.success) {
+                        ok++;
+                        if (dId === dayId) {
+                            trackAssign(volId, startMins, endMins, null);
+                            document.dispatchEvent(new CustomEvent('scheduler:blackoutChanged', { detail: { volId } }));
+                        }
+                    } else {
+                        fail++;
+                    }
+                } catch {
+                    fail++;
+                }
+            }
+
+            addBtn.disabled = false;
+
+            if (ok > 0) {
+                statusEl.textContent = `${ok} blackout${ok !== 1 ? 's' : ''} added${fail > 0 ? `, ${fail} failed` : ''}.`;
+                statusEl.className   = 'sched-blackout-status text-success';
+                reasonInput.value    = '';
+                renderFields(mode);
                 await loadList();
             } else {
-                statusEl.textContent = data.error || 'Failed to save.';
+                statusEl.textContent = `Failed — ${fail} error${fail !== 1 ? 's' : ''}.`;
                 statusEl.className   = 'sched-blackout-status text-danger';
             }
-        } catch (err) {
-            console.error('[contextMenu] create blackout error:', err);
-            statusEl.textContent = 'Network error.';
-            statusEl.className   = 'sched-blackout-status text-danger';
-        } finally {
-            addBtn.disabled = false;
-        }
-    });
+        });
 
-    await loadList();
+        if (_lastPos) _positionEl(panel, _lastPos.x, _lastPos.y);
+    }
+
+    // ── Parallel load: list + picker data ─────────────────────────────
+    const [pickerData] = await Promise.all([
+        _loadPickerData().catch(() => ({ days: [] })),
+        loadList(),
+    ]);
+    buildAddSection(pickerData);
 }
 
 // ─────────────────────────────────────────────
@@ -807,16 +1193,26 @@ function _dismissPanel() { _panelEl?.remove(); _panelEl = null; }
  * @param {number}      x
  * @param {number}      y
  */
+/**
+ * Position a floating panel near a click coordinate, clamping to viewport.
+ * Double rAF ensures the browser has completed layout with actual content
+ * before measuring — single rAF fires before dynamic content is painted.
+ *
+ * @param {HTMLElement} el
+ * @param {number}      x
+ * @param {number}      y
+ * @returns {void}
+ */
 function _positionEl(el, x, y) {
     el.style.position = 'fixed';
     el.style.left     = `${x}px`;
     el.style.top      = `${y}px`;
     el.style.zIndex   = '9999';
-    requestAnimationFrame(() => {
+    requestAnimationFrame(() => requestAnimationFrame(() => {
         const r  = el.getBoundingClientRect();
         if (r.right  > window.innerWidth  - 8) el.style.left = `${x - r.width}px`;
-        if (r.bottom > window.innerHeight - 8) el.style.top  = `${y - r.height}px`;
-    });
+        if (r.bottom > window.innerHeight - 8) el.style.top  = `${Math.max(8, y - r.height)}px`;
+    }));
 }
 
 /** @param {number} mins @returns {string} */

@@ -129,6 +129,10 @@
     border-left-color: #6610f2;
 }
 
+.report-dept[data-dept="support"] .report-dept-header {
+    border-left-color: #fd7e14;
+}
+
 /* ─────────────────────────────────────────────
    Shifts
 ───────────────────────────────────────────── */

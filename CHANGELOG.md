@@ -3,6 +3,65 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+
+## [2.63.0] — 2026-06-24
+
+### Added
+- **Blackout panel — Session / Shift / Pre-session / Full Day modes** — the Manage
+  Blackouts add form now offers four modes via radio pill switcher. Session and
+  Shift modes dynamically populate selects from convention day timelines data
+  (`getBlackoutPickerData`, `GET /api/scheduler/blackout-picker`). Pre-session
+  calculates the window from first-shift start to session program start. Full Day
+  creates a midnight-to-midnight block covering every shift. All non-Custom modes
+  support multi-day creation via a Days row of toggle pills (All + one per
+  convention day); only the current day's blackout is tracked live in the conflict
+  detector — other days are stored and active when those days are loaded.
+- **Schedule report — Support department filter chip** — the Publish / Print view
+  now includes Support as a toggleable chip alongside L&G, Signs, Security, D/P,
+  MS, and Desk. Orange (`#fd7e14`) accent color applied in both
+  `schedulerReport.css` and `scheduler.css`.
+- **Scheduler name pool — gender tints** — pool pills carry a subtle blue (male)
+  or pink (female) background tint via `color-mix()` so the hue adapts in dark
+  mode. Applied via `.name-pill--male` / `.name-pill--female` modifier classes
+  stamped at render time; the green `.assigned` indicator retains priority via
+  higher CSS specificity. Tint carries through to DZ clone pills via
+  `cloneNode(true)`.
+- **`getBlackoutPickerData(year)`** — new `dbSync.js` function returning the full
+  day → session → shift tree with all times pre-converted to minutes-from-midnight
+  server-side. Only non-meeting shifts with an assigned scheduler category are
+  included. `firstShiftStartMins` per session drives Pre-session mode.
+- **`GET /api/scheduler/blackout-picker`** — new route serving the picker payload;
+  requires `createAssignments` permission.
+
+### Fixed
+- **Scheduler — orphaned slot assignments on volunteer delete / deactivate:**
+  `softDeleteVolunteer` now purges all `shift_slot_assignments` for the volunteer.
+  `setVolunteerActive` and `applyDecentlyImport` do the same when setting
+  `active_current_year = 0`, preventing a reactivated volunteer from silently
+  re-occupying slots filled during their inactive period.
+- **Scheduler — orphaned slot assignments on shift edit:** `updateShift` now prunes
+  `shift_slot_assignments` rows that become invalid after the update — volunteer
+  slots whose index meets or exceeds the new `volunteer_need`, and keyman /
+  keyman_asst slots when the respective flag is turned off.
+- **Schedule report — deleted volunteers on print:** `getSchedulerReportData` LEFT
+  JOIN on `volunteer_in` now carries `AND v.registration_status <> 'deleted'` on
+  the JOIN condition, so soft-deleted volunteers cannot appear on a published or
+  printed schedule even if orphaned `shift_slot_assignments` rows survive.
+- **Scheduler name pool — inactive volunteers excluded:** `getSchedulerVolunteers`
+  restores the `active_current_year = 1` filter alongside
+  `registration_status <> 'deleted'`, ensuring the pool contains only currently
+  active volunteers.
+- **Blackout panel — bottom clipping:** `_positionEl` upgraded from single to
+  double `requestAnimationFrame` so the viewport clamp fires after the browser
+  has completed layout with fully rendered content. `Math.max(8, …)` prevents the
+  panel overshooting the top edge when flipped upward. `.sched-assign-panel` gains
+  `max-height: calc(100dvh - 24px)` + `overflow-y: auto` as a hard safety net.
+- **Blackout panel — silent no-op without day:** the Manage Blackouts context menu
+  item is now disabled (greyed, tooltip) when no convention day is selected.
+- **Schedule report — dry-run Close button:** after a dry run completes, Cancel
+  relabels to Close; resets when the modal is next opened.
+
+
 ## [2.62.0] — 2026-06-22
 
 ### Added

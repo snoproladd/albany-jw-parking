@@ -662,6 +662,8 @@ export async function initDomActions() {
     for (const [sortOrder, v] of sortedVolunteers.entries()) {
       const pill = document.createElement("div");
       pill.classList.add("name-pill", "in-pool");
+      if (v.gender === "male")   pill.classList.add("name-pill--male");
+      if (v.gender === "female") pill.classList.add("name-pill--female");
       pill.dataset.id        = String(v.id);
       pill.dataset.sortOrder = String(sortOrder);
       pill.dataset.firstName = v.firstName || "";
@@ -2290,12 +2292,22 @@ export async function initDomActions() {
         const dz = _gridEl?.querySelector(
           `.scheduler-dropzone[data-assignment-id="${a.schedule_assignment_id}"][data-slot-type="${a.slot_type}"][data-slot-index="${a.slot_index}"]`,
         );
-        if (!dz) continue;
+        if (!dz) {
+          console.warn(
+            `[scheduler] _loadDayAssignments: no DZ found for assignment_id=${a.schedule_assignment_id} slot_type=${a.slot_type} slot_index=${a.slot_index}`,
+          );
+          continue;
+        }
 
         const pill = document.querySelector(
           `#name-pool .name-pill[data-id="${a.volunteer_id}"]`,
         );
-        if (!pill) continue;
+        if (!pill) {
+          console.warn(
+            `[scheduler] _loadDayAssignments: no pool pill for volunteer_id=${a.volunteer_id} (${a.firstName} ${a.lastName}) — not in active roster?`,
+          );
+          continue;
+        }
 
         silentlyPlacePill(pill, dz, a.id, a.note || null);
         loadedVolIds.add(a.volunteer_id);

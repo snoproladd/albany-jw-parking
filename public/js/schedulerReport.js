@@ -49,10 +49,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('publishConfirmBtn')?.addEventListener('click', async () => {
         const dayId  = document.getElementById('report-day-picker')?.value;
         const csrf   = document.querySelector('meta[name="csrf-token"]')?.content || '';
-        const btn    = document.getElementById('publishConfirmBtn');
-        const errEl  = document.getElementById('publishError');
-        const okEl   = document.getElementById('publishSuccess');
-        const isDry  = document.getElementById('publishDryRun')?.checked ?? false;
+        const btn       = document.getElementById('publishConfirmBtn');
+        const errEl     = document.getElementById('publishError');
+        const okEl      = document.getElementById('publishSuccess');
+        const cancelBtn = document.querySelector('#publishModal .modal-footer .btn-secondary');
+        const isDry     = document.getElementById('publishDryRun')?.checked ?? false;
 
         if (!dayId) return;
 
@@ -110,12 +111,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 : '<i class="fa-solid fa-circle-check me-1"></i>Published';
             btn.disabled = true;
 
+            // Relabel Cancel → Close so the exit action is obvious
+            if (cancelBtn) cancelBtn.textContent = 'Close';
+
             // Re-enable on next modal open
             document.getElementById('publishModal')?.addEventListener(
                 'hidden.bs.modal',
                 () => {
                     btn.disabled  = false;
                     btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up me-1"></i>Publish';
+                    if (cancelBtn) cancelBtn.textContent = 'Cancel';
                     errEl.classList.add('d-none');
                     okEl.classList.add('d-none');
                     const dryRunCb = document.getElementById('publishDryRun');

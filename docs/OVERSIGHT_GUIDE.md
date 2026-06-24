@@ -833,7 +833,10 @@ the role editor. You can assign any role strictly below your own level.
 
 Filter the volunteer dropdown by **Active / Inactive**, **Male / Female**, or registration status. Filters combine — e.g. Active + Female shows only active female volunteers.
 
-- **Deactivate** — marks a volunteer as inactive for the current year
+- **Deactivate** — marks a volunteer as inactive for the current year.
+  All saved scheduler slot assignments for that volunteer are automatically
+  purged on deactivation so they cannot silently re-occupy filled positions
+  if reactivated later
 - **Delete** — soft-deletes the account (preserves data, removes from active lists)
 - **Reinstate** — restores a deleted volunteer to their previous status
 
@@ -1263,10 +1266,25 @@ Right-clicking any volunteer name pill opens a context-sensitive menu.
   volunteer currently occupies so you can spot them at a glance.
 - **Copy Name** — copies the volunteer’s display name to the clipboard.
 - **Manage Blackouts** — opens a panel showing this volunteer's unavailable
-  time windows for the current day. Add a blackout with a start time, end
-  time, and optional reason. Delete any existing blackout with the × button.
-  Blackouts are loaded into the conflict tracker when a day is selected — the
-  scheduler will warn before placing the volunteer into an overlapping slot.
+  time windows for the current day. Requires a convention day to be selected
+  (the item is disabled with a tooltip otherwise). The add form offers five
+  modes selected via radio pills:
+  - **Custom** — enter a free-form start and end time.
+  - **Session** — select a program session; the blackout spans the full
+    session window.
+  - **Shift** — select a session then a specific parking shift; the blackout
+    spans that shift's time range.
+  - **Pre-session** — select a session; the blackout covers the period from
+    the earliest shift start up to the session program start (i.e., the
+    ingress/arrival window before the program begins).
+  - **Full Day** — blocks midnight to midnight, overlapping every possible
+    shift on the selected day(s).
+  All modes include a **Days** row of toggle pills so a single Add can create
+  matching blackouts across multiple convention days at once. The reason field
+  is shared and auto-filled for non-Custom modes (editable before saving).
+  Delete any existing blackout with the × button. Blackouts are loaded into
+  the conflict tracker when a day is selected — the scheduler will warn before
+  placing the volunteer into an overlapping slot.
 - **Message Volunteer** — not yet active (shown with a "soon" badge).
 
 ### Pool pill behaviour
@@ -1276,6 +1294,12 @@ places a lightweight copy in that slot; the original remains in the pool
 and can be dragged to additional non-overlapping shifts. An amber **N×**
 badge on a pool pill indicates N active assignments for that volunteer
 today.
+
+Pills carry a subtle **gender tint** — a pale blue background for male
+volunteers and pale pink for female — for quick visual scanning. The tint
+is suppressed by the green **assigned** indicator when both apply. Only
+volunteers with `active_current_year = 1` and `registration_status ≠ deleted`
+appear in the pool.
 
 ### Time-conflict guard
 
@@ -1299,6 +1323,12 @@ no associated slot — they exist only to trigger the conflict guard. Adding
 or removing a blackout immediately re-evaluates any existing DZ pills for
 that volunteer and updates their `⚠` badges live — deleting a blackout
 clears the badge instantly without a page refresh.
+
+Blackouts can span multiple convention days in a single action. Select the
+desired days using the Days toggle pills in the add form; each selected day
+receives its own blackout record. The conflict detector only updates live for
+the currently loaded day — blackouts on other days take effect when those
+days are loaded.
 
 ---
 
