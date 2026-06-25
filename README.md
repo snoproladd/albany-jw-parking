@@ -570,6 +570,18 @@ The first ADMIN must be granted directly in the database.
 - **Scheduler — data integrity (2.63.0):** Slot assignment cleanup now cascades automatically on three paths: volunteer soft-delete (`softDeleteVolunteer`), volunteer deactivation (`setVolunteerActive`, `applyDecentlyImport`), and shift edit (`updateShift` prunes slots exceeding the new `volunteer_need` or whose keyman/keyman_asst flag was turned off). `getSchedulerReportData` LEFT JOIN guards against deleted volunteers appearing on printed schedules. `getSchedulerVolunteers` restricts the pool to `active_current_year = 1` volunteers only.
 - **Schedule report — Support filter chip (2.63.0):** Support department now appears as a toggleable chip in the Publish / Print view alongside existing department chips. Orange accent color (`#fd7e14`) in both report and scheduler CSS.
 - **Scheduler — gender tints (2.63.0):** Volunteer pool pills carry a subtle blue (male) or pink (female) background tint via `color-mix()`, adapting correctly in dark mode. Applied via `.name-pill--male` / `.name-pill--female` modifier classes; carries through to DZ clone pills. Green assigned-indicator retains priority via CSS specificity.
+- **AI Note Analysis (2.64.0):** Azure OpenAI (GPT-4o) pipeline for volunteer intake
+  notes. `lib/noteAnalyzer.js` calls the Azure OpenAI API and returns a structured
+  result: summary, category, action item suggestions with priority, and scheduling
+  blackout suggestions with type/day/time hints. Results persisted in
+  `volunteer_note_analyses` with SHA-256 hash-based staleness detection.
+  `routes/noteAnalysisRoutes.js` exposes four JSON endpoints (on-demand analyze,
+  batch analyze, get result, accept action item). Notes Report modal gains an
+  "Analyze" button and full results panel; "Analyze All" batch button in toolbar
+  (ASSISTANT_ADMIN+). `schedulerNotePanel.js` shows a compact read-only AI summary
+  line between "Read by" and "Action Items." All suggestions require human
+  confirmation before applying. Azure credentials in Key Vault:
+  `AzureOpenAIEndpoint`, `AzureOpenAIKey`, `AzureOpenAIDeployment`.
 - **Notes Report (2.62.0):** `/oversight/tools/notes-report` (OVERSEER+). Reviews
   free-text intake notes from volunteer registration. Four tabs: All Notes (click-to-read
   tracking per overseer via `volunteer_note_reads`), Actionable (action items from
