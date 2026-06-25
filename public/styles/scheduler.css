@@ -1804,3 +1804,40 @@
 }
 
 .sched-note-report-link:hover { text-decoration: underline; }
+
+/* ── Note panel — AI summary section ─────────────────────────────────────── */
+
+.sched-note-ai-section {
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--bs-border-color);
+}
+
+.sched-note-ai-summary {
+    font-size: 0.75rem;
+    color: var(--bs-body-color);
+    line-height: 1.5;
+    background: color-mix(in srgb, var(--Primary, #1e3a8a) 4%, var(--bs-tertiary-bg, #f8f9fa));
+    border: 1px solid color-mix(in srgb, var(--Primary, #1e3a8a) 15%, var(--bs-border-color));
+    border-radius: 0.3rem;
+    padding: 0.35rem 0.55rem;
+}
+
+.sched-note-ai-flag {
+    display: inline-block;
+    font-size: 0.62rem;
+    font-weight: 500;
+    padding: 0.1rem 0.4rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--Primary, #1e3a8a) 25%, var(--bs-border-color));
+    background: color-mix(in srgb, var(--Primary, #1e3a8a) 6%, transparent);
+    color: var(--Primary, #1e3a8a);
+    text-transform: capitalize;
+}
+
+.sched-note-ai-stale {
+    font-size: 0.65rem;
+    color: #856404;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
