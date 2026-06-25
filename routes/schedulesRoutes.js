@@ -13,6 +13,7 @@
 import express from "express";
 import { requirePermission } from "../src/config/roles.js";
 import { listOneDriveFolder } from "../lib/graphClient.js";
+import { streamPublishedFileToResponse } from "../lib/blobStorage.js";
 
 /**
  * Factory: build the schedules router.
@@ -71,6 +72,32 @@ export function schedulesRouter({ csrfProtection, logError, graphConfig }) {
       });
     },
   );
+
+  /**
+   * GET /schedule/pdf/:blobName
+   * Public endpoint (no auth required) that streams a published schedule PDF
+   * from Blob Storage. The blobName is the timestamp-prefixed name returned
+   * by uploadPublishedFile(), e.g. "1719251234567-Friday_Schedule_Jul_3_2026.pdf".
+   *
+   * @param {string} blobName - Blob name from the published-files container.
+   */
+  router.get("/schedule/pdf/:blobName", async (req, res) => {
+    const { blobName } = req.params;
+    if (!blobName || /[/\\]/.test(blobName)) {
+      return res.status(400).send("Invalid file name.");
+    }
+    try {
+      // Strip timestamp prefix for the user-facing filename
+      const displayName = blobName.replace(/^\d+-/, "");
+      res.setHeader("Content-Disposition", `inline; filename="${displayName}"`);
+      await streamPublishedFileToResponse(blobName, res);
+    } catch (err) {
+      (logError || console.error)("/schedule/pdf/:blobName error:", err);
+      if (!res.headersSent) {
+        res.status(404).send("File not found.");
+      }
+    }
+  });
 
   return router;
 }

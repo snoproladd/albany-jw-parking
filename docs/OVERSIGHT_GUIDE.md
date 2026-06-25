@@ -1225,9 +1225,9 @@ hides all browser chrome and navigation when printed.
 **Publishing:**
 Click **Publish** to generate a PDF of the current schedule, upload it to
 OneDrive, and notify all Overseers+ and scheduled volunteers via email and
-SMS. A **Dry run** option uploads the PDF without sending notifications —
-useful for verifying layout before a real publish. The uploaded PDF appears
-automatically on the [Schedules](#schedules) resources page.
+SMS. Notification links open the PDF directly through the app — no Microsoft
+sign-in required. A **Dry run** option uploads the PDF without sending
+notifications, useful for verifying layout before a real publish.
 
 ---
 
