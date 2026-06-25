@@ -5971,6 +5971,7 @@ export function oversightRouter({
           conventionDate,
           publishedBy: req.session.userEmail || "admin",
           serverPort: serverPort || Number(process.env.PORT) || 3000,
+          appBaseUrl: `${req.protocol}://${req.get("host")}`,
           smtpConfig,
           twilioAccountSid,
           twilioAuthToken,

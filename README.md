@@ -191,12 +191,13 @@ parking/
 │   ├── graphClient.js         # Microsoft Graph API client (OneDrive)
 │   ├── messaging.js           # Email + SMS delivery helpers (suppressed in demo context)
 │   ├── passwordVer.js         # PBKDF2 hashing + verification
-│   ├── publishSchedule.js     # PDF schedule generation + OneDrive upload
+│   ├── publishSchedule.js     # PDF schedule generation + OneDrive upload + Blob Storage delivery
 │   ├── publishSignMap.js      # Sign map PDF generation + Blob + OneDrive upload
-│   ├── rvToken.js             # HMAC token generation for public rendezvous detail links
+- **Schedule publish — Blob Storage delivery (2.63.2):** Volunteer schedule notifications now link to a public app route (`GET /schedule/pdf/:blobName`) backed by Azure Blob Storage instead of a SharePoint URL. Eliminates Microsoft account sign-in prompts for recipients with an active Microsoft session in their browser. The PDF is still uploaded to OneDrive for the audit record. `graphClient.js` also generates a `createLink` anonymous share URL as a secondary fallback. New route in `schedulesRoutes.js`; `publishSchedule.js` updated to upload to `published-files` blob container and build the delivery URL from `appBaseUrl`.
+- **Scheduler — Signs conflict guard (2.63.1):**   ├── rvToken.js             # HMAC token generation for public rendezvous detail links
 │   ├── sql.js                 # SQL connection pool management + demo pool routing
 │   └── volunteerStatus.js     # Profile completeness checks
-│
+│- **Scheduler — Signs conflict guard (2.63.1):**
 ├── middleware/
 │   └── demoContext.js         # Demo hostname detection + AsyncLocalStorage context wrap
 │

@@ -4,6 +4,20 @@ All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 
+## [2.63.2] — 2026-06-25
+
+### Fixed
+- **Schedule publish — SharePoint auth bypass:** Volunteers receiving schedule
+  notifications were prompted to sign in to a Microsoft account before the PDF
+  would open. Two-part fix: (1) `graphClient.js` now calls `createLink` with
+  `type:'view', scope:'anonymous'` after upload to generate a public sharing
+  link; (2) the PDF is also uploaded to Azure Blob Storage and notifications
+  link to a new public app route (`GET /schedule/pdf/:blobName`) that streams
+  the file directly — bypassing SharePoint's auth intercept entirely for users
+  with Microsoft accounts active in their browser. SharePoint upload is
+  retained for the audit record and Maps resource page.
+
+
 ## [2.63.1] — 2026-06-24
 
 ### Fixed

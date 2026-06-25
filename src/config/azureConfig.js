@@ -70,6 +70,9 @@ const SECRET_MAP = Object.freeze({
   GRAPH_CLIENT_SECRET: "GraphClientSecret",
   GOOGLE_MAPS_API_KEY: "GoogleMapsApiKey",
   SIGN_PHOTOS_STORAGE_ACCOUNT: "SignPhotosStorageAccount",
+  AZURE_OPENAI_ENDPOINT:   "AzureOpenAIEndpoint",
+  AZURE_OPENAI_KEY:        "AzureOpenAIKey",
+  AZURE_OPENAI_DEPLOYMENT: "AzureOpenAIDeployment",
 });
 
 
@@ -164,6 +167,11 @@ export async function getConfig() {
     SIGN_PHOTOS_STORAGE_ACCOUNT:
       secrets.SIGN_PHOTOS_STORAGE_ACCOUNT || process.env.SIGN_PHOTOS_STORAGE_ACCOUNT,
 
+    // Azure OpenAI
+    AZURE_OPENAI_ENDPOINT:   secrets.AZURE_OPENAI_ENDPOINT   || process.env.AZURE_OPENAI_ENDPOINT,
+    AZURE_OPENAI_KEY:        secrets.AZURE_OPENAI_KEY        || process.env.AZURE_OPENAI_KEY,
+    AZURE_OPENAI_DEPLOYMENT: secrets.AZURE_OPENAI_DEPLOYMENT || process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o',
+
     // Sessions
     sessionSecret:
       secrets.SESSION_SECRET || process.env.SESSION_SECRET || "fallback-secret",
@@ -184,8 +192,9 @@ export async function getConfig() {
     twilioMsgConfigured: Boolean(CONFIG.TWILIO_MSG_SID),
     kickboxConfigured: Boolean(CONFIG.KICKBOX_API_KEY),
     ionosSmtpConfigured: Boolean(CONFIG.IONOS_SMTP_HOST && CONFIG.IONOS_SMTP_USER_INFO),
-    googleMapsConfigured: Boolean(CONFIG.GOOGLE_MAPS_API_KEY),
-    signPhotosConfigured: Boolean(CONFIG.SIGN_PHOTOS_STORAGE_ACCOUNT),
+    googleMapsConfigured:  Boolean(CONFIG.GOOGLE_MAPS_API_KEY),
+    signPhotosConfigured:  Boolean(CONFIG.SIGN_PHOTOS_STORAGE_ACCOUNT),
+    azureOpenAiConfigured: Boolean(CONFIG.AZURE_OPENAI_ENDPOINT && CONFIG.AZURE_OPENAI_KEY),
   });
 
   return CONFIG;
