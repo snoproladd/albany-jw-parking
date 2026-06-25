@@ -32,6 +32,7 @@ import upgradeRoutes from "./routes/upgradeRoutes.js";
 import * as db from "./lib/dbSync.js";
 
 import { oversightRouter } from "./routes/oversightRoutes.js";
+import { noteAnalysisRouter } from "./routes/noteAnalysisRoutes.js";
 import { smsWebhookRouter } from "./routes/smsWebhookRoute.js";
 import { sitemapRouter }   from "./routes/sitemapRoutes.js";
 import { mapsRouter } from "./routes/mapsRoutes.js";
@@ -762,6 +763,8 @@ app.use(
     logError,
   }),
 );
+
+app.use("/", noteAnalysisRouter({ csrfProtection, logError }));
 
 app.use(
   "/",
