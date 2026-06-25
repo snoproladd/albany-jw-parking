@@ -121,7 +121,6 @@ export function noteAnalysisRouter({ csrfProtection, logError }) {
     "/api/notes/analyze/batch",
     requireAuth,
     requirePermission("deleteVolunteer"),
-    csrfProtection,
     async (req, res) => {
       const analyzedBy = req.session.userId;
 
@@ -197,7 +196,6 @@ export function noteAnalysisRouter({ csrfProtection, logError }) {
     "/api/notes/analyze/:volunteerId",
     requireAuth,
     requirePermission("viewVolunteerInfo"),
-    csrfProtection,
     async (req, res) => {
       const volunteerId = Number(req.params.volunteerId);
       const analyzedBy = req.session.userId;
@@ -287,7 +285,6 @@ export function noteAnalysisRouter({ csrfProtection, logError }) {
     "/api/notes/analysis/:analysisId/accept-action",
     requireAuth,
     requirePermission("editVolunteerInfo"),
-    csrfProtection,
     async (req, res) => {
       const analysisId = Number(req.params.analysisId);
       const createdBy = req.session.userId;

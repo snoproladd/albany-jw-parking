@@ -135,6 +135,11 @@
                                 <button class="btn btn-sm nr-pill" data-filter="unread">Unread by me</button>
                                 <button class="btn btn-sm nr-pill" data-filter="no-action">No action yet</button>
                             </div>
+                            <% if (actorRole === 'ADMIN' || actorRole === 'ASSISTANT_ADMIN') { %>
+                            <button type="button" class="btn btn-sm nr-ai-batch-btn ms-auto" id="analyzeAllBtn">
+                                <i class="fa-solid fa-wand-magic-sparkles me-1"></i>Analyze All
+                            </button>
+                            <% } %>
                         </div>
 
                         <div id="allNotesLoading" class="nr-loading" aria-live="polite">
@@ -321,6 +326,23 @@
                         >
                             <i class="fa-solid fa-plus me-1"></i>Create Action Item
                         </button>
+                    </div>
+
+                    <%# AI Analysis section %>
+                    <div id="noteDetailAiSection" class="mt-4">
+                        <div class="nr-ai-header">
+                            <p class="nr-modal-label mb-0">
+                                <i class="fa-solid fa-wand-magic-sparkles me-1"></i>AI Analysis
+                            </p>
+                            <button
+                                type="button"
+                                class="btn btn-sm nr-ai-btn"
+                                id="noteDetailAnalyzeBtn"
+                            >
+                                <i class="fa-solid fa-wand-magic-sparkles me-1"></i>Analyze
+                            </button>
+                        </div>
+                        <div id="noteDetailAiContent" class="mt-2"></div>
                     </div>
 
                 </div>
