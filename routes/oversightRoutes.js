@@ -119,6 +119,7 @@ import {
   getBlackoutsForDay,
   getBlackoutsForVolunteer,
   createBlackout,
+  removeVolunteerFromShift,
   deleteBlackout,
   getBlackoutPickerData,
   getConflictGridData,
@@ -160,6 +161,9 @@ import {
   deleteVolunteerAction,
   dismissNote,
   restoreNote,
+  getUnresolvedInboundSms,
+  getResolvedInboundSms,
+  resolveInboundSmsMessage,
 } from "../lib/dbSync.js";
 
 import { verifyPassword, hashPassword } from "../lib/passwordVer.js";
@@ -318,6 +322,53 @@ export function oversightRouter({
   // =========================
   // /editVolunteer routes (for oversight user to edit other volunteer accounts)
   // =========================
+
+  // GET /editVolunteer/:id → jump directly to a specific volunteer's edit page
+  router.get(
+    "/editVolunteer/:id",
+    requireAuth,
+    requirePermission("viewVolunteerInfo"),
+    csrfProtection,
+    async (req, res) => {
+      const targetUserId = parseInt(req.params.id, 10);
+      if (!targetUserId) return res.redirect("/editVolunteer");
+
+      const actorRole = req.session.userRole || "NON_REGISTERED";
+      const perms     = req.session.permissions ?? {};
+      const canDelete = !!perms[actorRole]?.deleteVolunteer;
+
+      try {
+        const [targetUser, volunteers, editor, congregations, rsvpHistory, conventionDays] =
+          await Promise.all([
+            getVolunteerById(targetUserId),
+            getActiveVolunteers({}),
+            getVolunteerById(req.session.userId),
+            getCongregations(),
+            getVolunteerRsvpHistory(targetUserId, new Date().getFullYear()),
+            getConventionDays(new Date().getFullYear()),
+          ]);
+
+        if (!targetUser) return res.redirect("/editVolunteer");
+
+        return res.render("volunteerAccountOversight", {
+          csrfToken:          req.csrfToken(),
+          editor,
+          targetUser,
+          volunteers,
+          congregations,
+          privilegeRulesJSON: JSON.stringify(INCOMPATIBILITIES),
+          canDelete,
+          includeDeleted:     false,
+          rsvpHistory,
+          conventionDays,
+          canGrantExtraPerms: actorRole === "ADMIN" || actorRole === "ASSISTANT_ADMIN",
+        });
+      } catch (err) {
+        (logError || console.error)("GET /editVolunteer/:id error:", err);
+        return res.redirect("/editVolunteer");
+      }
+    },
+  );
 
   // GET /editVolunteer → show volunteer selection/edit page
   router.get(
@@ -5437,6 +5488,31 @@ export function oversightRouter({
     },
   );
   /**
+   * DELETE /api/conflict-grid/assignment
+   * Removes a volunteer from all slot assignments on the given shift.
+   * Body: { volunteerId: number, shiftId: number }
+   */
+  router.delete(
+    "/api/conflict-grid/assignment",
+    requireAuth,
+    requirePermission("createAssignments"),
+    async (req, res) => {
+      const volunteerId = parseInt(req.body?.volunteerId, 10);
+      const shiftId     = parseInt(req.body?.shiftId, 10);
+      if (!volunteerId || !shiftId) {
+        return res.status(400).json({ error: "volunteerId and shiftId are required." });
+      }
+      try {
+        const removed = await removeVolunteerFromShift(volunteerId, shiftId);
+        return res.json({ ok: true, removed });
+      } catch (err) {
+        (logError || console.error)("DELETE /api/conflict-grid/assignment error:", err);
+        return res.status(500).json({ error: "Failed to remove assignment." });
+      }
+    },
+  );
+
+  /**
    * GET /oversight/tools/scheduler
    * Render the drag-and-drop volunteer scheduler page.
    * Convention days are passed for the day picker; schedule data
@@ -7579,7 +7655,7 @@ export function oversightRouter({
       try {
         const volunteerId = parseInt(req.body.volunteerId, 10);
         if (!volunteerId) return res.status(400).json({ error: "volunteerId is required." });
-        const actions = await getVolunteerActions({ sourceType: "intake_note" });
+        const actions = await getVolunteerActions({ includeAllSources: true });
         const hasActiveActions = actions.some(
           (a) => a.volunteer_id === volunteerId && !a.completed,
         );
@@ -7614,6 +7690,67 @@ export function oversightRouter({
       } catch (err) {
         (logError || console.error)("POST /api/notes-report/restore error:", err);
         return res.status(500).json({ error: "Failed to restore note." });
+      }
+    },
+  );
+
+  /**
+   * GET /api/notes-report/sms-messages/resolved
+   * Returns resolved inbound SMS messages for the Archived panel.
+   * Must be registered before /sms-messages/:id/resolve to avoid Express
+   * matching "resolved" as a message ID.
+   */
+  router.get(
+    "/api/notes-report/sms-messages/resolved",
+    requireAuth,
+    requirePermission("viewVolunteerInfo"),
+    async (req, res) => {
+      try {
+        const messages = await getResolvedInboundSms();
+        return res.json({ messages });
+      } catch (err) {
+        (logError || console.error)("GET /api/notes-report/sms-messages/resolved error:", err);
+        return res.status(500).json({ error: "Failed to fetch resolved SMS messages." });
+      }
+    },
+  );
+
+  /**
+   * GET /api/notes-report/sms-messages
+   * Returns all unresolved inbound SMS messages for the Notes Report.
+   */
+  router.get(
+    "/api/notes-report/sms-messages",
+    requireAuth,
+    requirePermission("viewVolunteerInfo"),
+    async (req, res) => {
+      try {
+        const messages = await getUnresolvedInboundSms();
+        return res.json({ messages });
+      } catch (err) {
+        (logError || console.error)("GET /api/notes-report/sms-messages error:", err);
+        return res.status(500).json({ error: "Failed to fetch SMS messages." });
+      }
+    },
+  );
+
+  /**
+   * POST /api/notes-report/sms-messages/:id/resolve
+   * Marks an inbound SMS message resolved and completes its linked action.
+   */
+  router.post(
+    "/api/notes-report/sms-messages/:id/resolve",
+    requireAuth,
+    requirePermission("viewVolunteerInfo"),
+    async (req, res) => {
+      try {
+        const id = parseInt(req.params.id, 10);
+        if (!id) return res.status(400).json({ error: "Invalid message ID." });
+        await resolveInboundSmsMessage(id, req.session.userId);
+        return res.json({ ok: true });
+      } catch (err) {
+        (logError || console.error)("POST /api/notes-report/sms-messages/:id/resolve error:", err);
+        return res.status(500).json({ error: "Failed to resolve message." });
       }
     },
   );

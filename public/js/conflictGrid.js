@@ -61,33 +61,163 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // ── Fetch & initial render ──────────────────────────────────────
 
-  fetch("/api/conflict-grid")
-    .then((r) => r.json())
-    .then((data) => {
-      rawData = data;
-      render();
-      loading?.classList.add("d-none");
-      wrapper.classList.remove("d-none");
-    })
-    .catch((err) => {
-      console.error("[conflictGrid] fetch error:", err);
-      if (loading) {
-        loading.innerHTML =
-          '<p class="text-danger">Failed to load conflict grid.</p>';
-      }
-    });
+  function fetchAndRender(silent = false) {
+    if (!silent) {
+      loading?.classList.remove("d-none");
+      wrapper?.classList.add("d-none");
+    }
+    fetch("/api/conflict-grid")
+      .then((r) => r.json())
+      .then((data) => {
+        rawData = data;
+        window.cgData = data;
+        render();
+        loading?.classList.add("d-none");
+        wrapper.classList.remove("d-none");
+      })
+      .catch((err) => {
+        console.error("[conflictGrid] fetch error:", err);
+        if (loading) {
+          loading.innerHTML =
+            '<p class="text-danger">Failed to load conflict grid.</p>';
+        }
+      });
+  }
 
-togglePC?.addEventListener("change", () => {
-  syncPCLabel();
-  render();
-});
-toggleAll?.addEventListener("change", () => {
-  syncVolLabel();
-  render();
-});
+  /** Allow the violations panel to refresh the grid after an action. */
+  window.cgRefresh = () => fetchAndRender(true);
+
+  fetchAndRender();
+
+  togglePC?.addEventListener("change", () => {
+    syncPCLabel();
+    render();
+  });
+  toggleAll?.addEventListener("change", () => {
+    syncVolLabel();
+    render();
+  });
+
+  // ── Context menu ────────────────────────────────────────────────
+
+  const ctxMenu = (() => {
+    const el = document.createElement("div");
+    el.id = "cgCtxMenu";
+    el.className = "cg-ctx-menu d-none";
+    document.body.appendChild(el);
+    return el;
+  })();
+
+  function dismissCtxMenu() {
+    ctxMenu.classList.add("d-none");
+  }
+  document.addEventListener("click", dismissCtxMenu);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") dismissCtxMenu();
+  });
+
+  /**
+   * @param {number}      x
+   * @param {number}      y
+   * @param {HTMLElement} cell
+   */
+  function showCtxMenu(x, y, cell) {
+    const state = cell.dataset.cgState;
+    const volId = Number(cell.dataset.volId);
+    const volName = cell.dataset.volName;
+    const shiftId = Number(cell.dataset.shiftId);
+    const shiftLabel = cell.dataset.shiftLabel;
+    const dayLabel = cell.dataset.dayLabel || "";
+    const scShifts = cell.dataset.scShifts
+      ? JSON.parse(cell.dataset.scShifts)
+      : [];
+
+    ctxMenu.innerHTML = "";
+
+    const addItem = (icon, html, onClick) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "cg-ctx-item";
+      btn.innerHTML = `<i class="${icon} cg-ctx-icon"></i>${html}`;
+      btn.addEventListener("click", () => {
+        dismissCtxMenu();
+        onClick();
+      });
+      ctxMenu.appendChild(btn);
+    };
+
+    const addDivider = () => {
+      const hr = document.createElement("hr");
+      hr.className = "cg-ctx-divider";
+      ctxMenu.appendChild(hr);
+    };
+
+    // Remove from THIS shift (all SC and X/PC states).
+    if (state === "sc" || state === "scpc" || state === "xpc") {
+      addItem(
+        "fa-solid fa-user-minus",
+        `Remove from ${dayLabel ? `<span class="text-muted">${dayLabel}</span> ` : ""}<strong>"${shiftLabel}"</strong>`,
+        () => ctxRemove(volId, volName, shiftId, dayLabel, shiftLabel),
+      );
+    }
+
+    // Also offer removing from each conflicting shift.
+    for (const sc of scShifts) {
+      addItem(
+        "fa-solid fa-user-minus",
+        `Remove from ${dayLabel ? `<span class="text-muted">${dayLabel}</span> ` : ""}<strong>"${sc.label}"</strong>`,
+        () => ctxRemove(volId, volName, sc.id, dayLabel, sc.label),
+      );
+    }
+
+    // View blackout (X/PC and SC/PC).
+    if (state === "xpc" || state === "scpc") {
+      if (ctxMenu.children.length) addDivider();
+      addItem("fa-solid fa-calendar-xmark", "View Volunteer Blackouts", () =>
+        window.showBlackoutModal?.(volId, volName),
+      );
+    }
+
+    if (!ctxMenu.children.length) return;
+
+    ctxMenu.classList.remove("d-none");
+    const vw = window.innerWidth,
+      mw = ctxMenu.offsetWidth || 240;
+    const vh = window.innerHeight,
+      mh = ctxMenu.offsetHeight || 120;
+    ctxMenu.style.left = `${Math.min(x + 2, vw - mw - 8)}px`;
+    ctxMenu.style.top = `${Math.min(y + 2, vh - mh - 8)}px`;
+  }
+
+  /**
+   * @param {number} volId
+   * @param {string} volName
+   * @param {number} shiftId
+   * @param {string} dayLabel
+   * @param {string} shiftLabel
+   */
+  function ctxRemove(volId, volName, shiftId, dayLabel, shiftLabel) {
+    const where = dayLabel
+      ? `${dayLabel} — "${shiftLabel}"`
+      : `"${shiftLabel}"`;
+    if (!confirm(`Remove ${volName} from ${where}?`)) return;
+    fetch("/api/conflict-grid/assignment", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ volunteerId: volId, shiftId }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!data.ok) {
+          alert("Failed to remove assignment. Please try again.");
+          return;
+        }
+        window.cgRefresh();
+      })
+      .catch(() => alert("Network error. Please try again."));
+  }
 
   // ── Helpers ─────────────────────────────────────────────────────
-
   /**
    * Check whether two time ranges overlap (exclusive endpoints).
    *
@@ -238,7 +368,7 @@ toggleAll?.addEventListener("change", () => {
     const theadShiftTr = document.createElement("tr");
     theadShiftTr.classList.add("cg-shift-row");
 
-let isFirstDay = true;
+    let isFirstDay = true;
     let colIdx = 0;
     for (const [, group] of dayGroups) {
       let isFirstInDay = true;
@@ -325,9 +455,8 @@ let isFirstDay = true;
             overlaps(sh.start_mins, sh.end_mins, bk.start_mins, bk.end_mins),
           );
 
-          // Shift conflict: assigned to another shift on same day that overlaps
-          // (counts all overlapping shifts, not just one)
-          let scCount = 0;
+          // Shift conflict: assigned to another shift on same day that overlaps.
+          const scShifts = [];
           if (isAssigned) {
             for (const other of myShifts) {
               if (
@@ -340,25 +469,30 @@ let isFirstDay = true;
                   other.end_mins,
                 )
               ) {
-                scCount++;
+                scShifts.push(other);
               }
             }
           }
+          const scCount = scShifts.length;
           const hasSC = scCount > 0;
 
-          // ── Determine cell content and class ──
+          // ── Determine cell content, class, and action state ──
+          let cgState = "";
           if (isAssigned && hasSC && hasPC) {
             td.textContent = "SC/PC";
             td.classList.add("cg-cell-scpc");
             td.title = `Shift conflict (${scCount} overlap${scCount > 1 ? "s" : ""}) + blackout`;
+            cgState = "scpc";
           } else if (isAssigned && hasSC) {
             td.textContent = "SC";
             td.classList.add("cg-cell-sc");
             td.title = `Shift conflict — ${scCount} overlapping assignment${scCount > 1 ? "s" : ""}`;
+            cgState = "sc";
           } else if (isAssigned && hasPC) {
             td.textContent = "X/PC";
             td.classList.add("cg-cell-xpc");
             td.title = "Assigned during blackout";
+            cgState = "xpc";
           } else if (isAssigned) {
             td.textContent = "X";
             td.classList.add("cg-cell-assigned");
@@ -366,6 +500,23 @@ let isFirstDay = true;
             td.textContent = "PC";
             td.classList.add("cg-cell-pc");
             td.title = "Blackout — volunteer unavailable";
+          }
+
+          if (cgState) {
+            td.dataset.cgState = cgState;
+            td.dataset.volId = String(vol.id);
+            td.dataset.volName = `${vol.firstName} ${vol.lastName}`;
+            td.dataset.shiftId = String(sh.shift_id);
+            td.dataset.shiftLabel = sh.shift_label;
+            td.dataset.dayId = String(sh.day_id);
+            td.dataset.dayLabel = sh.day_label || group.label || "";
+            td.dataset.startMins = String(sh.start_mins);
+            td.dataset.endMins = String(sh.end_mins);
+            if (scShifts.length) {
+              td.dataset.scShifts = JSON.stringify(
+                scShifts.map((s) => ({ id: s.shift_id, label: s.shift_label })),
+              );
+            }
           }
 
           tr.appendChild(td);
@@ -430,5 +581,13 @@ let isFirstDay = true;
         }
       });
     }
+
+    // ── Context menu trigger ──
+    table.addEventListener("contextmenu", (e) => {
+      const cell = e.target.closest("td[data-cg-state]");
+      if (!cell) return;
+      e.preventDefault();
+      showCtxMenu(e.clientX, e.clientY, cell);
+    });
   }
 });

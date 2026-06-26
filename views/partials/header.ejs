@@ -320,6 +320,11 @@
                         <i class="fa-solid fa-calendar-check"></i>Volunteer Schedule
                       </a></li>
                       <% } %>
+                      <% if (can('deleteVolunteer') && isAtLeast('ADMIN')) { %>
+                        <li><a class="ot-nav-item" href="/oversight/tools/schedule-rules">
+                          <i class="fa-solid fa-list-check"></i>Schedule Analysis Rules
+                        </a></li>
+                      <% } %>
                       <% if (can('accessAdminConsole')) { %>
                         <li><a class="ot-nav-item" href="/oversight/tools/shift-alerts">
                           <i class="fa-solid fa-bell"></i>Shift Alerts

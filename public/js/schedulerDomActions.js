@@ -691,7 +691,8 @@ export async function initDomActions() {
       pill.dataset.email     = v.email || "";
       pill.dataset.suffix    = v.suffix || "";
       pill.dataset.gender    = v.gender || "";
-      pill.dataset.hasNote   = v.has_note ? "1" : "0";
+      pill.dataset.hasNote             = v.has_note ? "1" : "0";
+      pill.dataset.pendingConstraints  = String(v.pending_constraints || 0);
 
       // Name row
       const nameSpan = document.createElement("span");
@@ -716,6 +717,14 @@ export async function initDomActions() {
         noteBadge.classList.add("pill-intake-badge");
         noteBadge.textContent = "NOTE";
         crewsDiv.appendChild(noteBadge);
+      }
+
+      if (v.pending_constraints > 0) {
+        const constraintBadge = document.createElement("span");
+        constraintBadge.classList.add("pill-constraint-badge");
+        constraintBadge.textContent =
+          `${v.pending_constraints} CONSTRAINT${v.pending_constraints !== 1 ? "S" : ""}`;
+        crewsDiv.appendChild(constraintBadge);
       }
 
       pill.appendChild(crewsDiv);

@@ -38,6 +38,8 @@ import { smsWebhookRouter } from "./routes/smsWebhookRoute.js";
 import { sitemapRouter }   from "./routes/sitemapRoutes.js";
 import { mapsRouter } from "./routes/mapsRoutes.js";
 import { schedulesRouter } from "./routes/schedulesRoutes.js";
+import { constraintRouter }        from "./routes/constraintRoutes.js";
+import { scheduleAnalysisRouter }  from "./routes/scheduleAnalysisRoutes.js";
 import { signsRouter } from "./routes/signsRoutes.js";
 import { getBaseUrl, resetSmsClient } from "./lib/messaging.js";
 import { startAlertScheduler } from "./lib/alertScheduler.js";
@@ -46,6 +48,7 @@ import {
   getShiftRendezvousById,
   getShiftRendezvous,
 } from "./lib/dbSync.js";
+
 
 // Resolve paths
 const config = await getConfig();
@@ -758,14 +761,24 @@ let alertScheduler = null;
       }),
     );
 app.use(
-  "/webhook/sms",
-  smsWebhookRouter({
-    twilioAuthToken: config.TWILIO_AUTH_TOKEN,
-    logError,
-  }),
+    "/webhook/sms",
+    smsWebhookRouter({
+        twilioAuthToken:  config.TWILIO_AUTH_TOKEN,
+        twilioAccountSid: config.TWILIO_ACCOUNT_SID,
+        twilioMsgSid:     config.TWILIO_MSG_SID,
+        smtpConfig: {
+            host: config.IONOS_SMTP_HOST,
+            port: config.IONOS_SMTP_PORT,
+            user: config.IONOS_SMTP_USER_INFO,
+            pass: config.IONOS_SMTP_PASS,
+        },
+        logError,
+    }),
 );
 
 app.use("/", noteAnalysisRouter({ csrfProtection, logError }));
+app.use("/", constraintRouter({ csrfProtection, logError }));
+app.use("/", scheduleAnalysisRouter({ csrfProtection, logError }));
 app.use("/", blackoutRouter({ csrfProtection, logError }));
 
 app.use(

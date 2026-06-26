@@ -1698,3 +1698,21 @@
     overflow-y: auto;
     flex: 1;
 }
+/* ── Sidebar quick-links ───────────────────────────────────────── */
+.scheduler-quick-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 0.25rem;
+    color: var(--bs-secondary-color);
+    text-decoration: none;
+    font-size: 0.8rem;
+    transition: background 0.12s, color 0.12s;
+}
+
+.scheduler-quick-link:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: var(--bs-body-color);
+}

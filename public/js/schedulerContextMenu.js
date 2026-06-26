@@ -17,6 +17,7 @@ import { unbindDraggable } from './schedulerDraggable.js';
 import { trackAssign, untrackBlackout, getConflicts } from './schedulerConflicts.js';
 import { openRendezvousPanel, dismissRendezvousPanel, getCachedRendezvous } from './rendezvous.js';
 import { openNotePanel, closeNotePanel } from './schedulerNotePanel.js';
+import { openConstraintPanel, closeConstraintPanel } from './schedulerConstraintPanel.js';
 import BlackoutTimeline from './blackoutTimeline.js';
 
 // ─────────────────────────────────────────────
@@ -63,7 +64,7 @@ export function initContextMenu() {
     });
 
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') { _dismissMenu(); _dismissPanel(); dismissRendezvousPanel(); closeNotePanel(); }
+        if (e.key === 'Escape') { _dismissMenu(); _dismissPanel(); dismissRendezvousPanel(); closeNotePanel(); closeConstraintPanel(); }
     });
 }
 
@@ -259,6 +260,24 @@ function _buildMenu(volId, volName, pill, inDz) {
                 actorId: actorId,
             });
         }));
+    }
+
+    const pendingConstraints = parseInt(pill.dataset.pendingConstraints || '0', 10);
+    if (pendingConstraints > 0) {
+        menu.appendChild(_item(
+            'fa-solid fa-calendar-xmark',
+            `Scheduling Constraints (${pendingConstraints})`,
+            [],
+            () => {
+                _dismissMenu();
+                openConstraintPanel({
+                    volId:   volId,
+                    volName: volName,
+                    anchorX: _lastPos?.x ?? 0,
+                    anchorY: _lastPos?.y ?? 0,
+                });
+            },
+        ));
     }
 
     menu.appendChild(_item(

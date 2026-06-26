@@ -3,6 +3,210 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.68.0] — 2026-06-26
+
+### Added
+- **Schedule Violation Analysis** — two-layer detection pipeline combining a
+  deterministic rule engine with Azure OpenAI (GPT-4o) enhancement. The rule
+  engine runs first and produces violations with confidence = null (facts);
+  the AI layer adds severity, confidence (0.0–1.0), suggestions, and
+  clarifying questions, and may append `ai_observation` violations that the
+  rules missed.
+  - Rule types: `time_overlap`, `blackout_violation`, `pre_session_overload`,
+    `post_session_overload`, `understaffed`. Pre/post detection uses shift
+    midpoint vs. session boundaries derived from `getConventionDaysWithSessions`
+    (not `program_start`/`program_end` columns, which are unreliable). Security
+    department excluded from pre/post counts.
+  - Schedule hash (SHA-256 of all assignments + blackouts) compared against the
+    latest run — re-analysis is skipped when nothing has changed unless
+    `force: true` is passed.
+  - AI Q&A loop: `ai_question` field on violations prompts overseer input;
+    `POST /api/schedule/violations/:id/reanalyze` runs a focused single-item
+    re-analysis incorporating the response.
+  - New DB tables `schedule_violation_runs` and `schedule_violations` (both
+    schemas). Seven new `dbSync.js` functions.
+  - `lib/scheduleAnalyzer.js` — rule engine, AI call, hash, merge logic.
+  - `routes/scheduleAnalysisRoutes.js` — analyze, violations CRUD, reanalyze,
+    reanalyze-by-question.
+- **Schedule Analysis Rules** — admin-managed standing policy rules injected
+  as a mandatory top-level section of the AI system prompt on every analysis
+  run. Rules are stored in `schedule_analysis_rules` (both schemas) with
+  `sort_order` and `active` flag.
+  - `/oversight/tools/schedule-rules` (ADMIN only) — CRUD page with inline
+    edit, active toggle, and up/down reorder. Linked from the oversight tools
+    grid, header dropdown (Scheduling section), and sitemap.
+  - `public/js/scheduleRules.js` (module), `public/styles/scheduleRules.css`,
+    `views/authentication_and_accounts/scheduleRules.ejs`.
+  - `GET /api/schedule/rules`, `POST`, `PATCH /:id`, `PATCH /:id/toggle`,
+    `DELETE /:id` endpoints in `scheduleAnalysisRoutes.js`.
+- **Conflict Grid violations accordion** — Bootstrap accordion above the grid
+  table housing the Schedule Analysis panel. Violations grouped by severity
+  (critical → high → medium → low → info); critical and high auto-expand.
+  Each group is independently collapsible.
+  - Active rules listed in a collapsible "Active Rules (N)" section with a
+    "Manage" link to the rules admin page.
+  - Per-violation action buttons: `time_overlap` → Remove from Shift A / B;
+    `blackout_violation`, `pre/post_session_overload` → Remove from Shift;
+    all volunteer violations → View Blackouts.
+  - "Add as Rule" from any AI question/response pair: opens inline edit form,
+    saves new rule, then bulk-reanalyzes all violations in the run with the
+    same `ai_question` string.
+  - Violation count badge in accordion header updates on every render.
+  - `public/js/scheduleViolationsPanel.js` (IIFE, consistent with
+    `conflictGrid.js`).
+  - `public/styles/scheduleViolations.css`.
+- **Conflict Grid context menu** (right-click) on actionable cells:
+  - `SC`: Remove from this shift / Remove from each conflicting shift.
+  - `X/PC`: Remove from Shift + View Volunteer Blackouts.
+  - `SC/PC`: all of the above.
+  - Confirm dialog includes day label (`Friday — "Ingress"`).
+  - Cell data attributes: `data-cg-state`, `data-vol-id`, `data-vol-name`,
+    `data-shift-id`, `data-shift-label`, `data-day-id`, `data-day-label`,
+    `data-start-mins`, `data-end-mins`, `data-sc-shifts` (JSON array of
+    conflicting shifts for SC cells).
+  - `DELETE /api/conflict-grid/assignment` — removes volunteer from all slot
+    assignments on a shift. `createAssignments` permission gated.
+  - New `removeVolunteerFromShift(volunteerId, shiftId)` in `dbSync.js`.
+  - After any action: conflict grid auto-refreshes via `window.cgRefresh()`.
+- **Volunteer Blackout viewer modal** — "View Volunteer Blackouts" in both the
+  context menu and violations panel opens a `modal-lg` Bootstrap modal
+  (`cg-blackout-dialog`, 1340px) mounting the existing `BlackoutTimeline`
+  component in `readOnly: true` mode. No duplicate rendering code.
+  - `public/js/conflictGridBlackoutModal.js` (module) imports `BlackoutTimeline`
+    and exposes `window.showBlackoutModal(volId, volName)` for use by the
+    non-module grid script and violations panel IIFE.
+  - `routes/blackoutRoutes.js` `requireBlackoutAccess` now also permits
+    `createAssignments` so scheduler and conflict grid users can read blackouts.
+  - `public/styles/blackoutTimeline.css` linked in `conflictGrid.ejs`.
+  - `GET /editVolunteer/:id` route added to `oversightRoutes.js` — direct
+    deep-link to a volunteer's edit page without a POST form. Used as a
+    fallback navigation target.
+- **Cross-page navigation links** — quick-access buttons linking related pages:
+  - Conflict Grid title bar → Scheduler.
+  - Crew Assignments bottom nav → Scheduler.
+  - Role Management bottom nav → Scheduler.
+  - Scheduler sidebar header → Conflict Grid, Crew Assignments, Role
+    Management (icon-only buttons with Bootstrap tooltips).
+  - `scheduler-quick-link` CSS class in `scheduler.css`.
+- **Time input standardization** — eight `<input type="text">` fields in
+  `timelines.ejs` changed to `<input type="time">` (dayStart, dayEnd,
+  copyDayStart, copyDayEnd, sessionStart, sessionEnd, shiftStart, shiftEnd).
+  Browser's native AM/PM picker prevents `04:30`/`16:30` ambiguity. Server-side
+  `parseTimeString()` and client-side `validateTimeInput()` / `bindTimeInput()`
+  were already written for `type="time"`; no JS changes needed.
+
+### Changed
+- `getConflictGridData` — shift SC detection now collects full conflicting
+  shift objects (`scShifts[]`) instead of just a count, enabling the context
+  menu to offer targeted "Remove from X" options per conflicting shift.
+- `conflictGrid.js` fetch refactored into `fetchAndRender(silent?)` function;
+  `window.cgRefresh` and `window.cgData` exposed for cross-script coordination.
+- Schedule analysis `POST /api/schedule/analyze` response now includes `rules`
+  (active rules array) so the violations panel rules section persists after
+  a forced re-run.
+- Pre/post session detection uses session min/max minutes from
+  `getConventionDaysWithSessions()` rather than `program_start`/`program_end`
+  DB columns, which are display-only and prone to data-entry errors.
+- AI system prompt for schedule analysis: custom rules moved to the TOP of the
+  prompt as "MANDATORY SCHEDULING RULES" framed as authoritative policy. Rules
+  are stripped from the user-content JSON (no duplication). Each rule is
+  referenced as `Rule N:` so AI-generated suggestions can cite which rule
+  applied.
+- `scheduleViolationsPanel.js` — severity count in the accordion header now
+  uses `v.severity || "info"` fallback, matching the row pill logic, so
+  null-severity violations are counted correctly.
+- `scheduleViolations.css` — `.sv-rules-section`, `.sv-sev-group`,
+  `.sv-sev-group-hdr`, `.sv-sev-group-body`, `.sv-ack-toggle` now carry
+  explicit `background: var(--bs-body-bg)` so rows are visible against
+  non-white page backgrounds.
+- `blackoutRoutes.js` `requireBlackoutAccess` — allows `createAssignments`
+  in addition to `editVolunteerInfo` and self-access.
+- Sitemap: `schedule-rules` entry added (ADMIN, `deleteVolunteer` permission).
+- Oversight Tools page: Schedule Analysis Rules card added (ADMIN only).
+- Header dropdown: Schedule Analysis Rules link in Scheduling section (ADMIN).
+
+---
+
+## [2.67.0] — 2026-06-26
+
+### Added
+- **AI Scheduling Constraints pipeline** — AI-suggested scheduling blackouts
+  from volunteer note analysis and inbound SMS are persisted as trackable,
+  actionable records rather than transient JSON.
+  - `ai_blackout_suggestions` table (both schemas): source tracing
+    (`intake_note` | `inbound_sms` | `overseer`), resolved
+    `convention_day_id` + `start_mins`/`end_mins`, and `applied` flag.
+  - `lib/constraintInterpreter.js` — focused Azure OpenAI call for
+    overseer free-text interpretation. Returns one structured suggestion;
+    does not persist — overseer confirms before saving.
+  - `routes/constraintRoutes.js` — GET pending, POST interpret, POST save,
+    POST apply, DELETE (dismiss unapplied suggestion).
+  - `public/js/schedulerConstraintPanel.js` — floating scheduler panel
+    mirroring `schedulerNotePanel.js`. Shows pending constraint cards with
+    resolved or editable time fields and Apply button that creates the
+    blackout and decrements the pill badge live.
+  - `resolveBlackoutHints()` — maps AI day/time hints to `convention_day_id`
+    + `startMins`/`endMins` using session data.
+  - `clearUnappliedIntakeNoteSuggestions(volunteerId)` — volunteer-scoped
+    clear run before every re-analysis so suggestions never stack.
+  - Auto-resolve: when all `ai_blackout_suggestions` for an inbound SMS are
+    applied, `inbound_sms_messages.resolved = 1` is set automatically and the
+    linked `volunteer_action` is completed.
+
+### Changed
+- `noteAnalysisRoutes.js` — both single and batch analyze routes clear
+  unapplied intake note suggestions by volunteer (not source_id) then
+  persist `suggestedBlackouts` as `ai_blackout_suggestions` rows.
+- `smsWebhookRoute.js` — freeform SMS pipeline persists `suggestedBlackouts`
+  after creating the volunteer action.
+- `getSchedulerVolunteers()` — adds `pending_constraints` correlated subquery;
+  mapper exposes `pending_constraints: number`.
+- `schedulerDomActions.js` — name pills render `pill-constraint-badge` when
+  `pending_constraints > 0`.
+- `schedulerContextMenu.js` — context menu shows "Scheduling Constraints (N)"
+  item when `pending_constraints > 0`; opens `schedulerConstraintPanel`. Escape
+  handler includes `closeConstraintPanel()`.
+- `applyBlackoutSuggestion()` in `dbSync.js` — after marking a suggestion
+  applied, checks whether all suggestions for the source SMS are now applied
+  and auto-resolves if so.
+
+---
+
+## [2.66.0] — 2026-06-26
+
+### Added
+- **Inbound SMS routing** — freeform volunteer replies are routed through an
+  AI analysis pipeline rather than silently dropped.
+  - Decision tree: unknown callers receive a name-request reply + overseer
+    alert; check-in codes (≤8 chars) flow through existing logic with a
+    length guard preventing TDS NVarChar overflow; freeform text triggers the
+    async AI pipeline post-TwiML response.
+  - `lib/smsInboundAnalyzer.js` — Azure OpenAI (GPT-4o) prompt returning
+    category, summary, action items, and `suggestedBlackouts` array.
+  - `inbound_sms_messages` table (both schemas): raw body, AI analysis
+    fields, `resolved BIT`.
+  - `getOverseerContacts()`, `getSystemActorId()`, `logInboundSmsMessage()`,
+    `appendVolunteerNote()`, `getUnresolvedInboundSms()`,
+    `getResolvedInboundSms()`, `resolveInboundSmsMessage()` added to
+    `dbSync.js`.
+  - Freeform pipeline: analyze → log to `inbound_sms_messages` → create
+    `volunteer_action (source_type='inbound_sms')` → notify overseers via
+    SMS + email.
+- **Notes Report redesign** — intake notes and inbound SMS treated uniformly.
+  - Actionable tab shows both `intake_note` and `inbound_sms` actions
+    (`includeAllSources: true`).
+  - Archived tab (formerly Dismissed) shows dismissed intake notes + resolved
+    SMS messages in two labeled sections.
+  - SMS detail modal: From, Received, Message body, AI analysis, Mark
+    Resolved button.
+  - `GET /api/notes-report/sms-messages` — unresolved inbound SMS.
+  - `GET /api/notes-report/sms-messages/resolved` — resolved SMS for archive.
+  - `POST /api/notes-report/sms-messages/:id/resolve`.
+  - `getVolunteerActions()` accepts `includeAllSources` flag; when true,
+    includes `inbound_sms` source actions and LEFT JOINs
+    `inbound_sms_messages` for the notes context column.
+
+---
 
 ## [2.65.0] — 2026-06-25
 

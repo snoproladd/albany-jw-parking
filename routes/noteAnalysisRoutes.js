@@ -146,7 +146,7 @@ export function noteAnalysisRouter({ csrfProtection, logError }) {
               volunteer.notes,
             );
 
-            await db.insertNoteAnalysis({
+            const analysisId = await db.insertNoteAnalysis({
               volunteerId: volunteer.id,
               noteTextSnapshot: volunteer.notes,
               noteHash: volunteer.current_hash,
@@ -162,6 +162,31 @@ export function noteAnalysisRouter({ csrfProtection, logError }) {
               rawResponse: result.rawResponse,
               error: result.error,
             });
+
+            // Persist AI-suggested blackouts as pending scheduling constraints.
+            if (Array.isArray(result.suggestedBlackouts) && result.suggestedBlackouts.length > 0) {
+              const year = new Date().getFullYear();
+              await db.clearUnappliedIntakeNoteSuggestions(volunteerId);
+              for (const b of result.suggestedBlackouts) {
+                try {
+                  const resolved = await db.resolveBlackoutHints(b.dayHint, b.timeHint, b.type, year);
+                  await db.createAiBlackoutSuggestion({
+                    volunteerId:     volunteer.id,
+                    sourceType:      "intake_note",
+                    sourceId:        analysisId,
+                    blackoutType:    b.type        || "Custom",
+                    description:     b.description || "",
+                    dayHint:         b.dayHint     || null,
+                    timeHint:        b.timeHint    || null,
+                    conventionDayId: resolved.conventionDayId,
+                    startMins:       resolved.startMins,
+                    endMins:         resolved.endMins,
+                  });
+                } catch (sugErr) {
+                  logError(`createAiBlackoutSuggestion (batch, vol ${volunteer.id}):`, sugErr);
+                }
+              }
+            }
 
             analyzed++;
           } catch (err) {
@@ -260,7 +285,34 @@ export function noteAnalysisRouter({ csrfProtection, logError }) {
           error: result.error,
         });
 
-        const saved = await db.getVolunteerNoteAnalysis(volunteerId);
+        const saved     = await db.getVolunteerNoteAnalysis(volunteerId);
+        const analysisId = saved?.id;
+
+        // Persist AI-suggested blackouts as pending scheduling constraints.
+        if (analysisId && Array.isArray(result.suggestedBlackouts) && result.suggestedBlackouts.length > 0) {
+          const year = new Date().getFullYear();
+          await db.clearUnappliedIntakeNoteSuggestions(volunteerId);
+          for (const b of result.suggestedBlackouts) {
+            try {
+              const resolved = await db.resolveBlackoutHints(b.dayHint, b.timeHint, b.type, year);
+              await db.createAiBlackoutSuggestion({
+                volunteerId,
+                sourceType:      "intake_note",
+                sourceId:        analysisId,
+                blackoutType:    b.type        || "Custom",
+                description:     b.description || "",
+                dayHint:         b.dayHint     || null,
+                timeHint:        b.timeHint    || null,
+                conventionDayId: resolved.conventionDayId,
+                startMins:       resolved.startMins,
+                endMins:         resolved.endMins,
+              });
+            } catch (sugErr) {
+              logError("createAiBlackoutSuggestion (single analyze):", sugErr);
+            }
+          }
+        }
+
         return res.json({
           success: true,
           data: { ...saved, isStale: false, cached: false },

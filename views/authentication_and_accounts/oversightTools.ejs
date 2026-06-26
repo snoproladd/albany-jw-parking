@@ -540,6 +540,21 @@
                   </div>
                 <% } %>
 
+                <% if (can('deleteVolunteer')) { %>
+                  <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="admin-tool-card h-100">
+                      <div class="admin-tool-icon text-primary">
+                        <i class="fa-solid fa-list-check"></i>
+                      </div>
+                      <h3 class="admin-tool-title">Schedule Analysis Rules</h3>
+                      <p class="admin-tool-desc">Manage the standing policy rules injected into the AI schedule analysis. Rules influence how violations are assessed and suggested for resolution.</p>
+                      <a href="/oversight/tools/schedule-rules" class="btn btn-primary admin-tool-btn">
+                        Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                      </a>
+                    </div>
+                  </div>
+                <% } %>
+
                 <% if (can('createAssignments')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">

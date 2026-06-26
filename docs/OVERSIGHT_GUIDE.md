@@ -19,9 +19,12 @@ send invitations, track RSVPs, log attendance, and administer the platform.
 2. [My Account](#2-my-account)
 3. [Volunteer Management](#3-volunteer-management)
    - [Notes Report](#notes-report-overseer)
+   - [Inbound SMS Messages](#inbound-sms-messages-overseer)
    - [SMS Management](#sms-management-assistant_admin)
 4. [Communications](#4-communications)
 5. [Scheduling](#5-scheduling)
+   - [Schedule Analysis](#schedule-analysis-overseer)
+   - [Schedule Analysis Rules](#schedule-analysis-rules-admin)
 6. [Attendance](#6-attendance)
 7. [Reports](#7-reports)
 8. [Decently Sync](#8-decently-sync)
@@ -258,14 +261,6 @@ own per-pill count and the badges would overlap the radial layout.
 
 ##### Markers
 
-- **Status chips** — All / Planned / Installed / Removed (derived from
-  each location's attachments — a location with any installed attachment
-  shows as "installed")
-- **Sign template** — dropdown to see only locations that have a specific
-  template attached
-
-##### Markers
-
 Each marker renders the attached signs as a vertical stack of sign-preview
 blocks (sign text + arrow direction), with status indicated by the border
 color of each sign in the stack:
@@ -393,222 +388,6 @@ A slide-out **Legend** panel sits on the left edge of the map (click
 the grip tab to open/close). It shows sign type icons (colored pills),
 status dot colors, mount type icons, and a keyboard shortcut reference.
 
-##### Geofencing — proximity tracking *(OVERSEER+)*
-
-The floating GPS button in the bottom-right of the map toggles continuous
-location tracking. When active:
-
-- A **blue pulsing dot** shows your live position on the map.
-- When you come within **~250 feet** of a sign location, a **proximity bar**
-  slides up showing the location's signs, live distance in feet, a photo
-  thumbnail (tap to expand), and one-tap **Planned / Installed / Removed**
-  status buttons that update all attachments at once.
-- The **× dismiss button** hides the bar for that location until you leave
-  and re-enter its radius or a different location becomes nearest.
-- Tap the GPS button again to **stop tracking**.
-
-Geofencing requires the browser's geolocation permission.
-
-##### Coming soon
-
-- **Route visualization** — directed bearings per sign, road-traced
-  paths between traffic arrows and sign locations.
-
-**Marker detail levels** (shipped):
-
-- **Zoomed out (below zoom 19):** compact 32px colored discs showing a
-  mount-type icon (cone, a-frame, or telephone pole) with a count badge
-  (45° NE) and placement ID badge (135° SE). Hovering a compact marker
-  for 250 ms expands it to the full sign stack (desktop only); moving
-  away collapses it after 150 ms. Status or custom color determines the
-  disc background.
-- **Zoomed in (zoom 19+):** full sign-preview blocks with text, arrow,
-  and a mount-type label below the stack.
-
-The zoom threshold defaults to 19 and is adjustable via the control pill
-at the bottom-left of the map (shows current zoom level and a Detail ≥
-input). The preference persists across sessions.
-
-**Marker colors:** by default, markers are colored by status (gray =
-planned, green = installed, faded red = removed). OVERSEER+ users can
-assign a custom color from a palette of eight (red, orange, yellow,
-green, teal, blue, purple, pink) via the offcanvas editor. A "Bulk
-apply" button sets the chosen color on every placement of the same
-template in one click.
-
-**Layout:** sidebar on the left with a "Filter placements" section and
-the placement list; Google Maps on the right. The map starts centered
-on MVP Arena at street-level zoom.
-
-##### Adding a placement *(OVERSEER+)*
-
-1. Click **Add placement** in the sidebar.
-2. The cursor turns into a crosshair and a hint appears: "Click anywhere
-   on the map to drop a placement."
-3. Click the spot on the map where the sign should go.
-4. A blue dashed **NEW** marker appears and the editor slides in from
-   the right.
-5. Pick the sign template from the dropdown, set the arrow direction
-   (pre-filled from the template's default but overridable), status,
-   mount type (Cone / A-frame / Existing structure), heading, and
-   location notes, then click **Save**.
-
-You can fine-tune the location at any point during this process by
-dragging the blue **NEW** marker around on the map — the lat/lng in the
-editor updates automatically.
-
-##### Editing an existing placement *(OVERSEER+)*
-
-- **Click any marker** on the map (or any row in the sidebar list) to
-  open the editor offcanvas.
-- Edit any field: arrow direction, status (planned/installed/removed),
-  mount type, heading, location notes.
-- **Photo section:** two buttons — **Take Photo** (opens the device
-  camera directly on mobile) and **Upload** (opens the gallery or file
-  picker). When a photo already exists, **Retake** and **Replace**
-  appear alongside **Remove**.
-- **Shift+drag a marker** to a new spot on the map — hold Shift first,
-  then drag. The new coordinates are saved automatically when you let go.
-  If the server rejects the change (for any reason), the marker snaps back
-  to its original spot. A plain drag without Shift pans the map instead
-  of moving the sign — this is intentional to prevent accidental repositioning.
-- **Delete** removes only the placement; the sign template itself remains.
-
-Status changes auto-sync the installation audit trail — marking a placement
-as "installed" stamps your email and the timestamp; marking it "removed"
-records the removal timestamp; reverting to "planned" clears both.
-
-##### View-only mode
-
-REGISTERED and KEYMAN users can open the page and see all placements, but:
-
-- The "Add placement" button is hidden.
-- Markers are not draggable.
-- The editor shows the same fields but no Save or Delete buttons.
-
-##### Direction of travel handle *(OVERSEER+)*
-
-Every full marker (zoomed in at or above the detail threshold) shows a
-direction-of-travel arrow extending from its center. The arrow points in
-the direction drivers travel *toward* the sign — not the direction the sign
-faces, and not the direction the camera should look. From this one value the
-app automatically positions Street View behind the sign and points the
-camera forward.
-
-- **Shift+drag the handle** to set the bearing — hold Shift first, then
-  drag. The arrow rotates live as you drag; the value is saved automatically
-  when you release. A plain drag without Shift does nothing, preventing
-  accidental bearing changes. You can also type a bearing directly into
-  the **Direction of travel** field in the offcanvas editor.
-- **Unset state:** the arrow appears dashed and semi-transparent to signal
-  that no direction has been recorded yet.
-- **View-only users** can see the arrow when a direction is set but cannot
-  drag it.
-- The handle is only visible on full markers (zoomed in). Compact disc
-  markers (zoomed out) do not show the arrow.
-
-##### Street View
-
-Street View is available on both **locations** and **traffic arrows**.
-Open it from the single-click info sheet ("Street View" button), the
-right-click context menu, or — for locations — from the editor's action
-buttons.
-
-The overlay is full-screen and covers the map. The header bar shows the
-sign names (or arrow label), a bearing badge when a bearing is available,
-the appropriate save button (OVERSEER+ only), and a × close button.
-
-**From a location:** when a direction of travel (front bearing) is set,
-the camera is automatically positioned **~20 m behind the sign** along
-the approach path and pointed forward — so you see the sign the way a
-driver approaching it would. When no bearing is set, the panorama opens
-at the location's coordinates facing north with a hint to rotate
-manually. If a previous Street View position was saved (via "Save as
-Photo"), the panorama restores to that exact frame instead.
-
-**From a traffic arrow:** the camera uses the **arrow's own bearing**
-for the approach direction, targeting the linked location's coordinates
-(or the arrow's own coordinates if it has no links). This means
-different arrows pointing to the same location produce different
-approach views. If a previous view was saved (via "Save View"), the
-panorama restores to that exact frame instead.
-
-**Save as Photo** *(locations only, OVERSEER+):* navigate the panorama
-to the vantage point you want — the auto-calculated position may land
-across the street or at a bad angle depending on where Google's coverage
-was captured, so use the navigation controls to walk to a better spot if
-needed. When the view is right, click **Save as Photo**. The server
-fetches a matching static image from the Google Street View Static API
-and stores it as the location's photo. The panorama position is also
-saved — the next time Street View is opened for this location it
-reopens at the exact frame and camera angle rather than recalculating
-from the bearing.
-
-**Save View** *(arrows only, OVERSEER+):* persists the current panorama
-position (pano ID, heading, pitch, zoom) on the arrow without capturing
-a photo. The next time anyone opens Street View from this arrow it
-restores to the saved view instead of computing an approach position
-from the arrow's bearing.
-
-If no Street View imagery is available, a footer bar appears with an
-**Open in Google Maps** link as a fallback.
-
-**Keyboard:** Escape closes the Street View overlay. A second Escape
-deselects the map marker.
-
-##### Placement Composer *(OVERSEER+)*
-
-Click **Compose photo** in the offcanvas editor to open the placement
-composer — a full-screen overlay for creating a realistic mockup of
-what the sign will look like when installed. The composer lets you pick
-a background, position and resize the sign overlay on top of it, then
-save the result as the placement's photo.
-
-**Choosing a background:** two options in the toolbar:
-
-- **Upload image** — use your own photo (e.g. a picture of the
-  location taken from your phone).
-- **Existing photo** — loads the placement's current photo as the
-  background. Only appears when the placement already has a photo.
-  Useful for compositing the sign onto a real field photo you already
-  captured via Take Photo or Save as Photo.
-
-To use a Street View snapshot as the composer background, first save
-it as the placement's photo using the **Save as Photo** button in the
-Street View overlay, then open the composer and click **Existing photo**.
-
-**Positioning the sign:** once a background is loaded, the sign preview
-appears on the canvas. Drag it to the correct position. Use the corner
-handles to resize. The mount type selector in the toolbar (Cone /
-A-frame / Sign only) changes the frame drawn around the sign.
-
-**Saving:** click **Save as photo** to flatten the composite into a
-JPEG and store it as the placement's photo. If the placement already
-has a photo, it is replaced.
-
-##### Hover tooltip
-
-Hover over any marker to see a tooltip showing the sign text and arrow,
-a status badge, mount type, location notes, coordinates, and a photo
-thumbnail if one has been uploaded. Moving the cursor onto the tooltip
-keeps it open so you can read long notes.
-
-##### Right-click context menu
-
-Right-clicking any marker opens a quick-action menu:
-
-- **Edit** — opens the offcanvas editor.
-- **View photo** — opens the full-size photo in a lightbox overlay (only
-  appears when a photo exists).
-- **Mark as Planned / Installed / Removed** — changes status without
-  opening the editor. The current status is omitted from the list.
-  OVERSEER+ only.
-- **Get directions** — opens Google Maps in a new tab routed to the
-  placement coordinates.
-- **Copy coordinates** — copies `lat, lng` to the clipboard.
-- **Delete placement** — triggers the standard delete confirmation.
-  OVERSEER+ only.
-
 ##### Geofencing — proximity tracking *(manageSigns)*
 
 The floating GPS button in the bottom-right corner of the map toggles
@@ -618,88 +397,18 @@ continuous location tracking. When active:
 - The map **auto-follows** your position. Panning or zooming manually
   pauses auto-follow for 5 seconds, then it resumes.
 - When you come within **75 metres** of a placement, a **proximity bar**
-  slides up from the bottom of the screen showing:
-  - The sign preview (text + arrow direction).
-  - Your current distance, updating in real time.
-  - A photo thumbnail if the placement has one (tap to expand, tap the
-    chevron to collapse).
-  - Three status buttons — **Planned**, **Installed**, **Removed** —
-    for one-tap status changes without opening the editor.
+  slides up from the bottom of the screen showing the sign preview,
+  your current distance, a photo thumbnail, and one-tap status buttons.
 - The **× dismiss button** hides the bar for that placement until you
-  leave and re-enter its radius, or until a different placement becomes
-  nearest. Dismissed placements are remembered for the duration of the
-  tracking session.
-- Tap the GPS button again to **stop tracking**. The blue dot and
-  proximity bar are removed, and all dismiss history is cleared.
+  leave and re-enter its radius.
+- Tap the GPS button again to **stop tracking**.
 
-Geofencing requires the browser's geolocation permission. On first
-activation you may see a browser prompt — allow it so the GPS can track
-your position. If permission is denied, tracking stops automatically.
-
-Dismiss the menu by clicking anywhere outside it or pressing Escape.
-
-##### Legend & Shortcuts
-
-A collapsible **Legend & Shortcuts** section sits at the bottom of the
-left sidebar (collapsed by default — click the chevron to expand).
-It shows sign type icons (colored pills matching the map markers),
-status dot colors, and a keyboard shortcut reference card.
-
-Key shortcuts (OVERSEER+, desktop):
-
-| Action | Gesture |
-|---|---|
-| Nudge selected marker 0.5 m | Arrow keys |
-| Nudge selected marker 5 m | Shift + Arrow keys |
-| Move marker on map | Shift + drag marker |
-| Rotate direction of travel | Shift + drag handle |
-| Deselect / close overlay | Esc |
-| Context menu | Right-click marker |
-
-##### Using the Sign Map on a phone or tablet
-
-The Sign Map is fully usable on mobile. A few differences from desktop:
-
-- **Tap a marker** (or tap a row in the placement list) to open the
-  **info sheet** — a card that slides up from the bottom of the screen
-  with the sign details and action buttons. Swipe the card down to close
-  it, or tap the backdrop behind it.
-- **Drag-to-reposition is not available on touch.** To move a sign, tap
-  the marker, tap **Edit placement** in the info sheet, then use the
-  **Update to my location** GPS button (if you're standing at the new
-  spot) or type the new coordinates directly into the Latitude / Longitude
-  fields, then tap **Save**.
-- **The direction-of-travel handle** is not shown on touch devices — set
-  the bearing by typing a value into the **Direction of travel** field in
-  the editor instead.
-- **Filters** are collapsed by default on small screens. Tap the
-  **Filters** button in the sidebar header to expand them.
-
-##### "Use my location" GPS button
-
-A crosshairs button (📍) sits next to **Add placement** in the sidebar.
-Tapping it requests your device's GPS location and drops a new placement
-marker at that spot — no need to tap the map. The editor opens automatically.
-
-In the editor for an existing placement, an **Update to my location**
-button appears below the coordinate fields. Tapping it moves the marker
-to your current GPS position and updates the lat/lng inputs. Nothing is
-saved until you tap **Save**.
-
-After a GPS fix, an accuracy hint appears below the coordinates for a few
-seconds (e.g. `GPS fix: ±8 m (Good)`). GPS accuracy inside parking
-structures or near tall buildings can be poor — check the reading before
-saving if precision matters.
-
-If location permission is denied, check your browser or device settings
-and try again.
+Geofencing requires the browser's geolocation permission.
 
 ##### Coming soon
 
-- **Live proximity alerts** — when the page is open on a phone, get an
-  in-app ping when you drive within ~50m of a placement (Phase 4,
-  web-only — true background geofencing requires the eventual native
-  mobile app).
+- **Route visualization** — directed bearings per sign, road-traced
+  paths between traffic arrows and sign locations.
 
 ---
 
@@ -715,9 +424,10 @@ From here you can update your:
 - **Additional notes** — anything else the parking team should know
 - **Password** — via the Change Password panel inside the Contact section
 - **My Availability** — define blackout windows (times you are unavailable)
-  for each convention day. Select a day, enter a start and end time, add an
-  optional reason, and click Add. The scheduler will avoid placing you in
-  overlapping shifts. You can delete any blackout you have created.
+  for each convention day. The interactive timeline shows all three convention
+  days simultaneously. Drag handles to set a window, snap to session boundaries,
+  and add an optional reason. The scheduler will avoid placing you in overlapping
+  shifts.
 
 You can also view your **Convention Invitations** — a read-only panel showing
 all invitations sent to you for the current convention year, including your
@@ -736,6 +446,7 @@ Click **Finalize Changes** after editing to save all sections at once.
 
 Surfaces the free-text intake notes volunteers submit during registration and
 provides a structured workflow for acknowledging, actioning, and resolving them.
+Inbound SMS messages from volunteers are also surfaced here.
 
 **Four tabs:**
 
@@ -743,23 +454,25 @@ provides a structured workflow for acknowledging, actioning, and resolving them.
 open the detail modal. Opening a note records your read (per-overseer — each
 overseer's first click is logged independently; re-reading updates the timestamp).
 The modal shows the full note text, a read-by chip list, linked action items, and
-a Dismiss button (visible when there are no active action items).
+a Dismiss button (visible when there are no active action items). Inbound SMS
+messages also appear on this tab as separate cards when they arrive.
 
-**Actionable** — action items created from notes, filtered to incomplete items
-only. Each card shows the volunteer name, note preview, and a status badge:
-*Needs review* (null), *Solution found* (true), or *No solution* (false).
-Completed items automatically drop off this tab. Click a card to open the action
-detail modal where you can set the solution state, enter a solution description,
+**Actionable** — action items from both intake notes and inbound SMS messages,
+filtered to incomplete items only. Each card shows the volunteer name, note preview,
+and a status badge: *Needs review* (null), *Solution found* (true), or *No solution*
+(false). Completed items automatically drop off this tab. Click a card to open the
+action detail modal where you can set the solution state, enter a solution description,
 and mark it complete.
 
 **Solutions Summary** — all action items where a solution has been identified,
 grouped by completion state. Filter between All, Pending, and Completed. Mark
 actions complete here via the action detail modal.
 
-**Dismissed bin** — notes dismissed by the team. Dismissal is team-level (one
-overseer dismissing removes the note for everyone). A note can only be dismissed
-when it has no active action items. Each card shows who dismissed it and when.
-Click **Restore** to return the note to All Notes.
+**Archived** — two sections: dismissed intake notes and resolved inbound SMS messages.
+Dismissal is team-level (one overseer dismissing removes the note for everyone). A
+note can only be dismissed when it has no active action items. Each dismissed card
+shows who dismissed it and when — click **Restore** to return it to All Notes.
+Resolved SMS messages appear in the lower section with their AI category badge.
 
 **Creating an action item:**
 Open a note from All Notes, then click **Create Action Item**. The action detail
@@ -776,6 +489,36 @@ volunteer has an active, non-dismissed intake note. Right-click any such pill an
 choose **View Note** to open a floating note panel without leaving the Scheduler.
 The panel shows the note text, read-by list, action item statuses, a Create Action
 button, and a link to the full Notes Report.
+
+---
+
+### Inbound SMS Messages *(OVERSEER+)*
+
+When a volunteer sends a freeform reply to a Twilio SMS (anything other than
+a standard check-in code), the message is automatically analyzed by AI and
+routed to the Notes Report for oversight review.
+
+**What happens:**
+1. The AI summarizes the message, assigns a category (scheduling concern,
+   availability, general inquiry, etc.), extracts action items, and suggests
+   scheduling blackouts when relevant.
+2. A **volunteer action** is created and appears in the **Actionable** tab.
+3. Overseers receive an SMS + email notification.
+
+**Resolving an SMS message:**
+- Open the message card from **All Notes** to see the raw text, AI summary,
+  category, and action items.
+- If the AI suggested blackout windows, use the **Scheduling Constraints**
+  panel in the Scheduler to review and apply them.
+- When all suggested actions are applied the message is **auto-resolved** and
+  moves to the Archived tab. You can also manually mark it resolved using the
+  **Resolve** button in the detail modal.
+
+> **Note:** SMS replies that match a shift check-in code (≤8 characters)
+> continue to be processed by the existing check-in pipeline and are not
+> surfaced in the Notes Report.
+
+---
 
 ### Edit Volunteer *(OVERSEER+)*
 
@@ -1043,15 +786,13 @@ Expand a session to manage its shifts. Each shift has:
   dedicated "Meetings" column in the Scheduler, and use the `MT` SMS code prefix.
   Toggling this on hides the department selector and the KM/KA toggles.
 - **Label** — display name for the shift
-- **Start / End time**
+- **Start / End time** — use the native time picker (AM/PM) to avoid ambiguity
 - **Scheduler Dept** — which crew column the shift occupies in the Scheduler grid.
   Hidden when the Parking Meeting toggle is on.
 - **Keyman / KM Asst toggles** — control whether a Keyman (KM) and/or Keyman
   Assistant (KA) drop zone appear in the Scheduler for this shift. Both default to
   on. KA requires KM — disabling Keyman automatically disables KM Asst. Hidden for
-  meeting shifts. These slots count toward the shift's total headcount: a shift with
-  Min=4 / Target=6 / Max=8 and both leadership slots enabled will show 1 KM + 1 KA +
-  2 required + 2 ideal + 2 extra volunteer drop zones (total 8).
+  meeting shifts.
 - **Volunteer need** — how many volunteers are required
 - **Schedule Assignments** — locations attached to this shift, each with
   **Min**, **Target**, and **Max** volunteer counts. These drive slot
@@ -1126,20 +867,9 @@ Rendezvous details are automatically appended to T-15 shift alert messages.
 When a photo exists, the SMS also includes a link to a lightweight detail page
 that shows the full info and photo without requiring login.
 
-- **Rendezvous points (2.55.0):** one optional meeting point per schedule assignment
-  (shift + location). Managed via a shared floating panel (`rendezvous.js`) accessible
-  from three surfaces: the Rendezvous landing page (`/oversight/tools/rendezvous`),
-  right-click on shift block headers in the Scheduler, and the map-pin button on
-  assignment badges in Timelines. GPS capture via `navigator.geolocation`, photo upload
-  via multer → sharp → Azure Blob (`rv-{saId}-{ts}.jpg`). Time guard logic mirrors
-  `alertScheduler.js` EDT offset: free editing >15 min before start, warn+alert within
-  ±15 min of start (sends ad-hoc SMS to assigned volunteers), hard lock >15 min after
-  start. T-15 SMS alerts LEFT JOIN rendezvous data and append inline text
-  (description/floor/address) plus a link to the public HMAC-gated detail page when a
-  photo exists. Permission key: `editRendezvous` (KEYMAN+ edit, OVERSEER+ create/delete).
-  RV data is preloaded per day in the scheduler via `preloadRendezvousForDay()` on the
-  `scheduler:dayChange` event.
-- **Volunteer Schedule Report (2.54.0):**
+---
+
+### Scheduler *(OVERSEER+)*
 
 **Path:** Operations → Scheduler
 
@@ -1264,7 +994,17 @@ Right-clicking any volunteer name pill opens a context-sensitive menu.
   The panel stays open until you click × or press Escape.
 - **Highlight on Grid** — pulses a gold outline on every shift block the
   volunteer currently occupies so you can spot them at a glance.
-- **Copy Name** — copies the volunteer’s display name to the clipboard.
+- **Copy Name** — copies the volunteer's display name to the clipboard.
+- **Scheduling Constraints (N)** — appears when the volunteer has AI-suggested
+  scheduling blackouts pending oversight review (sourced from note analysis or
+  an inbound SMS). Opens a floating constraints panel showing each pending
+  suggestion with its resolved day, start, and end time. For each suggestion you
+  can edit the time fields, click **Apply Blackout** to create the blackout and
+  dismiss the suggestion, or click **×** to dismiss it without applying. An
+  **Interpret** form at the bottom lets you type free text (e.g. "can't do
+  Saturday morning") and have the AI convert it to a structured blackout
+  suggestion for review. Applying all suggestions for an SMS message
+  automatically marks that message resolved in the Notes Report.
 - **Manage Blackouts** — opens a panel showing this volunteer's unavailable
   time windows for the current day. Requires a convention day to be selected
   (the item is disabled with a tooltip otherwise). The add form offers five
@@ -1286,6 +1026,14 @@ Right-clicking any volunteer name pill opens a context-sensitive menu.
   the conflict tracker when a day is selected — the scheduler will warn before
   placing the volunteer into an overlapping slot.
 - **Message Volunteer** — not yet active (shown with a "soon" badge).
+
+#### Quick navigation
+
+The scheduler sidebar header includes three icon buttons for fast navigation
+between related pages: **Conflict Grid**, **Crew Assignments**, and **Role
+Management**. Hover any button to see a tooltip.
+
+---
 
 ### Pool pill behaviour
 
@@ -1342,7 +1090,7 @@ days are loaded.
 The yellow day banner contains a **Columns:** row with one colored pill per
 department:
 
-- **Click** a pill to hide that department’s columns. The grid collapses those
+- **Click** a pill to hide that department's columns. The grid collapses those
   columns immediately. Click the pill again (it shows a ⦸ symbol when hidden)
   to restore them.
 - **Drag** a pill onto another to swap their column order. Hold and move more
@@ -1457,6 +1205,108 @@ each shift in Timelines.
 
 ---
 
+### Schedule Analysis *(OVERSEER+)*
+
+The **Schedule Analysis** accordion at the top of the Master Conflict Grid page
+runs a two-layer detection pipeline: a deterministic rule engine that flags
+known conflict types, followed by an AI layer (GPT-4o) that assesses severity,
+confidence, and suggests resolutions for each violation.
+
+#### Running an analysis
+
+Click **Run Analysis** in the accordion header. The analysis runs in the
+background and the accordion auto-expands when complete. If the schedule hasn't
+changed since the last run, the cached result is returned immediately.
+
+#### Violation types
+
+| Type | Description |
+|---|---|
+| **Time Overlap** | Two assigned shifts overlap on the same day |
+| **Blackout Violation** | Assigned shift overlaps the volunteer's blackout window |
+| **Pre-Session Overload** | 2+ pre-session shifts for one volunteer on one day |
+| **Post-Session Overload** | 2+ post-session shifts (Security excluded) |
+| **Understaffed Slot** | Slot assigned count falls below `vol_min` |
+| **AI Observation** | Patterns identified by AI not covered by the rules above |
+
+#### Severity and confidence
+
+- **Severity** — `critical`, `high`, `medium`, `low`, or `info`, assessed by AI.
+- **Confidence** — 0–100% indicating how certain the AI is the violation is a
+  real problem given context. A 5-minute adjacent shift overlap might score 25%;
+  a 2-hour double-booking scores 95%.
+
+Rule-engine violations (time overlap, blackout, etc.) have no confidence score —
+they are definite facts. AI-generated observations carry a confidence score.
+
+#### Interacting with violations
+
+Violations are grouped by severity with Critical and High expanded by default.
+Click any violation header to expand and see:
+
+- **Description** — plain-English explanation of the conflict.
+- **AI suggestion** — a specific proposed resolution, citing which rule applied
+  if relevant.
+- **AI question** — if context is ambiguous the AI asks a clarifying question.
+  Type your response and click **Re-analyze** to get an updated suggestion.
+- **Remove from Shift** buttons (for time overlap and blackout violations) —
+  removes the volunteer from the named shift directly from the panel and
+  refreshes the grid.
+- **View Blackouts** — opens the read-only blackout timeline for the volunteer.
+- **Acknowledge** — marks the violation as reviewed and moves it to the
+  collapsed "N acknowledged" section at the bottom.
+
+#### Add as Rule
+
+When you answer an AI question, an **Add as Rule** button appears. Clicking it:
+1. Opens an editable text field pre-filled with your response formatted as a rule.
+2. On save, creates a new Schedule Analysis Rule.
+3. Automatically re-analyzes all other violations in the current run that share
+   the same AI question, applying the new rule immediately.
+
+#### Active Rules
+
+The rules the AI used for this analysis are shown in a collapsible
+**Active Rules (N)** section at the top of the accordion. Click **Manage**
+to open the Schedule Analysis Rules admin page.
+
+---
+
+### Schedule Analysis Rules *(ADMIN)*
+
+**Path:** Operations → Schedule Analysis Rules, or `/oversight/tools/schedule-rules`
+
+Admin-managed standing policy rules that are injected into the AI system prompt
+on every Schedule Analysis run. The AI treats these as authoritative policy when
+assessing violations — they directly influence severity ratings and suggestions.
+
+**Example rules:**
+- *"A volunteer may only be assigned one pre-session shift per day unless they
+  specifically requested otherwise."*
+- *"Security volunteers working session-time shifts are exempt from daily
+  shift-load concerns."*
+- *"Saturday afternoon is highest-priority staffing — understaffed slots here
+  should be marked critical."*
+
+#### Managing rules
+
+- **Add** — type a rule in the text box at the bottom and click **Add Rule**.
+  Rules take effect on the next analysis run.
+- **Edit** — click the pencil icon on any rule to edit it inline. Click **Save**
+  to confirm or **Cancel** to discard.
+- **Toggle** — click the toggle icon to activate or deactivate a rule without
+  deleting it. Inactive rules are shown struck through and are excluded from
+  the AI prompt.
+- **Reorder** — use the up/down chevron buttons to change the order rules
+  appear in the AI prompt. Order matters — earlier rules take precedence when
+  the AI weighs conflicting guidance.
+- **Delete** — click the trash icon and confirm. Deletion is permanent.
+
+> Rules are also accessible from the Scheduling section of the **Operations**
+> header dropdown and from the **Active Rules** section in the analysis accordion.
+
+---
+
 ## 6. Attendance
 
 ### Check-In Tool *(KEYMAN+)*
@@ -1536,6 +1386,36 @@ Toggle switches above the grid control visibility:
 Hover over any column to see it highlighted as a translucent band. Day
 boundary dividers and pastel background tints help visually separate the
 three convention days.
+
+#### Right-click context menu
+
+Right-clicking any actionable cell opens a context menu with targeted actions.
+Plain **X** cells (clean assignment, no conflicts) do not show a context menu.
+
+- **SC cells** (shift conflict) — shows a "Remove from" option for each
+  conflicting shift by name and day, so you can pick exactly which assignment
+  to remove. Example: *Remove Jacob Ladd from Friday — "Lot A Ingress"*.
+- **X/PC cells** (assigned during blackout) — shows "Remove from Shift" and
+  "View Volunteer Blackouts".
+- **SC/PC cells** — shows both sets of options above.
+
+All removals prompt a confirmation dialog before executing. After confirmation
+the grid refreshes automatically to reflect the change.
+
+**View Volunteer Blackouts** opens an interactive read-only availability modal
+showing the volunteer's blackout windows for all convention days on the existing
+timeline visualization. No navigation away from the page is needed.
+
+#### Schedule Analysis accordion
+
+Above the conflict grid, a collapsible **Schedule Analysis** accordion
+summarizes the AI-powered violation analysis for the current schedule.
+See [Schedule Analysis](#schedule-analysis-overseer) for full details.
+
+#### Quick navigation
+
+The title bar includes a **→ Scheduler** button for fast navigation between
+the conflict grid and the drag-and-drop scheduler.
 
 ---
 
@@ -1620,7 +1500,7 @@ mobile. The tree is visible to all authenticated users regardless of role.
 | **KEYMAN** | View volunteer info; log and view attendance; view Sign Library and Sign Map |
 | **OVERSEER** | Edit volunteers; manage shifts and locations; send messages; create campaigns; create and edit sign templates; manage sign locations and attachments on the Sign Map; toggle schedule sensitivity and manage access grants |
 | **ASSISTANT_ADMIN** | All OVERSEER capabilities + role management + delete volunteers + access admin console + grant delegated permissions to volunteers + create and edit Scheduler Categories |
-| **ADMIN** | Full access including Permission Matrix, Decently Sync, campaign management, and granting delegated permissions |
+| **ADMIN** | Full access including Permission Matrix, Decently Sync, campaign management, granting delegated permissions, and managing Schedule Analysis Rules |
 
 Roles are assigned in **Role Management** (ASSISTANT_ADMIN+). The first ADMIN
 must be set directly in the database.
@@ -1657,6 +1537,12 @@ a volunteer who is already scheduled does not un-assign them — it only prevent
 future drops into overlapping slots. Existing assignments will gain a `⚠`
 conflict badge so you can review them.
 
+**Re-running analysis after schedule changes:** the analysis caches results by
+schedule hash. If you add or remove assignments or blackouts, the next Run
+Analysis call detects the change and runs fresh. The "unchanged" indicator in
+the accordion header means the grid is identical to the last run — no need to
+re-run.
+
 **Conflict overrides are not saved as a flag.** Choosing "Place Anyway" places
 the volunteer normally. The `⚠` badge persists as long as the conflict exists
 in the tracker, but there is no separate "conflict acknowledged" record in the
@@ -1684,3 +1570,5 @@ If SMS replies stop reaching the server, check the Albany Parking Messaging Serv
 settings in the Twilio console (Messaging → Messaging Services → Albany Parking →
 Settings → Inbound messages → Request URL). The number-level webhook is overridden
 by the service and has no effect.
+
+**Inbound SMS from unknown numbers** prompt the system to reply asking for the sender's name and alert overseers automatically. The message is still logged and surfaces in the Notes Report once a volunteer match is established.

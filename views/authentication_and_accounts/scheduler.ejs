@@ -34,7 +34,26 @@
         <h1 class="h5 mb-0">
           <i class="fa-regular fa-calendar-days me-2 text-warning"></i>Scheduler
         </h1>
-        <div class="d-flex align-items-center gap-2">          <span class="text-muted small"><%= year %></span>
+        <div class="d-flex align-items-center gap-2">
+          <span class="text-muted small"><%= year %></span>
+          <a href="/oversight/tools/conflict-grid"
+             class="scheduler-quick-link"
+             title="Master Conflict Grid"
+             data-bs-toggle="tooltip" data-bs-placement="bottom">
+            <i class="fa-solid fa-table-cells"></i>
+          </a>
+          <a href="/oversight/tools/crew-assignments"
+             class="scheduler-quick-link"
+             title="Crew Assignments"
+             data-bs-toggle="tooltip" data-bs-placement="bottom">
+            <i class="fa-solid fa-people-group"></i>
+          </a>
+          <a href="/oversight/roles"
+             class="scheduler-quick-link"
+             title="Role Management"
+             data-bs-toggle="tooltip" data-bs-placement="bottom">
+            <i class="fa-solid fa-user-shield"></i>
+          </a>
         </div>
       </div>
 

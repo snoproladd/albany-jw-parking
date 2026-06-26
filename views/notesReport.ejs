@@ -99,8 +99,8 @@
                             aria-controls="panel-dismissed"
                             aria-selected="false"
                         >
-                            <i class="fa-solid fa-trash-can me-1"></i>
-                            Dismissed
+                            <i class="fa-solid fa-box-archive me-1"></i>
+                            Archived
                             <span class="badge nr-tab-badge ms-1 d-none" id="badge-dismissed"></span>
                         </button>
                     </li>
@@ -273,8 +273,8 @@
                         <div id="dismissedError" class="alert alert-danger d-none" role="alert"></div>
                         <div id="dismissedList" class="nr-list d-none" aria-live="polite"></div>
                         <div id="dismissedEmpty" class="nr-empty d-none">
-                            <i class="fa-solid fa-trash-can fa-2x mb-2 text-muted"></i>
-                            <p class="mb-0 text-muted">No dismissed notes.</p>
+                            <i class="fa-solid fa-box-archive fa-2x mb-2 text-muted"></i>
+                            <p class="mb-0 text-muted">No archived items.</p>
                         </div>
                     </div>
 
@@ -354,6 +354,64 @@
                         title="Dismiss this note — moves it to the Dismissed bin"
                     >
                         <i class="fa-solid fa-trash-can me-1"></i>Dismiss
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <%# ── SMS Detail Modal ──────────────────────────────────────── %>
+    <div
+        class="modal fade"
+        id="smsDetailModal"
+        tabindex="-1"
+        aria-labelledby="smsDetailModalLabel"
+        aria-hidden="true"
+    >
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title h5 mb-0" id="smsDetailModalLabel">
+                        <i class="fa-solid fa-message me-2"></i>
+                        Inbound SMS — <span id="smsDetailName"></span>
+                    </h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+
+                    <div class="row mb-3">
+                        <div class="col-sm-6">
+                            <p class="nr-modal-label">From</p>
+                            <p class="mb-0" id="smsDetailPhone"></p>
+                        </div>
+                        <div class="col-sm-6">
+                            <p class="nr-modal-label">Received</p>
+                            <p class="mb-0" id="smsDetailReceivedAt"></p>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <p class="nr-modal-label">Message</p>
+                        <div class="nr-note-body" id="smsDetailBody"></div>
+                    </div>
+
+                    <div id="smsDetailAiSection">
+                        <p class="nr-modal-label">
+                            <i class="fa-solid fa-wand-magic-sparkles me-1"></i>AI Analysis
+                        </p>
+                        <div id="smsDetailAiContent"></div>
+                    </div>
+
+                </div>
+                <div class="modal-footer d-flex justify-content-between">
+                    <button
+                        type="button"
+                        class="btn btn-outline-success btn-sm"
+                        id="smsResolveBtn"
+                        title="Mark this message as resolved"
+                    >
+                        <i class="fa-solid fa-circle-check me-1"></i>Mark Resolved
                     </button>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>

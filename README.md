@@ -100,7 +100,7 @@ create a `.env` file at the repo root with the following:
 ```env
 # SQL (Azure SQL)
 AZSQLServer=your-server.database.windows.net
-AZSQLDB=your-database-name
+AZSQLDb=your-database-name
 AZSQLPort=1433
 
 # Session
@@ -131,6 +131,11 @@ GOOGLE_MAPS_API_KEY=your-google-maps-api-key
 DEMO_DB_USER=parking_demo
 DEMO_DB_PASSWORD=your-demo-db-password
 DEMO_HOSTNAME=parking-demo.local   # or demo.albanyjwparking.org in production
+
+# Azure OpenAI (note analysis, SMS analysis, constraint interpreter, schedule analyzer)
+AzureOpenAIEndpoint=https://albany-parking-resource.openai.azure.com/
+AzureOpenAIKey=your-key
+AzureOpenAIDeployment=gpt-4o
 
 # Azure Key Vault (set automatically by set-local-env.js)
 # AZURE_KEY_VAULT_URL=https://ApiStorage.vault.azure.net/
@@ -190,14 +195,17 @@ parking/
 │   ├── dbSync.js              # All database query functions
 │   ├── graphClient.js         # Microsoft Graph API client (OneDrive)
 │   ├── messaging.js           # Email + SMS delivery helpers (suppressed in demo context)
+│   ├── noteAnalyzer.js        # Azure OpenAI pipeline for volunteer intake note analysis
+│   ├── smsInboundAnalyzer.js  # Azure OpenAI pipeline for freeform inbound SMS analysis
+│   ├── constraintInterpreter.js # AI free-text → structured scheduling blackout suggestion
+│   ├── scheduleAnalyzer.js    # Schedule violation rule engine + AI enhancement layer
 │   ├── passwordVer.js         # PBKDF2 hashing + verification
 │   ├── publishSchedule.js     # PDF schedule generation + OneDrive upload + Blob Storage delivery
 │   ├── publishSignMap.js      # Sign map PDF generation + Blob + OneDrive upload
-- **Schedule publish — Blob Storage delivery (2.63.2):** Volunteer schedule notifications now link to a public app route (`GET /schedule/pdf/:blobName`) backed by Azure Blob Storage instead of a SharePoint URL. Eliminates Microsoft account sign-in prompts for recipients with an active Microsoft session in their browser. The PDF is still uploaded to OneDrive for the audit record. `graphClient.js` also generates a `createLink` anonymous share URL as a secondary fallback. New route in `schedulesRoutes.js`; `publishSchedule.js` updated to upload to `published-files` blob container and build the delivery URL from `appBaseUrl`.
-- **Scheduler — Signs conflict guard (2.63.1):**   ├── rvToken.js             # HMAC token generation for public rendezvous detail links
+│   ├── rvToken.js             # HMAC token generation for public rendezvous detail links
 │   ├── sql.js                 # SQL connection pool management + demo pool routing
 │   └── volunteerStatus.js     # Profile completeness checks
-│- **Scheduler — Signs conflict guard (2.63.1):**
+│
 ├── middleware/
 │   └── demoContext.js         # Demo hostname detection + AsyncLocalStorage context wrap
 │
@@ -210,6 +218,11 @@ parking/
 │   ├── registrationRoutes.js  # Registration flow (multi-step draft)
 │   ├── signsRoutes.js         # Sign Library, Sign Builder, Sign Map — templates, locations, and attachments CRUD
 │   ├── sitemapRoutes.js       # Public role-filtered sitemap page
+│   ├── blackoutRoutes.js      # GET/POST /api/blackouts/:volunteerId (BlackoutTimeline API)
+│   ├── smsWebhookRoute.js     # Twilio inbound SMS routing + freeform AI pipeline
+│   ├── noteAnalysisRoutes.js  # AI note analysis (analyze, batch, accept action item)
+│   ├── constraintRoutes.js    # AI scheduling constraints (pending, interpret, apply, delete)
+│   ├── scheduleAnalysisRoutes.js # Schedule violation analysis + rules CRUD
 │   ├── upgradeRoutes.js       # Account upgrade (email/phone → password)
 │   └── validationRoutes.js    # Phone (Twilio) + email (Kickbox) validation
 │
@@ -259,8 +272,10 @@ parking/
 │   │   ├── invitationTracker.ejs
 │   │   ├── inviteRespond.ejs
 │   │   ├── locationsAndTasks.ejs
+│   │   ├── notesReport.ejs            # Notes report (intake notes + inbound SMS)
 │   │   ├── reports.ejs
 │   │   ├── scheduler.ejs
+│   │   ├── scheduleRules.ejs          # Admin page: schedule analysis rules CRUD
 │   │   ├── rendezvous.ejs             # Rendezvous points landing page (day accordion + RV editor)
 │   │   ├── rendezvousDetail.ejs       # Public token-gated RV detail page (no login required)
 │   │   ├── schedulerReport.ejs
@@ -337,6 +352,7 @@ parking/
 │   │   ├── locationsAndTasks.js       # Locations & tasks management
 │   │   ├── maps.js                    # Maps page (OneDrive listing)
 │   │   ├── schedules.js               # Schedules page (OneDrive PDF listing)
+│   │   ├── notesReport.js             # Notes Report: SMS cards, archived panel, AI analysis badges
 │   │   ├── oversightStructure.js      # Oversight structure admin tree
 │   │   ├── oversightTools.js          # Operations hub page
 │   │   ├── permissionMatrix.js        # Permission matrix editor
@@ -344,6 +360,13 @@ parking/
 │   │   ├── shiftAlerts.js             # Shift alert configuration
 │   │   ├── sitemapSearch.js           # Live search/filter for the sitemap
 │   │   ├── volunteerAccountOversight.js # Edit Volunteer page
+│   │   │
+│   │   ├── # ── AI & Analysis ────────────────────────────────
+│   │   ├── schedulerNotePanel.js      # Floating intake note panel in scheduler
+│   │   ├── schedulerConstraintPanel.js  # AI scheduling constraint suggestions panel
+│   │   ├── scheduleViolationsPanel.js # Schedule violations accordion (IIFE, conflict grid)
+│   │   ├── scheduleRules.js           # Schedule analysis rules admin CRUD (module)
+│   │   ├── conflictGridBlackoutModal.js # Read-only BlackoutTimeline modal for conflict grid (module)
 │   │   │
 │   │   ├── # ── Scheduler (9-file suite) ─────────────────────
 │   │   ├── scheduler.js               # Core scheduler grid + state
@@ -393,9 +416,13 @@ parking/
 │   │   ├── styles.css                 # Global / shared styles
 │   │   ├── index.css                  # Home / dashboard page
 │   │   ├── attendance.css             # Attendance check-in + report
+│   │   ├── blackoutTimeline.css       # BlackoutTimeline SVG component
 │   │   ├── bugReport.css              # Bug report pages
 │   │   ├── campaignCenter.css         # Campaign centre
 │   │   ├── conflictGrid.css           # Master Conflict Grid report
+│   │   ├── scheduleViolations.css     # Violations accordion + severity groups
+│   │   ├── scheduleRules.css          # Schedule analysis rules admin page
+│   │   ├── notesReport.css            # Notes report page
 │   │   ├── createProfileLaunch.css    # Registration launch page
 │   │   ├── crewMatrix.css             # Crew matrix
 │   │   ├── invitationTracker.css      # Invitation tracker
@@ -433,11 +460,12 @@ parking/
 │   ├── seedDemo.js            # Populates the demo schema with realistic data
 │   ├── append-env-secrets.ps1 # Appends Key Vault secrets to .env
 │   ├── azure-app-setup.ps1    # Azure App Service provisioning script
-│   └── migrations/            # SQL schema migrations (always paired: .sql + _demo.sql)
+│   └── migrations/            # SQL schema migrations (single file targeting both schemas with GO between batches)
 │       ├── README.md          # Migration convention docs + migration log
-│       ├── addDepartmentId.sql / _demo.sql
-│       ├── addResponseConfig.sql / _demo.sql
-│       └── shift_rendezvous_points.sql / _demo.sql
+│       ├── inboundSMSMessages.sql     # inbound_sms_messages table
+│       ├── ai_blackout_suggestions.sql # ai_blackout_suggestions table
+│       ├── schedule_violations.sql    # schedule_violation_runs + schedule_violations tables
+│       └── schedule_analysis_rules.sql # schedule_analysis_rules table
 │
 ├── docs/
 │   └── OVERSIGHT_GUIDE.md     # End-user guide for oversight staff
@@ -479,9 +507,30 @@ The first ADMIN must be granted directly in the database.
   internal style writes). All app JS lives in `public/js/`, all CSS in `public/styles/`.
   No inline `<script>` blocks, no inline event handlers. SVG presentation attributes
   (`stroke=`, `fill=`) and CSS custom properties (`style.setProperty`) are used in
-  preference to `element.style.x = ...` where the distinction matters (e.g. the
-  travel-direction handle uses `--travel-bearing` so the positioning transform is never
-  clobbered by bearing updates).
+  preference to `element.style.x = ...` where the distinction matters.
+- **Schedule violation analysis:** `lib/scheduleAnalyzer.js` uses a two-layer model.
+  The rule engine runs first (deterministic; violations have `confidence = null`). The
+  AI layer receives all rule-engine violations plus schedule context and returns enhanced
+  severity/confidence/suggestion/question per violation in a single API call. Results are
+  cached by SHA-256 schedule hash; re-analysis is skipped unless `force: true` is passed.
+- **AI rules injection:** `schedule_analysis_rules` rows are injected at the TOP of the
+  AI system prompt as "MANDATORY SCHEDULING RULES" before all other instructions. Rules
+  are prefixed `Rule N:` so AI suggestions can cite which rule applied. Excluded from
+  the user-content JSON to prevent duplication.
+- **Conflict grid context menu:** right-click on `SC`, `X/PC`, or `SC/PC` cells opens a
+  positioned context menu. Cells carry full context via `data-*` attributes set during
+  render (`data-cg-state`, `data-vol-id`, `data-vol-name`, `data-shift-id`,
+  `data-shift-label`, `data-day-id`, `data-day-label`, `data-sc-shifts` JSON). Actions
+  call `DELETE /api/conflict-grid/assignment`; `window.cgRefresh()` re-fetches and
+  re-renders the grid after each action.
+- **BlackoutTimeline read-only:** the existing `BlackoutTimeline` component accepts
+  `{ readOnly: true }` to suppress all editing controls. `conflictGridBlackoutModal.js`
+  (ES module) mounts it this way and exposes `window.showBlackoutModal(volId, volName)`
+  for use by the non-module `conflictGrid.js` IIFE and `scheduleViolationsPanel.js`.
+- **Pre/post session detection:** shift midpoint `(start+end)/2` is compared against
+  session `min(startMin)` / `max(endMin)` from `getConventionDaysWithSessions()`.
+  The `program_start` / `program_end` columns on `convention_days` are display-only
+  and must not be used for scheduling logic (historically unreliable).
 - **MSSQL TIME columns** return as epoch-anchored `Date` objects — always use
   `getUTCHours()`/`getUTCMinutes()`
 - **Sign Map architecture (2.41.0+):** locations → attachments model. Each map marker
@@ -515,7 +564,7 @@ The first ADMIN must be granted directly in the database.
   `zIndex: -100000`, well below all sign and arrow markers.
 - **Printable sign map** (`/signs/map/print`): WYSIWYG page preview at letter-portrait
   proportions (7 in × 7 in map area). Five layer toggles (Arrows, Expand, Facing, Count,
-  Placement ID) mirror the main map’s layer system. Four-state placement markers: compact
+  Placement ID) mirror the main map's layer system. Four-state placement markers: compact
   disc (Expand OFF), full pill rows (Expand ON), radial chevrons (Facing ON), radial sign
   pills by bearing (Facing + Expand ON). Traffic arrow chevrons, connector polylines
   (arrow ↔ location), and building polygon overlays render on the print map. Legend shows
@@ -563,15 +612,6 @@ The first ADMIN must be granted directly in the database.
   photo exists. Permission key: `editRendezvous` (KEYMAN+ edit, OVERSEER+ create/delete).
   RV data is preloaded per day in the scheduler via `preloadRendezvousForDay()` on the
   `scheduler:dayChange` event.
-- **Schedules page + Docs section (2.61.0):** New `/schedules` resources page lists published schedule PDFs from OneDrive (`Documents for Distribution/Schedules/`), mirroring the Maps tile layout (`routes/schedulesRoutes.js`, `views/schedules.ejs`, `public/js/schedules.js`, `public/styles/schedules.css`). Docs section (Maps + Schedules, permission-gated) added to Operations nav dropdown, Operations Hub card grid, and Operations Hub sidebar.
-- **Scheduler UX + report fixes (2.61.0):** Day banner extracted into a fixed `.scheduler-banner-slot` above `.scheduler-main` (no longer scrolls on either axis). Right-side time mirror column widened `0px → 60px` so shift content is never hidden at max scroll. Volunteer DZ slots auto-sort alphabetically by name on every drop, move, return-to-pool, and day load using a precomputed `data-sort-order` index (propagated via `cloneNode(true)`). Schedule report blank-first-page fixed (`break-inside: avoid` moved to `.report-shift`; `break-after: avoid` on `.report-page-header`). Report sort order corrected — departments alphabetical, volunteers by last/first name. `Object.values()` integer-key reordering bug in `getSchedulerReportData()` fixed by using `Map` for shifts and locations.
-- **Per-shift KM/KA slot control (2.60.0):** Two `BIT` columns (`has_keyman`, `has_keyman_asst`) on `dbo.shifts` control whether Keyman and Keyman Assistant drop zones appear in the Scheduler for each shift. Configured via toggles in the Timelines shift form (hidden for meeting shifts; KA requires KM). Leadership slots count toward the shift's Min/Target/Max headcount — the volunteer slot budget is reduced by the number of enabled leadership slots so totals remain accurate. The schedule report suppresses KM/KA rows when the flag is off. Migration F (`migration_F.sql` / `migration_F_demo.sql`), `DEFAULT 1` to preserve all existing scheduler assignments.
-- **Scheduler — Signs conflict guard (2.63.1):** Signs department drops were hard-blocked by `canDrop` when the volunteer had a concurrent shift assignment. Signs volunteers legitimately work overlapping windows (ingress + signs placement), so Signs is now exempt from the hard block alongside Security. A conflict modal ("Place Anyway / Return to Pool") appears instead; ⚠ badge applied on confirmation. `isConflictPermitted` variable added to `schedulerDomActions.js` replacing bare `isSecurity` checks in `needsModal`, `conflictsForModal`, and the slip-through bug guard.
-- **Scheduler — horizontal scroll jank (2.63.1):** scroll listener rAF-throttled (one update per paint frame); DOM reads (`getBoundingClientRect` via `_updateScrollPeeks`) reordered before `gridTemplateColumns` write to eliminate forced layout reflows. `.scheduler-calendar-outer` cached. `overscroll-behavior-x: contain` added to `.scheduler-main` to prevent elastic bounce at scroll edges.
-- **Scheduler — blackout panel modes (2.63.0):** Manage Blackouts add form expanded from a single manual time entry to five modes — Custom (original), Session, Shift, Pre-session, and Full Day — selectable via radio pill switcher. Session and Shift modes dynamically populate from convention day timelines (`getBlackoutPickerData`, `GET /api/scheduler/blackout-picker`). Pre-session resolves to the window from the first shift start to the session program start. Full Day blocks midnight-to-midnight. All modes include a multi-day day-picker so a single Add creates blackouts across multiple convention days in one action.
-- **Scheduler — data integrity (2.63.0):** Slot assignment cleanup now cascades automatically on three paths: volunteer soft-delete (`softDeleteVolunteer`), volunteer deactivation (`setVolunteerActive`, `applyDecentlyImport`), and shift edit (`updateShift` prunes slots exceeding the new `volunteer_need` or whose keyman/keyman_asst flag was turned off). `getSchedulerReportData` LEFT JOIN guards against deleted volunteers appearing on printed schedules. `getSchedulerVolunteers` restricts the pool to `active_current_year = 1` volunteers only.
-- **Schedule report — Support filter chip (2.63.0):** Support department now appears as a toggleable chip in the Publish / Print view alongside existing department chips. Orange accent color (`#fd7e14`) in both report and scheduler CSS.
-- **Scheduler — gender tints (2.63.0):** Volunteer pool pills carry a subtle blue (male) or pink (female) background tint via `color-mix()`, adapting correctly in dark mode. Applied via `.name-pill--male` / `.name-pill--female` modifier classes; carries through to DZ clone pills. Green assigned-indicator retains priority via CSS specificity.
 - **Blackout Timeline (2.65.0):** Interactive SVG blackout editor replacing the old
   day-picker/add-form in the scheduler, My Account, and Volunteer Account Oversight
   pages. Three stacked per-day tracks always visible; shared session bar switches to
@@ -580,7 +620,8 @@ The first ADMIN must be granted directly in the database.
   boundaries glow when the handle aligns with one. Add-lock prevents a second range
   before saving. Scheduler uses a centered full-width overlay (light theme); accordion
   pages use an inline light theme with card expansion at xxl so the 1228px SVG fits
-  without scroll. `GET /POST /api/blackouts/:volunteerId` (OVERSEER+ or self).
+  without scroll. `GET/POST /api/blackouts/:volunteerId` (OVERSEER+, self, or
+  createAssignments).
 - **AI Note Analysis (2.64.0):** Azure OpenAI (GPT-4o) pipeline for volunteer intake
   notes. `lib/noteAnalyzer.js` calls the Azure OpenAI API and returns a structured
   result: summary, category, action item suggestions with priority, and scheduling
@@ -593,34 +634,22 @@ The first ADMIN must be granted directly in the database.
   line between "Read by" and "Action Items." All suggestions require human
   confirmation before applying. Azure credentials in Key Vault:
   `AzureOpenAIEndpoint`, `AzureOpenAIKey`, `AzureOpenAIDeployment`.
-- **Notes Report (2.62.0):** `/oversight/tools/notes-report` (OVERSEER+). Reviews
-  free-text intake notes from volunteer registration. Four tabs: All Notes (click-to-read
-  tracking per overseer via `volunteer_note_reads`), Actionable (action items from
-  `volunteer_actions` with solution/completion lifecycle), Solutions Summary, Dismissed
-  bin (team-level dismiss/restore). Scheduler integration: `NOTE` amber badge on pool
-  pills (`has_note` field in `getSchedulerVolunteers()`), View Note context menu item
-  opens `schedulerNotePanel.js` floating panel.
-- **Gender / role / crew filters (2.59.0):** Male / Female / All gender filter added to seven pages (Crew Matrix, Scheduler pool, Volunteer Account Oversight, Attendance Report, Invitation Tracker, Campaign Center, Application Status). Campaign Center aside also gains Role and Crew selects. Backed by `gender`, `role`, and crew columns added to the relevant `dbSync.js` query functions; no schema changes required.
-- **Scheduler Categories (2.58.0):** `dbo.scheduler_categories` replaces
-  `dbo.event_types` and the `shifts.department` / `shifts.event_type_id` columns.
-  `shifts.category_id INT FK` is the sole link. Sensitivity flag (`is_sensitive`)
-  on each category gates visibility below OVERSEER; `req.session.sensitiveCategories`
-  (null = all access, array = permitted IDs) is set at login via
-  `getSchedulerCategoryAccessForVolunteer()`. The Scheduler Categories management
-  page (at `/oversight/tools/timelines/event-types`) shows sensitivity toggle and
-  access management panel for OVERSEER+. All hardcoded department maps (`DEPT_NAMES`,
-  `DEPT_ORDER`, `SCHEDULER_DEPT_LABEL`) removed from `dbSync.js` — ordering from
-  `sc.sort_order`, labels from `sc.name`.
-- **Parking Meeting shifts (2.57.0):** `is_meeting BIT` on `dbo.shifts` marks a
-  shift as crew-agnostic — no category, no schedule assignments. The Scheduler
-  renders a dedicated narrow "Meetings" column when any meeting shifts exist on
-  the day. T-15 alerts use a day-broadcast model: `getMeetingT15Candidates` returns
-  all volunteers with crew assignments on the day minus those whose crew shift
-  overlaps the meeting window. `dbo.campaign_meetings` holds standalone meeting
-  events outside the Timelines hierarchy, surfaced via `/api/campaign-meetings`.
-- **Volunteer Schedule Report (2.54.0):** `/my-schedule` (REGISTERED+, own assignments)
-  and `/oversight/tools/volunteer-schedule` (OVERSEER+, search any volunteer). Shared EJS
-  template with day/crew filters, print CSS, and SMS/email send modal.
+- **Inbound SMS routing (2.66.0):** freeform volunteer SMS replies are analyzed by AI
+  (`lib/smsInboundAnalyzer.js`) and routed to the Notes Report as actionable items.
+  Decision tree: unknown callers → name-request reply + overseer alert; check-in codes
+  (≤8 chars) → existing pipeline with length guard; freeform → async AI pipeline after
+  TwiML response. Pipeline: analyze → log to `inbound_sms_messages` → create
+  `volunteer_action (source_type='inbound_sms')` → notify overseers via SMS + email.
+- **AI Scheduling Constraints (2.67.0):** AI-suggested blackouts from note analysis and
+  inbound SMS are persisted as `ai_blackout_suggestions` rows rather than transient JSON.
+  `lib/constraintInterpreter.js` handles overseer free-text interpretation. The scheduler
+  constraint panel (`schedulerConstraintPanel.js`) lets overseers review, edit, and apply
+  suggestions directly from the pool pill context menu. Applying all suggestions for an
+  SMS message auto-resolves it in the Notes Report.
+- **Notes Report (2.62.0+, updated 2.66.0):** `/oversight/tools/notes-report` (OVERSEER+).
+  Four tabs: All Notes (intake notes + inbound SMS cards; click-to-read tracking),
+  Actionable (unified `volunteer_actions` from all sources), Solutions Summary, Archived
+  (dismissed intake notes + resolved SMS messages in two labeled sections).
 
 ---
 
@@ -689,7 +718,13 @@ Schema highlights:
 - `schedule_publishes` — audit log for schedule PDF publish events
 - `published_files` — generic published file tracking (sign map PDFs, etc.); stores blob name, SharePoint URL, publisher, and timestamp
 - `volunteer_note_reads` — per-overseer read records for intake notes. Fields: `volunteer_id FK`, `read_by FK`, `read_at DATETIME`. Unique on `(volunteer_id, read_by)`; MERGE upsert on re-read updates `read_at`.
-- `volunteer_actions` — actionable items from intake notes (and future sources). Fields: `volunteer_id FK`, `source_type NVARCHAR(50)`, `source_id` (nullable), `solution_found BIT` (null/false/true), `solution NVARCHAR(MAX)`, solution stamp columns, `completed BIT`, completion stamp columns, `created_by FK`, `created_at`. Three new columns on `volunteer_in`: `note_dismissed BIT`, `note_dismissed_at DATETIME`, `note_dismissed_by INT FK`.
+- `volunteer_actions` — actionable items from intake notes and inbound SMS. Fields: `volunteer_id FK`, `source_type NVARCHAR(50)` (`intake_note` | `inbound_sms`), `source_id` (nullable), `solution_found BIT`, `solution NVARCHAR(MAX)`, solution stamp columns, `completed BIT`, completion stamp columns, `created_by FK`, `created_at`. Three columns on `volunteer_in`: `note_dismissed BIT`, `note_dismissed_at DATETIME`, `note_dismissed_by INT FK`.
+- `inbound_sms_messages` — every freeform inbound Twilio SMS: `volunteer_id FK` (nullable), `from_phone`, `raw_body`, `received_at`, AI result columns (`ai_summary`, `ai_category`, `ai_action_items`, `ai_raw_response`, `ai_error`, token counts), `resolved BIT`. Unresolved messages surface in the Notes Report; auto-resolved when all linked AI suggestions are applied.
+- `ai_blackout_suggestions` — AI-suggested scheduling blackouts pending overseer approval. `source_type` ∈ {intake_note, inbound_sms, overseer}, `source_id` links to the originating record, `volunteer_id FK`, resolved `convention_day_id + start_mins + end_mins`, `blackout_type`, `applied BIT` + stamp columns. When all suggestions for an SMS message are applied the parent `inbound_sms_messages` row is auto-resolved.
+- `volunteer_note_analyses` — AI analysis snapshots for intake notes. Fields: SHA-256 `note_hash` for staleness detection, structured JSON result, token usage, raw response, `volunteer_id FK`.
+- `schedule_violation_runs` — one row per schedule analysis pass. `schedule_hash NVARCHAR(64)` (SHA-256 of all assignments + blackouts) enables cache comparison to skip re-analysis when nothing has changed. `triggered_by FK`, `violation_count INT`.
+- `schedule_violations` — per-violation rows. `violation_type` ∈ {time_overlap, blackout_violation, pre_session_overload, post_session_overload, understaffed, daily_load, coverage_gap, ai_observation}. `severity` ∈ {critical, high, medium, low, info} (null for rule-engine violations before AI enhancement). `confidence DECIMAL(3,2)` (null for deterministic facts). `ai_question` / `overseer_response` support the targeted Q&A re-analysis loop. `acknowledged BIT`.
+- `schedule_analysis_rules` — admin-managed scheduling policy rules injected as mandatory context into the AI system prompt on every analysis run. `rule_text NVARCHAR(MAX)`, `sort_order INT`, `active BIT`. Managed via `/oversight/tools/schedule-rules` (ADMIN only).
 - `volunteer_tour_dismissals` — tracks which guided tour prompts a volunteer has permanently dismissed; composite PK `(volunteer_id, tour_id)`, FK to `volunteer_in(id)`. Special `tour_id = '_all'` disables all first-visit prompts site-wide.
 - `shift_rendezvous_points` — one optional meeting point per schedule assignment
   (shift + location pair). Fields: `description`, `address`, `latitude`/`longitude`
@@ -722,7 +757,6 @@ Schema highlights:
   - `bearing` `DECIMAL(5,1)` — compass bearing the arrow points toward
   - `sv_pano_id`, `sv_heading`, `sv_pitch`, `sv_fov` — persisted Street View camera state for arrow-specific approach views
   - `sign_traffic_arrow_links` junction table links arrows to `sign_attachments`
-  - `bearing` `DECIMAL(5,1)` — direction traffic flows (0–360°)
   - Separate from sign markers; placed on the road near intersections
 - `traffic_arrow_signs` — links traffic arrows to specific attachments
   - `(arrow_id, attachment_id)` composite PK, both FK with ON DELETE CASCADE

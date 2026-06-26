@@ -67,7 +67,9 @@ export function blackoutRouter({ csrfProtection, logError }) {
       : [];
 
     const hasOverseer =
-      perms[role]?.editVolunteerInfo || extra.includes("editVolunteerInfo");
+      perms[role]?.editVolunteerInfo  ||
+      perms[role]?.createAssignments  ||
+      extra.includes("editVolunteerInfo");
     const isSelf = req.session.userId === targetId;
 
     if (hasOverseer || isSelf) return next();

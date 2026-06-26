@@ -316,6 +316,14 @@
           "permission": "createAssignments"
         },
         {
+          "title": "Schedule Analysis Rules",
+          "path": "/oversight/tools/schedule-rules",
+          "description": "Manage standing policy rules injected into the AI schedule analysis. Rules influence how violations are assessed and suggested for resolution.",
+          "icon": "fa-solid fa-list-check",
+          "minRole": "ADMIN",
+          "permission": "deleteVolunteer"
+        },
+        {
           "title": "Volunteer Schedule",
           "path": "/oversight/tools/volunteer-schedule",
           "description": "Look up any volunteer's shift assignments across all convention days. Print or send via SMS/email.",
