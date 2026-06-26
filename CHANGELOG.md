@@ -3,6 +3,53 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.69.0] — 2026-06-26
+
+### Added
+- **Overseer Dashboard Widgets** — three frosted-glass glimpse cards on the
+  home dashboard, visible to OVERSEER, ASSISTANT_ADMIN, and ADMIN only.
+  All cards load asynchronously; spinners shown during fetch. No new SQL
+  queries or API endpoints — each card derives its data from existing endpoints.
+  - **Notes Report card** — parallel-fetches `/api/notes-report/volunteers`,
+    `/api/notes-report/actions`, and `/api/notes-report/sms-messages` and
+    computes client-side: total active intake notes, notes unread by the
+    logged-in user (cross-referenced against `volunteer_note_reads`),
+    incomplete action items, and unresolved inbound SMS count (shown only
+    when non-zero). Links to `/oversight/tools/notes-report`.
+  - **Conflict Analysis card** — fetches `/api/schedule/violations` and shows
+    the unacknowledged count with warning/danger coloring. Severity pills
+    (Critical · High · Medium · Low · Info) have an **All / Unacked** toggle:
+    All shows counts across the full run; Unacked filters to unacknowledged
+    violations only. The stored `run.violation_count` total removed from the
+    stat block — it diverges from the pill counts after acknowledgements,
+    causing apparent mismatches. Links to `/oversight/tools/scheduler`.
+  - **Reports carousel card** — three Chart.js slides (Slot Fill Rate · Crew
+    Attendance · Staff Usage) navigated via `←/→` arrows in the card header.
+    Each slide fetches lazily on first view and caches the response; subsequent
+    navigation is instant. Chart.js imported from the same CDN ESM URL as
+    `reportsCharts.js` (`cdn.jsdelivr.net/npm/chart.js@4.4.4/+esm`). Links to
+    `/oversight/tools/reports`.
+  - `canViewOversightWidgets` computed from session permissions at render time
+    in `index.js` (uses the existing `can` + `PERMISSIONS` helpers from
+    `src/config/roles.js`); both the card HTML and the script tag are gated
+    behind it.
+  - Current user's volunteer ID embedded as `#db-oversight-meta` JSON script
+    block in `index.ejs` for the client-side "unread by me" comparison.
+  - `public/js/dashboardOversight.js` — new ES module.
+  - CSS additions to `public/styles/index.css`: `.db-insight-*`, `.db-stat-*`,
+    `.db-sev-*`, `.db-sev-mode-*`, `.db-sev-section`, `.db-carousel-*`,
+    `.db-reports-chart-wrap`.
+
+### Fixed
+- **Slot Fill Rate chart double-counting** — `getSchedulingCoverageSummary`
+  in `lib/dbSync.js` was joining `schedule_assignments` and
+  `shift_slot_assignments` in the same query, causing `SUM(sa.volunteer_need)`
+  to multiply each slot's need count by the number of already-assigned
+  volunteers (fan-out). Rewrote as two independent derived-table subqueries
+  that aggregate `total_needed` and `total_assigned` without cross-
+  contamination. Fixes both the new dashboard carousel and the full Reports
+  page Target Levels chart.
+
 ## [2.68.0] — 2026-06-26
 
 ### Added

@@ -7,7 +7,9 @@
  *  2. Route opt-out keywords (STOP/QUIT/etc.) to handleSmsOptOutWebhook.
  *  3. Unknown phone number — reply asking for name, alert overseers.
  *  4. Known volunteer + valid shift code + T-15 sent — existing check-in path.
- *  5. Known volunteer + everything else (freeform) — AI analysis pipeline:
+ *  5. Known volunteer + OVERSEER role or above — suppress freeform pipeline
+ *       (prevents notification loop when oversight staff reply to alert SMS).
+ *  6. Known volunteer + everything else (freeform) — AI analysis pipeline:
  *       a. Acknowledge the volunteer via TwiML reply.
  *       b. Async (post-response): analyze, append note, log to DB,
  *          create action item, notify overseers via SMS and email.
@@ -41,6 +43,7 @@ import {
 } from "../lib/dbSync.js";
 import { analyzeSms } from "../lib/smsInboundAnalyzer.js";
 import { sendResetSms, sendResetEmail } from "../lib/messaging.js";
+import { ROLE_HIERARCHY } from "../src/config/roles.js";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -272,6 +275,13 @@ export function smsWebhookRouter({
               `Please monitor the messages dashboard for their reply.`;
 
             for (const overseer of overseers) {
+              // Don't notify an overseer about a message from their own phone.
+              const overseerDigits = (overseer.phone || "").replace(/\D+/g, "").slice(-10);
+              if (overseerDigits && overseerDigits === phoneDigits) {
+                log("[smsWebhook] Skipping self-notify for overseer vol %d", overseer.id);
+                continue;
+              }
+
               if (overseer.smsCapable && overseer.phone) {
                 await sendResetSms(
                   overseer.phone,
@@ -361,7 +371,26 @@ export function smsWebhookRouter({
         }
       }
 
-      // ── 7. Freeform message path ───────────────────────────────────
+      // ── 7. Overseer guard — suppress freeform pipeline for oversight roles ──
+      // Prevents a notification loop: when an ADMIN replies to an alert SMS
+      // (which arrives over the same Twilio Messaging Service channel), their
+      // reply would otherwise trigger the full freeform pipeline and notify
+      // every other ADMIN about what an overseer just said.
+      // The shift-code check-in path (step 6) runs before this guard and is
+      // unaffected — oversight staff can still check in via SMS code normally.
+      const OVERSEER_ROLE_INDEX = ROLE_HIERARCHY.indexOf("OVERSEER");
+      const volunteerRoleIndex  = ROLE_HIERARCHY.indexOf(volunteer.role || "");
+
+      if (OVERSEER_ROLE_INDEX !== -1 && volunteerRoleIndex >= OVERSEER_ROLE_INDEX) {
+        log(
+          "[smsWebhook] Inbound from oversight role %s (vol %d) — suppressed to prevent notification loop",
+          volunteer.role,
+          volunteer.id,
+        );
+        return reply();
+      }
+
+      // ── 8. Freeform message path ───────────────────────────────────
       const firstName = volunteer.firstName || volunteer.first_name || "there";
       const lastName = volunteer.lastName || volunteer.last_name || "";
 
@@ -473,6 +502,13 @@ export function smsWebhookRouter({
             `\nReview at https://${DASHBOARD_URL}`;
 
           for (const overseer of overseers) {
+            // Don't notify an overseer about a message from their own phone.
+            const overseerDigits = (overseer.phone || "").replace(/\D+/g, "").slice(-10);
+            if (overseerDigits && overseerDigits === phoneDigits) {
+              log("[smsWebhook] Skipping self-notify for overseer vol %d", overseer.id);
+              continue;
+            }
+
             if (overseer.smsCapable && overseer.phone) {
               await sendResetSms(
                 overseer.phone,

@@ -646,6 +646,16 @@ The first ADMIN must be granted directly in the database.
   constraint panel (`schedulerConstraintPanel.js`) lets overseers review, edit, and apply
   suggestions directly from the pool pill context menu. Applying all suggestions for an
   SMS message auto-resolves it in the Notes Report.
+- **Overseer Dashboard Widgets (2.69.0):** Three frosted-glass glimpse cards
+  on the home dashboard, visible to OVERSEER+ only. Notes Report card: total
+  active notes / unread by me / pending actions / pending SMS — all derived
+  client-side from existing endpoints, no new SQL. Conflict Analysis card:
+  unacknowledged count with a severity-pill **All / Unacked** toggle (the
+  stored `violation_count` total was removed; it diverges from pill counts after
+  acknowledgements). Reports carousel: Slot Fill Rate / Crew Attendance / Staff
+  Usage via `‹/›` header arrows, lazy fetch + per-slide cache. `public/js/
+  dashboardOversight.js` (new module); `can` + `PERMISSIONS` imported in
+  `index.js` for the `canViewOversightWidgets` render gate.
 - **Notes Report (2.62.0+, updated 2.66.0):** `/oversight/tools/notes-report` (OVERSEER+).
   Four tabs: All Notes (intake notes + inbound SMS cards; click-to-read tracking),
   Actionable (unified `volunteer_actions` from all sources), Solutions Summary, Archived

@@ -212,6 +212,116 @@
             </div>
 
           </div><%# /.row %>
+
+          <%# ── Oversight glimpse cards (OVERSEER+) ─────────────────────── %>
+          <% if (canViewOversightWidgets) { %>
+
+          <%# Embed current user ID for client-side "unread by me" logic %>
+          <script id="db-oversight-meta" type="application/json">
+            {"userId": <%= volunteer.id %>}
+          </script>
+
+          <%# Notes Report + Conflict Analysis row %>
+          <div class="row g-4">
+
+            <div class="col-12 col-md-6">
+              <section class="card shadow-sm db-insight-card" id="dbNotesInsightCard">
+                <header class="card-header">
+                  <div class="d-flex align-items-center justify-content-between gap-2">
+                    <h2 class="h5 mb-0">
+                      <i class="fa-solid fa-note-sticky me-2 text-warning"></i>Notes Report
+                    </h2>
+                    <a href="/oversight/tools/notes-report"
+                       class="btn btn-sm btn-outline-secondary db-insight-open-btn">
+                      <i class="fa-solid fa-up-right-from-square me-1"></i>Open
+                    </a>
+                  </div>
+                </header>
+                <div class="card-body db-insight-body" id="dbNotesInsightBody">
+                  <div class="db-insight-loading">
+                    <span class="spinner-border spinner-border-sm me-2" role="status">
+                      <span class="visually-hidden">Loading&hellip;</span>
+                    </span>Loading&hellip;
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <section class="card shadow-sm db-insight-card" id="dbViolationsInsightCard">
+                <header class="card-header">
+                  <div class="d-flex align-items-center justify-content-between gap-2">
+                    <h2 class="h5 mb-0">
+                      <i class="fa-solid fa-triangle-exclamation me-2 text-danger"></i>Conflict Analysis
+                    </h2>
+                    <a href="/oversight/tools/scheduler"
+                       class="btn btn-sm btn-outline-secondary db-insight-open-btn">
+                      <i class="fa-solid fa-up-right-from-square me-1"></i>Open
+                    </a>
+                  </div>
+                </header>
+                <div class="card-body db-insight-body" id="dbViolationsInsightBody">
+                  <div class="db-insight-loading">
+                    <span class="spinner-border spinner-border-sm me-2" role="status">
+                      <span class="visually-hidden">Loading&hellip;</span>
+                    </span>Loading&hellip;
+                  </div>
+                </div>
+              </section>
+            </div>
+
+          </div><%# /.row notes + violations %>
+
+          <%# Reports chart carousel row %>
+          <div class="row g-4">
+            <div class="col-12">
+              <section class="card shadow-sm db-insight-card" id="dbReportsInsightCard">
+                <header class="card-header">
+                  <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                    <h2 class="h5 mb-0">
+                      <i class="fa-solid fa-chart-bar me-2 text-info"></i>Reports
+                    </h2>
+                    <div class="db-carousel-nav d-none" id="dbReportsCarouselNav">
+                      <button type="button"
+                              class="btn btn-sm btn-outline-secondary db-carousel-btn"
+                              id="dbReportsPrev"
+                              aria-label="Previous chart">
+                        <i class="fa-solid fa-chevron-left"></i>
+                      </button>
+                      <span class="db-carousel-label" id="dbReportsSlideLabel"></span>
+                      <button type="button"
+                              class="btn btn-sm btn-outline-secondary db-carousel-btn"
+                              id="dbReportsNext"
+                              aria-label="Next chart">
+                        <i class="fa-solid fa-chevron-right"></i>
+                      </button>
+                    </div>
+                    <a href="/oversight/tools/reports"
+                       class="btn btn-sm btn-outline-secondary db-insight-open-btn">
+                      <i class="fa-solid fa-up-right-from-square me-1"></i>Open
+                    </a>
+                  </div>
+                </header>
+                <div class="card-body db-insight-body db-insight-body--chart p-0"
+                     id="dbReportsInsightBody">
+                  <div class="db-insight-loading p-3" id="dbReportsLoading">
+                    <span class="spinner-border spinner-border-sm me-2" role="status">
+                      <span class="visually-hidden">Loading&hellip;</span>
+                    </span>Loading&hellip;
+                  </div>
+                  <div class="db-insight-error d-none p-3" id="dbReportsError"></div>
+                  <div class="db-reports-chart-wrap d-none" id="dbReportsChartWrap">
+                    <canvas id="dbReportsCanvas"
+                            aria-label="Dashboard report chart"
+                            role="img"></canvas>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div><%# /.row reports carousel %>
+
+          <% } %>
+
         </div>
       </div>
     </main>
@@ -304,6 +414,9 @@
     <% if (typeof volunteer !== 'undefined' && volunteer) { %>
     <script type="module" src="/js/dashboardWeather.js"></script>
     <script type="module" src="/js/dashboardShifts.js"></script>
+    <% if (canViewOversightWidgets) { %>
+    <script type="module" src="/js/dashboardOversight.js"></script>
+    <% } %>
     <% } %>
 </body>
 </html>

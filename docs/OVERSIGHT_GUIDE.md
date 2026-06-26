@@ -40,6 +40,29 @@ send invitations, track RSVPs, log attendance, and administer the platform.
 Navigate to the site and enter your email and password. If you have forgotten
 your password, contact an admin — they can send a reset link via email or SMS.
 
+### Home Dashboard *(OVERSEER+)*
+
+After logging in you land on the home page, which shows your upcoming shifts
+for the next convention day and the oversight structure. If your role is
+OVERSEER or above, three additional cards appear below those:
+
+- **Notes Report** — shows the total number of active intake notes, how many
+  you personally have not yet read, open action items, and (when non-zero)
+  the count of unresolved inbound SMS messages awaiting review. Tap **Open**
+  to go to the full Notes Report.
+
+- **Conflict Analysis** — shows how many violations from the most recent
+  schedule-analysis run are still unacknowledged. The severity pills beneath
+  the count have an **All / Unacked** toggle: **All** shows the full breakdown
+  of every violation in the run by severity; **Unacked** filters to violations
+  that still need attention. Tap **Open** to go to the Scheduler, where the
+  analysis panel lives.
+
+- **Reports** — a chart carousel with three slides: Slot Fill Rate, Crew
+  Attendance, and Staff Usage. Use the **‹** and **›** arrows in the card
+  header to move between charts; each slide loads on first view and is cached
+  for the rest of the session. Tap **Open** to go to the full Reports page.
+
 ### Operations Hub
 
 After logging in, click **Operations** in the navigation bar (visible to

@@ -18,6 +18,7 @@ import { getConfig, getSqlPool } from "./src/config/azureConfig.js";
 import { touchSqlActivity } from "./lib/sql.js";
 import { demoContextMiddleware } from "./middleware/demoContext.js";
 import { INCOMPATIBILITIES } from "./src/config/privilegeRules.js";
+import { can, PERMISSIONS }  from "./src/config/roles.js";
 
 const require = createRequire(import.meta.url);
 const { version: APP_VERSION } = require("./package.json");
@@ -556,6 +557,10 @@ let alertScheduler = null;
     app.use("/api", apiRoutes);
     // ── Home page — dashboard for authenticated users ──────────────
     app.get("/", csrfProtection, async (req, res) => {
+      const sessionRole  = req.session.userRole   || "NON_REGISTERED";
+      const sessionPerms = req.session.permissions || PERMISSIONS;
+      const canViewOversightWidgets = can(sessionPerms, sessionRole, "viewVolunteerInfo");
+
       const baseData = {
         csrfToken: req.csrfToken(),
         volunteer: null,
@@ -564,6 +569,7 @@ let alertScheduler = null;
         oversightStructure: [],
         allDays: [],
         currentDayIndex: 0,
+        canViewOversightWidgets: false,
       };
 
       if (!req.session.userId) {
@@ -619,6 +625,7 @@ let alertScheduler = null;
           oversightStructure: flattenTree(rawOversightStructure),
           allDays,
           currentDayIndex: currentDayIndex >= 0 ? currentDayIndex : 0,
+          canViewOversightWidgets,
         });
       } catch (err) {
         logError("Home dashboard error:", err);
