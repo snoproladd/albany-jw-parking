@@ -33,6 +33,7 @@ import * as db from "./lib/dbSync.js";
 
 import { oversightRouter } from "./routes/oversightRoutes.js";
 import { noteAnalysisRouter } from "./routes/noteAnalysisRoutes.js";
+import { blackoutRouter } from "./routes/blackoutRoutes.js";
 import { smsWebhookRouter } from "./routes/smsWebhookRoute.js";
 import { sitemapRouter }   from "./routes/sitemapRoutes.js";
 import { mapsRouter } from "./routes/mapsRoutes.js";
@@ -765,6 +766,7 @@ app.use(
 );
 
 app.use("/", noteAnalysisRouter({ csrfProtection, logError }));
+app.use("/", blackoutRouter({ csrfProtection, logError }));
 
 app.use(
   "/",

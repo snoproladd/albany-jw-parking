@@ -4,6 +4,43 @@ All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 
+## [2.65.0] — 2026-06-25
+
+### Added
+- **BlackoutTimeline component:** Replaces the old blackout day-picker/add-form
+  across all three entry points — scheduler context menu, My Account accordion, and
+  Volunteer Account Oversight accordion — with a unified SVG-based interactive
+  timeline (`public/js/blackoutTimeline.js`, `public/styles/blackoutTimeline.css`).
+  - Three stacked tracks (one per convention day) always visible simultaneously;
+    clicking a track or day chip switches the shared session bar to that day's
+    session layout.
+  - Drag handles snap to session boundaries (active day), 5-minute grid, and
+    timeline endpoints. Handle style: narrow vertical bar, taller than the track.
+  - Cursor overlay during drag: dashed line to ruler, glowing ruler graduation, time
+    tooltip. When dragging to a session boundary the line extends both directions and
+    the boundary in the session bar glows.
+  - Add-lock: a new unsaved range must be saved (or removed) before another can be
+    added, enforced via `_pendingRangeId` and `bt-chip-add-locked` visual state.
+  - Session labels clipped to their segment so overlapping sessions (Pre-Session /
+    Morning A overlap) don't bleed.
+  - **Scheduler:** centered full-width overlay (`bt-sched-overlay`) with inverted
+    light theme scoped to `.bt-sched-overlay-panel`; ESC and backdrop-click to
+    dismiss. Conflict tracking (`trackAssign` / `untrackBlackout`) synced after
+    save via `onSave` callback; `scheduler:blackoutChanged` dispatched.
+  - **myAccount / VOA:** timeline mounts lazily into the accordion body on first
+    expand. Light theme scoped to `.accordion-body .bt-container`. At xxl (≥1400px)
+    the card expands to 1320px via `.bt-card-wide` and `bt-container` side padding
+    drops to zero so the 1228px SVG fits without horizontal scroll.
+  - New API: `GET /api/blackouts/:volunteerId` returns days + sessions + blackouts
+    payload; `POST /api/blackouts/:volunteerId` is a replace-all write with CSRF
+    protection. Both endpoints permit OVERSEER+ or self-access. Route file:
+    `routes/blackoutRoutes.js`.
+  - Three new `dbSync.js` functions: `getConventionDaysWithSessions` (schedulable
+    days + sessions, times as integer minutes), `getVolunteerBlackouts` (all rows
+    for a volunteer), `saveVolunteerBlackouts` (delete + batch insert).
+  - Old scheduler blackout floating panel CSS (`.sched-blackout-*`, ~250 lines)
+    removed from `scheduler.css`.
+
 ## [2.64.0] — 2026-06-25
 
 ### Added

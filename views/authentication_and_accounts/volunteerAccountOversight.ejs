@@ -16,6 +16,7 @@
   <!-- Site styles -->
   <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
   <link rel="stylesheet" type="text/css" href="/styles/volunteerAccountOversight.css" />
+  <link rel="stylesheet" type="text/css" href="/styles/blackoutTimeline.css" />
 
   <!-- Shepherd tour -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@15.2.2/dist/css/shepherd.css" />
@@ -32,9 +33,9 @@
   <%- include('../partials/header') %>
     <main class="container" id="volunteerAccountOversightRoot">
       <div class="row justify-content-center">
-        <div class="col-12 col-xl-10">
+        <div class="col-12 col-xl-10 col-xxl-12">
 
-          <section class="card shadow-lg mx-auto">
+          <section class="card shadow-lg mx-auto bt-card-wide">
             <header class="card-header">
               <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
                 <div class="text-center flex-grow-1">
@@ -781,54 +782,8 @@
                                     </button>
                                   </h2>
                                   <div id="collapseBlackouts" class="accordion-collapse collapse">
-                                    <div class="accordion-body" data-section="blackouts"></div>
-
-                                      <p class="text-muted small mb-3">
-                                        Define times when this volunteer is unavailable on a convention day.
-                                        The scheduler will warn before placing them in an overlapping slot.
-                                      </p>
-
-                                      <%# Day picker %>
-                                      <div class="mb-3">
-                                        <label class="form-label small fw-semibold" for="bkDaySelect">Convention Day</label>
-                                        <select class="form-select form-select-sm bk-day-select" id="bkDaySelect">
-                                          <option value="">— Select a day —</option>
-                                          <% conventionDays.forEach(function(day) { %>
-                                            <option value="<%= day.id %>">
-                                              <%= day.label %> —
-                                              <%= new Date(day.convention_date).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', timeZone:'UTC' }) %>
-                                            </option>
-                                          <% }); %>
-                                        </select>
-                                      </div>
-
-                                      <%# Blackout list (populated by JS) %>
-                                      <div id="bkList" class="mb-3"></div>
-
-                                      <%# Add form (hidden until day selected) %>
-                                      <div id="bkAddForm" class="d-none">
-                                        <div class="d-flex align-items-center gap-2 flex-wrap mb-2">
-                                          <div>
-                                            <label class="form-label small mb-1" for="bkStart">Start</label>
-                                            <input type="time" class="form-control form-control-sm bk-time-input" id="bkStart" />
-                                          </div>
-                                          <div>
-                                            <label class="form-label small mb-1" for="bkEnd">End</label>
-                                            <input type="time" class="form-control form-control-sm bk-time-input" id="bkEnd" />
-                                          </div>
-                                          <div class="flex-grow-1">
-                                            <label class="form-label small mb-1" for="bkReason">Reason <span class="text-muted fw-normal">(optional)</span></label>
-                                            <input type="text" class="form-control form-control-sm" id="bkReason" maxlength="200" placeholder="e.g. Doctor appointment" />
-                                          </div>
-                                          <div class="align-self-end">
-                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="bkAddBtn">
-                                              <i class="fa-solid fa-plus me-1"></i>Add
-                                            </button>
-                                          </div>
-                                        </div>
-                                        <div id="bkFormStatus" class="small"></div>
-                                      </div>
-
+                                    <div class="accordion-body" data-section="blackouts">
+                                      <div id="bt-oversight" data-volunteer-id="<%= targetUser ? targetUser.id : '' %>"></div>
                                     </div>
                                   </div>
                                 </div>
@@ -935,6 +890,7 @@
     <script src="/js/privilegeEnforcer.js"></script>
     <script src="/js/email-validation.js"></script>
     <script src="/js/phoneVer.js"></script>
+    <script type="module" src="/js/volunteerAccountOversightBlackoutTimeline.js"></script>
    <script type="module" src="/js/tours/volunteersTour.js"></script>
     <%- include('../partials/footer') %>
 </body>
