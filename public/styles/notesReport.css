@@ -439,6 +439,261 @@
     opacity: 1;
 }
 
+/* ── AI Analysis section ──────────────────────────────────────────────────── */
+
+.nr-ai-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.nr-ai-btn {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.65rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--Primary) 40%, transparent);
+    color: var(--Primary);
+    background: color-mix(in srgb, var(--Primary) 6%, transparent);
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.nr-ai-btn:hover {
+    background: color-mix(in srgb, var(--Primary) 12%, transparent);
+    border-color: var(--Primary);
+    color: var(--Primary);
+}
+
+.nr-ai-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+.nr-ai-batch-btn {
+    font-size: 0.78rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--Primary) 40%, transparent);
+    color: var(--Primary);
+    background: color-mix(in srgb, var(--Primary) 6%, transparent);
+    white-space: nowrap;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.nr-ai-batch-btn:hover {
+    background: color-mix(in srgb, var(--Primary) 12%, transparent);
+    border-color: var(--Primary);
+    color: var(--Primary);
+}
+
+.nr-ai-batch-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+.nr-ai-loading {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.82rem;
+    color: var(--bs-secondary-color);
+    padding: 0.5rem 0;
+}
+
+.nr-ai-stale {
+    font-size: 0.75rem;
+    color: #856404;
+    background: color-mix(in srgb, #ffc107 12%, transparent);
+    border: 1px solid color-mix(in srgb, #ffc107 35%, transparent);
+    border-radius: 0.375rem;
+    padding: 0.3rem 0.65rem;
+    margin-bottom: 0.6rem;
+}
+
+.nr-ai-summary {
+    font-size: 0.875rem;
+    color: var(--TextDark);
+    line-height: 1.55;
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.375rem;
+    padding: 0.6rem 0.875rem;
+    margin-bottom: 0.5rem;
+}
+
+.nr-ai-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin-bottom: 0.75rem;
+}
+
+.nr-ai-category-badge {
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 0.2em 0.55em;
+    border-radius: 0.3rem;
+    text-transform: capitalize;
+}
+
+.nr-ai-category--scheduling_constraint {
+    background: color-mix(in srgb, #0d6efd 12%, transparent);
+    color: #0a58ca;
+}
+
+.nr-ai-category--preference {
+    background: color-mix(in srgb, #6f42c1 12%, transparent);
+    color: #4a28a0;
+}
+
+.nr-ai-category--personal_info {
+    background: color-mix(in srgb, #0dcaf0 12%, transparent);
+    color: #087990;
+}
+
+.nr-ai-category--data_correction {
+    background: color-mix(in srgb, #fd7e14 15%, transparent);
+    color: #7d3900;
+}
+
+.nr-ai-category--other {
+    background: color-mix(in srgb, var(--bs-secondary) 12%, transparent);
+    color: var(--bs-secondary-color);
+}
+
+.nr-ai-flag {
+    font-size: 0.65rem;
+    font-weight: 500;
+    padding: 0.18em 0.5em;
+    border-radius: 999px;
+    border: 1px solid var(--bs-border-color);
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    color: var(--bs-secondary-color);
+    text-transform: capitalize;
+}
+
+.nr-ai-subsection {
+    margin-bottom: 0.75rem;
+}
+
+.nr-ai-sublabel {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--bs-secondary-color);
+    margin-bottom: 0.35rem;
+}
+
+.nr-ai-suggestion-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.375rem;
+    margin-bottom: 0.3rem;
+    background: var(--bs-body-bg);
+}
+
+.nr-ai-priority {
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 0.15em 0.45em;
+    border-radius: 0.25rem;
+    flex-shrink: 0;
+}
+
+.nr-ai-priority--high {
+    background: color-mix(in srgb, #dc3545 15%, transparent);
+    color: #842029;
+}
+
+.nr-ai-priority--medium {
+    background: color-mix(in srgb, #fd7e14 15%, transparent);
+    color: #7d3900;
+}
+
+.nr-ai-priority--low {
+    background: color-mix(in srgb, #198754 12%, transparent);
+    color: #0f5132;
+}
+
+.nr-ai-suggestion-text {
+    font-size: 0.82rem;
+    color: var(--TextDark);
+    flex: 1 1 auto;
+    line-height: 1.4;
+}
+
+.nr-ai-accept-btn {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: 0.25rem;
+    border: 1px solid color-mix(in srgb, var(--Primary) 40%, transparent);
+    color: var(--Primary);
+    background: color-mix(in srgb, var(--Primary) 6%, transparent);
+    flex-shrink: 0;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.nr-ai-accept-btn:hover {
+    background: color-mix(in srgb, var(--Primary) 15%, transparent);
+    color: var(--Primary);
+}
+
+.nr-ai-blackout-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid color-mix(in srgb, #fd7e14 30%, var(--bs-border-color));
+    border-radius: 0.375rem;
+    margin-bottom: 0.3rem;
+    background: color-mix(in srgb, #fd7e14 4%, var(--bs-body-bg));
+}
+
+.nr-ai-blackout-type {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 0.15em 0.5em;
+    border-radius: 0.25rem;
+    background: color-mix(in srgb, #fd7e14 15%, transparent);
+    color: #7d3900;
+    flex-shrink: 0;
+}
+
+.nr-ai-blackout-desc {
+    font-size: 0.82rem;
+    color: var(--TextDark);
+    flex: 1 1 auto;
+}
+
+.nr-ai-blackout-hint {
+    font-size: 0.65rem;
+    padding: 0.15em 0.4em;
+    border-radius: 0.25rem;
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    border: 1px solid var(--bs-border-color);
+    color: var(--bs-secondary-color);
+    text-transform: capitalize;
+    flex-shrink: 0;
+}
+
+.nr-ai-meta {
+    font-size: 0.68rem;
+    color: var(--bs-secondary-color);
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--bs-border-color);
+}
+
 @media (max-width: 575.98px) {
     .nr-tab-content {
         padding: 1rem 0.75rem;

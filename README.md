@@ -312,7 +312,9 @@ parking/
 │   │   ├── formListeners.js           # Multi-step form navigation
 │   │   ├── formSummary.js             # Registration summary page
 │   │   ├── myAccount.js               # My Account page (edit, finalize, password)
-│   │   ├── myAccountBlackouts.js      # Self-service blackout management (My Account)
+│   │   ├── blackoutTimeline.js        # BlackoutTimeline SVG component (all contexts)
+│   │   ├── myAccountBlackoutTimeline.js          # Mounts timeline in My Account accordion
+│   │   ├── volunteerAccountOversightBlackoutTimeline.js  # Mounts timeline in VOA accordion
 │   │   ├── conflictGrid.js            # Master Conflict Grid report page
 │   │   ├── nonProfile.js              # Non-profile registration path
 │   │   ├── passwords.js               # Password strength + toggle visibility
@@ -570,6 +572,27 @@ The first ADMIN must be granted directly in the database.
 - **Scheduler — data integrity (2.63.0):** Slot assignment cleanup now cascades automatically on three paths: volunteer soft-delete (`softDeleteVolunteer`), volunteer deactivation (`setVolunteerActive`, `applyDecentlyImport`), and shift edit (`updateShift` prunes slots exceeding the new `volunteer_need` or whose keyman/keyman_asst flag was turned off). `getSchedulerReportData` LEFT JOIN guards against deleted volunteers appearing on printed schedules. `getSchedulerVolunteers` restricts the pool to `active_current_year = 1` volunteers only.
 - **Schedule report — Support filter chip (2.63.0):** Support department now appears as a toggleable chip in the Publish / Print view alongside existing department chips. Orange accent color (`#fd7e14`) in both report and scheduler CSS.
 - **Scheduler — gender tints (2.63.0):** Volunteer pool pills carry a subtle blue (male) or pink (female) background tint via `color-mix()`, adapting correctly in dark mode. Applied via `.name-pill--male` / `.name-pill--female` modifier classes; carries through to DZ clone pills. Green assigned-indicator retains priority via CSS specificity.
+- **Blackout Timeline (2.65.0):** Interactive SVG blackout editor replacing the old
+  day-picker/add-form in the scheduler, My Account, and Volunteer Account Oversight
+  pages. Three stacked per-day tracks always visible; shared session bar switches to
+  the active day. Drag handles snap to session boundaries, 5-minute intervals, and
+  endpoints. Cursor overlay shows time tooltip and glowing ruler graduation; session
+  boundaries glow when the handle aligns with one. Add-lock prevents a second range
+  before saving. Scheduler uses a centered full-width overlay (light theme); accordion
+  pages use an inline light theme with card expansion at xxl so the 1228px SVG fits
+  without scroll. `GET /POST /api/blackouts/:volunteerId` (OVERSEER+ or self).
+- **AI Note Analysis (2.64.0):** Azure OpenAI (GPT-4o) pipeline for volunteer intake
+  notes. `lib/noteAnalyzer.js` calls the Azure OpenAI API and returns a structured
+  result: summary, category, action item suggestions with priority, and scheduling
+  blackout suggestions with type/day/time hints. Results persisted in
+  `volunteer_note_analyses` with SHA-256 hash-based staleness detection.
+  `routes/noteAnalysisRoutes.js` exposes four JSON endpoints (on-demand analyze,
+  batch analyze, get result, accept action item). Notes Report modal gains an
+  "Analyze" button and full results panel; "Analyze All" batch button in toolbar
+  (ASSISTANT_ADMIN+). `schedulerNotePanel.js` shows a compact read-only AI summary
+  line between "Read by" and "Action Items." All suggestions require human
+  confirmation before applying. Azure credentials in Key Vault:
+  `AzureOpenAIEndpoint`, `AzureOpenAIKey`, `AzureOpenAIDeployment`.
 - **Notes Report (2.62.0):** `/oversight/tools/notes-report` (OVERSEER+). Reviews
   free-text intake notes from volunteer registration. Four tabs: All Notes (click-to-read
   tracking per overseer via `volunteer_note_reads`), Actionable (action items from

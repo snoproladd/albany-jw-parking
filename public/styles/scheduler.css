@@ -17,7 +17,7 @@
 
 /* Collapse the header's bottom margin so the split layout
    sits flush beneath the navbar. */
-.scheduler-body > header {
+.scheduler-body>header {
     margin-bottom: 0 !important;
 }
 
@@ -155,6 +155,7 @@
     border-color: var(--bs-success-border-subtle);
     color: var(--bs-success-text-emphasis);
 }
+
 /* Drag clone helper — must float above all grid elements */
 .pill-drag-helper {
     z-index: 9999;
@@ -401,6 +402,7 @@
     position: relative;
     z-index: 1;
 }
+
 .sched-dept-header[data-dept="lots_and_garages"] {
     border-bottom-color: #198754;
 }
@@ -692,7 +694,8 @@
     padding: 0.1rem 0.3rem;
     border-radius: 0.2rem;
     gap: 0;
-    justify-content: flex-start;  /* stack name + badge row from top */
+    justify-content: flex-start;
+    /* stack name + badge row from top */
 }
 
 .scheduler-dropzone .pill-name {
@@ -724,6 +727,7 @@
 .scheduler-dropzone .pill-crews {
     display: none;
 }
+
 /* Conflict warning badge — shift overlap (amber). Uses explicit hex so the
    color is never inherited from a red DZ parent (e.g. dz-required). */
 .pill-conflict-badge {
@@ -908,6 +912,7 @@
     background: var(--bs-info-bg-subtle);
     opacity: 0.65;
 }
+
 .sched-band-divider {
     border-top: 1px dashed rgba(0, 0, 0, 0.18);
     background: transparent;
@@ -1058,9 +1063,20 @@
 ──────────────────────────────────────────── */
 
 @keyframes schedHighlightFlash {
-    0%   { outline: 3px solid rgba(255, 193, 7, 0.9); outline-offset: 2px; }
-    50%  { outline: 3px solid rgba(255, 193, 7, 0.2); outline-offset: 5px; }
-    100% { outline: 3px solid rgba(255, 193, 7, 0.9); outline-offset: 2px; }
+    0% {
+        outline: 3px solid rgba(255, 193, 7, 0.9);
+        outline-offset: 2px;
+    }
+
+    50% {
+        outline: 3px solid rgba(255, 193, 7, 0.2);
+        outline-offset: 5px;
+    }
+
+    100% {
+        outline: 3px solid rgba(255, 193, 7, 0.9);
+        outline-offset: 2px;
+    }
 }
 
 .sched-highlight-flash {
@@ -1081,7 +1097,7 @@
     background: var(--bs-body-bg);
     border: 1px solid var(--bs-border-color);
     border-radius: 0.45rem;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.08);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14), 0 1px 4px rgba(0, 0, 0, 0.08);
     padding: 0.3rem 0;
     font-size: 0.83rem;
     user-select: none;
@@ -1181,6 +1197,7 @@
     width: 0.95rem;
     text-align: center;
 }
+
 .sched-ctx-soon {
     margin-left: auto;
     font-size: 0.58rem;
@@ -1246,7 +1263,7 @@
     background: var(--bs-body-bg);
     border: 1px solid var(--bs-border-color);
     border-radius: 0.45rem;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.08);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14), 0 1px 4px rgba(0, 0, 0, 0.08);
     font-size: 0.83rem;
     overflow-x: hidden;
     overflow-y: auto;
@@ -1292,7 +1309,7 @@
     padding: 0.4rem 0;
 }
 
-.sched-assign-dept + .sched-assign-dept {
+.sched-assign-dept+.sched-assign-dept {
     border-top: 1px solid var(--bs-border-color-translucent);
 }
 
@@ -1324,253 +1341,6 @@
 }
 
 /* ─────────────────────────────────────────────
-   Blackout panel rows
-───────────────────────────────────────────── */
-
-.sched-blackout-list {
-    padding: 0.25rem 0;
-}
-
-.sched-blackout-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    padding: 0.35rem 0.85rem;
-}
-
-.sched-blackout-row + .sched-blackout-row {
-    border-top: 1px solid var(--bs-border-color-translucent);
-}
-
-.sched-blackout-info {
-    display: flex;
-    flex-direction: column;
-    gap: 0.1rem;
-    min-width: 0;
-}
-
-.sched-blackout-time-range {
-    font-weight: 500;
-    white-space: nowrap;
-}
-
-.sched-blackout-reason-text {
-    font-size: 0.74rem;
-    color: var(--bs-secondary-color);
-}
-
-.sched-blackout-del-btn {
-    flex-shrink: 0;
-    background: none;
-    border: none;
-    padding: 0.2rem 0.35rem;
-    cursor: pointer;
-    color: var(--bs-danger);
-    border-radius: 0.2rem;
-    line-height: 1;
-    font-size: 0.85rem;
-}
-
-.sched-blackout-del-btn:hover {
-    background: var(--bs-danger-bg-subtle);
-}
-
-/* ── Blackout panel — add form ────────────────────────── */
-
-.sched-blackout-panel {
-    min-width: 300px;
-    max-width: 360px;
-}
-
-.sched-blackout-add {
-    padding: 0.6rem 0.85rem 0.75rem;
-    border-top: 1px solid var(--bs-border-color);
-    display: flex;
-    flex-direction: column;
-    gap: 0.45rem;
-}
-
-.sched-blackout-add-label {
-    font-size: 0.7rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--bs-secondary-color);
-}
-
-/* ── Mode radio pills ─────────────────────────────────── */
-
-.sched-blackout-modes {
-    display: flex;
-    gap: 4px;
-    flex-wrap: wrap;
-}
-
-.sched-blackout-mode-pill {
-    display: inline-flex;
-    align-items: center;
-    padding: 2px 9px;
-    border-radius: 12px;
-    border: 1px solid var(--bs-border-color);
-    font-size: 0.74rem;
-    cursor: pointer;
-    user-select: none;
-    transition: background 0.1s, color 0.1s, border-color 0.1s;
-}
-
-.sched-blackout-mode-pill input[type="radio"] {
-    position: absolute;
-    opacity: 0;
-    width: 0;
-    height: 0;
-    pointer-events: none;
-}
-
-.sched-blackout-mode-pill:has(input:checked) {
-    background: var(--bs-primary);
-    border-color: var(--bs-primary);
-    color: #fff;
-}
-
-.sched-blackout-mode-pill:hover:not(:has(input:checked)) {
-    background: var(--bs-secondary-bg);
-}
-
-/* ── Mode-specific field area ─────────────────────────── */
-
-.sched-blackout-field-section {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.sched-blackout-time-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.sched-blackout-time-input {
-    flex: 1;
-    min-width: 0;
-    padding: 3px 5px;
-    border: 1px solid var(--bs-border-color);
-    border-radius: 4px;
-    background: var(--bs-body-bg);
-    color: var(--bs-body-color);
-    font-size: 0.8rem;
-}
-
-.sched-blackout-sep {
-    color: var(--bs-secondary-color);
-    font-size: 0.8rem;
-}
-
-.sched-blackout-select {
-    width: 100%;
-    padding: 3px 6px;
-    border: 1px solid var(--bs-border-color);
-    border-radius: 4px;
-    background: var(--bs-body-bg);
-    color: var(--bs-body-color);
-    font-size: 0.8rem;
-}
-
-.sched-blackout-select:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-}
-
-.sched-blackout-preview {
-    font-size: 0.75rem;
-    color: var(--bs-secondary-color);
-    min-height: 1.1em;
-    font-style: italic;
-}
-
-/* ── Day checkboxes ───────────────────────────────────── */
-
-.sched-blackout-days-label {
-    font-size: 0.68rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--bs-secondary-color);
-}
-
-.sched-blackout-days-row {
-    display: flex;
-    gap: 4px;
-    flex-wrap: wrap;
-}
-
-.sched-blackout-day-pill {
-    display: inline-flex;
-    align-items: center;
-    padding: 2px 9px;
-    border-radius: 12px;
-    border: 1px solid var(--bs-border-color);
-    font-size: 0.74rem;
-    cursor: pointer;
-    user-select: none;
-    transition: background 0.1s, color 0.1s, border-color 0.1s;
-}
-
-.sched-blackout-day-pill input[type="checkbox"] {
-    position: absolute;
-    opacity: 0;
-    width: 0;
-    height: 0;
-    pointer-events: none;
-}
-
-.sched-blackout-day-pill:has(input:checked) {
-    background: var(--bs-success);
-    border-color: var(--bs-success);
-    color: #fff;
-}
-
-.sched-blackout-day-pill:hover:not(:has(input:checked)) {
-    background: var(--bs-secondary-bg);
-}
-
-/* ── Shared inputs + status ───────────────────────────── */
-
-.sched-blackout-reason-input {
-    width: 100%;
-    padding: 3px 6px;
-    border: 1px solid var(--bs-border-color);
-    border-radius: 4px;
-    background: var(--bs-body-bg);
-    color: var(--bs-body-color);
-    font-size: 0.8rem;
-}
-
-.sched-blackout-add-btn {
-    align-self: flex-start;
-    padding: 3px 12px;
-    background: var(--bs-primary);
-    color: #fff;
-    border: none;
-    border-radius: 4px;
-    font-size: 0.8rem;
-    cursor: pointer;
-}
-
-.sched-blackout-add-btn:hover {
-    background: var(--bs-primary-text-emphasis);
-}
-
-.sched-blackout-add-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-.sched-blackout-status {
-    font-size: 0.75rem;
-    min-height: 1em;
-}/* ─────────────────────────────────────────────
    Scroll peek indicators
 ───────────────────────────────────────────── */
 
@@ -1668,7 +1438,9 @@
     color: var(--bs-secondary-color);
     margin-top: 2px;
     padding: 0 0.4rem 0.2rem;
-}/* ─────────────────────────────────────────────
+}
+
+/* ─────────────────────────────────────────────
    Scheduler note panel
 ───────────────────────────────────────────── */
 
@@ -1768,10 +1540,29 @@
     border-radius: 0.25rem;
 }
 
-.sched-note-action-badge--pending  { background: #fff3cd; color: #7d3900; border: 1px solid #ffc107; }
-.sched-note-action-badge--found    { background: #d1e7dd; color: #0f5132; border: 1px solid #86efac; }
-.sched-note-action-badge--none     { background: #f8d7da; color: #842029; border: 1px solid #f5c2c7; }
-.sched-note-action-badge--complete { background: #d1e7dd; color: #0f5132; border: 1px solid #86efac; }
+.sched-note-action-badge--pending {
+    background: #fff3cd;
+    color: #7d3900;
+    border: 1px solid #ffc107;
+}
+
+.sched-note-action-badge--found {
+    background: #d1e7dd;
+    color: #0f5132;
+    border: 1px solid #86efac;
+}
+
+.sched-note-action-badge--none {
+    background: #f8d7da;
+    color: #842029;
+    border: 1px solid #f5c2c7;
+}
+
+.sched-note-action-badge--complete {
+    background: #d1e7dd;
+    color: #0f5132;
+    border: 1px solid #86efac;
+}
 
 .sched-note-create-btn {
     font-size: 0.75rem;
@@ -1792,7 +1583,10 @@
     border-color: var(--bs-secondary-border-subtle);
 }
 
-.sched-note-create-btn:disabled { opacity: 0.6; cursor: default; }
+.sched-note-create-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
 
 .sched-note-report-link {
     display: inline-flex;
@@ -1803,4 +1597,104 @@
     margin-top: 0.25rem;
 }
 
-.sched-note-report-link:hover { text-decoration: underline; }
+.sched-note-report-link:hover {
+    text-decoration: underline;
+}
+
+/* ── Note panel — AI summary section ─────────────────────────────────────── */
+
+.sched-note-ai-section {
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--bs-border-color);
+}
+
+.sched-note-ai-summary {
+    font-size: 0.75rem;
+    color: var(--bs-body-color);
+    line-height: 1.5;
+    background: color-mix(in srgb, var(--Primary, #1e3a8a) 4%, var(--bs-tertiary-bg, #f8f9fa));
+    border: 1px solid color-mix(in srgb, var(--Primary, #1e3a8a) 15%, var(--bs-border-color));
+    border-radius: 0.3rem;
+    padding: 0.35rem 0.55rem;
+}
+
+.sched-note-ai-flag {
+    display: inline-block;
+    font-size: 0.62rem;
+    font-weight: 500;
+    padding: 0.1rem 0.4rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--Primary, #1e3a8a) 25%, var(--bs-border-color));
+    background: color-mix(in srgb, var(--Primary, #1e3a8a) 6%, transparent);
+    color: var(--Primary, #1e3a8a);
+    text-transform: capitalize;
+}
+
+.sched-note-ai-stale {
+    font-size: 0.65rem;
+    color: #856404;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+/* ── Availability / BlackoutTimeline overlay ─────────────────────────────── */
+
+.bt-sched-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 1055;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.bt-sched-overlay-panel {
+    background: rgba(8, 28, 58, 0.97);
+    backdrop-filter: blur(14px) saturate(160%);
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    width: min(1380px, 96vw);
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+}
+
+.bt-sched-overlay-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #e4f3ff;
+    flex-shrink: 0;
+}
+
+.bt-sched-overlay-close {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.45);
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+    padding: 3px 7px;
+    border-radius: 3px;
+    transition: color 0.12s, background 0.12s;
+}
+
+.bt-sched-overlay-close:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.10);
+}
+
+.bt-sched-overlay-body {
+    padding: 16px;
+    overflow-y: auto;
+    flex: 1;
+}

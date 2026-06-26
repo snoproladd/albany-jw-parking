@@ -65,6 +65,20 @@ const activeFilter = { allNotes: 'all', actionable: 'all', solutions: 'all' };
 /** Active search string per panel. @type {{ allNotes: string, actionable: string, solutions: string }} */
 const activeSearch = { allNotes: '', actionable: '', solutions: '' };
 
+/**
+ * Cache of AI analysis results keyed by volunteerId.
+ * Null means "checked server and no analysis exists yet."
+ * Absent means "not yet fetched."
+ * @type {Map<number, object|null>}
+ */
+const analyses = new Map();
+
+/** volunteerId currently being analyzed (used for button spinner state). @type {number|null} */
+let analyzingId = null;
+
+/** True when a batch analysis run is in progress. @type {boolean} */
+let batchAnalyzing = false;
+
 // ── Bootstrap modal instances ─────────────────────────────────────────────────
 
 /** @type {InstanceType<typeof bootstrap.Modal>|null} */
@@ -472,6 +486,23 @@ function populateNoteDetail(volunteerId) {
 
     const myActions = actions.filter(a => a.volunteer_id === volunteerId);
     renderNoteActionList(myActions, volunteerId);
+
+    // Re-clone the Analyze button each time to prevent stacked listeners.
+    const oldAnalyzeBtn = document.getElementById('noteDetailAnalyzeBtn');
+    if (oldAnalyzeBtn) {
+        const newAnalyzeBtn = oldAnalyzeBtn.cloneNode(true);
+        oldAnalyzeBtn.parentNode.replaceChild(newAnalyzeBtn, oldAnalyzeBtn);
+        newAnalyzeBtn.addEventListener('click', () => triggerAnalysis(volunteerId));
+    }
+
+    renderAiSection(volunteerId);
+
+    // Fetch from server if not yet cached for this volunteer.
+    if (!analyses.has(volunteerId)) {
+        loadAnalysis(volunteerId).then(() => {
+            if (openVolunteerId === volunteerId) renderAiSection(volunteerId);
+        });
+    }
 }
 
 /**
@@ -820,6 +851,12 @@ function wireEvents() {
         renderSolutions();
     });
 
+    // Analyze All batch button (ASSISTANT_ADMIN+ only — conditionally rendered in EJS)
+    const analyzeAllBtn = document.getElementById('analyzeAllBtn');
+    if (analyzeAllBtn) {
+        analyzeAllBtn.addEventListener('click', onBatchAnalyze);
+    }
+
     // Note detail modal — clear state on hide
     document.getElementById('noteDetailModal').addEventListener('hidden.bs.modal', () => {
         openVolunteerId = null;
@@ -857,6 +894,213 @@ function wireEvents() {
     document.getElementById('actionSaveBtn').addEventListener('click', onSaveAction);
     document.getElementById('actionCompleteBtn').addEventListener('click', onCompleteAction);
     document.getElementById('actionDeleteBtn').addEventListener('click', onDeleteAction);
+}
+
+// ── AI Analysis ───────────────────────────────────────────────────────────────
+
+/**
+ * Fetches the most recent AI analysis for a volunteer from the server and
+ * stores the result in the analyses Map. Null is stored when no analysis exists.
+ * Non-fatal — failures leave the Map entry absent so the next open retries.
+ *
+ * @param {number} volunteerId
+ * @returns {Promise<void>}
+ */
+async function loadAnalysis(volunteerId) {
+    try {
+        const res = await fetch(`/api/notes/analysis/${volunteerId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        analyses.set(volunteerId, data.data ?? null);
+    } catch {
+        // Non-fatal — leave absent so next open retries.
+    }
+}
+
+/**
+ * POSTs to trigger an on-demand AI analysis for a volunteer.
+ * Updates the spinner state and re-renders the AI section on completion.
+ *
+ * @param {number} volunteerId
+ * @returns {Promise<void>}
+ */
+async function triggerAnalysis(volunteerId) {
+    analyzingId = volunteerId;
+    if (openVolunteerId === volunteerId) renderAiSection(volunteerId);
+
+    try {
+        const res = await fetch(`/api/notes/analyze/${volunteerId}`, { method: 'POST' });
+        if (res.ok) {
+            const data = await res.json();
+            analyses.set(volunteerId, data.data ?? null);
+        } else {
+            const data = await res.json().catch(() => ({}));
+            analyses.set(volunteerId, { error: data.message || 'Analysis request failed.' });
+        }
+    } catch {
+        analyses.set(volunteerId, { error: 'Network error during analysis.' });
+    } finally {
+        analyzingId = null;
+        if (openVolunteerId === volunteerId) renderAiSection(volunteerId);
+    }
+}
+
+/**
+ * Renders the AI analysis section inside the note detail modal.
+ * Shows a loading state while an analysis is in progress, empty state when
+ * none exists, an error state on failure, or the full structured results.
+ *
+ * @param {number} volunteerId
+ */
+function renderAiSection(volunteerId) {
+    const content    = document.getElementById('noteDetailAiContent');
+    const analyzeBtn = document.getElementById('noteDetailAnalyzeBtn');
+    if (!content) return;
+
+    const analysis  = analyses.get(volunteerId);
+    const isLoading = analyzingId === volunteerId;
+
+    if (analyzeBtn) {
+        analyzeBtn.disabled = isLoading;
+        analyzeBtn.innerHTML = isLoading
+            ? '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Analyzing…'
+            : '<i class="fa-solid fa-wand-magic-sparkles me-1"></i>Analyze';
+    }
+
+    if (isLoading) {
+        content.innerHTML = '<div class="nr-ai-loading"><span class="spinner-border spinner-border-sm text-secondary me-2" role="status"></span>Running analysis…</div>';
+        return;
+    }
+
+    if (!analyses.has(volunteerId)) {
+        content.innerHTML = '<p class="text-muted small mb-0">Click Analyze to run AI analysis on this note.</p>';
+        return;
+    }
+
+    if (!analysis) {
+        content.innerHTML = '<p class="text-muted small mb-0">Click Analyze to run AI analysis on this note.</p>';
+        return;
+    }
+
+    if (analysis.error) {
+        content.innerHTML = `<div class="alert alert-danger py-2 small mb-0"><i class="fa-solid fa-triangle-exclamation me-1"></i>${escHtml(analysis.error)}</div>`;
+        return;
+    }
+
+    const staleWarning = analysis.isStale
+        ? '<div class="nr-ai-stale"><i class="fa-solid fa-rotate me-1"></i>Note has changed since this analysis was run.</div>'
+        : '';
+
+    const categoryBadge = analysis.category
+        ? `<span class="badge nr-ai-category-badge nr-ai-category--${escHtml(analysis.category)}">${escHtml(analysis.category.replace(/_/g, ' '))}</span>`
+        : '';
+
+    const flagChips = (analysis.flags || [])
+        .filter(f => f !== 'no_action_needed')
+        .map(f => `<span class="nr-ai-flag">${escHtml(f.replace(/_/g, ' '))}</span>`)
+        .join('');
+
+    const actionRows = (analysis.action_items || []).map(item => `
+        <div class="nr-ai-suggestion-row">
+            <span class="nr-ai-priority nr-ai-priority--${escHtml(item.priority || 'medium')}">${escHtml(item.priority || 'medium')}</span>
+            <span class="nr-ai-suggestion-text">${escHtml(item.description)}</span>
+            <button
+                type="button"
+                class="nr-ai-accept-btn"
+                data-analysis-id="${analysis.id}"
+                data-volunteer-id="${volunteerId}"
+                data-description="${escHtml(item.description)}"
+            ><i class="fa-solid fa-plus me-1"></i>Add Action</button>
+        </div>
+    `.trim()).join('');
+
+    const blackoutRows = (analysis.suggested_blackouts || []).map(b => `
+        <div class="nr-ai-blackout-row">
+            <span class="nr-ai-blackout-type">${escHtml(b.type)}</span>
+            <span class="nr-ai-blackout-desc">${escHtml(b.description)}</span>
+            ${b.dayHint  ? `<span class="nr-ai-blackout-hint">${escHtml(b.dayHint)}</span>`  : ''}
+            ${b.timeHint ? `<span class="nr-ai-blackout-hint">${escHtml(b.timeHint)}</span>` : ''}
+        </div>
+    `.trim()).join('');
+
+    const tokenCount = (analysis.prompt_tokens || 0) + (analysis.completion_tokens || 0);
+    const meta = `<div class="nr-ai-meta">Analyzed ${fmtDate(analysis.analyzed_at)} by ${escHtml(analysis.analyzer_name || '—')} &middot; ${escHtml(analysis.model || '—')} &middot; ${tokenCount} tokens</div>`;
+
+    content.innerHTML = `
+        ${staleWarning}
+        ${analysis.summary ? `<div class="nr-ai-summary">${escHtml(analysis.summary)}</div>` : ''}
+        ${(categoryBadge || flagChips) ? `<div class="nr-ai-badges">${categoryBadge}${flagChips}</div>` : ''}
+        ${actionRows ? `<div class="nr-ai-subsection"><p class="nr-ai-sublabel">Suggested Actions</p>${actionRows}</div>` : ''}
+        ${blackoutRows ? `<div class="nr-ai-subsection"><p class="nr-ai-sublabel">Suggested Blackouts</p>${blackoutRows}</div>` : ''}
+        ${meta}
+    `.trim();
+
+    content.querySelectorAll('.nr-ai-accept-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            onAcceptActionItem(
+                parseInt(btn.dataset.analysisId, 10),
+                parseInt(btn.dataset.volunteerId, 10),
+                btn.dataset.description
+            );
+        });
+    });
+}
+
+/**
+ * Accepts an AI-suggested action item and saves it to volunteer_actions.
+ * Reloads state and refreshes the modal on success.
+ *
+ * @param {number} analysisId
+ * @param {number} volunteerId
+ * @param {string} description
+ * @returns {Promise<void>}
+ */
+async function onAcceptActionItem(analysisId, volunteerId, description) {
+    try {
+        const res = await fetch(`/api/notes/analysis/${analysisId}/accept-action`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ volunteerId, description }),
+        });
+        if (!res.ok) return;
+        await reload();
+        if (openVolunteerId === volunteerId) populateNoteDetail(volunteerId);
+    } catch {
+        // Non-fatal
+    }
+}
+
+/**
+ * Triggers a batch AI analysis run covering all volunteers with unanalyzed
+ * or stale notes. Restricted to ASSISTANT_ADMIN+ (button is EJS-gated).
+ * Clears the local analyses cache on completion so fresh results are fetched
+ * on next modal open.
+ *
+ * @returns {Promise<void>}
+ */
+async function onBatchAnalyze() {
+    const btn = document.getElementById('analyzeAllBtn');
+    if (!btn || batchAnalyzing) return;
+
+    batchAnalyzing = true;
+    btn.disabled   = true;
+    btn.innerHTML  = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Analyzing…';
+
+    try {
+        const res = await fetch('/api/notes/analyze/batch', { method: 'POST' });
+        if (res.ok) {
+            const data = await res.json();
+            const { analyzed = 0, failed = 0, total = 0 } = data.data || {};
+            btn.title = `Last run: ${analyzed} analyzed, ${failed} failed of ${total} total`;
+            analyses.clear();
+        }
+    } catch {
+        // Non-fatal
+    } finally {
+        batchAnalyzing = false;
+        btn.disabled  = false;
+        btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles me-1"></i>Analyze All';
+    }
 }
 
 // ── Utilities ─────────────────────────────────────────────────────────────────

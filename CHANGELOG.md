@@ -4,7 +4,83 @@ All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 
+## [2.65.0] — 2026-06-25
+
+### Added
+- **BlackoutTimeline component:** Replaces the old blackout day-picker/add-form
+  across all three entry points — scheduler context menu, My Account accordion, and
+  Volunteer Account Oversight accordion — with a unified SVG-based interactive
+  timeline (`public/js/blackoutTimeline.js`, `public/styles/blackoutTimeline.css`).
+  - Three stacked tracks (one per convention day) always visible simultaneously;
+    clicking a track or day chip switches the shared session bar to that day's
+    session layout.
+  - Drag handles snap to session boundaries (active day), 5-minute grid, and
+    timeline endpoints. Handle style: narrow vertical bar, taller than the track.
+  - Cursor overlay during drag: dashed line to ruler, glowing ruler graduation, time
+    tooltip. When dragging to a session boundary the line extends both directions and
+    the boundary in the session bar glows.
+  - Add-lock: a new unsaved range must be saved (or removed) before another can be
+    added, enforced via `_pendingRangeId` and `bt-chip-add-locked` visual state.
+  - Session labels clipped to their segment so overlapping sessions (Pre-Session /
+    Morning A overlap) don't bleed.
+  - **Scheduler:** centered full-width overlay (`bt-sched-overlay`) with inverted
+    light theme scoped to `.bt-sched-overlay-panel`; ESC and backdrop-click to
+    dismiss. Conflict tracking (`trackAssign` / `untrackBlackout`) synced after
+    save via `onSave` callback; `scheduler:blackoutChanged` dispatched.
+  - **myAccount / VOA:** timeline mounts lazily into the accordion body on first
+    expand. Light theme scoped to `.accordion-body .bt-container`. At xxl (≥1400px)
+    the card expands to 1320px via `.bt-card-wide` and `bt-container` side padding
+    drops to zero so the 1228px SVG fits without horizontal scroll.
+  - New API: `GET /api/blackouts/:volunteerId` returns days + sessions + blackouts
+    payload; `POST /api/blackouts/:volunteerId` is a replace-all write with CSRF
+    protection. Both endpoints permit OVERSEER+ or self-access. Route file:
+    `routes/blackoutRoutes.js`.
+  - Three new `dbSync.js` functions: `getConventionDaysWithSessions` (schedulable
+    days + sessions, times as integer minutes), `getVolunteerBlackouts` (all rows
+    for a volunteer), `saveVolunteerBlackouts` (delete + batch insert).
+  - Old scheduler blackout floating panel CSS (`.sched-blackout-*`, ~250 lines)
+    removed from `scheduler.css`.
+
+## [2.64.0] — 2026-06-25
+
+### Added
+- **AI Note Analysis:** Azure OpenAI (GPT-4o) pipeline that analyzes volunteer
+  intake notes and returns a structured result — plain-English summary, category
+  classification (`scheduling_constraint`, `preference`, `personal_info`,
+  `data_correction`, `other`), suggested action items with priority, and suggested
+  scheduling blackout cards with type/day/time hints.
+  - New DB table `volunteer_note_analyses` (both schemas) stores snapshots, token
+    usage, raw responses, and structured JSON output per analysis run. SHA-256
+    `note_hash` enables server-side staleness detection when a note changes after
+    analysis.
+  - Five new `dbSync.js` functions: `getVolunteerNoteAnalysis`,
+    `getAllNoteAnalyses`, `insertNoteAnalysis`, `insertAiActionItem`,
+    `getVolunteersWithUnanalyzedNotes`.
+  - `lib/noteAnalyzer.js` — lazy-initialized `AzureOpenAI` client, SHA-256 hash
+    utility, structured JSON prompt, response normalization and error capture.
+    Azure credentials (`AzureOpenAIEndpoint`, `AzureOpenAIKey`,
+    `AzureOpenAIDeployment`) resolved via Key Vault with `.env` fallback.
+  - `routes/noteAnalysisRoutes.js` — four JSON API endpoints:
+    `GET /api/notes/analysis/:volunteerId` (latest result + staleness flag),
+    `POST /api/notes/analyze/:volunteerId` (on-demand, 24 h cache),
+    `POST /api/notes/analyze/batch` (ASSISTANT_ADMIN+, all unanalyzed/stale),
+    `POST /api/notes/analysis/:analysisId/accept-action` (saves AI suggestion to
+    `volunteer_actions`).
+  - **Notes Report UI:** "Analyze" button per note in the detail modal renders
+    summary, category badge, flag chips, suggested action items (each with "Add
+    Action"), and suggested blackout cards. "Analyze All" batch button in the All
+    Notes toolbar (ASSISTANT_ADMIN+ only). 24 h client-side cache; stale badge
+    when note changes post-analysis.
+  - **Scheduler note panel:** compact read-only "AI Summary" section inserted
+    between "Read by" and "Action Items" in `schedulerNotePanel.js` — summary
+    text, flag chips, and stale warning. Loaded asynchronously; panel renders
+    normally if no analysis exists.
+  - Human confirmation required for all actionable suggestions — nothing is
+    applied automatically.
+
+
 ## [2.63.2] — 2026-06-25
+
 
 ### Fixed
 - **Schedule publish — SharePoint auth bypass:** Volunteers receiving schedule

@@ -1,0 +1,493 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+ * blackoutTimeline.css
+ * Styles for the BlackoutTimeline SVG component.
+ * Colours matched exactly to the site's frosted-glass design language:
+ *   bg       rgba(10, 35, 65, 0.82)  — navbar reference
+ *   border   rgba(255, 255, 255, 0.15)
+ *   accent   #90c4f8
+ *   text     #e4f3ff / #d5ecff
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+/* ── Container ────────────────────────────────────────────────────────────── */
+
+.bt-container {
+    display: flex;
+    flex-direction: column;
+    -webkit-user-select: none;
+    user-select: none;
+    background: rgba(10, 35, 65, 0.88);
+    backdrop-filter: blur(14px) saturate(160%);
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    padding: 14px 14px 6px;
+    color: #e4f3ff;
+}
+
+/* ── Header ───────────────────────────────────────────────────────────────── */
+
+.bt-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.bt-day-chips {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.bt-day-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 4px 11px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 5px;
+    color: #d5ecff;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.bt-day-chip:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.4);
+    color: #f0f8ff;
+}
+
+.bt-day-chip.bt-active {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.55);
+    color: #ffffff;
+    box-shadow: 0 0 0 1px rgba(144, 196, 248, 0.25) inset;
+}
+
+
+.bt-chip-sep {
+    display: inline-block;
+    width: 1px;
+    height: 12px;
+    background: rgba(255, 255, 255, 0.25);
+    align-self: center;
+    flex-shrink: 0;
+}
+
+.bt-chip-add {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.10);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    font-size: 12px;
+    line-height: 1;
+    color: #d5ecff;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.bt-chip-add:hover {
+    background: rgba(255, 255, 255, 0.22);
+    border-color: rgba(255, 255, 255, 0.65);
+    color: #ffffff;
+}
+
+/* Locked state — pending unsaved range */
+.bt-chip-add-locked {
+    opacity: 0.28;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* ── Save button ──────────────────────────────────────────────────────────── */
+
+.bt-save-btn {
+    padding: 5px 16px;
+    background: rgba(255, 255, 255, 0.10);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 5px;
+    color: #ffffff;
+    font-size: 0.78rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.bt-save-btn:hover {
+    background: rgba(255, 255, 255, 0.18);
+    border-color: rgba(255, 255, 255, 0.75);
+}
+
+.bt-save-btn:disabled {
+    opacity: 0.42;
+    cursor: not-allowed;
+}
+
+/* ── Scroll wrapper ───────────────────────────────────────────────────────── */
+
+.bt-scroll-wrapper {
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+.bt-scroll-wrapper::-webkit-scrollbar {
+    height: 4px;
+}
+
+.bt-scroll-wrapper::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.bt-scroll-wrapper::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 2px;
+}
+
+/* ── SVG root ─────────────────────────────────────────────────────────────── */
+
+.bt-svg {
+    display: block;
+    overflow: visible;
+}
+
+/* ── Session bar ──────────────────────────────────────────────────────────── */
+
+.bt-session-label {
+    dominant-baseline: middle;
+    text-anchor: middle;
+    font-size: 9.5px;
+    fill: #d5ecff;
+    pointer-events: none;
+    letter-spacing: 0.02em;
+}
+
+/* ── Track rails ──────────────────────────────────────────────────────────── */
+
+.bt-track-label {
+    dominant-baseline: middle;
+    text-anchor: middle;
+    font-size: 9.5px;
+    font-weight: 600;
+    fill: rgba(255, 255, 255, 0.3);
+    pointer-events: none;
+    letter-spacing: 0.05em;
+}
+
+.bt-track-active-label {
+    fill: #e4f3ff;
+}
+
+/* ── Blackout range elements ──────────────────────────────────────────────── */
+
+.bt-range-bar {
+    cursor: grab;
+}
+
+.bt-range-bar:active {
+    cursor: grabbing;
+}
+
+.bt-range-handle-hit {
+    cursor: ew-resize;
+}
+
+.bt-range-handle {
+    cursor: ew-resize;
+    pointer-events: none;
+}
+
+/* Remove button — hidden until hover; always visible on touch */
+.bt-range-remove-g {
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.bt-range:hover .bt-range-remove-g {
+    opacity: 1;
+}
+
+.bt-range-remove-x {
+    dominant-baseline: middle;
+    text-anchor: middle;
+    font-size: 9px;
+    fill: #ffffff;
+    pointer-events: none;
+    font-weight: 700;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+/* ── Cursor overlay ───────────────────────────────────────────────────────── */
+
+.bt-cursor-line {
+    pointer-events: none;
+    stroke: rgba(255, 255, 255, 0.35);
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
+}
+
+.bt-glow-tick {
+    pointer-events: none;
+    stroke: #90c4f8;
+    stroke-width: 2.5;
+}
+
+.bt-session-bound-glow {
+    pointer-events: none;
+    stroke: #90c4f8;
+    stroke-width: 2;
+}
+
+.bt-tooltip-bg {
+    pointer-events: none;
+    fill: rgba(8, 28, 58, 0.97);
+    stroke: rgba(255, 255, 255, 0.22);
+    stroke-width: 0.75;
+}
+
+.bt-tooltip-text {
+    pointer-events: none;
+    dominant-baseline: middle;
+    text-anchor: middle;
+    font-size: 10px;
+    fill: #e4f3ff;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+}
+
+/* ── Ruler ────────────────────────────────────────────────────────────────── */
+
+.bt-ruler-tick {
+    pointer-events: none;
+    stroke: rgba(255, 255, 255, 0.15);
+    stroke-width: 0.75;
+}
+
+.bt-ruler-tick.bt-major {
+    stroke: rgba(255, 255, 255, 0.38);
+    stroke-width: 1;
+}
+
+.bt-ruler-label {
+    pointer-events: none;
+    text-anchor: middle;
+    font-size: 9px;
+    fill: #90c4f8;
+    letter-spacing: 0.02em;
+}
+
+/* ── Responsive / mobile ──────────────────────────────────────────────────── */
+
+@media (max-width: 767px) {
+    .bt-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .bt-day-chip {
+        font-size: 0.72rem;
+        padding: 4px 8px;
+    }
+
+    /* Always show remove buttons on touch devices */
+    .bt-range-remove-g {
+        opacity: 1;
+    }
+}
+
+/* ═════════════════════════════════════════════════════════════════════════════
+ * Accordion context — myAccount / volunteerAccountOversight
+ *
+ * Light-theme inversion to match Bootstrap's default accordion appearance.
+ * Width expansion removes accordion body x-padding so the 1228px SVG fits
+ * without horizontal scroll at ≥ 1400px (Bootstrap xxl).  Below that
+ * breakpoint the scroll wrapper takes over naturally.
+ * ═════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Width: pull container to card edges, suppress scroll on xxl ─────────── */
+
+.accordion-body:has(.bt-container) {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+@media (min-width: 1400px) {
+    .accordion-body .bt-scroll-wrapper {
+        overflow-x: clip;
+        /* SVG fits — hide any 1-2px overhang cleanly */
+    }
+}
+
+/* ── Container reset ──────────────────────────────────────────────────────── */
+
+.accordion-body .bt-container {
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: none;
+    border-radius: 0;
+    padding: 12px 1.25rem 4px;
+    /* restore inner breathing room */
+    color: var(--bs-body-color, #111827);
+}
+
+/* ── Header: chips and save button ───────────────────────────────────────── */
+
+.accordion-body .bt-day-chip {
+    background: rgba(30, 58, 138, 0.06);
+    border-color: rgba(30, 58, 138, 0.22);
+    color: #1e3a8a;
+}
+
+.accordion-body .bt-day-chip:hover {
+    background: rgba(30, 58, 138, 0.12);
+    border-color: rgba(30, 58, 138, 0.38);
+    color: #1e3a8a;
+}
+
+.accordion-body .bt-day-chip.bt-active {
+    background: rgba(30, 58, 138, 0.16);
+    border-color: rgba(30, 58, 138, 0.5);
+    color: #1e3a8a;
+    box-shadow: none;
+}
+
+.accordion-body .bt-chip-sep {
+    background: rgba(30, 58, 138, 0.2);
+}
+
+.accordion-body .bt-chip-add {
+    background: rgba(30, 58, 138, 0.06);
+    border-color: rgba(30, 58, 138, 0.25);
+    color: #1e3a8a;
+}
+
+.accordion-body .bt-chip-add:hover {
+    background: rgba(30, 58, 138, 0.14);
+    border-color: rgba(30, 58, 138, 0.45);
+    color: #1e3a8a;
+}
+
+.accordion-body .bt-save-btn {
+    background: rgba(30, 58, 138, 0.08);
+    border-color: rgba(30, 58, 138, 0.35);
+    color: #1e3a8a;
+}
+
+.accordion-body .bt-save-btn:hover {
+    background: rgba(30, 58, 138, 0.15);
+    border-color: rgba(30, 58, 138, 0.55);
+}
+
+/* ── Scrollbar tint ───────────────────────────────────────────────────────── */
+
+.accordion-body .bt-scroll-wrapper {
+    scrollbar-color: rgba(30, 58, 138, 0.18) transparent;
+}
+
+/* ── SVG: text and stroke elements ───────────────────────────────────────── */
+
+.accordion-body .bt-session-label {
+    fill: #1e3a8a;
+}
+
+.accordion-body .bt-track-label {
+    fill: rgba(30, 58, 138, 0.28);
+}
+
+.accordion-body .bt-track-active-label {
+    fill: #1e3a8a;
+}
+
+.accordion-body .bt-cursor-line {
+    stroke: rgba(30, 58, 138, 0.3);
+}
+
+.accordion-body .bt-glow-tick {
+    stroke: #2563eb;
+}
+
+.accordion-body .bt-session-bound-glow {
+    stroke: #2563eb;
+}
+
+.accordion-body .bt-tooltip-bg {
+    fill: rgba(255, 255, 255, 0.97);
+    stroke: rgba(30, 58, 138, 0.25);
+}
+
+.accordion-body .bt-tooltip-text {
+    fill: #1e3a8a;
+}
+
+.accordion-body .bt-ruler-tick {
+    stroke: rgba(30, 58, 138, 0.12);
+}
+
+.accordion-body .bt-ruler-tick.bt-major {
+    stroke: rgba(30, 58, 138, 0.32);
+}
+
+.accordion-body .bt-ruler-label {
+    fill: #2563eb;
+}
+
+.accordion-body .bt-range-remove-x {
+    fill: #fff;
+}
+
+/* ── SVG: shape fills (CSS overrides inline presentation attributes) ──────── */
+
+.accordion-body .bt-session-seg {
+    fill: rgba(30, 58, 138, 0.10);
+    stroke: rgba(30, 58, 138, 0.25);
+}
+
+.accordion-body .bt-track-rail {
+    fill: rgba(30, 58, 138, 0.04);
+    stroke: rgba(30, 58, 138, 0.07);
+}
+
+.accordion-body .bt-range-bar {
+    fill: rgba(30, 58, 138, 0.75);
+}
+
+.accordion-body .bt-range-handle {
+    fill: #1e3a8a;
+    stroke: rgba(255, 255, 255, 0.5);
+}
+/* ── Wide-card expansion at xxl — myAccount / volunteerAccountOversight ───── */
+
+@media (min-width: 1400px) {
+
+    /* Override the hardcoded card max-widths in styles.css */
+    .bt-card-wide {
+        max-width: 1320px !important;
+    }
+
+    /* Remove bt-container side padding so scroll-wrapper reaches 1240px */
+    .accordion-body .bt-container {
+        padding-left: 0;
+        padding-right: 0;
+    }
+
+    /* Restore visual indentation on the header row only */
+    .accordion-body .bt-header {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+}

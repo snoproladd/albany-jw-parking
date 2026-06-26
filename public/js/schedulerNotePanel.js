@@ -152,6 +152,9 @@ async function _loadAndRender(panel, volId, actorId) {
         if (_panelEl) {
             _positionEl(_panelEl, _anchorPos.x, _anchorPos.y);
         }
+
+        // Load AI summary in background — non-fatal, panel renders fine without it
+        _renderAiSummary(panel, body, volId);
     } catch {
         body.innerHTML = '<p class="sched-assign-panel-empty text-danger small">Network error.</p>';
     }
@@ -356,6 +359,86 @@ async function _onCreateAction(btn, actionList, volId) {
     } catch {
         btn.innerHTML = '<i class="fa-solid fa-xmark me-1"></i>Network error';
         btn.disabled  = false;
+    }
+}
+
+// ── AI Summary ────────────────────────────────────────────────────────────────
+
+/**
+ * Fetches the most recent AI analysis for a volunteer and inserts a compact
+ * read-only summary section between "Read by" and "Action Items."
+ * Silently no-ops if no analysis exists, the analysis failed, or the panel
+ * has been closed or switched to a different volunteer before the fetch returns.
+ *
+ * @param {HTMLElement} panel - The panel root element (used for isConnected check).
+ * @param {HTMLElement} body  - The panel body element to insert into.
+ * @param {number}      volId
+ * @returns {Promise<void>}
+ */
+async function _renderAiSummary(panel, body, volId) {
+    try {
+        const res = await fetch(`/api/notes/analysis/${volId}`);
+        if (!res.ok) return;
+
+        const data     = await res.json().catch(() => ({}));
+        const analysis = data.data;
+
+        // Guard: panel closed, switched volunteer, or no usable result
+        if (_currentVolId !== volId || !panel.isConnected) return;
+        if (!analysis || analysis.error || !analysis.summary) return;
+
+        const section = document.createElement('div');
+        section.classList.add('sched-note-section', 'sched-note-ai-section');
+
+        // Label
+        const label = document.createElement('div');
+        label.classList.add('sched-note-label');
+        label.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles me-1"></i>AI Summary';
+        section.appendChild(label);
+
+        // Summary text
+        const summary = document.createElement('div');
+        summary.classList.add('sched-note-ai-summary');
+        summary.textContent = analysis.summary;
+        section.appendChild(summary);
+
+        // Flag chips (skip no_action_needed — not useful in this context)
+        const flags = (analysis.flags || []).filter(f => f !== 'no_action_needed');
+        if (flags.length > 0) {
+            const chipsWrap = document.createElement('div');
+            chipsWrap.classList.add('sched-note-chips');
+            flags.forEach(f => {
+                const chip = document.createElement('span');
+                chip.classList.add('sched-note-ai-flag');
+                chip.textContent = f.replace(/_/g, ' ');
+                chipsWrap.appendChild(chip);
+            });
+            section.appendChild(chipsWrap);
+        }
+
+        // Stale warning
+        if (analysis.isStale) {
+            const stale = document.createElement('div');
+            stale.classList.add('sched-note-ai-stale');
+            stale.innerHTML = '<i class="fa-solid fa-rotate me-1"></i>Note changed since analysis';
+            section.appendChild(stale);
+        }
+
+        // Insert before the action items section (last .sched-note-section in body)
+        const sections    = body.querySelectorAll(':scope > .sched-note-section');
+        const lastSection = sections[sections.length - 1];
+        if (lastSection) {
+            body.insertBefore(section, lastSection);
+        } else {
+            body.appendChild(section);
+        }
+
+        // Re-clamp — content height has grown
+        if (_panelEl === panel) {
+            _positionEl(panel, _anchorPos.x, _anchorPos.y);
+        }
+    } catch {
+        // Non-fatal — panel renders without AI section
     }
 }
 
