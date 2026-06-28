@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>System Variables — Albany JW Parking</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/systemVariables.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+    <meta name="csrf-token" content="<%= csrfToken %>" />
+  </head>
+
+  <body class="min-vh-100 bg-body-tertiary" data-authed="true">
+    <%- include('../partials/header') %>
+
+    <main class="container-fluid py-4">
+      <div class="row justify-content-center">
+        <div class="col-12 col-xl-10">
+
+          <%# ── Page header ── %>
+          <div class="d-flex align-items-center gap-3 mb-4">
+            <a href="/oversight/tools" class="btn btn-sm btn-secondary">
+              <i class="fa-solid fa-arrow-left me-1"></i>Oversight Tools
+            </a>
+            <div>
+              <h1 class="h3 mb-0">
+                <i class="fa-solid fa-sliders me-2"></i>System Variables
+              </h1>
+              <p class="text-muted small mb-0 mt-1">
+                Manage dynamic lists used throughout the application. Changes take effect immediately.
+              </p>
+            </div>
+          </div>
+
+          <%# ── Global error ── %>
+          <div id="sv-page-error" class="alert alert-danger d-none mb-4" role="alert"></div>
+
+          <%# ── Location Classifications ── %>
+          <div class="card shadow-sm sv-card mb-4">
+            <div class="card-header sv-card-header">
+              <div>
+                <h2 class="h5 mb-1">
+                  <i class="fa-solid fa-tags me-2 text-primary"></i>Location Classifications
+                </h2>
+                <p class="text-muted small mb-0">
+                  Used to categorize parking locations on the Locations page
+                  (e.g. Parking Garage, Parking Area, Kingdom Hall).
+                </p>
+              </div>
+            </div>
+            <div class="card-body p-0">
+              <div id="sv-classifications-root" class="sv-section-root">
+                <div class="sv-loading">
+                  <div class="spinner-border spinner-border-sm text-secondary me-2" role="status">
+                    <span class="visually-hidden">Loading…</span>
+                  </div>
+                  Loading…
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <%# ── Sub-location Types ── %>
+          <div class="card shadow-sm sv-card mb-4">
+            <div class="card-header sv-card-header">
+              <div>
+                <h2 class="h5 mb-1">
+                  <i class="fa-solid fa-diagram-subtask me-2 text-primary"></i>Sub-location Types
+                </h2>
+                <p class="text-muted small mb-0">
+                  Labels for named positions within a location (e.g. Entrance, Floor, Column, Desk).
+                  Set <em>Applies to</em> to restrict a type to a specific classification,
+                  or leave it blank to make it available for all.
+                </p>
+              </div>
+            </div>
+            <div class="card-body p-0">
+              <div id="sv-subtypes-root" class="sv-section-root">
+                <div class="sv-loading">
+                  <div class="spinner-border spinner-border-sm text-secondary me-2" role="status">
+                    <span class="visually-hidden">Loading…</span>
+                  </div>
+                  Loading…
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </main>
+
+    <%- include('../partials/footer') %>
+
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="/js/systemVariables.js"></script>
+  </body>
+</html>

@@ -238,9 +238,8 @@
                       <li><a class="ot-nav-item" href="/oversight/tools/reports?tab=day-staffing">
                         <i class="fa-solid fa-people-arrows"></i>Day Staffing
                       </a></li>
-                      <li><a class="ot-nav-item ot-nav-item--soon" href="#" aria-disabled="true" tabindex="-1">
+                      <li><a class="ot-nav-item" href="/oversight/tools/reports?tab=garage-capacity">
                         <i class="fa-solid fa-warehouse"></i>Garage Capacity
-                        <span class="badge bg-secondary ms-auto badge-xs">Soon</span>
                       </a></li>
                     </ul>
                   </div>
@@ -363,6 +362,29 @@
                 </li>
                 <% } %>
 
+                <% if (navState.canLogParkingCount) { %>
+                <%# ── Counts ──────────────────────────────────────── %>
+                <li>
+                  <button class="ot-nav-category" type="button"
+                          data-bs-toggle="collapse"
+                          data-bs-target="#otNavCounts">
+                    <span><i class="fa-solid fa-car me-2"></i>Counts</span>
+                    <i class="fa-solid fa-chevron-down ot-nav-chevron"></i>
+                  </button>
+                </li>
+                <li>
+                  <div class="collapse show" id="otNavCounts">
+                    <ul class="ot-nav-items">
+                      <% if (navState.canLogParkingCount) { %>
+                        <li><a class="ot-nav-item" href="/counts">
+                          <i class="fa-solid fa-hand-pointer"></i>Parking Counter
+                        </a></li>
+                      <% } %>
+                    </ul>
+                  </div>
+                </li>
+                <% } %>
+
                 <% if (can('accessAdminConsole')) { %>
                 <%# ── Decently Sync ───────────────────────────────── %>
                 <li>
@@ -405,6 +427,9 @@
                       </a></li>
                       <li><a class="ot-nav-item" href="/oversight/tools/oversightstructure">
                         <i class="fa-solid fa-sitemap"></i>Oversight Structure
+                      </a></li>
+                      <li><a class="ot-nav-item" href="/oversight/tools/system-variables">
+                        <i class="fa-solid fa-database"></i>System Variables
                       </a></li>
                     </ul>
                   </div>

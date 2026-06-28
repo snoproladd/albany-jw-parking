@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Count Report — Albany JW Parking</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/countReport.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+</head>
+<body class="min-vh-100 bg-body-tertiary" data-authed="true">
+
+    <%- include('partials/header') %>
+
+    <main class="container py-4 px-3 px-md-4" id="countReportRoot" data-can-reset="<%= canResetCounts ? '1' : '0' %>">
+        <div class="row justify-content-center">
+            <div class="col-12 col-xl-10">
+
+                <%# ── Page header ───────────────────────────────── %>
+                <div class="cr-page-header mb-4">
+                    <h1 class="cr-page-title">
+                        <i class="fa-solid fa-chart-line me-2"></i>Count Report
+                    </h1>
+                    <p class="cr-page-subtitle text-muted">
+                        Parking counts by location over the convention day. Updated in 1-minute intervals.
+                    </p>
+                </div>
+
+                <%# ── Day selector ──────────────────────────────── %>
+                <div class="cr-controls mb-4">
+                    <label class="cr-day-label" for="reportDaySelect">Convention Day</label>
+                    <select id="reportDaySelect" class="form-select cr-day-select" aria-label="Convention day">
+                        <option value="">Loading…</option>
+                    </select>
+                </div>
+
+                <%# ── Loading state ─────────────────────────────── %>
+                <div id="crLoading" class="cr-loading" aria-live="polite">
+                    <div class="spinner-border spinner-border-sm text-secondary me-2" role="status">
+                        <span class="visually-hidden">Loading…</span>
+                    </div>
+                    Loading count data…
+                </div>
+
+                <%# ── Error state ───────────────────────────────── %>
+                <div id="crError" class="alert alert-danger d-none" role="alert"></div>
+
+                <%# ── Empty state ───────────────────────────────── %>
+                <div id="crEmpty" class="cr-empty d-none">
+                    <i class="fa-solid fa-chart-simple fa-2x mb-2 text-muted"></i>
+                    <p class="mb-0 text-muted">No counts recorded for this day yet.</p>
+                </div>
+
+                <%# ── Chart ─────────────────────────────────────── %>
+                <div id="crChartWrap" class="cr-chart-wrap d-none">
+                    <canvas id="crChart" aria-label="Parking counts over time"></canvas>
+                </div>
+
+                <%# ── Location capacity summary ─────────────────── %>
+                <div id="crSummary" class="cr-summary d-none"></div>
+
+            </div>
+        </div>
+    </main>
+
+    <%# ── Reset Counts Confirmation Modal (ASSISTANT_ADMIN+) ── %>
+    <% if (canResetCounts) { %>
+    <div class="modal fade" id="resetCountsModal" tabindex="-1"
+         aria-labelledby="resetCountsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="resetCountsModalLabel">
+                        <i class="fa-solid fa-rotate-left me-2 text-danger"></i>Reset Counts
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">
+                        Reset all counts for <strong id="resetLocationName"></strong> on this day?
+                    </p>
+                    <p class="text-danger mb-0">
+                        <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                        This permanently deletes all recorded count data for this location
+                        and cannot be undone.
+                    </p>
+                    <div id="resetModalError" class="alert alert-danger d-none mt-3 mb-0" role="alert"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="confirmResetBtn">
+                        <i class="fa-solid fa-rotate-left me-1"></i>Reset Counts
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <% } %>
+
+    <%- include('partials/footer') %>
+
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="/js/countReport.js"></script>
+</body>
+</html>

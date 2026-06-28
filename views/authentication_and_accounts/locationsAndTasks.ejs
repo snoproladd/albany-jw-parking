@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
     <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
     <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/locationsAndTasks.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@15.2.2/dist/css/shepherd.css" />
     <link rel="stylesheet" href="/css/tours.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -176,6 +177,7 @@
                       <tr>
                         <th>Name</th>
                         <th>Capacity</th>
+                        <th>Classification</th>
                         <th>Address</th>
                         <th>Map</th>
                         <th>Status</th>
@@ -193,6 +195,8 @@
                             data-lng="<%= r.lng != null ? r.lng : '' %>"
                             data-maps-url="<%= r.maps_url || '' %>"
                             data-active="<%= r.active ? 'true' : 'false' %>"
+                            data-classification-id="<%= r.classification_id != null ? r.classification_id : '' %>"
+                            data-classification-name="<%= r.classification_name || '' %>"
                             class="<%= !r.active ? 'table-secondary text-muted' : '' %>">
                           <td>
                             <strong><%= r.name %></strong>
@@ -202,6 +206,17 @@
                           </td>
                           <td class="text-center">
                             <%= r.capacity != null ? r.capacity : '—' %>
+                          </td>
+                          <td>
+                            <% if (r.classification_name) { %>
+                              <span class="badge loc-classification-badge"
+                                    data-location-id="<%= r.id %>">
+                                <%= r.classification_name %>
+                              </span>
+                            <% } else { %>
+                              <span class="text-muted small loc-classification-badge"
+                                    data-location-id="<%= r.id %>">—</span>
+                            <% } %>
                           </td>
                           <td class="small text-muted">
                             <%= r.address || '—' %>
@@ -227,10 +242,114 @@
                             </span>
                           </td>
                           <td class="text-end">
-                            <button type="button" class="btn btn-outline-primary btn-sm edit-btn"
-                              data-id="<%= r.id %>">
-                              <i class="fa-solid fa-pen"></i>
-                            </button>
+                            <div class="d-flex gap-1 justify-content-end align-items-center">
+                              <button type="button"
+                                      class="btn btn-outline-secondary btn-sm loc-expand-btn"
+                                      data-id="<%= r.id %>"
+                                      aria-expanded="false"
+                                      title="Sub-locations &amp; classification">
+                                <i class="fa-solid fa-chevron-down loc-chevron"></i>
+                              </button>
+                              <button type="button" class="btn btn-outline-primary btn-sm edit-btn"
+                                data-id="<%= r.id %>">
+                                <i class="fa-solid fa-pen"></i>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+
+                        <%# ── Expandable sub-location panel ── %>
+                        <tr class="d-none loc-subloc-row" id="subloc-row-<%= r.id %>">
+                          <td colspan="7" class="p-0 loc-subloc-td">
+                            <div class="loc-subloc-panel">
+
+                              <%# Classification selector %>
+                              <div class="loc-subloc-section">
+                                <span class="loc-subloc-section-label">Classification</span>
+                                <select class="form-select form-select-sm loc-classification-select w-auto"
+                                        data-location-id="<%= r.id %>"
+                                        data-current="<%= r.classification_id != null ? r.classification_id : '' %>">
+                                  <option value="">Loading…</option>
+                                </select>
+                              </div>
+
+                              <%# Sub-locations header %>
+                              <div class="loc-subloc-section loc-subloc-header-row">
+                                <span class="loc-subloc-section-label">Entrances &amp; Sections</span>
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-primary loc-add-subloc-btn"
+                                        data-location-id="<%= r.id %>">
+                                  <i class="fa-solid fa-plus me-1"></i>Add
+                                </button>
+                              </div>
+
+                              <%# Sub-location list (JS-rendered) %>
+                              <div class="loc-subloc-list" id="subloc-list-<%= r.id %>">
+                                <div class="loc-subloc-loading">
+                                  <span class="spinner-border spinner-border-sm text-secondary me-2" role="status"></span>
+                                  Loading…
+                                </div>
+                              </div>
+
+                              <%# Add sub-location form (hidden until Add is clicked) %>
+                              <div class="loc-subloc-add-form d-none loc-subloc-section"
+                                   id="subloc-add-<%= r.id %>">
+                                <div class="d-flex gap-2 flex-wrap align-items-end">
+                                  <div>
+                                    <label class="form-label form-label-sm mb-1">Name</label>
+                                    <input type="text"
+                                           class="form-control form-control-sm loc-add-name"
+                                           placeholder="e.g. North Entrance"
+                                           maxlength="100" />
+                                  </div>
+                                  <div>
+                                    <label class="form-label form-label-sm mb-1">Type</label>
+                                    <select class="form-select form-select-sm loc-add-type">
+                                      <option value="">Loading…</option>
+                                    </select>
+                                  </div>
+                                  <div class="d-flex gap-1 align-items-end">
+                                    <button type="button"
+                                            class="btn btn-sm btn-success loc-add-save-btn"
+                                            data-location-id="<%= r.id %>">Save</button>
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-secondary loc-add-cancel-btn">
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <%# Inline new-type form (hidden) %>
+                                <div class="loc-new-type-form d-none mt-2"
+                                     id="new-type-form-<%= r.id %>">
+                                  <div class="d-flex gap-2 flex-wrap align-items-end">
+                                    <div>
+                                      <label class="form-label form-label-sm mb-1">Type name</label>
+                                      <input type="text"
+                                             class="form-control form-control-sm loc-new-type-name"
+                                             placeholder="e.g. Aisle"
+                                             maxlength="100" />
+                                    </div>
+                                    <div>
+                                      <label class="form-label form-label-sm mb-1">Applies to</label>
+                                      <select class="form-select form-select-sm loc-new-type-parent">
+                                        <option value="">(All classifications)</option>
+                                      </select>
+                                    </div>
+                                    <div class="d-flex gap-1 align-items-end">
+                                      <button type="button"
+                                              class="btn btn-sm btn-primary loc-new-type-save-btn"
+                                              data-location-id="<%= r.id %>">Save type</button>
+                                      <button type="button"
+                                              class="btn btn-sm btn-outline-secondary loc-new-type-cancel-btn">
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                            </div>
                           </td>
                         </tr>
                       <% }) %>

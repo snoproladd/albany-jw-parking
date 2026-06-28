@@ -409,8 +409,31 @@
           "icon": "fa-solid fa-sitemap",
           "minRole": null,
           "permission": "manageCampaigns"
+        },
+        {
+          "title": "System Variables",
+          "path": "/oversight/tools/system-variables",
+          "description": "Manage dynamic lists used throughout the application (location types, sub-location labels, and more).",
+          "icon": "fa-solid fa-database",
+          "minRole": null,
+          "permission": "accessAdminConsole"
         }
       ]
-    }
-  ]
+    },
+  {
+    "id": "counts",
+    "label": "Counts",
+    "icon": "fa-solid fa-car",
+    "pages": [
+      {
+        "title": "Parking Counter",
+        "path": "/counts",
+        "description": "Phone-first tally tool for counting cars at your assigned parking location.",
+        "icon": "fa-solid fa-hand-pointer",
+        "permission": "logParkingCount",
+        "tourId": null
+      }
+    ]
+  }
+]
 }

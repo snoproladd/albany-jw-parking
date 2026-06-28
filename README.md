@@ -3,6 +3,8 @@
 A full-stack web application for managing volunteers, scheduling, messaging,
 and attendance for the Albany JW Regional Convention parking team.
 
+<!-- README last updated: v2.72.0 -->
+
 ---
 
 ## Tech Stack
@@ -217,6 +219,8 @@ parking/
 │   ├── oversightRoutes.js     # All Oversight Tools routes
 │   ├── registrationRoutes.js  # Registration flow (multi-step draft)
 │   ├── signsRoutes.js         # Sign Library, Sign Builder, Sign Map — templates, locations, and attachments CRUD
+│   ├── countsRoutes.js        # Parking Counter tally page + count report API
+│   ├── systemVariablesRoutes.js # System Variables management + sub-location CRUD
 │   ├── sitemapRoutes.js       # Public role-filtered sitemap page
 │   ├── blackoutRoutes.js      # GET/POST /api/blackouts/:volunteerId (BlackoutTimeline API)
 │   ├── smsWebhookRoute.js     # Twilio inbound SMS routing + freeform AI pipeline
@@ -271,7 +275,9 @@ parking/
 │   │   ├── decentlyImport.ejs
 │   │   ├── invitationTracker.ejs
 │   │   ├── inviteRespond.ejs
-│   │   ├── locationsAndTasks.ejs
+│   │   ├── locationsAndTasks.ejs     # Locations management (classification, sub-locations)
+│   │   ├── counts.ejs                 # Parking Counter — mobile-first tally page
+│   │   ├── systemVariables.ejs        # System Variables management (classifications + sub-location types)
 │   │   ├── notesReport.ejs            # Notes report (intake notes + inbound SMS)
 │   │   ├── reports.ejs
 │   │   ├── scheduler.ejs
@@ -349,7 +355,10 @@ parking/
 │   │   ├── decentlyImport.js          # Decently data import
 │   │   ├── invitationTracker.js       # Campaign invitation tracker
 │   │   ├── inviteRespond.js           # Invitation RSVP response page
-│   │   ├── locationsAndTasks.js       # Locations & tasks management
+│   │   ├── locationsAndTasks.js       # Locations & tasks management (classification, sub-loc panels)
+│   │   ├── counts.js                  # Parking Counter tally logic (heartbeat, submit, alarms, localStorage)
+│   │   ├── countReport.js             # Count Report — overview bar + per-garage stacked area charts (module)
+│   │   ├── systemVariables.js         # System Variables management page (module)
 │   │   ├── maps.js                    # Maps page (OneDrive listing)
 │   │   ├── schedules.js               # Schedules page (OneDrive PDF listing)
 │   │   ├── notesReport.js             # Notes Report: SMS cards, archived panel, AI analysis badges
@@ -433,6 +442,10 @@ parking/
 │   │   ├── rendezvous.css             # Rendezvous editor panel + landing page
 │   │   ├── scheduler-categories.css   # Scheduler Categories management page
 │   │   ├── reports.css                # Reports page
+│   │   ├── counts.css                 # Parking Counter tally page
+│   │   ├── countReport.css            # Garage Capacity report charts
+│   │   ├── systemVariables.css        # System Variables management page
+│   │   ├── locationsAndTasks.css      # Locations page sub-location expansion panels
 │   │   ├── scheduler.css              # Scheduler grid
 │   │   ├── schedulerReport.css        # Schedule report / PDF
 │   │   ├── shiftAlerts.css            # Shift alerts page
@@ -466,6 +479,9 @@ parking/
 │       ├── ai_blackout_suggestions.sql # ai_blackout_suggestions table
 │       ├── schedule_violations.sql    # schedule_violation_runs + schedule_violations tables
 │       └── schedule_analysis_rules.sql # schedule_analysis_rules table
+│       ├── parking_counts.sql         # parking_counts + extra_parking_count BIT on volunteer_in
+│       ├── parking_counts_is_manual.sql # adds is_manual BIT to parking_counts
+│       └── system_variable_lists.sql  # system_variable_lists + location_sub_locations + FK additions
 │
 ├── docs/
 │   └── OVERSIGHT_GUIDE.md     # End-user guide for oversight staff
@@ -646,6 +662,21 @@ The first ADMIN must be granted directly in the database.
   constraint panel (`schedulerConstraintPanel.js`) lets overseers review, edit, and apply
   suggestions directly from the pool pill context menu. Applying all suggestions for an
   SMS message auto-resolves it in the Notes Report.
+- **Parking Counter (2.70.0+):** `/counts` (logParkingCount permission — OVERSEER+ by default,
+  delegatable via `extra_parking_count BIT` on `volunteer_in`). Phone-first tally UI with
+  60-second heartbeat, quarter-hour alarm, Web Audio API beep, Wake Lock, localStorage
+  persistence, and `navigator.sendBeacon` fallback on page hide. The Garage Capacity report
+  (`/oversight/tools/reports?tab=garage-capacity`) shows an overview bar chart (latest count
+  vs. capacity, colour-coded by utilisation) and per-garage stacked area charts with one fill
+  band per sub-location (entrance/floor/etc.) summing to a bold total line. Auto-refreshes
+  every 60 seconds silently; pauses when the page is hidden and catches up on restore.
+- **System Variables (2.71.0+):** `system_variable_lists` stores vocabulary lists used
+  throughout the app (location classifications, sub-location types). Self-referential
+  `parent_id` FK scopes sub-type labels to specific classifications. `location_sub_locations`
+  holds named sub-locations per parking location (Entrances, Floors, etc.) with cascade-delete
+  from the parent location and `ON DELETE SET NULL` on `parking_counts.sub_location_id` so
+  count data is preserved when a sub-location is removed. Managed via
+  `/oversight/tools/system-variables` (ASSISTANT_ADMIN+).
 - **Overseer Dashboard Widgets (2.69.0):** Three frosted-glass glimpse cards
   on the home dashboard, visible to OVERSEER+ only. Notes Report card: total
   active notes / unread by me / pending actions / pending SMS — all derived
@@ -683,6 +714,9 @@ Schema highlights:
     `'manageSigns'` in `req.session.extraPermissions` (string array). Future
     delegated permissions follow the same pattern: add a column, add one line
     to the login handler.
+  - `extra_parking_count BIT NOT NULL DEFAULT 0` — grants `logParkingCount` to a
+    REGISTERED volunteer (delegation for convention-day counters). Checked at login;
+    stored as `'logParkingCount'` in `req.session.extraPermissions`.
 - `invitations` — per-volunteer invite records with token, RSVP, batch link,
   and `response_other` (free-text "Other" input for dynamic RSVP)
 - `invitation_batches` — campaign metadata; `response_config` (JSON, nullable)
@@ -735,6 +769,21 @@ Schema highlights:
 - `schedule_violation_runs` — one row per schedule analysis pass. `schedule_hash NVARCHAR(64)` (SHA-256 of all assignments + blackouts) enables cache comparison to skip re-analysis when nothing has changed. `triggered_by FK`, `violation_count INT`.
 - `schedule_violations` — per-violation rows. `violation_type` ∈ {time_overlap, blackout_violation, pre_session_overload, post_session_overload, understaffed, daily_load, coverage_gap, ai_observation}. `severity` ∈ {critical, high, medium, low, info} (null for rule-engine violations before AI enhancement). `confidence DECIMAL(3,2)` (null for deterministic facts). `ai_question` / `overseer_response` support the targeted Q&A re-analysis loop. `acknowledged BIT`.
 - `schedule_analysis_rules` — admin-managed scheduling policy rules injected as mandatory context into the AI system prompt on every analysis run. `rule_text NVARCHAR(MAX)`, `sort_order INT`, `active BIT`. Managed via `/oversight/tools/schedule-rules` (ADMIN only).
+- `parking_counts` — volunteer tally records. Fields: `volunteer_id FK`, `location_task_id FK`,
+  `convention_day_id FK`, `count INT`, `is_final BIT`, `is_manual BIT`, `sub_location_id INT
+  NULL FK → location_sub_locations (ON DELETE SET NULL)`, `recorded_at DATETIME2 DEFAULT
+  GETUTCDATE()`. Heartbeats insert `is_final = 0`; taps/manual submits insert `is_final = 1`.
+  Report query uses `MAX(count)` per volunteer per 15-minute bucket, then sums across
+  volunteers per sub-location.
+- `system_variable_lists` — central vocabulary store for dynamic lists. Fields: `category
+  NVARCHAR(50)`, `display_name`, `parent_id INT NULL FK → self` (scopes sub-type labels to a
+  specific classification), `display_order`, `active BIT`. Seeded categories:
+  `location_classification` (Parking Garage, Parking Area, Kingdom Hall, Desk/Station) and
+  `location_sub_type` (Entrance, Exit, Aisle universal; Floor/Column → Garage; Desk → KH).
+- `location_sub_locations` — named positions within a location. Fields: `location_task_id FK
+  (ON DELETE CASCADE)`, `name`, `sub_type_id FK → system_variable_lists`, `display_order`,
+  `active BIT`. Deleting a location cascades to its sub-locations; counts that referenced a
+  deleted sub-location have `sub_location_id` set to NULL (data preserved).
 - `volunteer_tour_dismissals` — tracks which guided tour prompts a volunteer has permanently dismissed; composite PK `(volunteer_id, tour_id)`, FK to `volunteer_in(id)`. Special `tour_id = '_all'` disables all first-visit prompts site-wide.
 - `shift_rendezvous_points` — one optional meeting point per schedule assignment
   (shift + location pair). Fields: `description`, `address`, `latitude`/`longitude`

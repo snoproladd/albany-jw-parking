@@ -1226,6 +1226,32 @@ has a name, optional description, capacity, address, and map URL.
 Locations are attached to shifts via the **Schedule Assignments** panel on
 each shift in Timelines.
 
+#### Classification
+
+Each location can be assigned a **classification** (Parking Garage, Parking Area,
+Kingdom Hall, Desk / Station) via the expand chevron (›) on any location row.
+The classification controls which sub-location types are offered when adding
+entrances or sections.
+
+#### Sub-locations (Entrances & Sections)
+
+Expand a location row to add named sub-locations — e.g. *North Entrance*,
+*Floor 2*, *South Exit*. Each sub-location can have a **type** (drawn from
+the System Variables vocabulary list) and can be toggled Active/Inactive.
+
+- **Active sub-locations** appear in the Parking Counter picker when that
+  location is selected. If at least one active sub-location exists, the counter
+  requires the volunteer to select one before counting can begin.
+- **Inactive sub-locations** are hidden from the counter but remain in the list
+  for management. Historical count data is always preserved.
+- **Deleting a sub-location** is permanent. Any count records that referenced
+  it retain their data but lose the sub-location label (shown as ‘unassigned’
+  in the report).
+- **Inline type creation —** if the type you need isn’t in the dropdown, choose
+  **+ Add new type…** at the bottom of the list. A small form appears letting
+  you name the type and optionally scope it to a classification. The new type
+  is immediately available and saved to System Variables.
+
 ---
 
 ### Schedule Analysis *(OVERSEER+)*
@@ -1330,6 +1356,64 @@ assessing violations — they directly influence severity ratings and suggestion
 
 ---
 
+---
+
+## 5b. Parking Counter *(logParkingCount)*
+
+### Parking Counter *(OVERSEER+ or delegated)*
+
+**Path:** Counts → Parking Counter
+
+A phone-first tally tool for volunteers counting cars at a garage entrance.
+The permission is granted to OVERSEER+ by default. DESK/KEYMAN volunteers
+can be given access individually via the **Assignment & Role** accordion on
+their volunteer profile (ADMIN/ASSISTANT_ADMIN only).
+
+#### Starting a session
+
+1. The app auto-detects today’s convention day. If today is not a convention
+   day, a day picker appears — select the correct day.
+2. Choose the **Parking Location** from the dropdown (only locations with a
+   configured capacity are listed).
+3. If the location has active sub-locations (entrances/sections), a required
+   **Entrance / Section** picker appears. Select the appropriate one.
+4. Tap **Start Counting**.
+
+#### Counting
+
+- **Tap the large button** to add one car. A short beep confirms each tap.
+- **− 1 bar** at the bottom subtracts one if you over-counted.
+- **Submit** records the current tally, resets the local counter to zero, and
+  adds to your **Session Total** (today’s running total across all rounds).
+  Submitting a manual entry also increments the session total.
+- The app sends a **60-second heartbeat** to the server so the report reflects
+  near-real-time data even if you haven’t tapped Submit yet.
+- A **quarter-hour alarm** (dual-tone beep) reminds you to submit at each
+  15-minute mark.
+- **Wake Lock** keeps the screen on while counting (where supported). Toggle
+  off if your battery is low.
+
+#### Manual count
+
+Tap the **Manual count** accordion to enter a number from another source
+(e.g. a radio report or handoff count). Manual entries are stored separately
+(flagged `is_manual`) and show in the report alongside tap counts. They also
+increment the session total.
+
+#### Persistence
+
+Your session state (location, sub-location, count, session total) is saved to
+`localStorage`. If you accidentally close the tab or navigate away, returning
+to `/counts` restores your session automatically. Your count is also beaconed
+to the server the moment you leave the page, so data is never lost.
+
+#### Changing setup
+
+Tap **Change Setup** to return to the setup screen and pick a different
+location or day. This **resets the session total to zero**.
+
+---
+
 ## 6. Attendance
 
 ### Check-In Tool *(KEYMAN+)*
@@ -1381,6 +1465,61 @@ Use the **filter bar** to narrow across all shifts simultaneously by:
 **Path:** Operations → Reports
 
 A table of all volunteers showing their registration completeness. Volunteers with missing required fields are flagged so oversight can follow up. Filter by **Status** (All / Completed / Draft), **Gender** (All / Male / Female), or search by name or email.
+
+### Garage Capacity *(OVERSEER+)*
+
+**Path:** Operations → Reports → Garage Capacity tab (or the Garage Capacity link in the nav)
+
+A live dashboard showing how full each garage is, updated every 60 seconds from
+the data submitted by counter volunteers.
+
+#### Overview bar chart
+
+At the top of the panel, a grouped bar chart shows every garage side-by-side:
+- **Coloured bar** = latest submitted count from all entrances combined
+  - Green = below 70% capacity
+  - Amber = 70–90% capacity
+  - Red = 90%+ capacity
+- **Grey bar** = total capacity of the garage
+- Hover over a bar for the utilisation percentage
+
+#### Per-garage time-series charts
+
+Below the overview, one chart appears per garage. Each chart shows how counts
+have built up over the day in 15-minute buckets:
+
+- **Stacked fills** — each entrance or section is a coloured band. The bands
+  stack from the x-axis so you can see each entrance’s contribution to the
+  total at a glance.
+- **Bold total line** — sits on top of all fills and shows the combined count.
+- **Dashed red line** — the garage’s capacity ceiling.
+- Garages with no sub-locations (entrances) show a single shaded area.
+
+> **15-minute buckets —** the horizontal axis shows one data point per
+> 15-minute window. Within each window the highest count submitted by each
+> volunteer is taken, then summed across all volunteers at that entrance.
+> Charts therefore show the ‘peak state’ at each quarter hour, not a
+> continuous curve.
+
+#### Refreshing
+
+- The chart auto-refreshes every **60 seconds** silently (charts stay visible;
+  only the rotate icon on the refresh button spins briefly).
+- The refresh pauses automatically when the browser tab is hidden and resumes
+  with an immediate catch-up fetch when you switch back.
+- Click the **↻ refresh button** next to the day picker at any time for an
+  on-demand update.
+
+#### Selecting a day
+
+The day picker defaults to today if today is a convention day. Otherwise,
+choose a day from the dropdown to view historical data.
+
+#### Resetting counts *(ASSISTANT_ADMIN+)*
+
+The summary table below the charts includes a **Reset** button per garage.
+This permanently deletes all `parking_counts` rows for that garage on the
+selected day and cannot be undone. A confirmation dialog is shown first.
 
 ### Master Conflict Grid *(OVERSEER+)*
 
@@ -1510,6 +1649,50 @@ Define the reporting structure shown on every volunteer's home page dashboard.
 The oversight structure appears as a read-only indented tree in the **Oversight Structure**
 card on the home page dashboard. Phone numbers render as tap-to-call links on
 mobile. The tree is visible to all authenticated users regardless of role.
+
+---
+
+### System Variables *(ASSISTANT_ADMIN+)*
+
+**Path:** Operations → Administration → System Variables
+
+Manage the dynamic vocabulary lists used across the application. Changes
+take effect immediately for all users.
+
+#### Location Classifications
+
+Labels used to categorise parking locations on the Locations page:
+- **Parking Garage** — multi-storey structure with named floors/entrances
+- **Parking Area** — surface lot
+- **Kingdom Hall** — Kingdom Hall with desk positions
+- **Desk / Station** — operations desk or volunteer station
+
+Classifications control which **sub-location types** appear in the type
+dropdown when you add entrances or sections to a location (e.g. Floor and
+Column are only offered for Parking Garage locations).
+
+#### Sub-location Types
+
+Labels for named positions within a location (e.g. Entrance, Exit, Floor,
+Column, Aisle, Desk). Each type can optionally be restricted to a specific
+classification via the **Applies to** column:
+- Blank *(All classifications)* — appears for every location regardless of type
+- Set to a classification — only appears for locations of that type
+
+#### Managing entries
+
+- **Add** — type a name in the bottom row and press Enter or click Add.
+- **Edit** — click the pencil icon to edit a name inline. Press Enter or click
+  Save to confirm, Escape to cancel.
+- **Active / Inactive** — click the status badge to toggle. Inactive entries
+  are hidden from pickers but their data is preserved.
+- **Delete** — permanently removes the entry. Blocked with an explanation if
+  the entry is still referenced by locations or sub-locations — deactivate
+  it instead.
+
+> **Tip:** Adding a new sub-location type from the Locations page (via
+> **+ Add new type…** in the type dropdown) is equivalent to adding it here.
+> Both update the same vocabulary list.
 
 ---
 

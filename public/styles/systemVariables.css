@@ -1,0 +1,130 @@
+/**
+ * systemVariables.css
+ * Styles for the System Variables management page (/oversight/tools/system-variables).
+ */
+
+/* ── Section cards ──────────────────────────────────────────────────────────── */
+
+.sv-card {
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius-lg);
+    overflow: hidden;
+}
+
+.sv-card-header {
+    background: var(--bs-tertiary-bg);
+    border-bottom: 1px solid var(--bs-border-color);
+    padding: 1rem 1.25rem;
+}
+
+/* ── Loading placeholder ────────────────────────────────────────────────────── */
+
+.sv-loading {
+    display: flex;
+    align-items: center;
+    padding: 1.5rem 1.25rem;
+    color: var(--bs-secondary-color);
+    font-size: 0.9375rem;
+}
+
+/* ── Table ──────────────────────────────────────────────────────────────────── */
+
+.sv-table {
+    margin-bottom: 0;
+    font-size: 0.9375rem;
+}
+
+.sv-table thead th {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--bs-secondary-color);
+    border-bottom-width: 1px;
+    padding: 0.625rem 1rem;
+}
+
+.sv-table td {
+    padding: 0.625rem 1rem;
+    vertical-align: middle;
+}
+
+/* ── Name cell ──────────────────────────────────────────────────────────────── */
+
+.sv-name-cell {
+    font-weight: 500;
+    color: var(--bs-emphasis-color);
+}
+
+/* ── Inactive row ───────────────────────────────────────────────────────────── */
+
+.sv-row-inactive .sv-name-cell {
+    color: var(--bs-secondary-color);
+    text-decoration: line-through;
+    text-decoration-color: var(--bs-secondary-color);
+}
+
+/* ── Edit row highlight ─────────────────────────────────────────────────────── */
+
+.sv-editing-row {
+    background: var(--bs-primary-bg-subtle);
+}
+
+.sv-editing-row td {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+
+/* ── Add row ────────────────────────────────────────────────────────────────── */
+
+.sv-add-row {
+    background: var(--bs-tertiary-bg);
+    border-top: 2px solid var(--bs-border-color);
+}
+
+.sv-add-row td {
+    padding-top: 0.625rem;
+    padding-bottom: 0.625rem;
+}
+
+/* ── Active toggle button ───────────────────────────────────────────────────── */
+
+.sv-active-btn {
+    font-size: 0.8125rem;
+    padding: 0.2rem 0.6rem;
+    white-space: nowrap;
+}
+
+/* ── Parent badge ───────────────────────────────────────────────────────────── */
+
+.sv-badge-parent {
+    background-color: var(--bs-info-bg-subtle);
+    color: var(--bs-info-text-emphasis);
+    border: 1px solid var(--bs-info-border-subtle);
+    font-size: 0.8rem;
+    font-weight: 500;
+    padding: 0.25em 0.6em;
+    border-radius: var(--bs-border-radius);
+}
+
+.sv-badge-all {
+    background-color: var(--bs-secondary-bg-subtle);
+    color: var(--bs-secondary-color);
+    border: 1px solid var(--bs-border-color);
+    font-size: 0.8rem;
+    font-weight: 500;
+    padding: 0.25em 0.6em;
+    border-radius: var(--bs-border-radius);
+}
+
+/* ── Section-level inline error ─────────────────────────────────────────────── */
+
+.sv-inline-error {
+    margin: 0;
+    padding: 0.625rem 1rem;
+    font-size: 0.875rem;
+    background: var(--bs-danger-bg-subtle);
+    border-top: 1px solid var(--bs-danger-border-subtle);
+    color: var(--bs-danger-text-emphasis);
+    border-radius: 0 0 var(--bs-border-radius-lg) var(--bs-border-radius-lg);
+}

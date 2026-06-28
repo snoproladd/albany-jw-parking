@@ -3,6 +3,204 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.72.0] — 2026-06-28
+
+### Added
+- **Count Report: overview bar chart** — top-of-panel bar chart showing each
+  garage's current count vs. capacity. Bars are colour-coded green / amber / red
+  by utilisation (< 70% / 70–90% / ≥ 90%). Tooltip shows utilisation %.
+- **Count Report: per-garage stacked area charts** — one time-series chart per
+  location. When a location has sub-locations (entrances), each entrance becomes
+  a coloured fill band with manually-accumulated cumulative y-values so fills
+  nest correctly via Chart.js `fill: '-1'`. A bold dark total line sits on top
+  of all fills. When there is only one series, renders a simple shaded area.
+  Capacity shown as a dashed red reference line.
+- **Count Report: auto-refresh** — 60-second `setInterval` starts after the
+  first successful data load. Uses a silent refresh path that keeps existing
+  charts visible (no loading spinner) and just spins the refresh button icon.
+  Interval pauses on `visibilitychange` to `hidden` and resumes with an
+  immediate catch-up fetch on restore.
+- **Count Report: manual refresh button** — rotate icon button next to the day
+  picker; disabled until a day is selected, spins during load.
+- **Parking Counter: sendBeacon on page hide** — `visibilitychange` to `hidden`
+  fires a `navigator.sendBeacon` to `/api/counts/heartbeat` so the current
+  count is recorded even if the volunteer navigates away mid-minute.
+- **Manual count affects session total** — a successful manual-submit now
+  increments `state.sessionTotal` and updates the display. Banner shows
+  the running total. `subLocationId` included in the manual-submit body.
+
+### Fixed
+- **Count Report tab init** — `shown.bs.tab` fires on the tab *button*, not the
+  pane. Init code now attaches the listener to the controlling button via
+  `querySelector('[data-bs-target]')`. Also handles the case where the tab is
+  already active on page load (e.g. via `?tab=garage-capacity` URL param) by
+  calling `loadDays()` immediately.
+- **Garage Capacity nav link** — removed the “Soon” badge and `aria-disabled`;
+  now links directly to `/oversight/tools/reports?tab=garage-capacity`.
+
+### Changed
+- `countReport.js` fully rewritten: `renderChart` now delegates to
+  `buildLocationGroups`, `renderOverviewChart`, `renderGarageCharts`, and
+  `renderGarageChart`. Multiple Chart.js instances tracked in
+  `garageChartInstances` Map and destroyed before re-render.
+- `countReport.css`: removed `.cr-chart-wrap`; added `.cr-overview-wrap`,
+  `.cr-overview-chart-wrap`, `.cr-garages-wrap`, `.cr-garage-block`,
+  `.cr-garage-heading`, `.cr-garage-chart-wrap`.
+- `reports.ejs`: replaced single `#crChartWrap` canvas with `#crOverviewWrap`
+  (overview bar chart) and `#crGaragesWrap` (JS-injected per-garage blocks).
+  Day picker wrapped in flex row with the new refresh button.
+- Summary table now shows Latest and Peak as separate columns.
+
+### Files modified
+- `public/js/countReport.js`
+- `public/styles/countReport.css`
+- `views/authentication_and_accounts/reports.ejs`
+- `public/js/counts.js`
+- `views/partials/header.ejs`
+
+---
+
+## [2.71.0] — 2026-06-27
+
+### Added
+- **Sub-locations & System Variables** — full architecture for named positions
+  within parking locations (e.g. North Entrance, Floor 2, Column C).
+  - `system_variable_lists` table: central vocabulary store with self-referential
+    `parent_id` so sub-type labels can be scoped to a specific location
+    classification (Floor/Column apply only to Parking Garages; Desk to Kingdom
+    Halls; Entrance/Exit/Aisle apply to all). Migration includes seeds for both
+    `dbo` and `demo` schemas.
+  - `location_sub_locations` table: named rows per location with `sub_type_id`,
+    `display_order`, and `active` flag. FK cascades on location delete; counts
+    that referenced a deleted sub-location have `sub_location_id` set to NULL
+    via `ON DELETE SET NULL` (data is preserved).
+  - `locations_tasks.classification_id` FK — categorises locations as Parking
+    Garage, Parking Area, Kingdom Hall, or Desk / Station.
+  - `parking_counts.sub_location_id` FK — records which entrance/section a count
+    was logged against.
+- **System Variables page** (`/oversight/tools/system-variables`,
+  `accessAdminConsole`): inline-editable tables for Location Classifications and
+  Sub-location Types. Add/edit/toggle-active/delete with reference-blocking 409
+  on delete. Inline new-type creation surfaced on the Locations page avoids
+  leaving mid-task to manage types. Added to Administration nav and sitemap.
+- **Locations page expansion** — each location row now has a chevron expand
+  button that reveals an inline panel with:
+  - Classification dropdown (auto-saves on change, updates the badge in the row).
+  - Entrances & Sections list: active/inactive toggle and delete per sub-location.
+  - Add form with type picker filtered by the location's classification.
+  - Inline "+ Add new type" flow: creates a `location_sub_type` entry without
+    leaving the page, then auto-selects it in the type dropdown.
+  - Classification column added to the table header and each row.
+- **Sub-location picker in Parking Counter** — when a location has active
+  sub-locations the picker appears between Location and Start Counting and is
+  required before counting can begin. Hides automatically if the location has
+  none. `subLocationId` included in heartbeat, submit, and manual-submit
+  payloads; stored in `parking_counts.sub_location_id`.
+- **Count Report sub-location series** — `getParkingCountReportData` now groups
+  by `(location_task_id, sub_location_id)`. Each unique pair becomes its own
+  Chart.js line (e.g. "Garage A — North Entrance"). Counts with no sub-location
+  on a location that has others are labelled "(unassigned)". Capacity reference
+  line rendered once per parent location rather than once per series. Reset
+  button correctly keys on the parent `locationId` (not the series string key).
+
+### Changed
+- `getLocationsTasks` now LEFT JOINs `system_variable_lists` to return
+  `classification_id` and `classification_name` for the Locations table.
+- `insertParkingCount` now accepts and stores `subLocationId`.
+- `getParkingCountReportData` groups at sub-location granularity and returns
+  `sub_location_id`, `sub_location_name`, and `sub_type_name`.
+
+### Routes added
+- `GET  /oversight/tools/system-variables` — System Variables page
+- `GET  /api/system-variables` — all rows (accessAdminConsole)
+- `GET  /api/system-variables/:category` — rows by category (manageShifts)
+- `POST /api/system-variables` — create entry (accessAdminConsole)
+- `PUT  /api/system-variables/:id` — update entry (accessAdminConsole)
+- `DELETE /api/system-variables/:id` — delete entry, 409 if referenced
+- `GET  /api/locations/:locationTaskId/sub-locations` — all sub-locs (manageShifts)
+- `POST /api/locations/:locationTaskId/sub-locations` — create sub-loc
+- `PUT  /api/locations/sub-locations/:id` — update sub-loc
+- `DELETE /api/locations/sub-locations/:id` — delete sub-loc
+- `PUT  /api/locations/:locationTaskId/sub-locations/reorder` — bulk reorder
+- `PUT  /api/locations/:locationTaskId/classification` — set classification
+- `GET  /api/counts/sub-locations?locationTaskId=X` — active sub-locs for tally
+
+### Files added
+- `scripts/migrations/system_variable_lists.sql`
+- `routes/systemVariablesRoutes.js`
+- `views/authentication_and_accounts/systemVariables.ejs`
+- `public/js/systemVariables.js`
+- `public/styles/systemVariables.css`
+- `public/styles/locationsAndTasks.css`
+
+### Files modified
+- `lib/dbSync.js` — 3 updated functions + 11 new functions
+- `index.js` — import + mount systemVariablesRouter
+- `routes/countsRoutes.js` — subLocationId in POST bodies + new sub-locs GET
+- `views/authentication_and_accounts/counts.ejs` — sub-location picker row
+- `views/authentication_and_accounts/locationsAndTasks.ejs` — classification
+  column, data attributes, chevron button, expandable panel rows
+- `public/js/counts.js` — state fields, DOM refs, loadSubLocations, POST bodies
+- `public/js/locationsAndTasks.js` — full sub-location/classification expansion
+- `public/js/countReport.js` — sub-location series grouping, reset button fix
+- `views/partials/header.ejs` — System Variables under Administration
+- `src/config/sitemap.json` — System Variables page entry
+
+---
+
+## [2.70.0] — 2026-06-27
+
+### Added
+- **Parking Counter** — mobile-first tally tool for volunteers counting cars.
+  - Phone-optimised single-page tally UI (`/counts`) with large tap target,
+    −1 decrement bar, 880 Hz audio feedback, 60-second heartbeat, quarter-hour
+    alarm (880+1100 Hz), session total, Wake Lock, Page Visibility catch-up,
+    and localStorage persistence across refreshes.
+  - Day auto-detect via `/api/counts/today` (noon UTC trick for reliable date
+    matching). Manual day selection fallback if no convention day is active.
+  - Location picker filtered to locations with a configured capacity.
+  - Submit resets the local count to 0 and increments the session total.
+  - Manual count accordion for external tallies (negative values allowed;
+    does not affect tap-counter session total).
+  - **Count Report** (`GET /api/counts/report-data`) — time-series Chart.js
+    chart bucketed to 15-minute intervals. Peak count per volunteer per bucket
+    summed across volunteers per location. Eastern Time axis labels.
+    Capacity reference line per location (dashed). Per-location summary table
+    with peak, capacity, and utilisation %. Reset button (ASSISTANT_ADMIN+)
+    hard-deletes a location's counts for the selected day.
+  - Count Report embedded as a **Garage Capacity** tab in the existing Reports
+    page (`/oversight/tools/reports?tab=garage-capacity`). Lazy-initialised on
+    first tab activation. `/counts/report` 301-redirects to the tab.
+  - `parking_counts` table: `volunteer_id`, `location_task_id`,
+    `convention_day_id`, `count`, `is_final`, `is_manual`, `recorded_at`.
+  - `extra_parking_count BIT` on `volunteer_in` for delegated access.
+  - `logParkingCount` permission in all seven role blocks; OVERSEER+ true by
+    default; delegates granted via Assignment & Role accordion.
+  - `canLogParkingCount` on `res.locals.nav`; Counts nav section shown only
+    for eligible users. Garage Capacity link in Reports nav.
+
+### Files added
+- `scripts/migrations/parking_counts.sql`
+- `scripts/migrations/parking_counts_is_manual.sql`
+- `routes/countsRoutes.js`
+- `views/authentication_and_accounts/counts.ejs`
+- `public/js/counts.js`
+- `public/styles/counts.css`
+- `public/styles/countReport.css`
+
+### Files modified
+- `lib/dbSync.js` — getActiveLocationsForYear, getTodayConventionDay,
+  insertParkingCount, getParkingCountReportData, deleteLocationCounts
+- `src/config/roles.js` — logParkingCount in all role blocks
+- `src/config/sitemap.json` — Parking Counter + Garage Capacity entries
+- `routes/accountRoutes.js` — extra_parking_count → session.extraPermissions
+- `index.js` — canLogParkingCount on res.locals.nav + countsRouter mount
+- `views/partials/header.ejs` — Counts section + Garage Capacity link
+- `views/authentication_and_accounts/reports.ejs` — Garage Capacity tab panel
+- `public/js/countReport.js` — tab lazy-init, summary/reset logic
+
+---
+
 ## [2.69.0] — 2026-06-26
 
 ### Added

@@ -1,0 +1,156 @@
+/**
+ * countReport.css
+ * Styles for the Count Report oversight page (/counts/report).
+ */
+
+/* -- Page header ---------------------------------------------------------------- */
+
+.cr-page-header {
+    background: var(--bs-body-bg);
+    border-radius: var(--bs-border-radius-lg);
+    padding: 1rem 1.25rem;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.cr-page-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    color: var(--bs-emphasis-color);
+}
+
+.cr-page-subtitle {
+    font-size: 0.9375rem;
+    margin-bottom: 0;
+}
+
+/* -- Day selector --------------------------------------------------------------- */
+
+.cr-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    background: var(--bs-body-bg);
+    border-radius: var(--bs-border-radius);
+    padding: 0.625rem 0.875rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.cr-day-label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--bs-secondary-color);
+    white-space: nowrap;
+    margin-bottom: 0;
+}
+
+.cr-day-select {
+    max-width: 280px;
+}
+
+/* -- Loading -------------------------------------------------------------------- */
+
+.cr-loading {
+    display: flex;
+    align-items: center;
+    padding: 2rem 1.25rem;
+    color: var(--bs-secondary-color);
+    font-size: 0.9375rem;
+    background: var(--bs-body-bg);
+    border-radius: var(--bs-border-radius);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* -- Empty state ---------------------------------------------------------------- */
+
+.cr-empty {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--bs-secondary-color);
+    background: var(--bs-body-bg);
+    border-radius: var(--bs-border-radius-lg);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* -- Overview bar chart --------------------------------------------------------- */
+
+.cr-overview-wrap {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+.cr-section-heading {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--bs-secondary-color);
+    margin-bottom: 0.75rem;
+}
+
+.cr-overview-chart-wrap {
+    position: relative;
+    height: 220px;
+}
+
+/* -- Per-garage time-series charts --------------------------------------------- */
+
+.cr-garages-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.cr-garage-block {
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+.cr-garage-block:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.cr-garage-heading {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--bs-emphasis-color);
+    margin-bottom: 0.75rem;
+}
+
+.cr-garage-chart-wrap {
+    position: relative;
+    height: 280px;
+}
+
+/* -- Summary table -------------------------------------------------------------- */
+
+.cr-summary {
+    margin-top: 0.5rem;
+    background: var(--bs-body-bg);
+    border-radius: var(--bs-border-radius-lg);
+    padding: 0.75rem 1.25rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.cr-summary-table {
+    font-size: 0.9rem;
+}
+
+.cr-summary-name {
+    font-weight: 500;
+}
+
+.cr-summary-val {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.cr-summary-action {
+    text-align: right;
+}

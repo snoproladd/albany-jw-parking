@@ -57,6 +57,7 @@ export const PERMISSIONS = {
     manageSigns: false,
     editRendezvous: false,
     manageScheduleSensitivity: false,
+    logParkingCount: false,
   },
   REGISTERED: {
     submitInfo: true,
@@ -84,6 +85,7 @@ export const PERMISSIONS = {
     manageSigns: false,
     editRendezvous: false,
     manageScheduleSensitivity: false,
+    logParkingCount: false,
   },
   DESK: {
     submitInfo: true,
@@ -111,6 +113,7 @@ export const PERMISSIONS = {
     manageSigns: false,
     editRendezvous: false,
     manageScheduleSensitivity: false,
+    logParkingCount: false,
   },
   KEYMAN: {
     submitInfo: true,
@@ -138,6 +141,7 @@ export const PERMISSIONS = {
     manageSigns: false,
     editRendezvous: true,
     manageScheduleSensitivity: false,
+    logParkingCount: false,
   },
   OVERSEER: {
     submitInfo: true,
@@ -165,6 +169,7 @@ export const PERMISSIONS = {
     manageSigns: true,
     editRendezvous: true,
     manageScheduleSensitivity: true,
+    logParkingCount: true,
   },
   ASSISTANT_ADMIN: {
     submitInfo: true,
@@ -192,6 +197,7 @@ export const PERMISSIONS = {
     manageSigns: true,
     editRendezvous: true,
     manageScheduleSensitivity: true,
+    logParkingCount: true,
   },
   ADMIN: {
     submitInfo: true,
@@ -219,6 +225,7 @@ export const PERMISSIONS = {
     manageSigns: true,
     editRendezvous: true,
     manageScheduleSensitivity: true,
+    logParkingCount: true,
   },
 };
 

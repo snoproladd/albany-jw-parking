@@ -42,6 +42,8 @@ import { schedulesRouter } from "./routes/schedulesRoutes.js";
 import { constraintRouter }        from "./routes/constraintRoutes.js";
 import { scheduleAnalysisRouter }  from "./routes/scheduleAnalysisRoutes.js";
 import { signsRouter } from "./routes/signsRoutes.js";
+import { countsRouter } from "./routes/countsRoutes.js";
+import { systemVariablesRouter } from "./routes/systemVariablesRoutes.js";
 import { getBaseUrl, resetSmsClient } from "./lib/messaging.js";
 import { startAlertScheduler } from "./lib/alertScheduler.js";
 import { initRvTokenSecret, verifyRvToken } from "./lib/rvToken.js";
@@ -516,6 +518,16 @@ let alertScheduler = null;
       res.locals.userPermissions = s.permissions || {};
       res.locals.appVersion = APP_VERSION;
 
+      // Combine role-level logParkingCount with any per-volunteer delegation
+      // so the header can show the Counts nav section for delegates whose
+      // role matrix entry is false but have extra_parking_count set.
+      const _perms    = s.permissions || {};
+      const _extraP   = s.extraPermissions || [];
+      const canLogParkingCount = !!(
+        _perms[userRole]?.logParkingCount ||
+        _extraP.includes('logParkingCount')
+      );
+
       res.locals.nav = {
         isLoggedIn,
         hasDraftRegistration,
@@ -525,6 +537,7 @@ let alertScheduler = null;
         userInitials,
         userRole,
         showDraftBanner,
+        canLogParkingCount,
       };
 
       next();
@@ -787,6 +800,8 @@ app.use("/", noteAnalysisRouter({ csrfProtection, logError }));
 app.use("/", constraintRouter({ csrfProtection, logError }));
 app.use("/", scheduleAnalysisRouter({ csrfProtection, logError }));
 app.use("/", blackoutRouter({ csrfProtection, logError }));
+app.use("/", countsRouter({ csrfProtection, logError }));
+app.use("/", systemVariablesRouter({ csrfProtection, logError }));
 
 app.use(
   "/",

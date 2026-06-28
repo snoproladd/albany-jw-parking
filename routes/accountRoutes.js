@@ -666,7 +666,8 @@ export function loginRouter({ csrfProtection, logError }) {
         last_step,
         account_status, 
         role,
-        extra_signs_placement
+        extra_signs_placement,
+        extra_parking_count
       FROM dbo.volunteer_in
       WHERE LOWER(email) = @email
         AND accountType = 'registered'
@@ -741,6 +742,7 @@ export function loginRouter({ csrfProtection, logError }) {
       // Add a new entry here whenever a new extra_* column is added.
       const extraPermissions = [];
       if (user.extra_signs_placement) extraPermissions.push("manageSigns");
+      if (user.extra_parking_count) extraPermissions.push("logParkingCount");
       req.session.extraPermissions = extraPermissions;
 
       // Populate sensitive scheduler category access.

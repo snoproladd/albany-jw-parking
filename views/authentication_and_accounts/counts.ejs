@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Parking Counter — Albany JW Parking</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/counts.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+</head>
+<body class="min-vh-100 bg-body-tertiary" data-authed="true">
+
+    <%- include('partials/header') %>
+
+    <main class="counts-main" id="countsRoot">
+
+        <%# ── Setup panel — shown until location + day are confirmed ── %>
+        <div id="setupPanel" class="counts-setup-panel">
+            <div class="counts-setup-inner">
+
+                <h1 class="counts-setup-title">
+                    <i class="fa-solid fa-car-side me-2"></i>Parking Counter
+                </h1>
+
+                <%# Day row %>
+                <div class="counts-field-group mb-3">
+                    <label class="counts-field-label" for="daySelect">Convention Day</label>
+
+                    <%# Auto-detected day row %>
+                    <div id="dayAutoRow" class="counts-day-auto d-none">
+                        <span id="dayAutoLabel" class="counts-day-auto-label"></span>
+                        <button type="button" id="dayChangeBtn" class="counts-link-btn">Change</button>
+                    </div>
+
+                    <%# Notice shown when today is not a convention day %>
+                    <div id="dayNotice" class="counts-not-today-notice d-none">
+                        <i class="fa-solid fa-circle-info me-1"></i>Not a convention day — please select one below.
+                    </div>
+
+                    <%# Manual day picker — hidden when day is auto-detected %>
+                    <select id="daySelect" class="form-select counts-select d-none" aria-label="Convention day">
+                        <option value="">Select a day…</option>
+                    </select>
+                </div>
+
+                <%# Location row %>
+                <div class="counts-field-group mb-4">
+                    <label class="counts-field-label" for="locationSelect">Parking Location</label>
+                    <select id="locationSelect" class="form-select counts-select" aria-label="Parking location">
+                        <option value="">Loading…</option>
+                    </select>
+                </div>
+
+                <%# Sub-location picker — revealed when the selected location has sub-locations %>
+                <div class="counts-field-group mb-4 d-none" id="subLocationWrap">
+                    <label class="counts-field-label" for="subLocationSelect">
+                        Entrance / Section <span class="counts-field-required">*</span>
+                    </label>
+                    <select id="subLocationSelect" class="form-select counts-select" aria-label="Entrance or section">
+                        <option value="">Select an entrance or section…</option>
+                    </select>
+                </div>
+
+                <button type="button" id="startBtn" class="btn counts-start-btn w-100" disabled>
+                    <i class="fa-solid fa-play me-2"></i>Start Counting
+                </button>
+
+                <div id="setupError" class="alert alert-danger d-none mt-3" role="alert"></div>
+
+            </div>
+        </div>
+
+        <%# ── Counting panel — shown after setup is confirmed ── %>
+        <div id="countingPanel" class="counts-counting-panel d-none">
+
+            <%# Top bar: active location name + change link %>
+            <div class="counts-counting-header">
+                <span id="activeLocationName" class="counts-location-badge"></span>
+                <button type="button" id="changeSetupBtn" class="counts-link-btn">
+                    <i class="fa-solid fa-arrows-rotate me-1"></i>Change
+                </button>
+            </div>
+
+            <%# Big tap target %>
+            <button type="button" id="tapBtn" class="counts-tap-btn" aria-label="Tap to count one car">
+                <span id="countDisplay" class="counts-display">0</span>
+                <span class="counts-tap-hint">tap to count</span>
+            </button>
+
+            <%# Decrement bar — thin strip below tap target %>
+            <div class="counts-decrement-bar">
+                <button type="button" id="decrementBtn" class="counts-decrement-btn" aria-label="Subtract one from count">
+                    <i class="fa-solid fa-minus me-1"></i>&minus;1
+                </button>
+            </div>
+
+            <%# Bottom bar %>
+            <div class="counts-submit-bar">
+                <div id="submitBanner" class="counts-submit-banner d-none" role="status" aria-live="polite">
+                    <i class="fa-solid fa-circle-check me-1"></i>
+                    <span id="submitBannerText"></span>
+                </div>
+                <div class="counts-submit-row">
+                    <div class="counts-total-wrap">
+                        <span class="counts-total-label">Session total</span>
+                        <span id="sessionTotalDisplay" class="counts-total-value">0</span>
+                    </div>
+                    <button type="button" id="submitBtn" class="btn counts-submit-btn">
+                        <i class="fa-solid fa-flag-checkered me-1"></i>Submit
+                    </button>
+                </div>
+            </div>
+            <%# ── Manual count entry (collapsed by default) ── %>
+<p class="counts-above-manual-note">
+    <i class="fa-solid fa-circle-info me-1"></i>
+    Prefer a physical or separate counter? Submit your total below every 15 minutes on the quarter hour (:00, :15, :30, :45).
+</p>
+<div class="counts-manual-section">
+    <button type="button"
+            class="counts-manual-toggle"
+            id="manualToggleBtn"
+            aria-expanded="false"
+            aria-controls="manualEntry">
+        <i class="fa-solid fa-keyboard me-1"></i>
+        Manual Count Submission
+        <i class="fa-solid fa-chevron-down counts-manual-chevron"></i>
+    </button>
+    <div id="manualEntry" class="counts-manual-body d-none">
+        <p class="counts-manual-note">
+            <i class="fa-solid fa-triangle-exclamation me-1"></i>
+            Do not include counts already tallied by the counter above.
+        </p>
+        <p class="counts-manual-negative-note">
+            <i class="fa-solid fa-circle-info me-1"></i>
+            A negative value may be used carefully to correct an overcount.
+        </p>
+        <div class="counts-manual-row">
+            <input
+                type="number"
+                id="manualCountInput"
+                class="form-control counts-manual-input"
+                placeholder="0"
+                aria-label="Manual count value"
+            />
+            <button type="button" id="manualSubmitBtn" class="counts-manual-submit-btn">
+                Submit
+            </button>
+        </div>
+    </div>
+</div>
+
+        </div>
+
+    </main>
+
+    <%- include('partials/footer') %>
+
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="/js/counts.js"></script>
+</body>
+</html>
