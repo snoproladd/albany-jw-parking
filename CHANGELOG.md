@@ -3,6 +3,58 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.74.0] — 2026-06-29
+
+### Added
+- **Scheduler publish modal** — a unified two-step publish flow shared by the
+  scheduler page and the per-day report page (ASSISTANT_ADMIN+ only).
+  - **Day selection.** All schedulable convention days appear as checkboxes;
+    the currently-loaded day is pre-checked. Last-published timestamps populate
+    inline from `GET /api/scheduler/publish-history`.
+  - **Notification mode.** *Alert All* (every scheduled volunteer + OVERSEER+)
+    or *Differential* (OVERSEER+, all keymen/asst keymen, and only volunteers
+    whose crew, shift time, or presence changed since the last publish;
+    removed volunteers also receive a "no longer scheduled" notice).
+  - **Dry run option** — generates and uploads the PDF but skips all
+    notifications. Useful for testing layout or pre-loading the SharePoint link.
+  - **Admin only option** — PDF generation and upload proceed normally, but
+    notifications go to ADMIN/ASSISTANT_ADMIN users only, not scheduled
+    volunteers. Mutually exclusive with Dry run.
+  - **Recipient preview confirmation.** Clicking Publish first calls
+    `GET /api/scheduler/publish-recipients` to fetch the deduplicated recipient
+    list (name + email/SMS icons) without generating any PDFs. The modal
+    switches to a scrollable preview with **Back** and **Confirm & Send (N)**
+    buttons — nothing is sent until explicit confirmation.
+  - **Batched notifications.** Across multiple selected days, each volunteer
+    receives exactly one email and one SMS covering all their days (rather than
+    one per day).
+  - Publish button gated to ASSISTANT_ADMIN+ via `accessAdminConsole` permission;
+    derived from `req.session.permissions[req.session.userRole]`.
+
+### Changed
+- `publishSchedule.publishDays()` accepts new `adminOnly` and `recipientsOnly`
+  options. When `recipientsOnly` is true, all uploads and notifications are
+  skipped and the function returns a `preview` array of `{ name, role, hasEmail,
+  hasPhone, days }` for confirmation UI.
+- `/schedules` volunteer-facing page now reads from the `schedule_publishes`
+  DB table (auth-free blob URLs) instead of listing the OneDrive folder.
+- `savePublishSnapshot()` rewritten to use a single batched `INSERT ... VALUES`
+  statement (chunked at 400 rows to stay under SQL Server's 2100-parameter
+  limit). Previously inserted one row per round-trip; the post-publish DB tail
+  is now effectively instant on full-day snapshots.
+
+### Fixed
+- `GET /api/scheduler/publish-history` was registered after the `/:dayId`
+  wildcard, causing Express to match `dayId = "publish-history"`. Moved above
+  the wildcard so the modal's last-published timestamps load correctly.
+- Scheduler page passed `userPermissions` via a `res.locals` path that was
+  never populated; `canPublish` was always `false`. Now reads directly from
+  `req.session.permissions[req.session.userRole].accessAdminConsole`.
+- Removed a duplicate `POST /oversight/tools/scheduler/publish` route that
+  shadowed the active one (and was missing the `/Schedules` subfolder append).
+- Internal Puppeteer report route now passes `canPublish: false` so PDF
+  rendering doesn't throw on the new template variable.
+
 ## [2.73.0] — 2026-06-29
 
 ### Added

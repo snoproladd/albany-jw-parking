@@ -3,16 +3,18 @@
  * @description Route for the Schedules resources page.
  *
  * Requires the `viewSchedules` permission (REGISTERED and above by default).
- * Fetches subfolder structure and file metadata from the OneDrive Schedules
- * folder via the Microsoft Graph API and renders them as grouped tile sections.
+ * Reads published schedule records from the database and renders them as
+ * grouped tiles. Each tile links to the blob-stored PDF via /schedule/pdf/:blobName,
+ * which requires no authentication and avoids SharePoint auth issues.
  *
- * Route:
+ * Routes:
  *   GET /schedules
+ *   GET /schedule/pdf/:blobName   (public, no auth)
  */
 
 import express from "express";
 import { requirePermission } from "../src/config/roles.js";
-import { listOneDriveFolder } from "../lib/graphClient.js";
+import { getPublishedSchedules } from "../lib/dbSync.js";
 import { streamPublishedFileToResponse } from "../lib/blobStorage.js";
 
 /**
@@ -36,8 +38,9 @@ export function schedulesRouter({ csrfProtection, logError, graphConfig }) {
 
   /**
    * GET /schedules
-   * Lists OneDrive subfolders under the Schedules directory as sections,
-   * with files within each as downloadable tiles.
+   * Lists the most recently published schedule for each convention day.
+   * Data comes from schedule_publishes in the DB; download links use the
+   * stored blob URL (auth-free) rather than SharePoint.
    * Requires `viewSchedules` permission.
    */
   router.get(
@@ -51,12 +54,26 @@ export function schedulesRouter({ csrfProtection, logError, graphConfig }) {
       let loadError = null;
 
       try {
-        sections = await listOneDriveFolder({
-          ...graphConfig,
-          folderPath: `${graphConfig.folderPath}/Schedules`,
-        });
+        const rows = await getPublishedSchedules();
+
+        sections = rows
+          .map((r) => ({
+            folderName: r.day_label,
+            files: r.download_url
+              ? [
+                  {
+                    name: r.filename || r.day_label,
+                    webUrl: r.download_url,
+                    mimeType: "application/pdf",
+                    lastModified: r.published_at || null,
+                    size: null,
+                  },
+                ]
+              : [],
+          }))
+          .filter((s) => s.files.length > 0);
       } catch (err) {
-        logError("[GET /schedules] OneDrive list error:", err);
+        logError("[GET /schedules] DB error:", err);
         loadError =
           "Schedules could not be loaded at this time. Please try again later.";
       }

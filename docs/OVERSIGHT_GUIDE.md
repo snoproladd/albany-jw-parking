@@ -985,12 +985,39 @@ Click **Print / Save PDF** to open the browser print dialog. Choose
 *Save as PDF* in the destination to download a PDF version. The report
 hides all browser chrome and navigation when printed.
 
-**Publishing:**
-Click **Publish** to generate a PDF of the current schedule, upload it to
-OneDrive, and notify all Overseers+ and scheduled volunteers via email and
-SMS. Notification links open the PDF directly through the app — no Microsoft
-sign-in required. A **Dry run** option uploads the PDF without sending
-notifications, useful for verifying layout before a real publish.
+**Publishing (ASSISTANT_ADMIN+):**
+Click **Publish** (in the scheduler day banner or the report toolbar) to open
+the publish modal. The same modal is used in both places and supports
+publishing one or more convention days in a single batched operation.
+
+*Step 1 — configure:*
+- **Days to publish.** Each schedulable convention day appears as a checkbox
+  with its last-published timestamp. The current day is pre-checked.
+- **Notification mode.** *Alert All* notifies every scheduled volunteer plus
+  all Overseers+. *Differential* notifies Overseers+ and all keymen/assistant
+  keymen always, plus only volunteers whose crew, shift time, or scheduled
+  presence changed since the last publish. Volunteers who were removed from
+  the schedule receive a “no longer scheduled” notice.
+- **Dry run.** Generates and uploads the PDF but skips every notification.
+  Use this to verify layout or pre-load the SharePoint link without paging
+  anyone.
+- **Admin only.** Notifications go to ADMIN/ASSISTANT_ADMIN users only — the
+  PDF still uploads normally, but no volunteers are paged. Useful for early
+  drafts and dress rehearsals. Mutually exclusive with Dry run.
+
+*Step 2 — confirm recipients:*
+Clicking **Preview** does *not* publish or notify anyone. The modal switches
+to a scrollable list of every recipient who would receive a message (name +
+email/SMS icons), with the total count at the top. **Back** returns to step 1
+for adjustments; **Confirm & Send** kicks off the real publish. This safety
+net prevents accidentally paging the entire team.
+
+Across multi-day selections, each volunteer receives exactly **one email and
+one SMS** covering all selected days, not one message per day.
+
+Notification links open the PDF directly through the app — no Microsoft
+sign-in required — and the published PDF appears automatically on the
+**Schedules** resource page for all volunteers.
 
 ---
 

@@ -9,12 +9,16 @@
   <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
   <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
   <link rel="stylesheet" type="text/css" href="/styles/schedulerReport.css" />
+  <link rel="stylesheet" type="text/css" href="/styles/schedulerPublish.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@15.2.2/dist/css/shepherd.css" />
   <link rel="stylesheet" href="/css/tours.css" />
   <meta name="csrf-token" content="<%= csrfToken %>" />
+  <script type="application/json" id="schedulerConventionDaysJson"><%- JSON.stringify(conventionDays) %></script>
 </head>
 
-<body data-authed="true" class="bg-body-tertiary report-body">
+<body data-authed="true" class="bg-body-tertiary report-body"
+      data-can-publish="<%= canPublish ? 'true' : 'false' %>"
+      data-selected-day-id="<%= selectedDayId %>">
 
   <%- include('../partials/header') %>
 
@@ -72,48 +76,9 @@
       <i class="fa-solid fa-print me-1"></i>Print / Save PDF
     </button>
 
-    <button type="button" id="report-publish-btn" class="btn btn-sm btn-success"
-            data-bs-toggle="modal" data-bs-target="#publishModal">
+    <button type="button" id="report-publish-btn" class="btn btn-sm btn-success">
       <i class="fa-solid fa-cloud-arrow-up me-1"></i>Publish
     </button>
-  </div>
-
-  <%# ── Publish confirmation modal ───────────────────────────── %>
-  <div class="modal fade" id="publishModal" tabindex="-1"
-       aria-labelledby="publishModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="publishModalLabel">
-            <i class="fa-solid fa-cloud-arrow-up me-2 text-success"></i>Publish Schedule
-          </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <p class="mb-2">This will:</p>
-          <ul class="mb-3">
-            <li>Generate a PDF of the current schedule</li>
-            <li>Upload it to <strong>SharePoint / OneDrive</strong>, overwriting any previous version</li>
-            <li>Send email + SMS to all <strong>Overseers+</strong> and <strong>scheduled volunteers</strong></li>
-          </ul>
-          <div id="publishError" class="alert alert-danger d-none py-2" role="alert"></div>
-          <div id="publishSuccess" class="alert alert-success d-none py-2" role="alert"></div>
-
-          <div class="form-check mt-2">
-            <input class="form-check-input" type="checkbox" id="publishDryRun">
-            <label class="form-check-label text-muted small" for="publishDryRun">
-              Dry run — upload PDF to SharePoint but <strong>skip all notifications</strong>
-            </label>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="button" class="btn btn-success" id="publishConfirmBtn">
-            <i class="fa-solid fa-cloud-arrow-up me-1"></i>Publish
-          </button>
-        </div>
-      </div>
-    </div>
   </div>
 
   <div class="report-container">

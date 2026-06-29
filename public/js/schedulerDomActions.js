@@ -41,6 +41,7 @@ import {
 } from "./schedulerConflicts.js";
 
 import { initContextMenu } from "./schedulerContextMenu.js";
+import { createPublishButton, setPublishCurrentDayId } from "./schedulerPublish.js";
 
 import {
   parseTimeToMinutes,
@@ -981,6 +982,7 @@ export async function initDomActions() {
 
     _currentDayId = Number(dayId);
     setCurrentDay(_currentDayId);
+    setPublishCurrentDayId(_currentDayId);
     clearConflicts();
     _setState("loading");
 
@@ -1722,6 +1724,10 @@ export async function initDomActions() {
       refreshBtn.disabled = false;
     });
     historyBtns.appendChild(refreshBtn);
+
+    if (document.body.dataset.canPublish === "true") {
+      historyBtns.appendChild(createPublishButton());
+    }
 
     const togglesWrap = document.createElement("div");
     togglesWrap.classList.add("sched-dept-toggles-wrap");
