@@ -298,7 +298,6 @@ export async function initDomActions() {
     // placed, guaranteeing both sides of any conflict are tracked first.
     if (!record) {
       _updatePoolCount();
-      _applyVolunteerFilters();
       return;
     }
     // Clear any stale conflict badge from a previous slot on this clone
@@ -2365,6 +2364,7 @@ export async function initDomActions() {
       }
 
       _updatePoolCount();
+      _applyVolunteerFilters(); // Apply once after all assignments are loaded
 
       // Fetch attendance and apply check-in badges. Dispatch the result so
       // scheduler.js can set up the smart attendance poller.

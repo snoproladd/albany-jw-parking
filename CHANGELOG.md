@@ -3,6 +3,17 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.74.1] — 2026-06-29
+
+### Fixed
+- **Scheduler:** Pre-selected pool filters no longer prevent saved assignments
+  from appearing in the grid when a day is loaded. `_clonePillForDz` now clears
+  `style.display` on the clone so DZ pills never inherit a filter-applied
+  `display: none` from the pool pill. Additionally, `_applyVolunteerFilters()`
+  is no longer called on every silent placement during load — it now runs once
+  after `_loadDayAssignments` completes, ensuring the pool reflects the active
+  filter correctly without interfering with grid population.
+
 ## [2.74.0] — 2026-06-29
 
 ### Added

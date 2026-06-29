@@ -384,6 +384,7 @@ function _resetPillTransform(pill) {
 function _clonePillForDz(poolPill) {
   const clone = poolPill.cloneNode(true);
   clone.classList.remove('in-pool');
+  clone.style.display = ''; // Clear any filter-applied display from pool pill
   clone.querySelector('.pill-assign-badge')?.remove();
   const nameEl = clone.querySelector('.pill-name');
   if (nameEl) {
