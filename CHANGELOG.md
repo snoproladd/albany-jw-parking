@@ -3,6 +3,102 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.73.0] — 2026-06-29
+
+### Added
+- **Lessons Learned** (`/oversight/tools/lessons-learned`, KEYMAN+) — structured
+  space for volunteers to record what worked, what didn't, and what should change
+  for next year. Three-state workflow: submitted → approved → published.
+  - KEYMAN+ can submit lessons tied to a convention year and department. Department
+    list sourced from `system_variable_lists` (`lesson-department` category, seeded
+    in migration SQL). "Other" free-text option available.
+  - OVERSEER+ can approve, publish, and archive lessons; add overseer comments;
+    edit any submission.
+  - Optional photo attachments (JPEG/PNG) per lesson stored in Azure Blob Storage
+    (`lessons-learned` container).
+  - On publish, Puppeteer renders all published lessons for the year to PDF and
+    uploads in parallel to Azure Blob Storage (`published-files` container, fixed
+    year-keyed path `reports/lessons-learned/lessons-learned-{year}.pdf`) and
+    SharePoint via Microsoft Graph. Report metadata upserted into
+    `lessons_learned_reports`.
+  - Each published lesson card shows a **Report PDF** button linking directly to
+    the consolidated year PDF (populated from cached `currentReport` — no extra
+    API call per card).
+- **Lessons Learned: Re-generate button** — on the Published tab, OVERSEER+ see a
+  **Re-generate** (or **Generate Report** when none exists) toolbar button. Triggers
+  `POST /api/lessons-learned/batch-publish`, regenerating the PDF for the year
+  without changing any lesson's status. Button spins during generation; report link
+  and all cards refresh immediately on completion.
+- **Lessons Learned: Resources page** (`/lessons-learned`, OVERSEER+) — read-only
+  page showing the consolidated published PDF for a given convention year: download
+  button, SharePoint link, last-generated timestamp, publisher name, and lesson
+  count. Year picker for multi-year support. ASSISTANT_ADMIN+ see a **Generate /
+  Re-generate Report** button that spins during generation and reloads on success.
+- **`POST /api/lessons-learned/batch-publish`** — explicit PDF regeneration for a
+  year without publishing any individual lesson. Validates that published lessons
+  exist first; returns `{ lessonCount }` on success.
+- **`GET /lessons-learned/pdf/:blobName`** — authenticated Blob Storage proxy
+  (OVERSEER+). Replaces the previously broken `/schedule/pdf/:blobName` reference
+  in `updateReportLink`.
+- **Nav: Lessons Learned** — added to the **Resources** top-nav dropdown (below a
+  divider after Schedules, gated `editVolunteerInfo`) and to the **Docs** sidebar
+  section (same gate). Sidebar `if` condition extended to include `editVolunteerInfo`
+  so the Docs section shows for OVERSEER+ who lack `viewMaps`/`viewSchedules`.
+- **Oversight Tools: Lessons Learned section** — dedicated section on the Operations
+  Hub (after Attendance, before Decently Sync). Submit & Review card (KEYMAN+) links
+  to the management page; Published Report card (OVERSEER+) links to the resources
+  page. Old card removed from Volunteer Management.
+- **DB tables** (`lessons-learned.sql`): `lessons_learned` (year, department, lesson
+  text, status, submitter, overseer comments), `lessons_learned_photos` (per-lesson
+  photo attachments), `lessons_learned_reports` (one row per convention year tracking
+  consolidated PDF metadata). `lesson-department` vocabulary entries seeded into
+  `system_variable_lists` for both `dbo` and `demo` schemas.
+
+### Fixed
+- **Sign map PDF: missing traffic arrows** — the internal Puppeteer render route
+  (`/internal/pdf/signs-map`) was not fetching traffic arrows. Added
+  `getTrafficArrows()` to the `Promise.all` fetch and `arrows` to the `res.render()`
+  call, matching the standard `/signs/map/print` route.
+- **Sign map PDF: zoom calibration** — published PDF now matches the interactive
+  print view. `signsMapPrint.js` calls `mapRef.fitBounds(bounds)` with no padding,
+  then applies a `+0.75` fractional zoom nudge on the first `idle` event.
+  `window.signsMapReady` is set only after a second `idle` event confirms tiles have
+  fully settled. `publishSignMap.js` waits for `window.signsMapReady === true` before
+  the paint delay and PDF capture.
+- `getLessonsLearnedReport` now returns `lesson_count` (subquery on `lessons_learned`
+  where `status = 'published'` for the same convention year).
+- `updateReportLink` previously used `/schedule/pdf/:blobName` which was never wired
+  up; now correctly uses `/lessons-learned/pdf/` and caches the result as
+  `currentReport` for card builder use.
+- `streamPublishedFileToResponse` was missing from the `lessonsLearnedRoutes.js`
+  import; added from `blobStorage.js` (required by the PDF proxy route).
+
+### Files added (11)
+- `lib/publishLessonsLearned.js` — Puppeteer-based Lessons Learned PDF generation + parallel Blob/SharePoint upload
+- `routes/lessonsLearnedRoutes.js` — all Lessons Learned routes (CRUD, photo upload/proxy, PDF proxy, batch-publish)
+- `views/lessonsLearned.ejs` — Lessons Learned management page (KEYMAN+ submit; OVERSEER+ approve/publish)
+- `views/lessonsLearnedPdf.ejs` — Puppeteer PDF render target (secret-auth)
+- `views/lessonsLearnedResources.ejs` — Lessons Learned resources/download page (OVERSEER+)
+- `public/js/lessonsLearned.js` — Lessons Learned management page module
+- `public/js/lessonsLearnedResources.js` — Lessons Learned resources page module
+- `public/styles/lessonsLearned.css` — Lessons Learned management page styles
+- `public/styles/lessonsLearnedPrint.css` — Lessons Learned PDF render target styles
+- `scripts/migrations/lessons-learned.sql` — creates `lessons_learned`, `lessons_learned_photos`, `lessons_learned_reports`; seeds `lesson-department` entries (both schemas)
+- `scripts/migrations/lessons-learned-archive.sql` — archive schema for removed lessons
+
+### Files modified (9)
+- `lib/dbSync.js` — 12 new Lessons Learned functions; `getLessonsLearnedReport` `lesson_count` subquery fix
+- `lib/blobStorage.js` — lesson photo upload/delete helpers; consolidated PDF upload; `streamPublishedFileToResponse`; `import crypto`
+- `lib/publishSignMap.js` — `page.waitForFunction(signsMapReady)` before PDF capture; coordinates with two-idle zoom signal
+- `routes/signsRoutes.js` — `getTrafficArrows()` added to internal PDF render route `Promise.all` + render object
+- `public/js/signsMapPrint.js` — `fitBounds` + `+0.75` fractional zoom nudge; `signsMapReady` set on second idle event
+- `index.js` — import and registration of `lessonsLearnedRoutes`
+- `views/partials/header.ejs` — Lessons Learned in Resources dropdown + Docs sidebar
+- `views/authentication_and_accounts/oversightTools.ejs` — Lessons Learned section with Submit & Review + Published Report cards; mobile nav + desktop sidebar links
+- `src/config/sitemap.json` — Lessons Learned pages added
+
+---
+
 ## [2.72.0] — 2026-06-28
 
 ### Added

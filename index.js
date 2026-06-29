@@ -44,6 +44,7 @@ import { scheduleAnalysisRouter }  from "./routes/scheduleAnalysisRoutes.js";
 import { signsRouter } from "./routes/signsRoutes.js";
 import { countsRouter } from "./routes/countsRoutes.js";
 import { systemVariablesRouter } from "./routes/systemVariablesRoutes.js";
+import { lessonsLearnedRouter } from "./routes/lessonsLearnedRoutes.js";
 import { getBaseUrl, resetSmsClient } from "./lib/messaging.js";
 import { startAlertScheduler } from "./lib/alertScheduler.js";
 import { initRvTokenSecret, verifyRvToken } from "./lib/rvToken.js";
@@ -802,6 +803,26 @@ app.use("/", scheduleAnalysisRouter({ csrfProtection, logError }));
 app.use("/", blackoutRouter({ csrfProtection, logError }));
 app.use("/", countsRouter({ csrfProtection, logError }));
 app.use("/", systemVariablesRouter({ csrfProtection, logError }));
+app.use(
+    "/",
+    lessonsLearnedRouter({
+        csrfProtection,
+        logError,
+        serverPort: PORT,
+        graphConfig: {
+            tenantId:     config.GRAPH_TENANT_ID,
+            clientId:     config.GRAPH_CLIENT_ID,
+            clientSecret: config.GRAPH_CLIENT_SECRET,
+            driveUser:
+                config.GRAPH_DRIVE_USER ||
+                "jladd@jakeofalltradespropertyserv.onmicrosoft.com",
+            folderPath:
+                (config.GRAPH_FOLDER_PATH ||
+                "2026 Convention Parking/Documents for Distribution") +
+                "/reports/lessons-learned",
+        },
+    }),
+);
 
 app.use(
   "/",

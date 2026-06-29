@@ -224,6 +224,14 @@
           "tourId": "roles"
         },
         {
+          "title": "Lessons Learned",
+          "path": "/oversight/tools/lessons-learned",
+          "description": "Submit lessons learned from convention operations. OVERSEER+ can approve and publish entries, generating a PDF report for convention oversight.",
+          "icon": "fa-solid fa-book-open",
+          "minRole": "KEYMAN",
+          "permission": null
+        },
+        {
           "title": "Notes Report",
           "path": "/oversight/tools/notes-report",
           "description": "Review intake notes submitted by volunteers during registration. Acknowledge notes, create action items, and track resolutions.",

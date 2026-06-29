@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lessons Learned — <%= year %></title>
+  <link rel="stylesheet" href="/styles/lessonsLearnedPrint.css">
+</head>
+<body>
+
+  <header class="ll-pdf-header">
+    <h1 class="ll-pdf-title">Albany JW Convention Parking</h1>
+    <h2 class="ll-pdf-subtitle">Lessons Learned — <%= year %></h2>
+    <p class="ll-pdf-meta">
+      Generated <%= new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) %>
+      &nbsp;&bull;&nbsp; <%= lessons.length %> published <%= lessons.length === 1 ? 'entry' : 'entries' %>
+    </p>
+  </header>
+
+  <% if (!lessons || lessons.length === 0) { %>
+    <p class="ll-pdf-empty">No published lessons for <%= year %>.</p>
+  <% } %>
+
+  <% for (let i = 0; i < lessons.length; i++) {
+       const l = lessons[i]; %>
+
+    <div class="ll-pdf-entry<%= i > 0 ? ' ll-pdf-entry--break' : '' %>">
+
+      <%# Entry meta bar %>
+      <div class="ll-pdf-entry-meta">
+        <span class="ll-pdf-dept">
+          <%= l.department_name || l.department_other || 'General' %>
+        </span>
+        <span class="ll-pdf-divider">·</span>
+        <span class="ll-pdf-submitter">
+          Submitted by <%= l.submitted_by_name %>
+          on <%= new Date(l.submitted_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) %>
+        </span>
+        <% if (l.approved_by_name) { %>
+          <span class="ll-pdf-divider">·</span>
+          <span class="ll-pdf-approved">
+            Approved by <%= l.approved_by_name %>
+          </span>
+        <% } %>
+      </div>
+
+      <%# Notes %>
+      <div class="ll-pdf-notes"><%= l.notes %></div>
+
+      <%# Overseer comments %>
+      <% if (l.overseer_comments) { %>
+        <div class="ll-pdf-comments-wrap">
+          <span class="ll-pdf-comments-label">Overseer Comments:</span>
+          <div class="ll-pdf-comments"><%= l.overseer_comments %></div>
+        </div>
+      <% } %>
+
+      <%# Photos %>
+      <% const visiblePhotos = (l.photos || []).filter(function(p) { return p.dataUri; }); %>
+      <% if (visiblePhotos.length > 0) { %>
+        <div class="ll-pdf-photos">
+          <% visiblePhotos.forEach(function(p) { %>
+            <img
+              src="<%= p.dataUri %>"
+              alt="<%= p.original_filename %>"
+              class="ll-pdf-photo">
+          <% }) %>
+        </div>
+      <% } %>
+
+    </div>
+
+  <% } %>
+
+</body>
+</html>

@@ -1,0 +1,289 @@
+/**
+ * @file public/styles/lessonsLearned.css
+ * @description Styles for the Lessons Learned page (/oversight/tools/lessons-learned).
+ */
+
+/* ── Page shell ─────────────────────────────────────────────── */
+
+.ll-page {
+    max-width: 960px;
+}
+
+/* ── Frosted glass content panel ─────────────────────────────── */
+
+.ll-panel {
+    background:      rgba(255, 255, 255, 0.82);
+    backdrop-filter: blur(6px);
+    border-radius:   12px;
+    padding:         1rem 1.25rem;
+    box-shadow:      0 2px 16px rgba(0, 0, 0, 0.10);
+}
+
+/* ── Year filter + tabs row ─────────────────────────────────── */
+
+.ll-year-select {
+    width: auto;
+    min-width: 110px;
+}
+
+.ll-tabs .nav-link {
+    font-size:     0.875rem;
+    padding:       0.35rem 0.85rem;
+    border-radius: 50rem;
+}
+
+.ll-tabs .nav-link:not(.active) {
+    background: rgba(255, 255, 255, 0.70);
+    color:      var(--bs-body-color);
+    border:     1px solid rgba(0, 0, 0, 0.12);
+}
+
+/* ── Loading / empty ─────────────────────────────────────────── */
+
+.ll-loading,
+.ll-empty {
+    display:     flex;
+    align-items: center;
+    padding:     2rem 1rem;
+    color:       var(--bs-secondary-color, #6c757d);
+    font-size:   0.9rem;
+}
+
+/* ── Card list ───────────────────────────────────────────────── */
+
+.ll-cards {
+    display:        flex;
+    flex-direction: column;
+    gap:            0.75rem;
+}
+
+/* ── Individual card ─────────────────────────────────────────── */
+
+.ll-card {
+    border:        1px solid var(--bs-border-color);
+    border-radius: 0.5rem;
+    background:    var(--bs-body-bg);
+    overflow:      hidden;
+    transition:    box-shadow 0.15s ease;
+}
+
+.ll-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* Summary row (always visible) */
+.ll-card-summary {
+    display:        flex;
+    align-items:    flex-start;
+    gap:            0.75rem;
+    padding:        0.85rem 1rem;
+    cursor:         pointer;
+    user-select:    none;
+}
+
+.ll-card-summary:focus-visible {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: -2px;
+}
+
+.ll-card-badges {
+    display:    flex;
+    flex-wrap:  wrap;
+    gap:        0.35rem;
+    flex-shrink: 0;
+    padding-top: 0.1rem;
+}
+
+.ll-card-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.ll-card-dept {
+    font-size:   0.78rem;
+    font-weight: 600;
+    color:       var(--bs-secondary-color);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.2rem;
+}
+
+.ll-card-preview {
+    font-size:   0.9rem;
+    color:       var(--bs-body-color);
+    white-space: nowrap;
+    overflow:    hidden;
+    text-overflow: ellipsis;
+}
+
+.ll-card-meta {
+    font-size:  0.78rem;
+    color:      var(--bs-secondary-color);
+    margin-top: 0.3rem;
+}
+
+.ll-card-chevron {
+    flex-shrink:  0;
+    color:        var(--bs-secondary-color);
+    transition:   transform 0.2s ease;
+    margin-top:   0.15rem;
+    align-self:   center;
+}
+
+.ll-card.ll-expanded .ll-card-chevron {
+    transform: rotate(180deg);
+}
+
+/* Actions column (right side of summary) */
+.ll-card-actions {
+    display:     flex;
+    flex-wrap:   wrap;
+    gap:         0.35rem;
+    flex-shrink: 0;
+    align-self:  center;
+}
+
+.ll-card-actions .btn {
+    font-size: 0.78rem;
+    padding:   0.2rem 0.55rem;
+}
+
+/* ── Expanded detail panel ───────────────────────────────────── */
+
+.ll-card-detail {
+    border-top:  1px solid var(--bs-border-color);
+    padding:     1rem;
+    display:     none;
+    background:  var(--bs-body-bg);
+}
+
+.ll-card.ll-expanded .ll-card-detail {
+    display: block;
+}
+
+.ll-detail-label {
+    font-size:      0.78rem;
+    font-weight:    700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color:          var(--bs-secondary-color);
+    margin-bottom:  0.35rem;
+}
+
+.ll-detail-notes {
+    font-size:  0.9rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin-bottom: 1rem;
+}
+
+/* Overseer comments */
+.ll-comments-block {
+    background:  var(--bs-tertiary-bg, #f8f9fa);
+    border-left: 3px solid var(--bs-secondary-color);
+    border-radius: 0 0.375rem 0.375rem 0;
+    padding:     0.65rem 0.85rem;
+    margin-bottom: 1rem;
+}
+
+.ll-comments-text {
+    font-size:  0.88rem;
+    white-space: pre-wrap;
+}
+
+/* Photo gallery */
+.ll-photos-grid {
+    display:   flex;
+    flex-wrap: wrap;
+    gap:       0.6rem;
+    margin-bottom: 1rem;
+}
+
+.ll-photo-wrap {
+    position: relative;
+}
+
+.ll-photo-thumb {
+    width:         120px;
+    height:        90px;
+    object-fit:    cover;
+    border-radius: 0.375rem;
+    border:        1px solid var(--bs-border-color);
+    cursor:        pointer;
+    transition:    opacity 0.15s;
+}
+
+.ll-photo-thumb:hover {
+    opacity: 0.85;
+}
+
+.ll-photo-delete {
+    position:   absolute;
+    top:        4px;
+    right:      4px;
+    width:      22px;
+    height:     22px;
+    padding:    0;
+    font-size:  0.7rem;
+    line-height: 1;
+    border-radius: 50rem;
+    opacity:    0.85;
+}
+
+.ll-photo-delete:hover {
+    opacity: 1;
+}
+
+/* Photo add button */
+.ll-photo-add-wrap {
+    display:   flex;
+    flex-wrap: wrap;
+    gap:       0.5rem;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+/* Audit trail */
+.ll-audit {
+    font-size:  0.78rem;
+    color:      var(--bs-secondary-color);
+    border-top: 1px solid var(--bs-border-color);
+    padding-top: 0.65rem;
+    display:    flex;
+    flex-wrap:  wrap;
+    gap:        0.35rem 1.25rem;
+}
+
+/* ── Report link strip ───────────────────────────────────────── */
+
+.ll-report-link {
+    font-size:   0.82rem;
+    white-space: nowrap;
+}
+
+/* ── Status badge overrides ──────────────────────────────────── */
+
+.ll-badge-submitted  { font-size: 0.72rem; }
+.ll-badge-approved   { font-size: 0.72rem; }
+.ll-badge-published  { font-size: 0.72rem; }
+
+/* ── Fullscreen photo lightbox ──────────────────────────────── */
+
+.ll-lightbox {
+    position:        fixed;
+    inset:           0;
+    z-index:         1090;
+    background:      rgba(0, 0, 0, 0.88);
+    display:         flex;
+    align-items:     center;
+    justify-content: center;
+    cursor:          zoom-out;
+}
+
+.ll-lightbox img {
+    max-width:     95vw;
+    max-height:    90vh;
+    object-fit:    contain;
+    border-radius: 4px;
+    box-shadow:    0 8px 32px rgba(0, 0, 0, 0.5);
+}

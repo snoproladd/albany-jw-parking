@@ -612,9 +612,6 @@
       if (fitBtn) fitBtn.disabled = false;
       const publishBtn = document.getElementById("publishBtn");
       if (publishBtn) publishBtn.disabled = false;
-
-      // Signal for Puppeteer PDF generation
-      window.signsMapReady = true;
     });
 
     window.addEventListener("beforeprint", () => {
@@ -990,6 +987,12 @@
   /**
    * Fit map to visible markers.
    */
+  /**
+   * Fit map to visible markers.
+   * Fits tight to the sign bounds, then backs off one zoom level on
+   * idle so markers near the edge have breathing room. The single-
+   * marker case skips fitBounds and sets a fixed zoom instead.
+   */
   function fitBoundsToVisible() {
     if (!mapRef) return;
     const bounds = new google.maps.LatLngBounds();
@@ -1006,7 +1009,14 @@
       mapRef.setCenter(bounds.getCenter());
       mapRef.setZoom(18);
     } else {
-      mapRef.fitBounds(bounds, { top: 40, right: 40, bottom: 40, left: 40 });
+      mapRef.fitBounds(bounds);
+      google.maps.event.addListenerOnce(mapRef, "idle", () => {
+        mapRef.setZoom(mapRef.getZoom() + 0.75);
+        // Signal after zoom nudge — second idle confirms new tiles are settled
+        google.maps.event.addListenerOnce(mapRef, "idle", () => {
+          window.signsMapReady = true;
+        });
+      });
     }
   }
 

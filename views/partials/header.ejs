@@ -89,6 +89,15 @@
                     Schedules
                   </a>
                 </li>
+                <% if (can('editVolunteerInfo')) { %>
+                <li><hr class="dropdown-divider" /></li>
+                <li>
+                  <a class="dropdown-item" href="/lessons-learned">
+                    <i class="fa-solid fa-lightbulb me-1"></i>
+                    Lessons Learned
+                  </a>
+                </li>
+                <% } %>
               </ul>
             </li>
 
@@ -111,7 +120,7 @@
                   </a>
                 </li>
 
-                <% if (can('viewMaps') || can('viewSchedules')) { %>
+                <% if (can('viewMaps') || can('viewSchedules') || can('editVolunteerInfo')) { %>
                 <%# ── Docs ────────────────────────────────────────── %>
                 <li>
                   <button class="ot-nav-category" type="button"
@@ -132,6 +141,11 @@
                       <% if (can('viewSchedules')) { %>
                         <li><a class="ot-nav-item" href="/schedules">
                           <i class="fa-solid fa-calendar-check"></i>Schedules
+                        </a></li>
+                      <% } %>
+                      <% if (can('editVolunteerInfo')) { %>
+                        <li><a class="ot-nav-item" href="/lessons-learned">
+                          <i class="fa-solid fa-lightbulb"></i>Lessons Learned
                         </a></li>
                       <% } %>
                     </ul>
@@ -199,6 +213,27 @@
                           <i class="fa-solid fa-note-sticky"></i>Notes Report
                         </a></li>
                       <% } %>
+                    </ul>
+                  </div>
+                </li>
+                <% } %>
+
+<% if (isAtLeast('KEYMAN')) { %>
+                <%# ── Convention ─────────────────────────────────────────── %>
+                <li>
+                  <button class="ot-nav-category" type="button"
+                          data-bs-toggle="collapse"
+                          data-bs-target="#otNavConvention">
+                    <span><i class="fa-solid fa-book-open me-2"></i>Convention</span>
+                    <i class="fa-solid fa-chevron-down ot-nav-chevron"></i>
+                  </button>
+                </li>
+                <li>
+                  <div class="collapse show" id="otNavConvention">
+                    <ul class="ot-nav-items">
+                      <li><a class="ot-nav-item" href="/oversight/tools/lessons-learned">
+                        <i class="fa-solid fa-book-open"></i>Lessons Learned
+                      </a></li>
                     </ul>
                   </div>
                 </li>

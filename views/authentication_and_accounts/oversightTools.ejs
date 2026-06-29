@@ -51,6 +51,9 @@
             <% if (can('logAttendance') || can('viewAttendance')) { %>
               <option value="attendance">✅ Attendance</option>
             <% } %>
+            <% if (isAtLeast('KEYMAN')) { %>
+              <option value="lessons-learned">💡 Lessons Learned</option>
+            <% } %>
             <% if (can('accessAdminConsole')) { %>
               <option value="decently-sync">🔄 Decently Sync</option>
             <% } %>
@@ -92,6 +95,11 @@
             <% if (can('logAttendance') || can('viewAttendance')) { %>
               <a class="ot-sidebar-link" href="#attendance">
                 <i class="fa-solid fa-clipboard-check"></i> Attendance
+              </a>
+            <% } %>
+            <% if (isAtLeast('KEYMAN')) { %>
+              <a class="ot-sidebar-link" href="#lessons-learned">
+                <i class="fa-solid fa-lightbulb"></i> Lessons Learned
               </a>
             <% } %>
             <% if (can('accessAdminConsole')) { %>
@@ -621,6 +629,48 @@
                       <h3 class="admin-tool-title">Attendance Report</h3>
                       <p class="admin-tool-desc">View attendance across all shifts for a convention day. See invited, RSVP, attended, and no-show counts per shift.</p>
                       <a href="/oversight/tools/attendance/report" class="btn btn-primary admin-tool-btn">
+                        Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                      </a>
+                    </div>
+                  </div>
+                <% } %>
+
+              </div>
+            <% } %>
+
+            <%# ══════════════════════════════════════════════
+                5. LESSONS LEARNED
+            ══════════════════════════════════════════════ %>
+            <% if (isAtLeast('KEYMAN')) { %>
+              <h2 class="tools-group-heading" id="lessons-learned">
+                <i class="fa-solid fa-lightbulb me-2"></i>Lessons Learned
+              </h2>
+              <div class="row g-4 mb-5">
+
+                <%# Management page — KEYMAN+ can submit; OVERSEER+ can approve/publish %>
+                <div class="col-12 col-sm-6 col-lg-4">
+                  <div class="admin-tool-card h-100">
+                    <div class="admin-tool-icon text-warning">
+                      <i class="fa-solid fa-pen-to-square"></i>
+                    </div>
+                    <h3 class="admin-tool-title">Submit &amp; Review</h3>
+                    <p class="admin-tool-desc">Submit lessons from this year’s convention, review submissions from your team, and approve or publish the final set.</p>
+                    <a href="/oversight/tools/lessons-learned" class="btn btn-warning admin-tool-btn">
+                      Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                    </a>
+                  </div>
+                </div>
+
+                <%# Published report — OVERSEER+ only %>
+                <% if (can('editVolunteerInfo')) { %>
+                  <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="admin-tool-card h-100">
+                      <div class="admin-tool-icon text-success">
+                        <i class="fa-solid fa-file-pdf"></i>
+                      </div>
+                      <h3 class="admin-tool-title">Published Report</h3>
+                      <p class="admin-tool-desc">Download the consolidated Lessons Learned PDF. Re-generate the report any time to include newly published entries.</p>
+                      <a href="/lessons-learned" class="btn btn-success admin-tool-btn">
                         Open <i class="fa-solid fa-arrow-right ms-1"></i>
                       </a>
                     </div>

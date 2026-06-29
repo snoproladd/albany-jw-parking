@@ -353,15 +353,17 @@ export function signsRouter({
       return res.status(403).end();
     }
     try {
-      const [signs, locations] = await Promise.all([
+      const [signs, locations, arrows] = await Promise.all([
         getSigns(),
         getSignLocations(),
+        getTrafficArrows(),
       ]);
 
       return res.render("authentication_and_accounts/signsMapPrint", {
         csrfToken: "",
         signs,
         locations,
+        arrows,
         googleMapsApiKey: googleMapsApiKey || "",
         defaultMapCenter,
         mapOverlays: getMapOverlays(),

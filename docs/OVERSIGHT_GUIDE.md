@@ -23,12 +23,22 @@ send invitations, track RSVPs, log attendance, and administer the platform.
    - [SMS Management](#sms-management-assistant_admin)
 4. [Communications](#4-communications)
 5. [Scheduling](#5-scheduling)
+   - [Locations](#locations-overseer)
    - [Schedule Analysis](#schedule-analysis-overseer)
    - [Schedule Analysis Rules](#schedule-analysis-rules-admin)
+5b. [Parking Counter](#5b-parking-counter-logparkingcount)
+5c. [Lessons Learned](#5c-lessons-learned-keyman)
+   - [Submit & Review](#submit--review-keyman)
+   - [Lessons Learned Resources](#lessons-learned-resources-overseer)
 6. [Attendance](#6-attendance)
 7. [Reports](#7-reports)
+   - [Garage Capacity](#garage-capacity-overseer)
+   - [Master Conflict Grid](#master-conflict-grid-overseer)
 8. [Decently Sync](#8-decently-sync)
 9. [Administration](#9-administration-admin-only)
+   - [Permission Matrix](#permission-matrix)
+   - [Oversight Structure](#oversight-structure-admin)
+   - [System Variables](#system-variables-assistant_admin)
 10. [Role Reference](#10-role-reference)
 
 ---
@@ -1411,6 +1421,88 @@ to the server the moment you leave the page, so data is never lost.
 
 Tap **Change Setup** to return to the setup screen and pick a different
 location or day. This **resets the session total to zero**.
+
+---
+
+## 5c. Lessons Learned *(KEYMAN+)*
+
+### Submit & Review *(KEYMAN+)*
+
+**Path:** Operations → Lessons Learned → Submit & Review\
+(also accessible via the Lessons Learned section on the Operations Hub)
+
+A structured space for volunteers to record what worked, what didn’t, and what
+should change for next year. Entries move through a three-state workflow:
+**Submitted → Approved → Published**.
+
+#### Who can do what
+
+| Action | Minimum role |
+|---|---|
+| Submit a lesson | KEYMAN (or any volunteer with access to the page) |
+| Edit your own submission | Original submitter or OVERSEER+ |
+| Approve a lesson | OVERSEER+ |
+| Publish a lesson | OVERSEER+ |
+| Archive a lesson | OVERSEER+ (published lessons cannot be archived) |
+| Generate / Re-generate PDF | OVERSEER+ |
+| Download the published PDF | OVERSEER+ |
+
+#### Submitting a lesson
+
+1. Go to **Operations → Lessons Learned → Submit & Review**.
+2. Click **+ Add Lesson** (top right).
+3. Choose a **Department** from the list, or select *Other* and type one.
+4. Write the lesson in the text area — be specific about what happened,
+   why it mattered, and what the recommendation is.
+5. Optionally attach one or more **photos** (JPEG/PNG, up to the file size
+   limit). Photos are stored in Azure Blob Storage.
+6. Click **Submit**. The lesson appears on the *Submitted* tab.
+
+#### Workflow states
+
+- **Submitted** — visible to OVERSEER+ for review. Can still be edited by
+  the submitter or an overseer.
+- **Approved** — OVERSEER+ has reviewed the lesson and accepted it. Still
+  editable; not yet in the published PDF.
+- **Published** — OVERSEER+ has published the lesson. It is now included in
+  the consolidated year PDF the next time the report is generated. Published
+  lessons cannot be archived or edited.
+
+#### Generating the consolidated PDF
+
+Each time a lesson is published, the system automatically regenerates the
+consolidated PDF for that year (all published lessons combined) and uploads
+it to Azure Blob Storage and SharePoint.
+
+You can also regenerate the PDF at any time without publishing a new lesson:
+
+- On the **Published** tab, click **Re-generate** (OVERSEER+).
+- On the **Resources page** (`/lessons-learned`), click **Re-generate Report**
+  (ASSISTANT_ADMIN+).
+
+---
+
+### Lessons Learned Resources *(OVERSEER+)*
+
+**Path:** Resources → Lessons Learned (top nav) or\
+Operations → Lessons Learned → Published Report (Operations Hub)
+
+A read-only page showing the consolidated published PDF for a given convention
+year.
+
+- **Download PDF** — opens the Blob Storage–hosted PDF in a new tab.
+- **Open in SharePoint** — links to the OneDrive/SharePoint copy (when available).
+- **Last generated / by** — timestamp and name of the last person who ran a
+  publish or re-generate.
+- **Lessons included** — count of published lessons in the current PDF.
+- **Re-generate Report** (ASSISTANT_ADMIN+) — rebuilds the PDF from the current
+  set of published lessons without changing any lesson’s status.
+- **Year picker** — shown when multiple years have lessons, allowing historical
+  reports to be accessed.
+
+> **Note:** The PDF on this page reflects the set of published lessons at the
+> time the report was last generated. If lessons have been published since then,
+> click Re-generate to refresh it.
 
 ---
 

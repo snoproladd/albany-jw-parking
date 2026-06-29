@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Lessons Learned \u2014 Albany JW Parking</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+    <meta name="csrf-token" content="<%= csrfToken %>" />
+  </head>
+
+  <body class="min-vh-100 bg-body-tertiary" data-authed="true">
+    <%- include('partials/header') %>
+
+    <main class="container py-5">
+      <div class="row justify-content-center">
+        <div class="col-12 col-lg-8">
+
+          <%# Page header %>
+          <div class="d-flex align-items-center gap-3 mb-4">
+            <div>
+              <h1 class="h3 mb-1">
+                <i class="fa-solid fa-lightbulb me-2"></i>Lessons Learned
+              </h1>
+              <p class="text-muted mb-0">
+                Published convention-year reports, consolidated from all accepted lessons.
+              </p>
+            </div>
+          </div>
+
+          <%# Year picker %>
+          <% if (years.length > 1) { %>
+            <div class="d-flex align-items-center gap-2 mb-4">
+              <label class="form-label mb-0 fw-semibold small text-uppercase text-muted" for="yearPicker">Year</label>
+              <form method="GET" action="/lessons-learned" class="d-flex align-items-center gap-2">
+                <select id="yearPicker" name="year" class="form-select form-select-sm" style="width:auto"
+                        onchange="this.form.submit()">
+                  <% years.forEach(y => { %>
+                    <option value="<%= y %>" <%= y === year ? 'selected' : '' %>><%= y %></option>
+                  <% }) %>
+                </select>
+              </form>
+            </div>
+          <% } %>
+
+          <%# Report card %>
+          <div class="card shadow-sm">
+            <div class="card-header d-flex align-items-center justify-content-between">
+              <span class="fw-semibold">
+                <i class="fa-solid fa-file-pdf me-2 text-danger"></i><%= year %> Published Report
+              </span>
+              <% if (isAdmin) { %>
+                <button type="button" id="batchPublishBtn"
+                        class="btn btn-sm btn-outline-primary"
+                        data-year="<%= year %>">
+                  <i class="fa-solid fa-rotate me-1"></i>
+                  <%= report ? 'Re-generate' : 'Generate' %> Report
+                </button>
+              <% } %>
+            </div>
+
+            <div class="card-body" id="reportBody">
+              <% if (report) { %>
+                <%# Download button %>
+                <div class="mb-3">
+                  <a href="/lessons-learned/pdf/<%= encodeURIComponent(report.blob_name) %>"
+                     target="_blank" rel="noopener"
+                     class="btn btn-success">
+                    <i class="fa-solid fa-file-arrow-down me-2"></i>Download PDF
+                  </a>
+                  <% if (report.share_url) { %>
+                    <a href="<%= report.share_url %>" target="_blank" rel="noopener"
+                       class="btn btn-outline-secondary ms-2">
+                      <i class="fa-brands fa-microsoft me-1"></i>Open in SharePoint
+                    </a>
+                  <% } %>
+                </div>
+
+                <%# Metadata %>
+                <dl class="row mb-0 small text-muted">
+                  <dt class="col-sm-3">Last generated</dt>
+                  <dd class="col-sm-9">
+                    <%= new Date(report.published_at).toLocaleString('en-US', { timeZone: 'America/New_York', dateStyle: 'medium', timeStyle: 'short' }) %>
+                    ET by <%= report.published_by_name %>
+                  </dd>
+                  <dt class="col-sm-3">Lessons included</dt>
+                  <dd class="col-sm-9"><%= report.lesson_count %></dd>
+                </dl>
+
+              <% } else { %>
+                <div class="text-muted py-3 text-center">
+                  <i class="fa-solid fa-file-circle-question fa-2x mb-2 d-block text-secondary"></i>
+                  No published report for <%= year %>.
+                  <% if (!isAdmin) { %>
+                    <br /><span class="small">Contact an administrator to generate one.</span>
+                  <% } %>
+                </div>
+              <% } %>
+
+              <%# Status / error area (JS-managed) %>
+              <div id="batchStatus" class="mt-3 d-none"></div>
+            </div>
+          </div>
+
+          <%# Link back to management %>
+          <div class="mt-4">
+            <a href="/oversight/tools/lessons-learned" class="text-muted small">
+              <i class="fa-solid fa-screwdriver-wrench me-1"></i>Manage lessons (KEYMAN+)
+            </a>
+          </div>
+
+        </div>
+      </div>
+    </main>
+
+    <%- include('partials/footer') %>
+
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="/js/lessonsLearnedResources.js"></script>
+  </body>
+</html>

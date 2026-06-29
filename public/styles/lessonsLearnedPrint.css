@@ -1,0 +1,155 @@
+/**
+ * @file public/styles/lessonsLearnedPrint.css
+ * @description Print-optimized styles for the Lessons Learned PDF template
+ * rendered by Puppeteer via /internal/pdf/lessons-learned.
+ */
+
+/* ── Reset / base ───────────────────────────────────────────── */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin:     0;
+    padding:    0;
+}
+
+body {
+    font-family:  Georgia, 'Times New Roman', serif;
+    font-size:    11pt;
+    line-height:  1.55;
+    color:        #1a1a1a;
+    background:   #fff;
+    padding:      0;
+}
+
+/* ── Page header ─────────────────────────────────────────────── */
+
+.ll-pdf-header {
+    border-bottom: 3px solid #1a4f8a;
+    padding-bottom: 10pt;
+    margin-bottom:  18pt;
+}
+
+.ll-pdf-title {
+    font-size:   16pt;
+    font-weight: 700;
+    color:       #1a4f8a;
+    letter-spacing: 0.02em;
+}
+
+.ll-pdf-subtitle {
+    font-size:  13pt;
+    font-weight: 600;
+    color:      #333;
+    margin-top:  2pt;
+}
+
+.ll-pdf-meta {
+    font-size:  9pt;
+    color:      #666;
+    margin-top: 4pt;
+}
+
+/* ── Empty state ─────────────────────────────────────────────── */
+
+.ll-pdf-empty {
+    font-style: italic;
+    color:      #888;
+    margin-top: 24pt;
+}
+
+/* ── Entry block ─────────────────────────────────────────────── */
+
+.ll-pdf-entry {
+    margin-bottom: 24pt;
+    padding-bottom: 20pt;
+    border-bottom:  1px solid #ddd;
+}
+
+.ll-pdf-entry--break {
+    page-break-inside: avoid;
+}
+
+.ll-pdf-entry:last-child {
+    border-bottom: none;
+}
+
+/* ── Entry meta bar ──────────────────────────────────────────── */
+
+.ll-pdf-entry-meta {
+    font-size:   9pt;
+    color:       #555;
+    margin-bottom: 8pt;
+    display:     flex;
+    flex-wrap:   wrap;
+    gap:         4pt;
+    align-items: center;
+}
+
+.ll-pdf-dept {
+    font-weight:      700;
+    text-transform:   uppercase;
+    letter-spacing:   0.06em;
+    font-size:        8pt;
+    color:            #1a4f8a;
+    background:       #e8f0fb;
+    padding:          1pt 5pt;
+    border-radius:    3pt;
+}
+
+.ll-pdf-divider {
+    color: #bbb;
+}
+
+/* ── Notes ───────────────────────────────────────────────────── */
+
+.ll-pdf-notes {
+    font-size:      11pt;
+    white-space:    pre-wrap;
+    word-break:     break-word;
+    margin-bottom:  10pt;
+}
+
+/* ── Overseer comments ───────────────────────────────────────── */
+
+.ll-pdf-comments-wrap {
+    background:    #f8f8f8;
+    border-left:   3pt solid #aaa;
+    padding:       6pt 10pt;
+    margin-bottom: 10pt;
+}
+
+.ll-pdf-comments-label {
+    font-size:   8.5pt;
+    font-weight: 700;
+    color:       #666;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display:     block;
+    margin-bottom: 3pt;
+}
+
+.ll-pdf-comments {
+    font-size:   10.5pt;
+    white-space: pre-wrap;
+    color:       #333;
+}
+
+/* ── Photo gallery ───────────────────────────────────────────── */
+
+.ll-pdf-photos {
+    display:    flex;
+    flex-wrap:  wrap;
+    gap:        8pt;
+    margin-top: 8pt;
+}
+
+.ll-pdf-photo {
+    width:         180pt;
+    height:        135pt;
+    object-fit:    cover;
+    border-radius: 3pt;
+    border:        1pt solid #ddd;
+    page-break-inside: avoid;
+}

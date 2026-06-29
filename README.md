@@ -3,7 +3,7 @@
 A full-stack web application for managing volunteers, scheduling, messaging,
 and attendance for the Albany JW Regional Convention parking team.
 
-<!-- README last updated: v2.72.0 -->
+<!-- README last updated: v2.73.0 -->
 
 ---
 
@@ -193,7 +193,7 @@ parking/
 │
 ├── lib/
 │   ├── alertScheduler.js      # Shift-alert scheduling engine (cron-like timer)
-│   ├── blobStorage.js         # Azure Blob Storage helpers (sign photos)
+│   ├── blobStorage.js         # Azure Blob Storage helpers (sign photos, lesson photos, published file streaming)
 │   ├── dbSync.js              # All database query functions
 │   ├── graphClient.js         # Microsoft Graph API client (OneDrive)
 │   ├── messaging.js           # Email + SMS delivery helpers (suppressed in demo context)
@@ -204,6 +204,7 @@ parking/
 │   ├── passwordVer.js         # PBKDF2 hashing + verification
 │   ├── publishSchedule.js     # PDF schedule generation + OneDrive upload + Blob Storage delivery
 │   ├── publishSignMap.js      # Sign map PDF generation + Blob + OneDrive upload
+│   ├── publishLessonsLearned.js  # Lessons Learned PDF generation + parallel Blob/SharePoint upload
 │   ├── rvToken.js             # HMAC token generation for public rendezvous detail links
 │   ├── sql.js                 # SQL connection pool management + demo pool routing
 │   └── volunteerStatus.js     # Profile completeness checks
@@ -221,6 +222,7 @@ parking/
 │   ├── signsRoutes.js         # Sign Library, Sign Builder, Sign Map — templates, locations, and attachments CRUD
 │   ├── countsRoutes.js        # Parking Counter tally page + count report API
 │   ├── systemVariablesRoutes.js # System Variables management + sub-location CRUD
+│   ├── lessonsLearnedRoutes.js  # Lessons Learned management + PDF proxy + batch-publish
 │   ├── sitemapRoutes.js       # Public role-filtered sitemap page
 │   ├── blackoutRoutes.js      # GET/POST /api/blackouts/:volunteerId (BlackoutTimeline API)
 │   ├── smsWebhookRoute.js     # Twilio inbound SMS routing + freeform AI pipeline
@@ -243,6 +245,9 @@ parking/
 │   ├── index.ejs              # Home / dashboard page
 │   ├── maps.ejs               # Maps page (OneDrive listing)
 │   ├── schedules.ejs          # Schedules page (OneDrive PDF listing)
+│   ├── lessonsLearned.ejs     # Lessons Learned management (KEYMAN+ submit, OVERSEER+ approve/publish)
+│   ├── lessonsLearnedPdf.ejs  # Puppeteer PDF render target (secret-auth, Lessons Learned)
+│   ├── lessonsLearnedResources.ejs # Lessons Learned resources/download page (OVERSEER+)
 │   ├── privacy.ejs            # Privacy policy
 │   ├── terms.ejs              # Terms of use
 │   ├── sitemap.ejs            # Role-filtered sitemap
@@ -359,6 +364,8 @@ parking/
 │   │   ├── counts.js                  # Parking Counter tally logic (heartbeat, submit, alarms, localStorage)
 │   │   ├── countReport.js             # Count Report — overview bar + per-garage stacked area charts (module)
 │   │   ├── systemVariables.js         # System Variables management page (module)
+│   │   ├── lessonsLearned.js          # Lessons Learned management page (submit, review, approve, publish)
+│   │   ├── lessonsLearnedResources.js  # Lessons Learned resources page (batch-publish button)
 │   │   ├── maps.js                    # Maps page (OneDrive listing)
 │   │   ├── schedules.js               # Schedules page (OneDrive PDF listing)
 │   │   ├── notesReport.js             # Notes Report: SMS cards, archived panel, AI analysis badges
@@ -446,6 +453,8 @@ parking/
 │   │   ├── countReport.css            # Garage Capacity report charts
 │   │   ├── systemVariables.css        # System Variables management page
 │   │   ├── locationsAndTasks.css      # Locations page sub-location expansion panels
+│   │   ├── lessonsLearned.css         # Lessons Learned management page
+│   │   ├── lessonsLearnedPrint.css    # Lessons Learned PDF render target
 │   │   ├── scheduler.css              # Scheduler grid
 │   │   ├── schedulerReport.css        # Schedule report / PDF
 │   │   ├── shiftAlerts.css            # Shift alerts page
@@ -481,7 +490,9 @@ parking/
 │       └── schedule_analysis_rules.sql # schedule_analysis_rules table
 │       ├── parking_counts.sql         # parking_counts + extra_parking_count BIT on volunteer_in
 │       ├── parking_counts_is_manual.sql # adds is_manual BIT to parking_counts
-│       └── system_variable_lists.sql  # system_variable_lists + location_sub_locations + FK additions
+│       ├── system_variable_lists.sql  # system_variable_lists + location_sub_locations + FK additions
+│       ├── lessons-learned.sql        # lessons_learned + lessons_learned_photos + lessons_learned_reports; lesson-department seed
+│       └── lessons-learned-archive.sql # archive schema for removed lessons
 │
 ├── docs/
 │   └── OVERSIGHT_GUIDE.md     # End-user guide for oversight staff
@@ -662,6 +673,13 @@ The first ADMIN must be granted directly in the database.
   constraint panel (`schedulerConstraintPanel.js`) lets overseers review, edit, and apply
   suggestions directly from the pool pill context menu. Applying all suggestions for an
   SMS message auto-resolves it in the Notes Report.
+- **Lessons Learned (2.73.0+):** `/oversight/tools/lessons-learned` (KEYMAN+) — three-state
+  workflow: submitted → approved → published. On publish, Puppeteer renders all published
+  lessons for the year to PDF, uploads to Azure Blob + SharePoint via Microsoft Graph,
+  and upserts `lessons_learned_reports`. Photo attachments in the `lessons-learned`
+  Blob container. `POST /api/lessons-learned/batch-publish` regenerates the PDF
+  without changing lesson status. Published PDF accessible at `/lessons-learned`
+  (OVERSEER+) via authenticated proxy `GET /lessons-learned/pdf/:blobName`.
 - **Parking Counter (2.70.0+):** `/counts` (logParkingCount permission — OVERSEER+ by default,
   delegatable via `extra_parking_count BIT` on `volunteer_in`). Phone-first tally UI with
   60-second heartbeat, quarter-hour alarm, Web Audio API beep, Wake Lock, localStorage
@@ -769,6 +787,15 @@ Schema highlights:
 - `schedule_violation_runs` — one row per schedule analysis pass. `schedule_hash NVARCHAR(64)` (SHA-256 of all assignments + blackouts) enables cache comparison to skip re-analysis when nothing has changed. `triggered_by FK`, `violation_count INT`.
 - `schedule_violations` — per-violation rows. `violation_type` ∈ {time_overlap, blackout_violation, pre_session_overload, post_session_overload, understaffed, daily_load, coverage_gap, ai_observation}. `severity` ∈ {critical, high, medium, low, info} (null for rule-engine violations before AI enhancement). `confidence DECIMAL(3,2)` (null for deterministic facts). `ai_question` / `overseer_response` support the targeted Q&A re-analysis loop. `acknowledged BIT`.
 - `schedule_analysis_rules` — admin-managed scheduling policy rules injected as mandatory context into the AI system prompt on every analysis run. `rule_text NVARCHAR(MAX)`, `sort_order INT`, `active BIT`. Managed via `/oversight/tools/schedule-rules` (ADMIN only).
+- `lessons_learned` — submitted lessons from convention operations. Fields: `year`,
+  `department_id FK → system_variable_lists`, `department_other`, `notes NVARCHAR(MAX)`,
+  `status` (‘submitted’ | ‘approved’ | ‘published’), `archived BIT`, `submitted_by FK`,
+  `approved_by FK`, `published_by FK` with timestamp columns.
+- `lessons_learned_photos` — photo attachments per lesson. Fields: `lesson_id FK
+  (ON DELETE CASCADE)`, `blob_name`, `original_filename`, `uploaded_by FK`.
+- `lessons_learned_reports` — one row per convention year tracking the consolidated
+  published PDF. Fields: `year PK`, `blob_name`, `share_url`, `published_by FK`,
+  `published_at`. Upserted on each individual lesson publish and on batch-publish.
 - `parking_counts` — volunteer tally records. Fields: `volunteer_id FK`, `location_task_id FK`,
   `convention_day_id FK`, `count INT`, `is_final BIT`, `is_manual BIT`, `sub_location_id INT
   NULL FK → location_sub_locations (ON DELETE SET NULL)`, `recorded_at DATETIME2 DEFAULT
