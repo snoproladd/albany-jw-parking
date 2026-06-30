@@ -3,6 +3,21 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.75.1] — 2026-06-30
+
+### Fixed
+- **Shift alert preview card showing "Invalid Date EDT".** The schedule
+  preview endpoint built its `fireAt` ISO string by concatenating
+  `schedule.fire_time_utc` directly into the response — but the mssql TIME
+  column round-trips through JSON as either a clean `"HH:MM:SS"` or an
+  epoch-anchored ISO datetime (`"1970-01-01T23:30:00.000Z"`), and the latter
+  produced malformed strings like `"2026-06-30T1970-01-01T23:30:00.000ZZ"`
+  that `new Date()` couldn't parse. The endpoint now normalises the value
+  via the same HH:MM:SS extraction the alertScheduler tick uses, so the
+  preview card displays the correct fire time regardless of how mssql
+  serialised the column. Display-only fix — actual scheduler firings were
+  always correct.
+
 ## [2.75.0] — 2026-06-30
 
 ### Changed

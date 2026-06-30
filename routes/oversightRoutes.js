@@ -5878,7 +5878,11 @@ export function oversightRouter({
           year: schedule.year,
         });
 
-        // Build human-readable fire time for the response
+        // Build human-readable fire time for the response.
+        // fire_time_utc may come back from the mssql TIME column as either a
+        // clean "HH:MM:SS" string or an epoch-anchored ISO datetime (e.g.
+        // "1970-01-01T23:30:00.000Z"). Extract the time portion explicitly so
+        // the concatenated ISO string is always parseable on the client.
         let fireAt = null;
         if (
           schedule.alert_category !== "t15min" &&
@@ -5888,7 +5892,33 @@ export function oversightRouter({
           const fireDateStr = new Date(schedule.fire_date)
             .toISOString()
             .slice(0, 10);
-          fireAt = `${fireDateStr}T${schedule.fire_time_utc}Z`;
+
+          let timePart = null;
+          const raw = schedule.fire_time_utc;
+          if (raw instanceof Date && !isNaN(raw.valueOf())) {
+            timePart =
+              String(raw.getUTCHours()).padStart(2, "0") + ":" +
+              String(raw.getUTCMinutes()).padStart(2, "0") + ":" +
+              String(raw.getUTCSeconds()).padStart(2, "0");
+          } else {
+            const s = String(raw).trim();
+            const m = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+            if (m) {
+              timePart = `${m[1].padStart(2, "0")}:${m[2]}:${m[3] || "00"}`;
+            } else {
+              const d = new Date(s);
+              if (!isNaN(d.valueOf())) {
+                timePart =
+                  String(d.getUTCHours()).padStart(2, "0") + ":" +
+                  String(d.getUTCMinutes()).padStart(2, "0") + ":" +
+                  String(d.getUTCSeconds()).padStart(2, "0");
+              }
+            }
+          }
+
+          if (timePart) {
+            fireAt = `${fireDateStr}T${timePart}Z`;
+          }
         }
 
         return res.json({ success: true, shifts, fireAt });
