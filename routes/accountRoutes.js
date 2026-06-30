@@ -845,13 +845,24 @@ export function loginRouter({ csrfProtection, logError }) {
       const id = req.session.userId;
       if (!id) return res.redirect("/login");
 
-      const { email, phone, SMSCapable, whatsappid } = req.body;
+      const { email, phone, SMSCapable, whatsappid, smsShiftAlertsOptIn } =
+        req.body;
       const smsCapable = SMSCapable === "yes";
+      // Checkbox: present in body when checked, absent when unchecked.
+      // Treat presence as opt-in and absence as opt-out (explicit per submit).
+      const smsShiftAlertsOptInBool =
+        smsShiftAlertsOptIn !== undefined && smsShiftAlertsOptIn !== "";
 
       try {
         await updateUserContact(
           id,
-          { email, phone, smsCapable, whatsappid },
+          {
+            email,
+            phone,
+            smsCapable,
+            whatsappid,
+            smsShiftAlertsOptIn: smsShiftAlertsOptInBool,
+          },
           getEditedBy(req),
         );
         return res.redirect("/my-account");
@@ -1046,7 +1057,12 @@ export function loginRouter({ csrfProtection, logError }) {
       }
 
       /** @type {{
-       *  contact?: { email?: string; phone?: string; smsCapable?: boolean };
+       *  contact?: {
+       *    email?: string;
+       *    phone?: string;
+       *    smsCapable?: boolean;
+       *    smsShiftAlertsOptIn?: boolean;
+       *  };
        *  personal?: { dobirthRaw?: string; genderRaw?: string; staminaRaw?: string };
        *  congregation?: {
        *    congAssigned?: string;
@@ -1074,6 +1090,7 @@ export function loginRouter({ csrfProtection, logError }) {
                 email: payload.contact.email,
                 phone: payload.contact.phone,
                 smsCapable: payload.contact.smsCapable,
+                smsShiftAlertsOptIn: payload.contact.smsShiftAlertsOptIn,
               },
               editedBy,
             ),

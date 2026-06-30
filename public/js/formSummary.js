@@ -162,10 +162,24 @@
    * EDIT MODE MONITORING
    * ===================================================== */
 
+  /**
+   * Returns true when every EDITABLE accordion section is out of edit mode.
+   *
+   * Read-only sections (e.g. Blackouts, Convention Invitations) live in
+   * their own `.accordion-body` but contain no `.summary-edit-btn`, so they
+   * never get a `data-editing` attribute and would otherwise keep the
+   * Finalize button disabled forever. Only consider sections that have an
+   * edit button.
+   *
+   * @param {HTMLElement} root
+   * @returns {boolean}
+   */
   function allSectionsNotEditing(root) {
-    const containers = root.querySelectorAll(".accordion-body");
-    return Array.from(containers).every(
-      (container) => container.dataset.editing === "false",
+    const editableSections = Array.from(
+      root.querySelectorAll(".summary-edit-btn"),
+    ).map((btn) => btn.closest(".accordion-body"));
+    return editableSections.every(
+      (container) => container?.dataset.editing === "false",
     );
   }
 

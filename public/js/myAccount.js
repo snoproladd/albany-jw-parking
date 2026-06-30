@@ -36,13 +36,21 @@ document.addEventListener("DOMContentLoaded", () => {
   // -----------------------------------------------------------------------
 
   /**
-   * Returns true when every accordion section is out of edit mode.
+   * Returns true when every EDITABLE accordion section is out of edit mode.
+   *
+   * Read-only sections (e.g. Blackouts, Convention Invitations) live in
+   * their own `.accordion-body` but contain no `.summary-edit-btn`, so they
+   * never get a `data-editing` attribute and would otherwise keep the
+   * Finalize button disabled forever. Only consider sections that have an
+   * edit button.
+   *
    * @returns {boolean}
    */
   function allLocked() {
-    return [...root.querySelectorAll(".accordion-body")].every(
-      (s) => s.dataset.editing === "false",
-    );
+    const editableSections = [
+      ...root.querySelectorAll(".summary-edit-btn"),
+    ].map((btn) => btn.closest(".accordion-body"));
+    return editableSections.every((s) => s?.dataset.editing === "false");
   }
 
   /**
@@ -59,8 +67,18 @@ document.addEventListener("DOMContentLoaded", () => {
   // Section cache helpers
   // -----------------------------------------------------------------------
 
-  /** @param {HTMLElement} sec */
+  /**
+   * Cache the Contact section's current field values into
+   * `window.myAccountCache.contact`. Reads the SMS-capable radios and the
+   * shift-alert opt-in checkbox so the finalize POST has the full picture.
+   *
+   * @param {HTMLElement} sec
+   * @returns {void}
+   */
   function cacheContact(sec) {
+    const shiftAlertsBox = /** @type {HTMLInputElement | null} */ (
+      sec.querySelector('[name="smsShiftAlertsOptIn"]')
+    );
     window.myAccountCache.contact = {
       email: sec.querySelector('[name="email"]')?.value?.trim(),
       phone: sec.querySelector('[name="phone"]')?.value?.trim(),
@@ -69,6 +87,9 @@ document.addEventListener("DOMContentLoaded", () => {
         : sec.querySelector("#sms-no")?.checked
           ? false
           : undefined,
+      // Checkbox: send explicit true/false so the server distinguishes
+      // "user opted out" from "field absent" (which would leave the DB alone).
+      smsShiftAlertsOptIn: shiftAlertsBox ? shiftAlertsBox.checked : undefined,
     };
   }
 

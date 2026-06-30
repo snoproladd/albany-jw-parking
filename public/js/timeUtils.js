@@ -29,13 +29,12 @@ const EDT_OFFSET_HOURS = 4;
  * @returns {string} e.g. "08:30", or "" if raw is falsy/invalid
  */
 export function fmtTimeInput(raw) {
-    if (!raw) return "";
-    const d = new Date(raw);
-    if (isNaN(d.valueOf())) return "";
+    const parsed = _extractUtcHM(raw);
+    if (!parsed) return "";
     return (
-        String(d.getUTCHours()).padStart(2, "0") +
+        String(parsed.h).padStart(2, "0") +
         ":" +
-        String(d.getUTCMinutes()).padStart(2, "0")
+        String(parsed.m).padStart(2, "0")
     );
 }
 
@@ -74,6 +73,38 @@ export function validateTimeInput(id) {
 }
 
 /**
+ * Extract { h, m } from either a plain "HH:MM" / "HH:MM:SS" string or
+ * an epoch-anchored ISO datetime string returned by mssql for TIME
+ * columns (e.g. "1970-01-01T23:30:00.000Z").
+ *
+ * Returns null when the value is falsy or unparseable so callers can
+ * distinguish "no value" from "garbled value" if needed.
+ *
+ * @param {string|Date|null} val
+ * @returns {{h:number, m:number}|null}
+ */
+function _extractUtcHM(val) {
+    if (!val) return null;
+    if (val instanceof Date) {
+        if (isNaN(val.valueOf())) return null;
+        return { h: val.getUTCHours(), m: val.getUTCMinutes() };
+    }
+    const s = String(val).trim();
+    // Plain "HH:MM" or "HH:MM:SS"
+    const match = s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+    if (match) {
+        const h = parseInt(match[1], 10);
+        const m = parseInt(match[2], 10);
+        if (!isNaN(h) && !isNaN(m)) return { h, m };
+        return null;
+    }
+    // Anything else — try parsing as an ISO/Date string
+    const d = new Date(s);
+    if (isNaN(d.valueOf())) return null;
+    return { h: d.getUTCHours(), m: d.getUTCMinutes() };
+}
+
+/**
  * Convert a UTC "HH:MM" time string to a human-readable EDT display label
  * suitable for schedule cards (e.g. "7:00 AM").
  *
@@ -81,13 +112,13 @@ export function validateTimeInput(id) {
  * @returns {string} e.g. "7:00 AM", or "—" if input is falsy
  */
 export function utcToEdtCard(utcHhmm) {
-    if (!utcHhmm) return "—";
-    const [h, m] = utcHhmm.split(":").map(Number);
-    let edtH = h - EDT_OFFSET_HOURS;
+    const parsed = _extractUtcHM(utcHhmm);
+    if (!parsed) return "—";
+    let edtH = parsed.h - EDT_OFFSET_HOURS;
     if (edtH < 0) edtH += 24;
     const ap = edtH >= 12 ? "PM" : "AM";
     const display = edtH % 12 || 12;
-    return `${display}:${String(m).padStart(2, "0")} ${ap}`;
+    return `${display}:${String(parsed.m).padStart(2, "0")} ${ap}`;
 }
 
 /**
@@ -98,11 +129,11 @@ export function utcToEdtCard(utcHhmm) {
  * @returns {string} e.g. "07:00", or "" if input is falsy
  */
 export function utcToEdtDisplay(utcHhmm) {
-    if (!utcHhmm) return "";
-    const [h, m] = utcHhmm.split(":").map(Number);
-    let edtH = h - EDT_OFFSET_HOURS;
+    const parsed = _extractUtcHM(utcHhmm);
+    if (!parsed) return "";
+    let edtH = parsed.h - EDT_OFFSET_HOURS;
     if (edtH < 0) edtH += 24;
-    return `${String(edtH).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    return `${String(edtH).padStart(2, "0")}:${String(parsed.m).padStart(2, "0")}`;
 }
 
 /**

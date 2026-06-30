@@ -3,6 +3,61 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.74.2] — 2026-06-30
+
+### Fixed
+- **Shift alert scheduler — concurrency guard.** `tick()` is now wrapped in a
+  process-level mutex (`tickInProgress`) so a slow Twilio batch can no longer
+  overlap with the next 60-second interval call. Without the guard, ticks
+  could stack inside the 5-minute burst window — each one querying
+  `getShiftsForAlertBurst` before the previous tick's `shift_alert_log`
+  INSERT had landed, producing duplicate sends. Added a second layer via a
+  module-level `burstFired` Set keyed by `${scheduleId}|${fireDateStr}` so a
+  successfully-dispatched burst cannot re-fire within the same Node process,
+  even if the log INSERT is delayed. Empty-rows path also marks the burst as
+  fired to skip the DB roundtrip on subsequent ticks within the window.
+- **Publish schedule — Puppeteer timeouts on heavy days.** PDF generation
+  was failing on data-heavy days with "Navigation timeout of 30000 ms
+  exceeded" while lighter days succeeded. Switched `page.goto` from
+  `waitUntil: 'networkidle0'` (zero network connections for 500ms — too
+  strict; any font fetch or analytics ping prevents settling) to
+  `waitUntil: 'load'`, and raised the navigation timeout from 30s to 90s.
+- **timeUtils — mssql TIME column support.** `fmtTimeInput`, `utcToEdtCard`,
+  and `utcToEdtDisplay` were splitting on `:` and failing for the
+  epoch-anchored ISO datetime strings mssql returns for TIME columns (e.g.
+  `1970-01-01T19:30:00.000Z`). Added a shared `_extractUtcHM(val)` helper
+  that handles plain `HH:MM[:SS]` strings, Date objects, and ISO strings via
+  `getUTCHours()` / `getUTCMinutes()`. All three formatters now route
+  through it.
+- **My Account — Finalize Changes button never enabled.** `allLocked()` in
+  `myAccount.js` and `allSectionsNotEditing()` in `formSummary.js` were
+  counting *every* `.accordion-body` as a section needing to be locked.
+  Read-only sections (Availability/Blackouts, Convention Invitations) have
+  no `.summary-edit-btn` and so never get `data-editing="false"` — they kept
+  the Finalize button disabled forever. Both functions now filter to
+  containers that have an edit button before checking state.
+- **Scheduler tick NaN guard.** Burst window check now uses
+  `Number.isFinite(msAgo)` before the `< 0 / > windowMs` comparison so a
+  malformed `fire_time_utc` can't yield NaN comparisons that silently
+  evaluate false on every branch.
+
+### Added
+- **SMS shift-alert opt-in checkbox** in the My Account contact section. The
+  field already existed on `volunteer_in.sms_shift_alerts_opt_in` and was
+  set system-wide for the convention; volunteers can now toggle their own
+  preference. `cacheContact()` reads it as an explicit boolean so the
+  finalize POST distinguishes "user opted out" from "field absent".
+  `updateUserContact` SQL uses `COALESCE(@smsShiftAlertsOptIn, ...)` so a
+  missing field leaves the column untouched.
+
+### Notes
+- A volunteer-grouping refactor for the `next_day`, `same_day`, and
+  `all_upcoming` alert categories is planned for 2.75.0. Currently those
+  categories fan out one SMS per shift rather than one batched SMS per
+  volunteer with all shifts listed. The runaway-send symptom this caused on
+  2026-06-30 was a template + fan-out interaction, not a concurrency bug;
+  the concurrency guards above are a separate, real fix.
+
 ## [2.74.1] — 2026-06-29
 
 ### Fixed

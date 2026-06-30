@@ -746,13 +746,23 @@ export function oversightRouter({
       const id = req.session.userId;
       if (!id) return res.redirect("/login");
 
-      const { email, phone, SMSCapable, whatsappid } = req.body;
+      const { email, phone, SMSCapable, whatsappid, smsShiftAlertsOptIn } =
+        req.body;
       const smsCapable = SMSCapable === "yes";
+      // Checkbox: present in body when checked, absent when unchecked.
+      const smsShiftAlertsOptInBool =
+        smsShiftAlertsOptIn !== undefined && smsShiftAlertsOptIn !== "";
 
       try {
         await updateUserContact(
           id,
-          { email, phone, smsCapable, whatsappid },
+          {
+            email,
+            phone,
+            smsCapable,
+            whatsappid,
+            smsShiftAlertsOptIn: smsShiftAlertsOptInBool,
+          },
           getEditedBy(req),
         );
         return res.redirect("/my-account");
@@ -3003,12 +3013,10 @@ export function oversightRouter({
 
       // Crew shifts must have a category; meeting shifts do not
       if (!isMeeting && !category_id)
-        return res
-          .status(400)
-          .json({
-            success: false,
-            error: "Category is required for crew shifts.",
-          });
+        return res.status(400).json({
+          success: false,
+          error: "Category is required for crew shifts.",
+        });
 
       const normStart = parseTimeString(start_time);
       const normEnd = parseTimeString(end_time);
@@ -3081,12 +3089,10 @@ export function oversightRouter({
           .json({ success: false, error: "Missing required fields." });
 
       if (!isMeeting && !category_id)
-        return res
-          .status(400)
-          .json({
-            success: false,
-            error: "Category is required for crew shifts.",
-          });
+        return res.status(400).json({
+          success: false,
+          error: "Category is required for crew shifts.",
+        });
 
       const normStart = parseTimeString(start_time);
       const normEnd = parseTimeString(end_time);
@@ -5508,7 +5514,9 @@ export function oversightRouter({
           reportData,
           conventionDays,
           selectedDayId: dayId,
-          canPublish: !!(req.session.permissions?.[req.session.userRole]?.accessAdminConsole),
+          canPublish:
+            !!req.session.permissions?.[req.session.userRole]
+              ?.accessAdminConsole,
         });
       } catch (err) {
         (logError || console.error)("scheduler/report GET error:", err);
@@ -5620,7 +5628,9 @@ export function oversightRouter({
           conventionDays,
           year,
           actorId: req.session.userId || 0,
-          canPublish: !! req.session.permissions?.[req.session.userRole]?.accessAdminConsole
+          canPublish:
+            !!req.session.permissions?.[req.session.userRole]
+              ?.accessAdminConsole,
         });
       } catch (err) {
         (logError || console.error)("scheduler GET error:", err);
@@ -6077,7 +6087,7 @@ export function oversightRouter({
       const dayMeta = {};
       try {
         const allDays = await getConventionDays(new Date().getFullYear());
-        const lookup  = Object.fromEntries(allDays.map((d) => [d.id, d]));
+        const lookup = Object.fromEntries(allDays.map((d) => [d.id, d]));
         for (const dayId of dayIds) {
           const d = lookup[dayId];
           dayMeta[dayId] = {
@@ -6096,16 +6106,16 @@ export function oversightRouter({
           dayIds,
           dayMeta,
           alertMode,
-          publishedBy:      "",
-          serverPort:       0,
-          appBaseUrl:       "",
-          smtpConfig:       null,
+          publishedBy: "",
+          serverPort: 0,
+          appBaseUrl: "",
+          smtpConfig: null,
           twilioAccountSid: null,
-          twilioAuthToken:  null,
-          twilioMsgSid:     null,
-          graphConfig:      null,
+          twilioAuthToken: null,
+          twilioMsgSid: null,
+          graphConfig: null,
           adminOnly,
-          recipientsOnly:   true,
+          recipientsOnly: true,
         });
         return res.json(result);
       } catch (err) {
@@ -6364,12 +6374,10 @@ export function oversightRouter({
           .json({ success: false, error: "conventionDate is required." });
 
       if (!isMeeting && !categoryId)
-        return res
-          .status(400)
-          .json({
-            success: false,
-            error: "category_id is required for crew shifts.",
-          });
+        return res.status(400).json({
+          success: false,
+          error: "category_id is required for crew shifts.",
+        });
 
       try {
         let n;
@@ -6446,8 +6454,6 @@ export function oversightRouter({
       }
     },
   );
-
- 
 
   /**
    * PUT /api/campaign-meetings/:id
