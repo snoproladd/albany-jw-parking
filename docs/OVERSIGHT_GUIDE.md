@@ -1890,6 +1890,10 @@ prevents advance check-ins from being recorded hours before the shift.
 
 **Shift alert fire time accepts both 24-hour and 12-hour format.** When creating or editing a shift alert schedule, you can enter the fire time as `19:30` or as `7:30 PM` — both are accepted. The stored value is always converted to UTC automatically. If you see an unexpected time on a schedule card after saving, check that you entered AM or PM correctly when using the 12-hour format.
 
+**The All Upcoming category sends one message per volunteer, not one per shift.** When you fire an `all_upcoming` schedule, each volunteer receives a single SMS summarising every upcoming shift they're assigned to. Custom override templates for this category should include the `{shifts}` placeholder — it expands to a bullet list of shifts (`- Fri Aug 7, 7:00 AM - Ingress`). Without `{shifts}`, the message will send but contain no shift details; the editor warns when this is the case. `next_day` and `same_day` still send one message per shift.
+
+**Replies with shift codes only register attendance after a T-15 alert.** The volunteer's reply with their shift code (e.g. `FRIN`) only registers as an attendance check-in if the T-15 reminder has already been sent for that shift. Replies after `next_day` or `same_day` alerts fall through to the freeform inbound pipeline and surface as notes — they don't record attendance. The default templates have been updated to reflect this; if you write a custom override for `next_day` or `same_day`, avoid implying the code-reply will confirm attendance.
+
 **Twilio inbound webhook must be set on the Messaging Service, not the phone number.**
 If SMS replies stop reaching the server, check the Albany Parking Messaging Service
 settings in the Twilio console (Messaging → Messaging Services → Albany Parking →

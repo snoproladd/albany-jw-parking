@@ -3,6 +3,57 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.75.0] — 2026-06-30
+
+### Changed
+- **Aggregated `all_upcoming` shift alerts.** The `all_upcoming` alert category
+  now sends ONE SMS per volunteer summarising every upcoming shift, instead of
+  fanning out one SMS per shift. Previously a volunteer with 10 upcoming shifts
+  received 10 separate messages from a single burst; they now receive one
+  bullet-list message. The new `{shifts}` placeholder (rendered server-side
+  via `formatShiftLine` + `groupRowsByVolunteer` in `lib/alertScheduler.js`)
+  expands to an ASCII-only bullet list — `- Fri Aug 7, 7:00 AM - Ingress` —
+  chosen specifically to keep messages in GSM-7 encoding so a 3-shift alert
+  fits in 2 SMS segments instead of 5 UCS-2 segments. `next_day`, `same_day`,
+  and `t15min` categories are unchanged and still send per-shift.
+- **Default `next_day` / `same_day` template wording.** The default
+  `DEFAULT_ADVANCE_TEMPLATE` no longer asks volunteers to reply with their
+  shift code to confirm. The webhook only registers attendance when a reply
+  follows a T-15 alert (`hasT15AlertBeenSent` check in `smsWebhookRoute.js`);
+  replies after `next_day` or `same_day` alerts have always silently fallen
+  through to the freeform pipeline. The new wording is honest about that
+  contract: *"We'll text you 15 minutes before it starts."* The `{code}`
+  placeholder remains available in custom overrides for admins who want it.
+- **Send Now uses shared send pipeline.** The `POST /oversight/tools/shift-alerts/schedules/:id/send`
+  route handler previously had its own inline per-row send loop, so it
+  bypassed any future changes to `sendRows` in `lib/alertScheduler.js`.
+  `sendRows` is now `export`ed and the route delegates to it, ensuring the
+  manual trigger and the scheduled tick stay behaviourally identical.
+
+### Added
+- **Template validation in the Shift Alerts editor.** When editing a custom
+  override on the shift alerts page, a non-blocking yellow warning now
+  appears under the textarea if critical placeholders are missing for the
+  selected category: `{shifts}` for `all_upcoming`, or at least one of
+  `{shiftType}` / `{shiftLabel}` / `{time}` / `{date}` for `next_day` /
+  `same_day` / `t15min`. Save is not blocked — a deliberately terse override
+  remains valid; the warning is advisory.
+- **`{shifts}` template placeholder** for use in `all_upcoming` overrides.
+  Expanded to a newline-joined list of shift bullets when rendered.
+- **Send Now toast** now distinguishes message count from shift count for
+  aggregate sends — e.g. *"Sent: 1 messages (19 shifts)"* — so the result
+  reflects what actually went out vs. what was logged.
+
+### Fixed
+- **Reactivating a schedule no longer fails with "Invalid fire time format".**
+  The active toggle on the schedule card previously sent the schedule object
+  back to the PUT route as-is, with `fire_time_utc` in the ISO-string shape
+  the GET returns (e.g. `"1970-01-01T23:30:00.000Z"`). The server's
+  `parseTimeString` validator only accepts `HH:MM[:SS]` or `H:MM AM/PM`, so
+  the PUT 400'd. `toggleSchedule` in `public/js/shiftAlerts.js` now
+  round-trips the value through `utcToEdtDisplay → localToUtc` before
+  sending — the same pipeline the form-save path has always used.
+
 ## [2.74.2] — 2026-06-30
 
 ### Fixed

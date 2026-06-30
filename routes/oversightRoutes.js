@@ -181,7 +181,7 @@ import {
 import { sendResetEmail, sendResetSms, getBaseUrl } from "../lib/messaging.js";
 
 import { PDF_SECRET, publishDays } from "../lib/publishSchedule.js";
-import { buildAlertMessage, sendAlertSms } from "../lib/alertScheduler.js";
+import { buildAlertMessage, sendAlertSms, sendRows } from "../lib/alertScheduler.js";
 
 import {
   uploadRendezvousPhoto,
@@ -6835,51 +6835,27 @@ export function oversightRouter({
           // A more complete implementation would pass a `force` flag to the DB query.
         }
 
-        let sent = 0,
-          failed = 0;
-        const logRows = [];
-
-        for (const row of rows) {
-          const body = buildAlertMessage(schedule, row);
-          try {
-            const msgSid = await sendAlertSms(
-              row.phone,
-              body,
-              twilioAccountSid,
-              twilioAuthToken,
-              twilioMsgSid,
-            );
-            logRows.push({
-              schedule_id: id,
-              shift_id: row.shift_id,
-              volunteer_id: row.volunteer_id,
-              alert_category: schedule.alert_category,
-              phone: row.phone,
-              twilio_sid: msgSid || null,
-              status: "sent",
-            });
-            sent++;
-          } catch (err) {
-            (logError || console.error)(
-              `shift-alerts send error vol ${row.volunteer_id} shift ${row.shift_id}:`,
-              err,
-            );
-            logRows.push({
-              schedule_id: id,
-              shift_id: row.shift_id,
-              volunteer_id: row.volunteer_id,
-              alert_category: schedule.alert_category,
-              phone: row.phone,
-              twilio_sid: null,
-              status: "failed",
-              error_msg: err.message?.slice(0, 500) || "Unknown error",
-            });
-            failed++;
-          }
-        }
-
-        await logShiftAlerts(logRows);
-        return res.json({ success: true, sent, failed, skipped: 0 });
+        // Delegate to the shared sendRows helper in alertScheduler.js so the
+        // aggregation behaviour for all_upcoming and the per-row behaviour for
+        // next_day/same_day stay consistent between the scheduled tick and
+        // this manual trigger. sendRows handles its own shift_alert_log writes.
+        const { sent, failed, messagesSent, messagesFailed } = await sendRows(
+          rows,
+          schedule,
+          schedule.alert_category,
+          twilioAccountSid,
+          twilioAuthToken,
+          twilioMsgSid,
+          logError,
+        );
+        return res.json({
+          success: true,
+          sent,
+          failed,
+          messagesSent,
+          messagesFailed,
+          skipped: 0,
+        });
       } catch (err) {
         (logError || console.error)(
           "shift-alerts/schedules/:id/send POST error:",

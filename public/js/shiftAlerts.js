@@ -48,17 +48,44 @@ const DEPT_LABELS = {
   dropoff_pickup: "Drop-off / Pickup",
 };
 
-/** Default template for advance (burst) alerts. */
+/**
+ * Default template for advance (burst) alerts (next_day / same_day).
+ * Mirrors DEFAULT_ADVANCE_TEMPLATE in lib/alertScheduler.js so the live
+ * preview matches what volunteers actually receive. Keep these two
+ * constants in sync when changing wording.
+ */
 const DEFAULT_ADVANCE_TPL =
-  `Albany JW Parking: Hi {firstName}, your {shiftType} shift is {date} at {time}. ` +
-  `Reply {code} to confirm. Reply STOP to opt out. ` +
-  `If you can\u2019t make it, please contact your overseer.`;
+  `Albany JW Parking: Hi {firstName}, reminder: your {shiftType} shift is {date} ` +
+  `at {time}. We'll text you 15 minutes before it starts. Can't make it? ` +
+  `Contact your overseer. Reply STOP to opt out.`;
 
 /** Default template for T-15 rolling alerts. */
 const DEFAULT_T15_TPL =
   `Albany JW Parking: Hi {firstName}, your {shiftType} shift starts in 15 minutes ({time}). ` +
   `Reply {code} when you arrive. ` +
   `If you can\u2019t make it, please contact your overseer right away.`;
+
+/**
+ * Default template for all_upcoming aggregate alerts.
+ * Mirrors DEFAULT_AGGREGATE_TEMPLATE in lib/alertScheduler.js so the live
+ * preview here matches what volunteers actually receive. Keep these two
+ * constants in sync when changing wording.
+ */
+const DEFAULT_AGGREGATE_TPL =
+  `Albany JW Parking: Hi {firstName}, here are your upcoming shifts:\n` +
+  `{shifts}\n` +
+  `We'll send a reminder 15 minutes before each. Can't make one? ` +
+  `Contact your overseer. Reply STOP to opt out.`;
+
+/**
+ * Sample {shifts} expansion used by updatePreview() to render a realistic
+ * aggregate-alert preview. Uses the same compact bullet format as
+ * formatShiftLine() server-side: "- Fri Aug 7, 7:00 AM - Ingress".
+ */
+const SAMPLE_SHIFTS_BLOCK =
+  `- Fri Aug 7, 7:00 AM - Ingress\n` +
+  `- Sat Aug 8, 8:00 AM - Security\n` +
+  `- Sun Aug 9, 2:00 PM - Egress`;
 
 // ─── Module state ─────────────────────────────────────────────────────────────
 
@@ -371,7 +398,9 @@ function syncFireDateVisibility() {
 
 /**
  * Rebuild the live SMS preview using the current form state.
- * Uses the override text if present, otherwise the appropriate default template.
+ * Uses the override text if present, otherwise the appropriate default
+ * template for the selected category. Also triggers validateTemplate() so
+ * the warning row stays in sync with every preview refresh.
  */
 function updatePreview() {
   const cat = document.getElementById("saFormCategory")?.value ?? "next_day";
@@ -381,11 +410,16 @@ function updatePreview() {
   const preview = document.getElementById("saPreviewBox");
   if (!preview) return;
 
-  const tpl = override
-    ? override
-    : cat === "t15min"
-      ? DEFAULT_T15_TPL
-      : DEFAULT_ADVANCE_TPL;
+  let tpl;
+  if (override) {
+    tpl = override;
+  } else if (cat === "t15min") {
+    tpl = DEFAULT_T15_TPL;
+  } else if (cat === "all_upcoming") {
+    tpl = DEFAULT_AGGREGATE_TPL;
+  } else {
+    tpl = DEFAULT_ADVANCE_TPL;
+  }
 
   const rendered = tpl
     .replace(/\{firstName\}/g, "Jordan")
@@ -393,10 +427,63 @@ function updatePreview() {
     .replace(/\{shiftLabel\}/g, "Shift A")
     .replace(/\{time\}/g, "7:00 AM")
     .replace(/\{date\}/g, "Friday, August 7")
-    .replace(/\{code\}/g, "FRIN");
+    .replace(/\{code\}/g, "FRIN")
+    .replace(/\{shifts\}/g, SAMPLE_SHIFTS_BLOCK);
 
   preview.textContent = rendered;
   preview.classList.toggle("sa-msg-preview--custom", !!override);
+
+  validateTemplate(cat, override);
+}
+
+/**
+ * Show or hide the template-warning row based on whether the current
+ * override is missing placeholders critical for its alert category.
+ *
+ * Rules (override only — empty override always passes since the default
+ * templates are known-good):
+ *  - all_upcoming               → must contain {shifts}
+ *  - next_day, same_day, t15min → must contain at least one of
+ *                                 {shiftType}, {shiftLabel}, {time}, {date}
+ *
+ * Non-blocking: this does NOT prevent save. A power user may want a
+ * deliberately terse message. The warning is purely advisory.
+ *
+ * @param {string} category  Current saFormCategory value
+ * @param {string} override  Trimmed saFormOverride value (empty allowed)
+ * @returns {void}
+ */
+function validateTemplate(category, override) {
+  const warn = document.getElementById("saTemplateWarning");
+  if (!warn) return;
+
+  if (!override) {
+    warn.classList.add("d-none");
+    warn.textContent = "";
+    return;
+  }
+
+  let msg = "";
+  if (category === "all_upcoming") {
+    if (!/\{shifts\}/.test(override)) {
+      msg =
+        "Without {shifts}, this message won\u2019t list any shift details.";
+    }
+  } else {
+    const hasShiftInfo = /\{(shiftType|shiftLabel|time|date)\}/.test(override);
+    if (!hasShiftInfo) {
+      msg =
+        "Without {shiftType}, {time}, or {date}, recipients won\u2019t know which shift this is about.";
+    }
+  }
+
+  if (msg) {
+    warn.textContent = msg;
+    warn.classList.remove("d-none");
+  } else {
+    warn.classList.add("d-none");
+    warn.textContent = "";
+  }
 }
 
 // ─── API calls ────────────────────────────────────────────────────────────────
@@ -513,13 +600,27 @@ async function toggleSchedule(id, currentlyActive) {
         return;
       }
 
+      // Normalize fire_time_utc back to "HH:MM" before sending. The schedule
+      // in memory has whatever shape the GET returned (typically an ISO
+      // datetime string from the mssql TIME column, e.g.
+      // "1970-01-01T23:30:00.000Z"), which the server's parseTimeString
+      // validator rejects. Round-tripping through utcToEdtDisplay → localToUtc
+      // produces the clean "HH:MM" form that the form-save path emits.
+      const normalizedFireTime = schedule.fire_time_utc
+        ? localToUtc(utcToEdtDisplay(schedule.fire_time_utc))
+        : null;
+
       const res = await fetch(`/oversight/tools/shift-alerts/schedules/${id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
           "CSRF-Token": getCsrf(),
         },
-        body: JSON.stringify({ ...schedule, active: true }),
+        body: JSON.stringify({
+          ...schedule,
+          fire_time_utc: normalizedFireTime,
+          active: true,
+        }),
       });
       const data = await res.json();
       if (!data.success) {
@@ -751,8 +852,16 @@ async function sendNow(id) {
       return;
     }
 
+    const sentText =
+      data.messagesSent != null && data.messagesSent !== data.sent
+        ? `${data.messagesSent} messages (${data.sent} shifts)`
+        : `${data.sent}`;
+    const failedText =
+      data.messagesFailed != null && data.messagesFailed !== data.failed
+        ? `${data.messagesFailed} messages (${data.failed} shifts)`
+        : `${data.failed}`;
     showToast(
-      `Sent: <strong>${data.sent}</strong> &nbsp;|&nbsp; Failed: <strong>${data.failed}</strong>`,
+      `Sent: <strong>${sentText}</strong> &nbsp;|&nbsp; Failed: <strong>${failedText}</strong>`,
       data.failed > 0 ? "warning" : "success",
     );
   } catch (err) {

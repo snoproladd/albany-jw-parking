@@ -268,7 +268,15 @@
                     Placeholders: <code>{firstName}</code> <code>{shiftType}</code>
                     <code>{shiftLabel}</code> <code>{time}</code>
                     <code>{date}</code> <code>{code}</code>
+                    <code>{shifts}</code>
+                    <span class="d-block text-muted sa-label-sm mt-1">
+                        <code>{shifts}</code> only renders for the All Upcoming category.
+                        <code>{code}</code> only triggers attendance check-in when sent
+                        in reply to a T-15 alert.
+                    </span>
                 </div>
+                <%# Template validation warning — populated by shiftAlerts.js %>
+                <div class="sa-template-warning d-none" id="saTemplateWarning" role="alert"></div>
                 <%# Live preview — populated by shiftAlerts.js %>
                 <div class="sa-msg-preview" id="saPreviewBox" aria-live="polite"></div>
             </div>

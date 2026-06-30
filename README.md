@@ -661,6 +661,19 @@ The first ADMIN must be granted directly in the database.
   line between "Read by" and "Action Items." All suggestions require human
   confirmation before applying. Azure credentials in Key Vault:
   `AzureOpenAIEndpoint`, `AzureOpenAIKey`, `AzureOpenAIDeployment`.
+- **Shift alert templates (2.75.0):** SMS templates per alert category support
+  these placeholders: `{firstName}`, `{shiftType}`, `{shiftLabel}`, `{time}`,
+  `{date}`, `{code}`, `{shifts}`, `{rendezvous}`. The `all_upcoming` category
+  groups all of a volunteer's upcoming shifts into a single message and
+  expects `{shifts}` to render the bullet list (one line per shift). The
+  `{code}` placeholder only registers attendance check-in when a reply
+  follows a T-15 alert — earlier alerts fall through to the freeform
+  pipeline (`smsWebhookRoute.js` `hasT15AlertBeenSent` gate). The default
+  templates use ASCII bullets and plain `'` apostrophes so messages stay in
+  GSM-7 encoding (2 segments per typical aggregate burst instead of 5 in
+  UCS-2). `sendRows` in `lib/alertScheduler.js` is the single send pipeline
+  used by both the scheduled tick and the manual Send Now route; it
+  branches on `all_upcoming` to aggregate, otherwise sends per-row.
 - **Inbound SMS routing (2.66.0):** freeform volunteer SMS replies are analyzed by AI
   (`lib/smsInboundAnalyzer.js`) and routed to the Notes Report as actionable items.
   Decision tree: unknown callers → name-request reply + overseer alert; check-in codes
