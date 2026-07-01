@@ -3,7 +3,7 @@
 A full-stack web application for managing volunteers, scheduling, messaging,
 and attendance for the Albany JW Regional Convention parking team.
 
-<!-- README last updated: v2.76.0 -->
+<!-- README last updated: v2.78.0 -->
 
 ---
 
@@ -414,20 +414,41 @@ parking/
 │   │   ├── signsMapPrint.js           # Print-optimised map (WYSIWYG letter-portrait)
 │   │   │
 │   │   └── tours/                     # Shepherd.js guided tour modules
-│   │       ├── tourBase.js            # Tour factory, button helpers, first-visit prompt system, registerTour API
-│   │       ├── attandanceCheckinTour.js  # (legacy typo filename, kept for compat)
+│   │       ├── tourBase.js              # Tour factory, button helpers, first-visit prompt system, registerTour API
 │   │       ├── attendanceCheckinTour.js
 │   │       ├── attendanceReportTour.js
 │   │       ├── campaignTour.js
+│   │       ├── capacityAlertsTour.js
+│   │       ├── conflictGridTour.js
+│   │       ├── countsTour.js            # Setup-panel / counting-panel dual path
+│   │       ├── createVolunteerTour.js
 │   │       ├── crewMatrixTour.js
+│   │       ├── decentlyExportTour.js
+│   │       ├── decentlyImportTour.js
 │   │       ├── invitationTrackerTour.js
+│   │       ├── lessonsLearnedTour.js
 │   │       ├── locationsTour.js
+│   │       ├── mapsTour.js
+│   │       ├── myAccountTour.js
+│   │       ├── notesReportTour.js
+│   │       ├── oversightStructureTour.js
 │   │       ├── oversightToolsTour.js
+│   │       ├── permissionMatrixTour.js
+│   │       ├── rendezvousTour.js
 │   │       ├── reportsTour.js
 │   │       ├── rolesTour.js
+│   │       ├── scheduleRulesTour.js
 │   │       ├── schedulerReportTour.js
 │   │       ├── schedulerTour.js
+│   │       ├── schedulesTour.js
+│   │       ├── sendResetTour.js
+│   │       ├── shiftAlertsTour.js
+│   │       ├── signsBuilderTour.js
+│   │       ├── signsListTour.js
+│   │       ├── signsMapTour.js
+│   │       ├── systemVariablesTour.js
 │   │       ├── timelinesTour.js
+│   │       ├── volunteerScheduleTour.js # Shared by /my-schedule and /oversight/tools/volunteer-schedule
 │   │       └── volunteersTour.js
 │   │
 │   ├── styles/                # CSS files (one per page/feature)
@@ -641,6 +662,30 @@ The first ADMIN must be granted directly in the database.
   photo exists. Permission key: `editRendezvous` (KEYMAN+ edit, OVERSEER+ create/delete).
   RV data is preloaded per day in the scheduler via `preloadRendezvousForDay()` on the
   `scheduler:dayChange` event.
+- **Rendezvous “Apply to Other Shifts” (2.78.0):** copies an existing rendezvous
+  point's description, address, floor, and GPS coordinates to other schedule
+  assignments at the same location, across any shift type or day. Photos are
+  intentionally never copied — clearing a photo deletes the underlying blob, so
+  sharing a blob reference across records would risk breaking other rendezvous
+  points' photos. `GET /api/rendezvous/:id/apply-candidates` lists other
+  assignments at the location (flagging ones that already have their own
+  rendezvous point); `POST /api/rendezvous/:id/apply-to` applies the copy,
+  creating a new record or updating an existing one per target (existing
+  photos on a target are left untouched). Gated at `manageShifts` (OVERSEER+).
+- **Guided tours (near-universal, 2.78.0):** Shepherd.js first-visit tours now
+  cover 34 pages — effectively every Oversight Tool and most volunteer-facing
+  pages. `tourBase.js` provides the shared factory, button helpers, and
+  `registerTour(tourId, buildFn)` API; `volunteer_tour_dismissals` tracks
+  per-volunteer, per-tour dismissal state (see Database section). Multi-tab
+  pages (Shift Alerts, Notes Report) use an `activateTab()` helper so a tour
+  step can switch tabs and wait for `shown.bs.tab` before attaching, regardless
+  of which tab was active when the tour started. One page is intentionally
+  excluded: Continue Registration, a pre-login page with no header/nav, so
+  `#tourTriggerBtn` never exists there. Parking Counter respects its
+  phone-first, high-focus field-use context with a short, state-aware tour
+  rather than skipping it entirely — it detects whether the setup panel or the
+  active counting panel is showing and builds a different, deliberately brief
+  path for each.
 - **Blackout Timeline (2.65.0):** Interactive SVG blackout editor replacing the old
   day-picker/add-form in the scheduler, My Account, and Volunteer Account Oversight
   pages. Three stacked per-day tracks always visible; shared session bar switches to

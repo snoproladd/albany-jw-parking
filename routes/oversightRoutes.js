@@ -66,6 +66,7 @@ import {
   updateShiftRendezvous,
   deleteShiftRendezvous,
   getShiftRendezvousById,
+  getAssignmentsAtLocationForYear,
   getVolunteersForRendezvousAlert,
   copyConventionDay,
   getVolunteersForMessaging,
@@ -3342,6 +3343,121 @@ export function oversightRouter({
         return res.json({ success: true, rv });
       } catch (err) {
         (logError || console.error)("rendezvous GET error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * GET /api/rendezvous/:id/apply-candidates
+   * Find other schedule assignments at the same location (any shift
+   * type, any day) for the given year, so a rendezvous point can be
+   * copied to them. Flags which candidates already have their own
+   * rendezvous point set.
+   *
+   * @requires viewSchedules permission (REGISTERED+)
+   */
+  router.get(
+    "/api/rendezvous/:id/apply-candidates",
+    requireAuth,
+    requirePermission("viewSchedules"),
+    async (req, res) => {
+      const id = Number(req.params.id);
+      const year = Number(req.query.year) || new Date().getFullYear();
+      if (!id) {
+        return res.status(400).json({ success: false, error: "Invalid id." });
+      }
+      try {
+        const existing = await getShiftRendezvousById(id);
+        if (!existing) {
+          return res.status(404).json({ success: false, error: "Not found." });
+        }
+        const candidates = await getAssignmentsAtLocationForYear(
+          existing.location_task_id,
+          existing.schedule_assignment_id,
+          year,
+        );
+        return res.json({ success: true, candidates });
+      } catch (err) {
+        (logError || console.error)("rendezvous apply-candidates GET error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * POST /api/rendezvous/:id/apply-to
+   * Copy this rendezvous point's description, address, floor, and GPS
+   * coordinates to one or more other schedule assignments at the same
+   * location. Photos are never copied — clearing a photo deletes the
+   * underlying blob, so sharing a blob reference across records would
+   * risk breaking other rendezvous points' photos.
+   * Body (JSON): { targetAssignmentIds: number[] }
+   *
+   * @requires manageShifts permission (OVERSEER+)
+   */
+  router.post(
+    "/api/rendezvous/:id/apply-to",
+    requireAuth,
+    requirePermission("manageShifts"),
+    csrfProtection,
+    async (req, res) => {
+      const id = Number(req.params.id);
+      const targetAssignmentIds = Array.isArray(req.body?.targetAssignmentIds)
+        ? req.body.targetAssignmentIds.map(Number).filter(Boolean)
+        : [];
+      if (!id || targetAssignmentIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: "id and targetAssignmentIds are required.",
+        });
+      }
+      try {
+        const source = await getShiftRendezvousById(id);
+        if (!source) {
+          return res.status(404).json({ success: false, error: "Not found." });
+        }
+
+        let applied = 0;
+        let failed = 0;
+
+        for (const targetId of targetAssignmentIds) {
+          try {
+            const targetExisting = await getShiftRendezvous(targetId);
+            if (targetExisting) {
+              await updateShiftRendezvous(targetExisting.id, {
+                description: source.description,
+                address: source.address,
+                latitude: source.latitude,
+                longitude: source.longitude,
+                floor_number: source.floor_number,
+                photo_blob_name: targetExisting.photo_blob_name,
+                updated_by: req.session.userId,
+              });
+            } else {
+              await createShiftRendezvous({
+                schedule_assignment_id: targetId,
+                description: source.description,
+                address: source.address,
+                latitude: source.latitude,
+                longitude: source.longitude,
+                floor_number: source.floor_number,
+                created_by: req.session.userId,
+              });
+            }
+            applied++;
+          } catch (innerErr) {
+            (logError || console.error)(
+              `rendezvous apply-to: failed for assignment ${targetId}:`,
+              innerErr,
+            );
+            failed++;
+          }
+        }
+
+        return res.json({ success: true, applied, failed });
+      } catch (err) {
+        (logError || console.error)("rendezvous apply-to POST error:", err);
         return res.status(500).json({ success: false, error: "Server error." });
       }
     },

@@ -16,6 +16,10 @@
     <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
     <link rel="stylesheet" type="text/css" href="/styles/blackoutTimeline.css" />
 
+    <!-- Tour -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@15.2.2/dist/css/shepherd.css" />
+    <link rel="stylesheet" href="/css/tours.css" />
+
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -30,6 +34,8 @@
   </head>
 
   <body class="min-vh-100 bg-body-tertiary" data-authed="true">
+    <%- include('../partials/header') %>
+
     <main class="container py-4" id="formSummaryRoot">
       <div class="row justify-content-center">
         <div class="col-12 col-lg-10 col-xl-9 col-xxl-12">
@@ -895,6 +901,7 @@
     <script src="/js/privilegeEnforcer.js"></script>
     <script src="/js/myAccount.js"></script>
     <script type="module" src="/js/myAccountBlackoutTimeline.js"></script>
+    <script type="module" src="/js/tours/myAccountTour.js"></script>
     <%- include('../partials/footer') %>
   </body>
 </html>

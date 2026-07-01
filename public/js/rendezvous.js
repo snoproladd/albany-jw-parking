@@ -67,6 +67,7 @@ function _minutesToShiftStart(conventionDate, startTime) {
  */
 function _timeGuard(conventionDate, startTime) {
   const mins = _minutesToShiftStart(conventionDate, startTime);
+  if (Number.isNaN(mins)) return { zone: "free", minutesUntil: Infinity };
   if (mins > 15) return { zone: "free", minutesUntil: mins };
   if (mins >= -LOCK_AFTER_MINUTES) return { zone: "warn", minutesUntil: mins };
   return { zone: "lock", minutesUntil: mins };
@@ -105,7 +106,9 @@ function _positionEl(el, x, y) {
       el.style.left = `${x - r.width}px`;
     }
     if (r.bottom > window.innerHeight - 8) {
-      el.style.top = `${y - r.height}px`;
+      // Clamp so the panel (and its header) never gets pushed above
+      // the top of the viewport when there isn't enough room below.
+      el.style.top = `${Math.max(8, y - r.height)}px`;
     }
   });
 }
@@ -489,6 +492,15 @@ export async function openRendezvousPanel(opts) {
     body.appendChild(actions);
   }
 
+  if (exists && canCreate) {
+    const applyBtn = document.createElement("button");
+    applyBtn.type = "button";
+    applyBtn.classList.add("btn", "btn-outline-primary", "btn-sm", "rv-apply-trigger");
+    applyBtn.innerHTML = '<i class="fa-solid fa-copy me-1"></i>Apply to Other Shifts';
+    applyBtn.addEventListener("click", () => _showApplyToView(rv, opts));
+    body.appendChild(applyBtn);
+  }
+
   panel.appendChild(body);
   document.body.appendChild(panel);
   _panelEl = panel;
@@ -502,6 +514,162 @@ export async function openRendezvousPanel(opts) {
     }
   };
   setTimeout(() => document.addEventListener("mousedown", _outsideClick), 0);
+}
+
+// ─────────────────────────────────────────────
+//  Apply to other shifts
+// ─────────────────────────────────────────────
+
+/**
+ * Replaces the panel body with a list of other schedule assignments at
+ * the same location, letting the user select which ones should receive
+ * a copy of this rendezvous point's description, address, floor, and
+ * GPS coordinates. Photos are never copied.
+ *
+ * @param {object} rv    - The source rendezvous point (must have an id).
+ * @param {object} opts  - The original options passed to openRendezvousPanel,
+ *                          used to rebuild the edit view on "Back".
+ * @returns {Promise<void>}
+ */
+async function _showApplyToView(rv, opts) {
+  if (!_panelEl) return;
+  const body = _panelEl.querySelector(".rv-panel-body");
+  if (!body) return;
+
+  body.innerHTML = '<p class="rv-empty">Loading nearby shifts…</p>';
+
+  let candidates = [];
+  try {
+    const year = new Date(opts.conventionDate || Date.now()).getUTCFullYear();
+    const res = await fetch(
+      `/api/rendezvous/${rv.id}/apply-candidates?year=${year}`,
+    );
+    const data = await res.json();
+    if (data.success) candidates = data.candidates;
+  } catch (err) {
+    console.error("[rendezvous] apply-candidates error:", err);
+  }
+
+  body.innerHTML = "";
+
+  const backBtn = document.createElement("button");
+  backBtn.type = "button";
+  backBtn.classList.add("btn", "btn-outline-secondary", "btn-sm", "rv-apply-back");
+  backBtn.innerHTML = '<i class="fa-solid fa-arrow-left me-1"></i>Back';
+  backBtn.addEventListener("click", () => openRendezvousPanel(opts));
+  body.appendChild(backBtn);
+
+  if (candidates.length === 0) {
+    const none = document.createElement("p");
+    none.classList.add("rv-empty");
+    none.textContent = "No other shifts found at this location.";
+    body.appendChild(none);
+    return;
+  }
+
+  const hint = document.createElement("p");
+  hint.classList.add("rv-apply-hint");
+  hint.innerHTML =
+    "Select the shifts that should share this rendezvous point. Photos are not copied — add those individually.";
+  body.appendChild(hint);
+
+  const selectAllRow = document.createElement("label");
+  selectAllRow.classList.add("rv-apply-row", "rv-apply-select-all");
+  const selectAllCb = document.createElement("input");
+  selectAllCb.type = "checkbox";
+  selectAllRow.appendChild(selectAllCb);
+  selectAllRow.appendChild(document.createTextNode(" Select all"));
+  body.appendChild(selectAllRow);
+
+  const list = document.createElement("div");
+  list.classList.add("rv-apply-list");
+
+  const checkboxes = [];
+  for (const c of candidates) {
+    const row = document.createElement("label");
+    row.classList.add("rv-apply-row");
+
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.value = String(c.id);
+    row.appendChild(cb);
+    checkboxes.push(cb);
+
+    const info = document.createElement("span");
+    info.classList.add("rv-apply-row-info");
+    const dayText = c.convention_date
+      ? new Date(c.convention_date).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          timeZone: "UTC",
+        })
+      : "";
+    info.textContent = `${c.day_label || dayText} — ${c.shift_label}${c.event_type_name ? " (" + c.event_type_name + ")" : ""}`;
+    row.appendChild(info);
+
+    if (c.has_rendezvous) {
+      const badge = document.createElement("span");
+      badge.classList.add("rv-apply-badge");
+      badge.textContent = "already set";
+      row.appendChild(badge);
+    }
+
+    list.appendChild(row);
+  }
+  body.appendChild(list);
+
+  selectAllCb.addEventListener("change", () => {
+    checkboxes.forEach((cb) => (cb.checked = selectAllCb.checked));
+  });
+
+  const statusEl = document.createElement("div");
+  statusEl.classList.add("rv-status");
+  body.appendChild(statusEl);
+
+  const applyBtn = document.createElement("button");
+  applyBtn.type = "button";
+  applyBtn.classList.add("btn", "btn-primary", "btn-sm", "rv-apply-submit");
+  applyBtn.textContent = "Apply";
+  applyBtn.addEventListener("click", async () => {
+    const targetAssignmentIds = checkboxes
+      .filter((cb) => cb.checked)
+      .map((cb) => Number(cb.value));
+
+    if (targetAssignmentIds.length === 0) {
+      _flashStatus(body, "Select at least one shift.", "danger");
+      return;
+    }
+
+    applyBtn.disabled = true;
+    try {
+      const res = await fetch(`/api/rendezvous/${rv.id}/apply-to`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": _csrf(),
+        },
+        body: JSON.stringify({ targetAssignmentIds }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        _flashStatus(body, data.error || "Apply failed.", "danger");
+        applyBtn.disabled = false;
+        return;
+      }
+      _flashStatus(
+        body,
+        `Applied to ${data.applied} shift${data.applied !== 1 ? "s" : ""}.` +
+          (data.failed ? ` ${data.failed} failed.` : ""),
+        data.failed ? "warning" : "success",
+      );
+      if (opts.onUpdate) opts.onUpdate(opts.assignmentId, rv);
+    } catch (err) {
+      console.error("[rendezvous] apply-to error:", err);
+      _flashStatus(body, "Network error.", "danger");
+    }
+    applyBtn.disabled = false;
+  });
+  body.appendChild(applyBtn);
 }
 
 // ─────────────────────────────────────────────

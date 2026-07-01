@@ -488,6 +488,21 @@
                   </div>
                 <% } %>
 
+                <% if (can('editRendezvous')) { %>
+                  <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="admin-tool-card h-100">
+                      <div class="admin-tool-icon text-info">
+                        <i class="fa-solid fa-location-dot"></i>
+                      </div>
+                      <h3 class="admin-tool-title">Rendezvous Points</h3>
+                      <p class="admin-tool-desc">Set exact meet-up details — description, address, floor, GPS pin, and photo — for individual shift assignments. Sent automatically with T-15 shift alerts.</p>
+                      <a href="/oversight/tools/rendezvous" class="btn btn-info admin-tool-btn">
+                        Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                      </a>
+                    </div>
+                  </div>
+                <% } %>
+
                 <% if (can('accessAdminConsole')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">

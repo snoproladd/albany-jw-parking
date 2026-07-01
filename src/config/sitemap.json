@@ -66,7 +66,8 @@
           "description": "Convention parking maps, pedestrian routes, sign placement guides, and other reference materials.",
           "icon": "fa-solid fa-map",
           "minRole": "REGISTERED",
-          "permission": "viewMaps"
+          "permission": "viewMaps",
+          "tourId": "maps"
         },
         {
           "title": "Schedules",
@@ -74,7 +75,8 @@
           "description": "Published convention day shift schedules for all departments.",
           "icon": "fa-solid fa-calendar-check",
           "minRole": "REGISTERED",
-          "permission": "viewSchedules"
+          "permission": "viewSchedules",
+          "tourId": "schedules"
         }
       ]
     },
@@ -90,7 +92,7 @@
           "icon": "fa-solid fa-table-list",
           "minRole": null,
           "permission": "viewSigns",
-          "tourId": "signs-list"
+          "tourId": "signsList"
         },
         {
           "title": "Sign Builder",
@@ -99,7 +101,7 @@
           "icon": "fa-solid fa-pen-to-square",
           "minRole": null,
           "permission": "manageSigns",
-          "tourId": "signs-builder"
+          "tourId": "signsBuilder"
         },
         {
           "title": "Sign Map",
@@ -108,7 +110,7 @@
           "icon": "fa-solid fa-map-location-dot",
           "minRole": null,
           "permission": "viewSigns",
-          "tourId": "signs-map"
+          "tourId": "signsMap"
         }
       ]
     },
@@ -123,7 +125,8 @@
           "description": "View and update your personal information, contact details, congregation, and password.",
           "icon": "fa-solid fa-id-card",
           "minRole": "REGISTERED",
-          "permission": null
+          "permission": null,
+          "tourId": "myAccount"
         },
         {
           "title": "My Schedule",
@@ -131,7 +134,8 @@
           "description": "View your personal shift assignments for all convention days.",
           "icon": "fa-solid fa-calendar-check",
           "minRole": "REGISTERED",
-          "permission": "viewSchedules"
+          "permission": "viewSchedules",
+          "tourId": "volunteerSchedule"
         },
         {
           "title": "Continue Registration",
@@ -155,7 +159,7 @@
           "icon": "fa-solid fa-table-cells-large",
           "minRole": "KEYMAN",
           "permission": null,
-          "tourId": "oversight-tools"
+          "tourId": "oversightTools"
         }
       ]
     },
@@ -171,7 +175,7 @@
           "icon": "fa-solid fa-envelope-open-text",
           "minRole": null,
           "permission": "accessAdminConsole",
-          "tourId": "campaign-center"
+          "tourId": "campaign"
         },
         {
           "title": "Invitation Tracker",
@@ -180,7 +184,7 @@
           "icon": "fa-solid fa-chart-gantt",
           "minRole": null,
           "permission": "accessAdminConsole",
-          "tourId": "invitation-tracker"
+          "tourId": "invitationTracker"
         },
         {
           "title": "Send Reset Link",
@@ -188,7 +192,8 @@
           "description": "Send password reset or account completion links to volunteers with incomplete registrations.",
           "icon": "fa-solid fa-link",
           "minRole": null,
-          "permission": "accessAdminConsole"
+          "permission": "accessAdminConsole",
+          "tourId": "sendReset"
         }
       ]
     },
@@ -212,7 +217,8 @@
           "description": "Manually create a new volunteer account. A temporary password is assigned automatically.",
           "icon": "fa-solid fa-user-plus",
           "minRole": null,
-          "permission": "createVolunteerAccounts"
+          "permission": "createVolunteerAccounts",
+          "tourId": "createVolunteer"
         },
         {
           "title": "Role Management",
@@ -229,7 +235,8 @@
           "description": "Submit lessons learned from convention operations. OVERSEER+ can approve and publish entries, generating a PDF report for convention oversight.",
           "icon": "fa-solid fa-book-open",
           "minRole": "KEYMAN",
-          "permission": null
+          "permission": null,
+          "tourId": "lessonsLearned"
         },
         {
           "title": "Notes Report",
@@ -237,7 +244,8 @@
           "description": "Review intake notes submitted by volunteers during registration. Acknowledge notes, create action items, and track resolutions.",
           "icon": "fa-solid fa-note-sticky",
           "minRole": "OVERSEER",
-          "permission": null
+          "permission": null,
+          "tourId": "notesReport"
         }
       ]
     },
@@ -296,7 +304,7 @@
           "icon": "fa-solid fa-people-group",
           "minRole": null,
           "permission": "createAssignments",
-          "tourId": "crew-matrix"
+          "tourId": "crewMatrix"
         },
         {
           "title": "Rendezvous Points",
@@ -304,7 +312,8 @@
           "description": "View and manage meeting point details for shift assignments. Includes GPS, photo, and floor info sent with shift alerts.",
           "icon": "fa-solid fa-location-dot",
           "minRole": null,
-          "permission": "editRendezvous"
+          "permission": "editRendezvous",
+          "tourId": "rendezvous"
         },
         {
           "title": "Scheduler",
@@ -316,12 +325,22 @@
           "tourId": "scheduler"
         },
         {
+          "title": "Scheduler Report",
+          "path": "/oversight/tools/scheduler/report",
+          "description": "Printable schedule report for a convention day, organized by department, shift, and location. Publish to generate a PDF and notify volunteers.",
+          "icon": "fa-solid fa-print",
+          "minRole": null,
+          "permission": "createAssignments",
+          "tourId": "schedulerReport"
+        },
+        {
           "title": "Conflict Grid",
           "path": "/oversight/tools/conflict-grid",
           "description": "View a master grid of all volunteer shift assignments to identify scheduling conflicts and coverage gaps.",
           "icon": "fa-solid fa-table-cells",
           "minRole": null,
-          "permission": "createAssignments"
+          "permission": "createAssignments",
+          "tourId": "conflictGrid"
         },
         {
           "title": "Schedule Analysis Rules",
@@ -329,7 +348,8 @@
           "description": "Manage standing policy rules injected into the AI schedule analysis. Rules influence how violations are assessed and suggested for resolution.",
           "icon": "fa-solid fa-list-check",
           "minRole": "ADMIN",
-          "permission": "deleteVolunteer"
+          "permission": "deleteVolunteer",
+          "tourId": "scheduleRules"
         },
         {
           "title": "Volunteer Schedule",
@@ -337,7 +357,8 @@
           "description": "Look up any volunteer's shift assignments across all convention days. Print or send via SMS/email.",
           "icon": "fa-solid fa-calendar-check",
           "minRole": null,
-          "permission": "createAssignments"
+          "permission": "createAssignments",
+          "tourId": "volunteerSchedule"
         },
         {
           "title": "Shift Alerts",
@@ -345,7 +366,8 @@
           "description": "Schedule and send SMS shift reminders. Manage burst alerts, rolling T-15 notifications, and the send log.",
           "icon": "fa-solid fa-bell",
           "minRole": null,
-          "permission": "accessAdminConsole"
+          "permission": "accessAdminConsole",
+          "tourId": "shiftAlerts"
         },
     {
           "title": "Capacity Alerts",
@@ -353,7 +375,8 @@
           "description": "Define SMS alert thresholds per location and choose who gets notified when a lot crosses a threshold.",
           "icon": "fa-solid fa-warehouse",
           "minRole": null,
-          "permission": "accessAdminConsole"
+          "permission": "accessAdminConsole",
+          "tourId": "capacityAlerts"
         }
       ]
     },
@@ -369,7 +392,7 @@
           "icon": "fa-solid fa-clipboard-check",
           "minRole": null,
           "permission": "logAttendance",
-          "tourId": "attendance-checkin"
+          "tourId": "attendanceCheckin"
         },
         {
           "title": "Attendance Report",
@@ -378,7 +401,7 @@
           "icon": "fa-solid fa-chart-bar",
           "minRole": null,
           "permission": "viewAttendance",
-          "tourId": "attendance-report"
+          "tourId": "attendanceReport"
         }
       ]
     },
@@ -393,7 +416,8 @@
           "description": "Download a CSV of volunteers not yet exported and mark them as exported in the system.",
           "icon": "fa-solid fa-file-export",
           "minRole": null,
-          "permission": "accessAdminConsole"
+          "permission": "accessAdminConsole",
+          "tourId": "decentlyExport"
         },
         {
           "title": "Import from Decently",
@@ -401,7 +425,8 @@
           "description": "Upload an approved volunteer CSV from Decently. Matches records, sets active status, and flags new entries.",
           "icon": "fa-solid fa-file-import",
           "minRole": null,
-          "permission": "accessAdminConsole"
+          "permission": "accessAdminConsole",
+          "tourId": "decentlyImport"
         }
       ]
     },
@@ -416,7 +441,8 @@
           "description": "Override default role permissions at runtime. Changes take effect on next login.",
           "icon": "fa-solid fa-sliders",
           "minRole": "ADMIN",
-          "permission": "manageRoles"
+          "permission": "manageRoles",
+          "tourId": "permissionMatrix"
         },
         {
           "title": "Oversight Structure",
@@ -424,7 +450,8 @@
           "description": "Configure the reporting structure displayed on volunteer home pages.",
           "icon": "fa-solid fa-sitemap",
           "minRole": null,
-          "permission": "manageCampaigns"
+          "permission": "manageCampaigns",
+          "tourId": "oversightStructure"
         },
         {
           "title": "System Variables",
@@ -432,7 +459,8 @@
           "description": "Manage dynamic lists used throughout the application (location types, sub-location labels, and more).",
           "icon": "fa-solid fa-database",
           "minRole": null,
-          "permission": "accessAdminConsole"
+          "permission": "accessAdminConsole",
+          "tourId": "systemVariables"
         }
       ]
     },
@@ -447,7 +475,7 @@
         "description": "Phone-first tally tool for counting cars at your assigned parking location.",
         "icon": "fa-solid fa-hand-pointer",
         "permission": "logParkingCount",
-        "tourId": null
+        "tourId": "counts"
       }
     ]
   }

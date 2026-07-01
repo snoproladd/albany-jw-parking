@@ -58,6 +58,8 @@ import {
 import {
   openRendezvousPanel,
   dismissRendezvousPanel,
+  preloadRendezvousForDay,
+  getCachedRendezvous,
 } from './rendezvous.js';
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -1350,7 +1352,32 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // ── Rendezvous point buttons ──────────────────────────────────────
-  document.querySelectorAll(".rv-assignment-btn").forEach((btn) => {
+
+  /**
+   * Toggle the "set" state class on a rendezvous pin icon based on
+   * whether a rendezvous point exists in the cache for its assignment.
+   *
+   * @param {HTMLElement} btn - The .rv-assignment-btn element.
+   * @returns {void}
+   */
+  function syncRvPinState(btn) {
+    const icon = btn.querySelector(".rv-pin-icon");
+    if (!icon) return;
+    const assignmentId = Number(btn.dataset.assignmentId);
+    const isSet = !!getCachedRendezvous(assignmentId);
+    icon.classList.toggle("rv-pin-icon--set", isSet);
+  }
+
+  const rvButtons = document.querySelectorAll(".rv-assignment-btn");
+  const rvDayId = Number(document.getElementById("addSessionBtn")?.dataset.dayId);
+
+  if (rvButtons.length && rvDayId) {
+    preloadRendezvousForDay(rvDayId).then(() => {
+      rvButtons.forEach(syncRvPinState);
+    });
+  }
+
+  rvButtons.forEach((btn) => {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       const assignmentId = Number(btn.dataset.assignmentId);
@@ -1381,6 +1408,7 @@ document.addEventListener("DOMContentLoaded", () => {
         canDelete: true,
         anchorX: e.clientX,
         anchorY: e.clientY,
+        onUpdate: () => syncRvPinState(btn),
       });
     });
   });

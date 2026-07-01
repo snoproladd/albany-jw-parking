@@ -168,14 +168,18 @@ function _renderDay(dayId) {
     );
     const convDate = dayBlock?.dataset.date || "";
 
-    // Derive start time HH:MM from rv.start_time
+    // Derive start time HH:MM from rv.start_time. After the JSON round-trip
+    // from the API, this always arrives as a string — either an
+    // epoch-anchored ISO timestamp from a mssql TIME column
+    // ("1970-01-01T07:00:00.000Z") or a plain "HH:MM:SS" string.
     let startHHMM = "";
     if (rv.start_time) {
-      if (rv.start_time instanceof Date || typeof rv.start_time === "object") {
-        const d = new Date(rv.start_time);
+      const raw = String(rv.start_time);
+      if (raw.includes("T")) {
+        const d = new Date(raw);
         startHHMM = `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
       } else {
-        startHHMM = String(rv.start_time).slice(0, 5);
+        startHHMM = raw.slice(0, 5);
       }
     }
 

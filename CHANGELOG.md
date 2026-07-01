@@ -3,6 +3,152 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.78.0] — 2026-07-01
+
+### Added
+- **Guided tours — near-universal coverage.** Added first-visit Shepherd.js
+  tours to 19 pages that previously had none: Shift Alerts, Capacity Alerts,
+  Master Conflict Grid, Rendezvous Points, Volunteer Schedule (shared by
+  `/my-schedule` and `/oversight/tools/volunteer-schedule`), Schedule
+  Analysis Rules, Notes Report, Lessons Learned, System Variables,
+  Permission Matrix, Oversight Structure, Send Reset Link, Create Volunteer,
+  Maps, Schedules, My Account, Parking Counter, Export to Decently, and
+  Import from Decently. Registered each with a `tourId` in `sitemap.json`.
+  - Multi-tab pages (Shift Alerts, Notes Report) use a new `activateTab()`
+    helper so a tour step can switch tabs and wait for `shown.bs.tab` before
+    attaching, regardless of which tab was active when the tour started.
+  - Parking Counter's tour is state-aware — detects whether the setup panel
+    or the active counting panel is showing and builds a short, deliberately
+    brief path for each, respecting the page's phone-first, high-focus
+    field-use context rather than a long walkthrough.
+  - Continue Registration intentionally excluded — it's a pre-login page
+    with no header/nav include, so `#tourTriggerBtn` never exists there.
+  - Discovered along the way and fixed as part of this rollout: the sign
+    tours (`signsBuilderTour.js`, `signsListTour.js`, `signsMapTour.js`)
+    already existed on disk but were undocumented in `README.md`.
+- **Rendezvous "Apply to Other Shifts."** Copies an existing rendezvous
+  point's description, address, floor, and GPS coordinates to other
+  schedule assignments at the same location, across any shift type or day.
+  Photos are intentionally never copied — clearing a photo deletes the
+  underlying blob, so sharing a blob reference across records would risk
+  breaking other rendezvous points' photos.
+  - New `getAssignmentsAtLocationForYear()` in `dbSync.js`.
+  - New `GET /api/rendezvous/:id/apply-candidates` (lists other assignments
+    at the location, flagging ones that already have their own rendezvous
+    point) and `POST /api/rendezvous/:id/apply-to` (applies the copy,
+    creating a new record or updating an existing one per target; existing
+    photos on a target are left untouched). Gated at `manageShifts`
+    (OVERSEER+).
+  - New picker UI in the shared `rendezvous.js` panel, so the feature is
+    available from all three surfaces that use it: the Rendezvous landing
+    page, the Scheduler context menu, and Timelines.
+- **Rendezvous Points card in Oversight Tools.** The Scheduling section of
+  the Oversight Tools hub had no card linking to `/oversight/tools/rendezvous`
+  — the page was only reachable via Site Map or a direct URL. Added a card
+  gated on the same `editRendezvous` permission the page itself requires.
+- **Scheduler Report registered in `sitemap.json`.** The page
+  (`/oversight/tools/scheduler/report`) was fully built and functional but
+  absent from Site Map entirely.
+
+### Fixed
+- **`getRegisteredVolunteers()` silently excluded some completed
+  volunteers from the Send Reset Link page.** The query required both
+  `registration_status = 'completed'` AND `accountType = 'registered'`, but
+  those two fields don't always move together — `assignDeskRole()` (and
+  potentially other completion paths) updates `registration_status` without
+  touching `accountType`. A volunteer promoted that way became invisible on
+  Send Reset Link entirely: not in the Draft tab (status is no longer
+  `'draft'`) and not in Registered (accountType isn't `'registered'`) —
+  exactly the volunteers most likely to need a password link, since they
+  never set one themselves. Removed the `accountType` filter (and a
+  redundant dead `registration_status <> 'archived'` clause) so the query
+  matches its own documented intent: every completed volunteer with contact
+  info on file.
+- **Rendezvous points could show "this shift is well underway" for shifts
+  still in the future.** `rendezvousLanding.js` checked
+  `rv.start_time instanceof Date || typeof rv.start_time === "object"` to
+  decide how to parse the shift start time, but after the JSON round-trip
+  from the API, `start_time` always arrives as a string — the check could
+  never actually pass. It fell through to a naive `.slice(0, 5)` on an
+  epoch-anchored ISO string like `"1970-01-01T07:00:00.000Z"`, producing
+  garbage (`"1970-"`) instead of a time. That fed into `_timeGuard()` in
+  `rendezvous.js` as `NaN`, and `NaN` fails every numeric comparison in that
+  function's if/else chain — so it silently fell through to the final
+  `return`, which was the most restrictive state (`lock`), rather than a
+  safe default. Fixed the parsing to key off `.includes("T")` (matching the
+  pattern already used in `shiftAlerts.js`'s `fmtShiftTime()`), and added an
+  explicit `Number.isNaN(mins)` check in `_timeGuard()` that fails open
+  (`"free"`) instead of defaulting to `"lock"`, so a similar data-shape
+  surprise in the future can't silently block editing again.
+- **Rendezvous popup could be pushed off-screen with the title
+  unreachable.** `_positionEl()`'s bottom-overflow correction flipped the
+  panel's `top` to `y - height` with no floor, so on a click near the top of
+  a tall panel the header could end up above the viewport entirely. Clamped
+  to `Math.max(8, y - height)`.
+- **Rendezvous popup had no internal scroll.** `.rv-panel` was
+  `position: fixed` with no `max-height`, so once "Apply to Other Shifts"
+  made the panel taller, content could extend past the bottom of the screen
+  with no way to reach it — the panel didn't scroll internally, and being
+  fixed-position, the page scrolling past it didn't help either. Added
+  `max-height: calc(100vh - 32px)` with the header fixed and `.rv-panel-body`
+  as the scrollable region (`overflow-y: auto`), plus
+  `overscroll-behavior: contain` so scrolling inside the panel doesn't chain
+  into the page behind it.
+- **Rendezvous Points page card was capped at a fixed 500px width.** A
+  shared global rule (`.entry-card, .card.shadow-lg { max-width: 500px; }`)
+  intended for narrow single-column auth/entry forms was colliding with
+  this page purely because its card used the same `card shadow-lg` class
+  combination, leaving it pinned to the left edge of its (correctly
+  centered) column with ~540px of empty space to the right. Added a
+  page-specific `rv-page-card` class with a scoped override, without
+  touching the shared rule other pages rely on.
+- **Schedule Analysis accordion shell regression on the Master Conflict
+  Grid.** `conflictGrid.ejs` had regressed to a bare
+  `<div id="svPanelMount">`, missing the surrounding Bootstrap accordion
+  (`#svAccordion`, `#svRunBtn`, `#svAccordionMeta`, `#svAccordionBody`) that
+  `scheduleViolationsPanel.js` was already written against. Its own header
+  comment even says the accordion shell lives in `conflictGrid.ejs`. With
+  the shell missing, there was no visible "Run Analysis" trigger and the
+  header meta line (run date, violation counts) could never render, though
+  the code degraded gracefully (`?.` guards) rather than throwing. Restored
+  the accordion markup.
+- **`sitemap.json` `tourId` values didn't match their tour files'
+  `registerTour()` keys.** Nine entries used kebab-case
+  (`signs-list`, `signs-builder`, `signs-map`, `oversight-tools`,
+  `campaign-center`, `invitation-tracker`, `crew-matrix`,
+  `attendance-checkin`, `attendance-report`) while the actual
+  `registerTour()` calls in code use camelCase. Harmless today since nothing
+  currently reads `sitemap.json`'s `tourId` field at runtime, but would
+  silently fail to match if that field is ever wired into a UI. Aligned all
+  nine to the code's naming.
+- **`attendanceReportTour.js` never registered its first-visit prompt.**
+  `initAttendanceReportTour()` built the tour and wired the manual trigger
+  button, but never called `registerTour()` — the prompt could never fire
+  for new visitors, only the manual "Take a tour" click worked.
+- **`volunteersTour.js` threw a `ReferenceError` on every page load.**
+  `registerTour("volunteers", buildVolunteersTour)` referenced a function
+  that was never defined in the file (only `buildFullTour()` and
+  `buildSelectorTour()` existed), throwing immediately and killing the
+  first-visit prompt for that page (manual click still worked since the
+  listener was bound before the throw). Fixed by wrapping the existing
+  view-detection logic into a proper `buildFn`.
+- **My Account page had no header or navigation at all.** Unlike every
+  other authenticated personal page (My Schedule, Volunteer Schedule),
+  `myAccount.ejs` never included `partials/header.ejs` — despite being a
+  normal logged-in page (`data-authed="true"`) reached via the header's "My
+  Account" dropdown link. Once there, a volunteer had no way to navigate
+  elsewhere except the page's own "Return Home" button or the browser back
+  button. Added the missing include.
+- **Timelines rendezvous pin badge ignored actual state.** The map-pin icon
+  on assignment badges was hardcoded `text-primary` (blue) regardless of
+  whether a rendezvous point was actually set for that assignment — there
+  was no client-side check at all. Added `preloadRendezvousForDay()` /
+  `getCachedRendezvous()` calls (already exported from `rendezvous.js` but
+  unused here) to determine real state on load and after
+  create/update/delete, with a new `.rv-pin-icon` / `.rv-pin-icon--set` CSS
+  pair (gray when unset, blue when set — kept distinct from the landing
+  page's green/gray dot convention).
+
 ## [2.77.0] — 2026-07-01
 
 ### Added

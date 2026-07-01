@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
     <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
     <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@15.2.2/dist/css/shepherd.css" />
+    <link rel="stylesheet" href="/css/tours.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
@@ -65,12 +67,13 @@
                   
                   <a  href="/oversight/tools/decently-export/download"
                     class="btn btn-success"
+                    id="downloadExportBtn"
                   >
                     <i class="fa-solid fa-download me-2"></i>Download CSV
                   </a>
                   <form action="/oversight/tools/decently-export" method="POST" class="d-inline">
                     <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
-                    <button type="submit" class="btn btn-outline-secondary">
+                    <button type="submit" class="btn btn-outline-secondary" id="regenerateExportBtn">
                       <i class="fa-solid fa-rotate me-2"></i>Regenerate
                     </button>
                   </form>
@@ -92,7 +95,7 @@
 
                 <form action="/oversight/tools/decently-export" method="POST">
                   <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
-                  <button type="submit" class="btn btn-primary">
+                  <button type="submit" class="btn btn-primary" id="generateExportBtn">
                     <i class="fa-solid fa-magnifying-glass me-2"></i>Generate Export
                   </button>
                 </form>
@@ -107,5 +110,6 @@
     <%- include('../partials/footer') %>
 
     <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="/js/tours/decentlyExportTour.js"></script>
   </body>
 </html>

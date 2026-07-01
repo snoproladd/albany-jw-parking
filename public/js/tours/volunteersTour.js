@@ -169,12 +169,21 @@ export function initVolunteersTour() {
   const btn = document.getElementById("tourTriggerBtn");
   if (!btn) return;
 
-  btn.addEventListener("click", () => {
+  /**
+   * Builds the appropriate tour based on whether a volunteer
+   * profile is currently loaded on the page.
+   *
+   * @returns {Shepherd.Tour}
+   */
+  const buildFn = () => {
     const volunteerLoaded = !!document.getElementById("accountAccordion");
-    const tour = volunteerLoaded ? buildFullTour() : buildSelectorTour();
-    tour.start();
+    return volunteerLoaded ? buildFullTour() : buildSelectorTour();
+  };
+
+  btn.addEventListener("click", () => {
+    buildFn().start();
   });
-  registerTour("volunteers", buildVolunteersTour);
+  registerTour("volunteers", buildFn);
 }
 
 initVolunteersTour();

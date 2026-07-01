@@ -871,7 +871,8 @@ A green dot means a rendezvous point is set; grey means none exists yet.
 
 The editor panel appears as a floating card and is used on the landing page,
 the Scheduler (right-click a shift block header), and the Timelines page
-(click the map-pin icon on an assignment badge). It shows:
+(click the map-pin icon on an assignment badge — blue means a rendezvous
+point is set for that shift, grey means none exists yet). It shows:
 
 - **Description** — free text describing the meeting spot
 - **Address** — optional street address
@@ -883,6 +884,22 @@ the Scheduler (right-click a shift block header), and the Timelines page
 
 KEYMAN users can edit any field and upload or clear the photo, but only
 OVERSEER+ can create a new rendezvous point or delete one entirely.
+
+#### Apply to Other Shifts *(OVERSEER+)*
+
+If the same physical meeting spot applies to more than one shift at a
+location — a common case, since a location's entrance doesn't usually move
+between shifts — open an existing rendezvous point and click **Apply to
+Other Shifts**. This shows every other shift assignment at that same
+location, across any shift type or day, with a checkbox for each. Rows that
+already have their own rendezvous point are flagged **already set**; select
+them anyway to overwrite, or leave them unchecked to skip.
+
+Applying copies the description, address, floor, and GPS coordinates to
+every shift you selected. **Photos are never copied** — each location's
+photo has to be added individually, since clearing a photo on one rendezvous
+point would otherwise delete the image out from under every other point
+sharing it.
 
 #### Time guard
 

@@ -11,6 +11,8 @@
   <link rel="stylesheet" type="text/css" href="/styles/conflictGrid.css" />
   <link rel="stylesheet" type="text/css" href="/styles/blackoutTimeline.css" />
   <link rel="stylesheet" type="text/css" href="/styles/scheduleViolations.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@15.2.2/dist/css/shepherd.css" />
+  <link rel="stylesheet" href="/css/tours.css" />
   <meta name="csrf-token" content="<%= csrfToken %>" />
 </head>
 
@@ -82,7 +84,34 @@
              </div>
     </div>
 
-    <div id="svPanelMount" class="mb-3"></div>
+    <div class="accordion mb-3" id="svAccordion">
+        <div class="accordion-item">
+            <h2 class="accordion-header d-flex align-items-center" id="svAccordionHeader">
+                <button
+                    class="accordion-button collapsed py-2 flex-grow-1"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#svAccordionBody"
+                    aria-expanded="false"
+                    aria-controls="svAccordionBody"
+                >
+                    <i class="fa-solid fa-shield-halved me-2 text-primary"></i>
+                    <strong>Schedule Analysis</strong>
+                    <span id="svAccordionMeta" class="ms-3 fw-normal small text-muted d-flex align-items-center gap-2"></span>
+                </button>
+                <button type="button" class="sv-run-btn me-2 flex-shrink-0" id="svRunBtn">
+                    <i class="fa-solid fa-play me-1"></i>Run Analysis
+                </button>
+            </h2>
+            <div
+                id="svAccordionBody"
+                class="accordion-collapse collapse"
+                aria-labelledby="svAccordionHeader"
+            >
+                <div class="accordion-body p-0" id="svPanelMount"></div>
+            </div>
+        </div>
+    </div>
 
     <div id="cgLoading" class="text-center py-5">
       <div class="spinner-border text-secondary" role="status"></div>
@@ -122,5 +151,6 @@
   <script src="/js/scheduleViolationsPanel.js"></script>
   <script src="/js/conflictGrid.js"></script>
   <script type="module" src="/js/conflictGridBlackoutModal.js"></script>
+  <script type="module" src="/js/tours/conflictGridTour.js"></script>
 </body>
 </html>
