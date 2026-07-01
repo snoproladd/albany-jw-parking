@@ -6314,7 +6314,9 @@ export function oversightRouter({
           alertMode,
           publishedBy: req.session.userEmail || "admin",
           serverPort: serverPort || Number(process.env.PORT) || 3000,
-          appBaseUrl: `${req.protocol}://${req.get("host")}`,
+          appBaseUrl:
+              process.env.APP_BASE_URL ||
+              `${req.protocol}://${req.get("host")}`,
           smtpConfig,
           twilioAccountSid,
           twilioAuthToken,
