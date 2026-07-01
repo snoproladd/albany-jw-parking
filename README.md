@@ -3,7 +3,7 @@
 A full-stack web application for managing volunteers, scheduling, messaging,
 and attendance for the Albany JW Regional Convention parking team.
 
-<!-- README last updated: v2.74.1 -->
+<!-- README last updated: v2.76.0 -->
 
 ---
 
@@ -513,7 +513,7 @@ Roles are stored as a single column on the `volunteer_in` table.
 Higher roles inherit all permissions of roles below them.
 
 ```
-NON_REGISTERED → REGISTERED → DESK → KEYMAN → OVERSEER → ASSISTANT_ADMIN → ADMIN
+NON_REGISTERED → COUNTER → REGISTERED → DESK → KEYMAN → OVERSEER → ASSISTANT_ADMIN → ADMIN
 ```
 
 The permission matrix lives in `src/config/roles.js` and can be overridden

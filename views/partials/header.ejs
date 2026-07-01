@@ -32,10 +32,10 @@
         <%
           const showUpgrade         = navState.canUpgrade;
           const showContinueReg     = navState.showContinueRegistration;
-          const showMyAccount       = navState.isLoggedIn;
+          const showMyAccount       = navState.isLoggedIn && navState.userRole !== 'COUNTER';
           const showAccountDropdown = showUpgrade || showContinueReg || showMyAccount;
 
-          const _ROLE_ORDER_NAV = ['NON_REGISTERED','REGISTERED', 'DESK', 'KEYMAN','OVERSEER','ASSISTANT_ADMIN','ADMIN'];
+          const _ROLE_ORDER_NAV = ['NON_REGISTERED', 'COUNTER', 'REGISTERED', 'DESK', 'KEYMAN','OVERSEER','ASSISTANT_ADMIN','ADMIN'];
           const _navRole        = navState.userRole || 'NON_REGISTERED';
           const _navRoleLevel   = _ROLE_ORDER_NAV.indexOf(_navRole);
           const isAtLeast       = (r) => _navRoleLevel >= _ROLE_ORDER_NAV.indexOf(r);
@@ -89,6 +89,14 @@
                     Schedules
                   </a>
                 </li>
+                <% if (navState.canLogParkingCount) { %>
+                <li>
+                  <a class="dropdown-item" href="/counts">
+                    <i class="fa-solid fa-hand-pointer me-1"></i>
+                    Parking Counter
+                  </a>
+                </li>
+                <% } %>
                 <% if (can('editVolunteerInfo')) { %>
                 <li><hr class="dropdown-divider" /></li>
                 <li>

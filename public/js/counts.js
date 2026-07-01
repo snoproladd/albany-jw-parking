@@ -5,13 +5,23 @@
  * Features:
  *  - Auto-detect today's convention day; falls back to manual picker.
  *  - Location picker loaded from /api/counts/locations.
- *  - Tap button increments local count; plays 880 Hz beep on each tap.
+ *  - Tap button increments a monotonic running total; plays 880 Hz beep.
  *  - 60-second heartbeat POST to /api/counts/heartbeat.
  *  - Quarter-hour alarm (880 Hz + 1100 Hz two-tone) at :00/:15/:30/:45.
- *  - Submit POST to /api/counts/submit; resets count to 0, shows session total.
+ *  - Submit POST to /api/counts/submit records the running total as a
+ *    confirmed checkpoint (is_final = 1) WITHOUT resetting the local
+ *    tally. This preserves the report's MAX-per-15min-bucket aggregation
+ *    so multiple submits within a bucket don't overwrite earlier data.
+ *  - Manual entry adds its value to the running total before submitting,
+ *    so a user with a physical clicker can periodically fold their count
+ *    in. Rows are still flagged is_manual = 1 for audit.
  *  - Wake Lock API keeps the screen on during counting.
  *  - Page Visibility API sends a catch-up heartbeat on tab restore.
- *  - localStorage persists state across accidental refreshes.
+ *  - sessionStorage persists state across refreshes and same-tab navigation,
+ *    but is cleared when the tab or browser closes — so a new browsing
+ *    session (e.g. a new user opening the shared COUNTER account in a
+ *    fresh tab) always begins at the setup panel rather than inheriting
+ *    the previous user's location and tally.
  *
  * @module counts
  */
@@ -47,6 +57,18 @@ const subLocationSelect = /** @type {HTMLSelectElement | null} */ (document.getE
 // ── State ───────────────────────────────────────────────────────────────────
 
 /**
+ * Client-side counter state.
+ *
+ * `count` is a monotonic running total for the current (garage,
+ * sub-location) session. Every tap, decrement, and manual-entry
+ * increment updates it in place; submitting does NOT reset it.
+ * `returnToSetup` resets it to 0 when the user changes garage or
+ * entrance.
+ *
+ * `lastConfirmed` is the value of `count` at the moment of the last
+ * successful is_final = 1 submission — displayed in the bottom bar so
+ * the user can see how far they've counted since their last checkpoint.
+ *
  * @typedef {{
  *   locationTaskId:  number | null,
  *   locationName:    string | null,
@@ -54,7 +76,7 @@ const subLocationSelect = /** @type {HTMLSelectElement | null} */ (document.getE
  *   subLocationId:   number | null,
  *   subLocationName: string | null,
  *   count:           number,
- *   sessionTotal:    number,
+ *   lastConfirmed:   number,
  *   active:          boolean,
  * }} CountState
  */
@@ -66,30 +88,34 @@ const state = {
   conventionDayId: null,
   subLocationId:   null,
   subLocationName: null,
-  count:       0,
-  sessionTotal: 0,
-  active:      false,
+  count:         0,
+  lastConfirmed: 0,
+  active:        false,
 };
 
-// ── localStorage ────────────────────────────────────────────────────────────
+// ── sessionStorage ──────────────────────────────────────────────────────────
+// sessionStorage (not localStorage) is deliberate: it survives F5, same-tab
+// navigation, and Wake-Lock-induced background time, but a tab/browser close
+// clears it. That matches the shared-account handoff model — a new browsing
+// session begins fresh at the setup panel.
 
-const LS_KEY = "parkingCounter_state";
+const STORAGE_KEY = "parkingCounter_state";
 
 /**
- * Persist current state to localStorage.
+ * Persist current state to sessionStorage.
  * @returns {void}
  */
 function saveState() {
-  localStorage.setItem(LS_KEY, JSON.stringify(state));
+  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
 /**
- * Restore state from localStorage, or return null if absent / unreadable.
+ * Restore state from sessionStorage, or return null if absent / unreadable.
  * @returns {CountState | null}
  */
 function loadSavedState() {
   try {
-    const raw = localStorage.getItem(LS_KEY);
+    const raw = sessionStorage.getItem(STORAGE_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
@@ -97,11 +123,11 @@ function loadSavedState() {
 }
 
 /**
- * Remove persisted state from localStorage.
+ * Remove persisted state from sessionStorage.
  * @returns {void}
  */
 function clearSavedState() {
-  localStorage.removeItem(LS_KEY);
+  sessionStorage.removeItem(STORAGE_KEY);
 }
 
 // ── Audio ───────────────────────────────────────────────────────────────────
@@ -288,7 +314,7 @@ function enterCountingState() {
     ? `${state.locationName} — ${state.subLocationName}`
     : (state.locationName ?? "");
   countDisplay.textContent = String(state.count);
-  sessionTotalDisplay.textContent = String(state.sessionTotal);
+  sessionTotalDisplay.textContent = String(state.lastConfirmed);
   saveState();
   requestWakeLock();
   startHeartbeat();
@@ -303,7 +329,7 @@ function enterCountingState() {
 function returnToSetup() {
   state.active          = false;
   state.count           = 0;
-  state.sessionTotal    = 0;
+  state.lastConfirmed   = 0;
   state.locationTaskId  = null;
   state.locationName    = null;
   state.conventionDayId = null;
@@ -496,8 +522,15 @@ function showBanner(text, isError = false) {
 }
 
 /**
- * POST the current count as a final submission.
- * Resets the local count to zero and increments the session total on success.
+ * POST the current running total as a confirmed checkpoint (is_final = 1).
+ * Does NOT reset the local count — the running total is monotonic across
+ * the counting session so the report's MAX-per-bucket aggregation reflects
+ * every tap, and multiple submits in the same 15-minute window can't
+ * overwrite each other.
+ *
+ * On success, updates `state.lastConfirmed` so the bottom-bar display
+ * shows the value at the most recent checkpoint.
+ *
  * @returns {Promise<void>}
  */
 async function handleSubmit() {
@@ -517,14 +550,10 @@ async function handleSubmit() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
 
-    state.count = 0;
-    state.sessionTotal += submitted;
-    countDisplay.textContent = "0";
-    sessionTotalDisplay.textContent = String(state.sessionTotal);
+    state.lastConfirmed = submitted;
+    sessionTotalDisplay.textContent = String(state.lastConfirmed);
     saveState();
-    showBanner(
-      `Submitted: ${submitted} this round · ${state.sessionTotal} total today`,
-    );
+    showBanner(`Confirmed at ${submitted}`);
   } catch (err) {
     showBanner(`Submit failed: ${err.message}`, true);
   } finally {
@@ -592,39 +621,62 @@ manualToggleBtn.addEventListener("click", () => {
 });
 
 /**
- * Submit a manually entered count to /api/counts/manual-submit.
- * Increments the session total so the running tally reflects the full day's count.
+ * Submit a manually-entered count.
+ *
+ * The value is a DELTA that folds into the running total: `state.count`
+ * is incremented by the entered value before the POST, and the POST body
+ * carries the new running total (not the raw delta). The server writes
+ * a row with is_final = 1, is_manual = 1 — the manual flag preserves
+ * audit trail but the value stored is the running total, which keeps
+ * the report's MAX-per-bucket aggregation consistent with tap-flow
+ * submits.
+ *
+ * Negatives are accepted for overcount corrections (per the note in the
+ * UI). The running total will drop; future buckets will reflect the
+ * corrected value. Within the same bucket as the overcount, the peak
+ * remains what was recorded — corrections propagate forward, not
+ * retroactively.
+ *
  * @returns {Promise<void>}
  */
 async function handleManualSubmit() {
-
   const value = parseInt(manualCountInput.value, 10);
-  if (isNaN(value) || value < 0) {
+  if (isNaN(value)) {
     manualCountInput.classList.add("is-invalid");
     return;
   }
   manualCountInput.classList.remove("is-invalid");
   manualSubmitBtn.disabled = true;
+
+  const newTotal = state.count + value;
+
   try {
     const res = await fetch("/api/counts/manual-submit", {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({
-          locationTaskId:  state.locationTaskId,
-          conventionDayId: state.conventionDayId,
-          count:           value,
-          subLocationId:   state.subLocationId,
+      body:    JSON.stringify({
+        locationTaskId:  state.locationTaskId,
+        conventionDayId: state.conventionDayId,
+        count:           newTotal,
+        subLocationId:   state.subLocationId,
       }),
-    })
+    });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    state.sessionTotal += value;
-    sessionTotalDisplay.textContent = String(state.sessionTotal);
+
+    state.count         = newTotal;
+    state.lastConfirmed = newTotal;
+    countDisplay.textContent        = String(state.count);
+    sessionTotalDisplay.textContent = String(state.lastConfirmed);
     saveState();
     manualCountInput.value = "";
     manualEntry.classList.add("d-none");
     manualToggleBtn.setAttribute("aria-expanded", "false");
-    showBanner(`Manual count of ${value} submitted · ${state.sessionTotal} total today`);
+    showBanner(
+      value >= 0
+        ? `Manual +${value} · confirmed at ${newTotal}`
+        : `Manual ${value} · confirmed at ${newTotal}`,
+    );
   } catch (err) {
     showBanner(`Manual submit failed: ${err.message}`, true);
   } finally {
@@ -661,11 +713,28 @@ window.addEventListener("pagehide", releaseWakeLock);
 // ── Init ─────────────────────────────────────────────────────────────────────
 
 /**
- * Entry point. Restores from localStorage if an active session exists;
- * otherwise loads setup data (locations + today's day).
+ * Entry point.
+ *
+ * On a fresh login, the server sets `data-force-selection="true"` on
+ * `#countsRoot` (via a one-shot `req.session.forceCountsSelection` flag
+ * consumed by GET /counts). When present, we drop any persisted state
+ * before checking localStorage — this ensures the setup panel is shown
+ * even if a prior user of a shared account (e.g. COUNTER role) left an
+ * active tally behind. Subsequent in-session visits to /counts do NOT
+ * carry the flag, so a user who navigates away and returns resumes
+ * their session normally.
+ *
+ * Otherwise, restores from localStorage if an active session exists;
+ * failing that, loads setup data (locations + today's day).
+ *
  * @returns {Promise<void>}
  */
 async function init() {
+  const rootEl = document.getElementById("countsRoot");
+  if (rootEl?.dataset.forceSelection === "true") {
+    clearSavedState();
+  }
+
   const saved = loadSavedState();
   if (saved?.active && saved.locationTaskId && saved.conventionDayId) {
     Object.assign(state, saved);

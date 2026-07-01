@@ -49,16 +49,30 @@ export function countsRouter({ csrfProtection, logError }) {
    * Phone-first parking tally page.
    * Requires logParkingCount (OVERSEER+ by default, or delegated via
    * the extra_parking_count flag on volunteer_in).
+   *
+   * Consumes the one-shot `req.session.forceCountsSelection` flag set at
+   * login. When present, the flag is deleted and `forceSelection: true` is
+   * passed to the view — the client-side counts.js will clear its
+   * localStorage session on init so the setup panel is shown even if a
+   * prior user left an active session behind. Guards against shared
+   * COUNTER-role handoffs.
+   *
+   * @returns {void}
    */
   router.get(
     "/counts",
     requirePermission("logParkingCount"),
     (req, res) => {
+      const forceSelection = !!req.session.forceCountsSelection;
+      if (forceSelection) {
+        delete req.session.forceCountsSelection;
+      }
       res.render("counts", {
         nav: res.locals.nav,
         userRole: req.session.userRole,
         userPermissions: res.locals.userPermissions,
         appVersion: res.locals.appVersion,
+        forceSelection,
       });
     },
   );

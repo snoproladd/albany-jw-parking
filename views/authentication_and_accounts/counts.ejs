@@ -18,7 +18,7 @@
 
     <%- include('partials/header') %>
 
-    <main class="counts-main" id="countsRoot">
+    <main class="counts-main" id="countsRoot" data-force-selection="<%= forceSelection ? 'true' : 'false' %>">
 
         <%# ── Setup panel — shown until location + day are confirmed ── %>
         <div id="setupPanel" class="counts-setup-panel">
@@ -108,7 +108,7 @@
                 </div>
                 <div class="counts-submit-row">
                     <div class="counts-total-wrap">
-                        <span class="counts-total-label">Session total</span>
+                        <span class="counts-total-label">Last confirmed</span>
                         <span id="sessionTotalDisplay" class="counts-total-value">0</span>
                     </div>
                     <button type="button" id="submitBtn" class="btn counts-submit-btn">

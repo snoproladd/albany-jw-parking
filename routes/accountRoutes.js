@@ -750,8 +750,8 @@ export function loginRouter({ csrfProtection, logError }) {
       // All other roles receive the explicit list of category_ids they may view.
       const OVERSEER_PLUS = new Set(["OVERSEER", "ASSISTANT_ADMIN", "ADMIN"]);
       req.session.sensitiveCategories = OVERSEER_PLUS.has(req.session.userRole)
-          ? null
-          : await getSchedulerCategoryAccessForVolunteer(user.id);
+        ? null
+        : await getSchedulerCategoryAccessForVolunteer(user.id);
 
       // Login success → clear any leftover pendingEmail
       req.session.pendingEmail = null;
@@ -760,6 +760,11 @@ export function loginRouter({ csrfProtection, logError }) {
       req.session.userId = user.id;
       req.session.userEmail = user.email; // for edited_by
       req.session.loginSuccess = true;
+      // One-shot flag consumed by GET /counts to force the setup panel on the
+      // first visit after login, even if localStorage holds a prior session's
+      // location/day. Guards against shared-account handoffs (COUNTER role)
+      // and against any user silently resuming someone else's garage.
+      req.session.forceCountsSelection = true;
       // Redirect to intended destination if one was captured, then clear it
       const returnTo = req.session.returnTo || null;
       req.session.returnTo = null;

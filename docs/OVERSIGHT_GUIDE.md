@@ -1397,14 +1397,22 @@ assessing violations — they directly influence severity ratings and suggestion
 
 ## 5b. Parking Counter *(logParkingCount)*
 
-### Parking Counter *(OVERSEER+ or delegated)*
+### Parking Counter *(COUNTER, OVERSEER+, or delegated)*
 
-**Path:** Counts → Parking Counter
+**Path:** Resources → Parking Counter, or Operations → Counts → Parking Counter
 
 A phone-first tally tool for volunteers counting cars at a garage entrance.
-The permission is granted to OVERSEER+ by default. DESK/KEYMAN volunteers
-can be given access individually via the **Assignment & Role** accordion on
-their volunteer profile (ADMIN/ASSISTANT_ADMIN only).
+The `logParkingCount` permission is granted to OVERSEER+ by default, and
+to the dedicated `COUNTER` role. DESK/KEYMAN volunteers can be given
+access individually via the **Assignment & Role** accordion on their
+volunteer profile (ADMIN/ASSISTANT_ADMIN only).
+
+The `COUNTER` role is a narrow shared-account role intended for use by
+a single account (provisioned directly in SQL) that is passed between
+whichever volunteers are running counts that day. It has access only to
+`/counts` — no dashboard, no profile edits, no schedules or maps. Signing
+in redirects immediately to the counter tool, and the top-nav Home link
+and My Account dropdown are suppressed.
 
 #### Starting a session
 

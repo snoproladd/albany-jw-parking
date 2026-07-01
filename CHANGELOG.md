@@ -3,6 +3,68 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.76.0] — 2026-07-01
+
+### Added
+- **`COUNTER` role.** A narrow shared-account role for volunteers whose
+  only responsibility is running the parking counter at a garage entrance.
+  Inserted into `ROLE_HIERARCHY` at index 1 (between `NON_REGISTERED` and
+  `REGISTERED`) so every `isAtLeast('REGISTERED')` nav gate — Resources
+  dropdown, `/my-schedule`, `/schedules`, `/maps`, `/signs` — evaluates
+  false automatically. Permission matrix grants only `logParkingCount`;
+  every other permission — including `submitInfo`, `editSelf`,
+  `viewSchedules`, and `viewMaps` — is `false`. Intended use: a single
+  account provisioned directly in SQL and shared by whichever volunteers
+  are running counts that convention day. `GET /` short-circuits to
+  `/counts` for `COUNTER` sessions so the Home nav link and post-login
+  redirect both land on the tally tool.
+- **Parking Counter link in the Resources dropdown.** Shown for any session
+  with `canLogParkingCount` (role default on OVERSEER+ or `extra_parking_count`
+  delegation), giving oversight users a shortcut without opening the
+  Operations dropdown. Not visible to `COUNTER` itself (which doesn't pass
+  the outer Resources gate); `COUNTER` reaches the tool via the `/` redirect.
+
+### Changed
+- **My Account dropdown suppressed for `COUNTER`.** `showMyAccount` in
+  `header.ejs` now checks `navState.userRole !== 'COUNTER'` so the shared
+  account has no path to profile edits. Logout stays visible.
+- **Fresh browsing session forces the counter setup panel.** Two-part
+  guard against a shared-account user posting counts to a prior user's
+  garage:
+    - **New tab / browser session:** `counts.js` now persists tally
+      state to `sessionStorage` instead of `localStorage`. F5, same-tab
+      navigation, and Wake-Lock background time still restore the
+      session; closing the tab or browser wipes it, so the next
+      launch starts at the setup panel.
+    - **Same-tab re-login:** POST /login sets a one-shot
+      `req.session.forceCountsSelection` flag; GET /counts consumes it
+      and passes `data-force-selection="true"` to `#countsRoot`.
+      `counts.js` calls `clearSavedState()` on init when the flag is
+      present, so even a tab that was already open at the login moment
+      lands on the setup panel.
+  Applies to any role with `logParkingCount`, not just `COUNTER`.
+  Within-session navigation still resumes normally.
+- **Counter uses a monotonic running total.** The tap counter no
+  longer resets on Submit; `state.count` accumulates for the entire
+  (garage, sub-location) session until the user clicks Change. Fixes
+  a latent under-count bug where the report's MAX-per-15min-bucket
+  aggregation dropped every submit after the first within a bucket
+  (typical impact: any counter who checkpoint-submitted mid-quarter).
+  Manual entries now fold into the running total — the value entered
+  is added to `state.count` and the resulting running total is POSTed
+  (`is_manual = 1` still preserves audit trail). The bottom bar shifts
+  from "Session total" (redundant with the big display) to "Last
+  confirmed" — the value of `state.count` at the moment of the most
+  recent successful submit, so users can see progress since their
+  last checkpoint. Report changes: none — MAX-per-bucket already does
+  the right thing for a monotonic series.
+- **Role badge palette in `/oversight/roles`.** Added `bg-dark text-light`
+  for the new `COUNTER` badge.
+- **Role Management tour.** Updated the role-order prose in
+  `rolesTour.js` to include `COUNTER` at the low end and fix the
+  pre-existing `DESK`/`KEYMAN` ordering (the array orders `DESK` before
+  `KEYMAN`; the tour text had them reversed).
+
 ## [2.75.1] — 2026-06-30
 
 ### Fixed

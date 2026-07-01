@@ -47,7 +47,7 @@ function buildRolesTour() {
   tour.addStep({
     id: "table",
     title: "The volunteer table",
-    text: "Each row shows a volunteer's name, email, and their <strong>Current Role</strong> — color-coded by level. Roles in order from lowest to highest are: Registered, Keyman, Desk, Overseer, Assistant Admin, and Admin.",
+    text: "Each row shows a volunteer's name, email, and their <strong>Current Role</strong> — color-coded by level. Roles in order from lowest to highest are: Counter, Registered, Desk, Keyman, Overseer, Assistant Admin, and Admin.",
     attachTo: { element: "#rolesTable", on: "top" },
     buttons: navButtons(tour),
   });

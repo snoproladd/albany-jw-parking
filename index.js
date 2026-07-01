@@ -571,6 +571,12 @@ let alertScheduler = null;
     app.use("/api", apiRoutes);
     // ── Home page — dashboard for authenticated users ──────────────
     app.get("/", csrfProtection, async (req, res) => {
+      // COUNTER is a narrow shared-account role scoped to /counts only.
+      // Short-circuit before any dashboard queries run.
+      if (req.session.userRole === "COUNTER") {
+        return res.redirect("/counts");
+      }
+
       const sessionRole  = req.session.userRole   || "NON_REGISTERED";
       const sessionPerms = req.session.permissions || PERMISSIONS;
       const canViewOversightWidgets = can(sessionPerms, sessionRole, "viewVolunteerInfo");
