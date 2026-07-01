@@ -346,6 +346,14 @@
           "icon": "fa-solid fa-bell",
           "minRole": null,
           "permission": "accessAdminConsole"
+        },
+    {
+          "title": "Capacity Alerts",
+          "path": "/oversight/tools/capacity-alerts",
+          "description": "Define SMS alert thresholds per location and choose who gets notified when a lot crosses a threshold.",
+          "icon": "fa-solid fa-warehouse",
+          "minRole": null,
+          "permission": "accessAdminConsole"
         }
       ]
     },

@@ -24,6 +24,7 @@ send invitations, track RSVPs, log attendance, and administer the platform.
 4. [Communications](#4-communications)
 5. [Scheduling](#5-scheduling)
    - [Locations](#locations-overseer)
+   - [Capacity Alerts](#capacity-alerts-assistant_admin)
    - [Schedule Analysis](#schedule-analysis-overseer)
    - [Schedule Analysis Rules](#schedule-analysis-rules-admin)
 5b. [Parking Counter](#5b-parking-counter-logparkingcount)
@@ -1291,6 +1292,37 @@ the System Variables vocabulary list) and can be toggled Active/Inactive.
 
 ---
 
+### Capacity Alerts *(ASSISTANT_ADMIN+)*
+
+**Path:** Operations → Capacity Alerts
+
+Define SMS alert rules that fire automatically as parking counts come in
+from the Parking Counter tool. Each rule watches one location (or a single
+sub-location within it) and notifies a chosen tier of oversight when the
+count crosses a threshold.
+
+- **Threshold type** — either a **percent of the location's capacity**
+  (e.g. 90%) or a **raw vehicle count** (e.g. 500).
+- **Direction** — *rising to/above* (typical "nearing full" alert) or
+  *dropping to/below* (e.g. "lot is draining").
+- **Notify** — the minimum role tier to text: Overseer and above,
+  Assistant Admin and above, or Admin only. Only active volunteers with a
+  phone number on file receive the message.
+- **Custom message** — optional; leave blank to use the default
+  auto-generated wording.
+
+A rule fires once per threshold crossing, then goes into a **Waiting to
+re-arm** state until the count returns to the safe side of the threshold —
+so a location hovering right at capacity doesn't trigger a text every time
+a new count comes in. The rule status badge on the management page shows
+**Armed**, **Waiting to re-arm**, or **Inactive** for each rule.
+
+The **Recent Sends** panel below the rules table shows the last 100 alert
+attempts with recipient counts and any failures, useful for confirming a
+rule actually fired during the convention.
+
+---
+
 ### Schedule Analysis *(OVERSEER+)*
 
 The **Schedule Analysis** accordion at the top of the Master Conflict Grid page
@@ -1416,46 +1448,86 @@ and My Account dropdown are suppressed.
 
 #### Starting a session
 
-1. The app auto-detects today’s convention day. If today is not a convention
+1. The app auto-detects today's convention day. If today is not a convention
    day, a day picker appears — select the correct day.
 2. Choose the **Parking Location** from the dropdown (only locations with a
    configured capacity are listed).
 3. If the location has active sub-locations (entrances/sections), a required
    **Entrance / Section** picker appears. Select the appropriate one.
-4. Tap **Start Counting**.
+4. Choose the **Quarter-Hour Alarm** mode (see below), then tap **Start
+   Counting**. If you chose a sound-emitting mode, a volume-check step plays
+   the alarm tone first and asks you to confirm you heard it before counting
+   begins.
 
 #### Counting
 
 - **Tap the large button** to add one car. A short beep confirms each tap.
 - **− 1 bar** at the bottom subtracts one if you over-counted.
-- **Submit** records the current tally, resets the local counter to zero, and
-  adds to your **Session Total** (today’s running total across all rounds).
-  Submitting a manual entry also increments the session total.
-- The app sends a **60-second heartbeat** to the server so the report reflects
-  near-real-time data even if you haven’t tapped Submit yet.
-- A **quarter-hour alarm** (dual-tone beep) reminds you to submit at each
-  15-minute mark.
+- The running tally is a **monotonic running total** for the session — it is
+  never reset by Submit or by a heartbeat. Only **Change Setup** resets it
+  to zero (when you switch location/entrance).
+- **Submit** records the current running total as a confirmed checkpoint and
+  updates **Last Confirmed** in the bottom bar. It does *not* reset the tally
+  — that keeps the report's per-15-minute-bucket aggregation accurate even
+  across multiple submits in the same window.
+- The app sends a **15-second heartbeat** to the server with the current
+  count so the live count stays current between submits. Heartbeats do
+  *not* update **Last Confirmed** — that number reflects only explicit
+  Submit or Manual Count actions, so you can tell at a glance whether you've
+  actually checked in recently versus just been passively counting.
 - **Wake Lock** keeps the screen on while counting (where supported). Toggle
   off if your battery is low.
 
+#### Quarter-Hour Alarm
+
+The alarm fires at a fixed interval — :00, :15, :30, :45 — this can't be
+changed. What *is* configurable, from the setup panel, is the notification
+style:
+
+- **On** — plays the two-tone alarm sound.
+- **Vibration only** — vibrates the device (not supported on iOS Safari).
+- **Vibration and sound** — both.
+- **Off** — the quarter-hour check is fully disabled.
+
+Use the **Test** button next to the mode picker to preview a mode before
+starting. If you've already been actively tapping in the two heartbeats
+right before a quarter-hour mark, the alarm dismisses itself silently — no
+sound, vibration, or popup — since your activity already confirms you're
+present.
+
+When the alarm does fire, a popup asks whether anything happened this
+period:
+
+- **No Activity** — dismisses the alarm with no data submitted.
+- **Enter Manual Count** — opens a number entry, then a confirmation step
+  before it submits (entering exactly 0 shows an extra warning, since 0 is
+  usually meant to be "No Activity" instead).
+
 #### Manual count
 
-Tap the **Manual count** accordion to enter a number from another source
-(e.g. a radio report or handoff count). Manual entries are stored separately
-(flagged `is_manual`) and show in the report alongside tap counts. They also
-increment the session total.
+Use the **Manual Count Submission** panel to enter a number from another
+source (e.g. a radio report, a handoff count, or a physical clicker).
+Manual entries are stored separately (flagged `is_manual`) and show in the
+report alongside tap counts. Negative values are accepted for overcount
+corrections.
 
 #### Persistence
 
-Your session state (location, sub-location, count, session total) is saved to
-`localStorage`. If you accidentally close the tab or navigate away, returning
-to `/counts` restores your session automatically. Your count is also beaconed
-to the server the moment you leave the page, so data is never lost.
+Your session state (location, sub-location, count, alarm mode, session
+total) is saved to `sessionStorage`. If you accidentally close the tab or
+navigate away and come back in the same browser session, returning to
+`/counts` restores your session automatically. Closing the tab/browser
+entirely clears it — a fresh browsing session (e.g. handing the shared
+`COUNTER` account to the next volunteer) always starts at setup. Your count
+is also beaconed to the server the moment you leave the page, so data is
+never lost.
 
 #### Changing setup
 
 Tap **Change Setup** to return to the setup screen and pick a different
-location or day. This **resets the session total to zero**.
+location or day. This **resets the running tally to zero** (your alarm mode
+preference is kept, since it's a device setting, not part of the count
+session).
 
 ---
 

@@ -26,7 +26,9 @@ import {
   getParkingCountReportData,
   deleteLocationCounts,
   getActiveSubLocationsForLocation,
+  getLocationTaskById,
 } from "../lib/dbSync.js";
+import { evaluateCapacityAlerts } from "../lib/capacityAlerter.js";
 
 /**
  * Factory: build the counts router.
@@ -37,7 +39,7 @@ import {
  * }} deps
  * @returns {import('express').Router}
  */
-export function countsRouter({ csrfProtection, logError }) {
+export function countsRouter({ csrfProtection, logError, twilioAccountSid, twilioAuthToken, twilioMsgSid }) {
   const router = express.Router();
 
   // ============================================================
@@ -193,6 +195,18 @@ export function countsRouter({ csrfProtection, logError }) {
           subLocationId:   subLocationId != null ? Number(subLocationId) : null,
         });
 
+        const loc = await getLocationTaskById(Number(locationTaskId));
+        evaluateCapacityAlerts({
+          locationTaskId: Number(locationTaskId),
+          locationName:   loc?.name || "Location",
+          subLocationId:  subLocationId != null ? Number(subLocationId) : null,
+          count:          Number(count),
+          accountSid:     twilioAccountSid,
+          authToken:      twilioAuthToken,
+          messagingSid:   twilioMsgSid,
+          logError,
+        }).catch((e) => logError("[capacityAlerter/heartbeat]", e));
+
         res.json({ ok: true });
       } catch (err) {
         logError("[POST /api/counts/heartbeat]", err);
@@ -230,6 +244,18 @@ export function countsRouter({ csrfProtection, logError }) {
           subLocationId:   subLocationId != null ? Number(subLocationId) : null,
         });
 
+        const loc = await getLocationTaskById(Number(locationTaskId));
+        evaluateCapacityAlerts({
+          locationTaskId: Number(locationTaskId),
+          locationName:   loc?.name || "Location",
+          subLocationId:  subLocationId != null ? Number(subLocationId) : null,
+          count:          Number(count),
+          accountSid:     twilioAccountSid,
+          authToken:      twilioAuthToken,
+          messagingSid:   twilioMsgSid,
+          logError,
+        }).catch((e) => logError("[capacityAlerter/submit]", e));
+
         res.json({ ok: true });
       } catch (err) {
         logError("[POST /api/counts/submit]", err);
@@ -266,6 +292,18 @@ export function countsRouter({ csrfProtection, logError }) {
           isManual:        true,
           subLocationId:   req.body.subLocationId != null ? Number(req.body.subLocationId) : null,
         });
+
+        const loc = await getLocationTaskById(Number(locationTaskId));
+        evaluateCapacityAlerts({
+          locationTaskId: Number(locationTaskId),
+          locationName:   loc?.name || "Location",
+          subLocationId:  req.body.subLocationId != null ? Number(req.body.subLocationId) : null,
+          count:          Number(count),
+          accountSid:     twilioAccountSid,
+          authToken:      twilioAuthToken,
+          messagingSid:   twilioMsgSid,
+          logError,
+        }).catch((e) => logError("[capacityAlerter/manual-submit]", e));
 
         res.json({ ok: true });
       } catch (err) {

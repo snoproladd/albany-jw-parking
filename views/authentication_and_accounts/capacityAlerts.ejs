@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Capacity Alerts — Albany JW Parking</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
+  <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+  <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+  <link rel="stylesheet" href="/css/capacityAlerts.css" />
+</head>
+
+<body class="min-vh-100 bg-body-tertiary" data-authed="true">
+  <%- include('../partials/header') %>
+
+  <main class="container-fluid py-4 px-4">
+    <div class="row justify-content-center">
+      <div class="col-12 col-xl-10">
+
+        <section class="card shadow-sm ca-card">
+          <header class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <h1 class="h3 my-2"><i class="fa-solid fa-bell me-2"></i>Capacity Alerts</h1>
+            <button type="button" class="btn btn-primary" id="ca-new-rule-btn">
+              <i class="fa-solid fa-plus me-1"></i>New Rule
+            </button>
+          </header>
+
+          <div class="card-body">
+            <p class="text-muted">
+              Rules fire an SMS to the selected role tier once a location's count crosses its
+              threshold, then re-arm automatically once the count returns to the safe side.
+            </p>
+
+            <div id="ca-rules-table-wrap">
+              <table class="table table-hover align-middle" id="ca-rules-table">
+                <thead>
+                  <tr>
+                    <th>Location</th>
+                    <th>Sub-location</th>
+                    <th>Threshold</th>
+                    <th>Direction</th>
+                    <th>Notify</th>
+                    <th>Status</th>
+                    <th class="text-end">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="ca-rules-tbody">
+                  <tr><td colspan="7" class="text-center text-muted py-4">Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h2 class="h5 mt-4">Recent Sends</h2>
+            <table class="table table-sm" id="ca-log-table">
+              <thead>
+                <tr>
+                  <th>Sent</th>
+                  <th>Location</th>
+                  <th>Count</th>
+                  <th>Recipients</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="ca-log-tbody">
+                <tr><td colspan="5" class="text-center text-muted py-3">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <%# ── Rule editor modal ─────────────────────────────────────── %>
+  <div class="modal fade" id="ca-rule-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="ca-rule-modal-title">New Rule</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="ca-rule-form">
+            <input type="hidden" id="ca-rule-id" />
+
+            <div class="mb-3">
+              <label class="form-label" for="ca-location">Location</label>
+              <select class="form-select" id="ca-location" required>
+                <option value="">Select a location…</option>
+                <% locations.forEach(function(loc) { %>
+                  <option value="<%= loc.id %>" data-capacity="<%= loc.capacity %>"><%= loc.name %> (cap. <%= loc.capacity %>)</option>
+                <% }); %>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label" for="ca-sub-location">Sub-location (optional)</label>
+              <select class="form-select" id="ca-sub-location">
+                <option value="">Whole location</option>
+              </select>
+            </div>
+
+            <div class="row g-2 mb-3">
+              <div class="col-6">
+                <label class="form-label" for="ca-threshold-type">Threshold type</label>
+                <select class="form-select" id="ca-threshold-type" required>
+                  <option value="percent">% of capacity</option>
+                  <option value="count">Raw count</option>
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label" for="ca-threshold-value">Value</label>
+                <input type="number" class="form-control" id="ca-threshold-value" min="1" required />
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label" for="ca-direction">Direction</label>
+              <select class="form-select" id="ca-direction" required>
+                <option value="above">Fires when count rises to/above threshold</option>
+                <option value="below">Fires when count drops to/below threshold</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label" for="ca-recipient-role">Notify</label>
+              <select class="form-select" id="ca-recipient-role" required>
+                <option value="OVERSEER">Overseer and above</option>
+                <option value="ASSISTANT_ADMIN">Assistant Admin and above</option>
+                <option value="ADMIN">Admin only</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label" for="ca-message-override">Custom message (optional)</label>
+              <textarea class="form-control" id="ca-message-override" rows="2" maxlength="500"
+                placeholder="Leave blank to use the default message."></textarea>
+            </div>
+
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="ca-active" checked />
+              <label class="form-check-label" for="ca-active">Active</label>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-danger d-none me-auto" id="ca-delete-btn">Delete</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="ca-save-btn">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <%- include('../partials/footer') %>
+
+  <script>window.__CSRF_TOKEN__ = "<%= csrfToken %>";</script>
+  <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+  <script src="/js/capacityAlerts.js"></script>
+</body>
+</html>

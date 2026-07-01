@@ -3,6 +3,63 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.77.0] — 2026-07-01
+
+### Added
+- **Capacity Alerts.** Dynamic, admin-defined SMS thresholds tied to
+  parking count locations. New `capacity_alert_rules` table supports
+  both `percent`-of-capacity and raw `count` thresholds, `above`/`below`
+  direction, and a per-rule minimum recipient role tier
+  (`OVERSEER` / `ASSISTANT_ADMIN` / `ADMIN`).
+  - **Edge-triggered evaluation** (`lib/capacityAlerter.js`) — each rule
+    carries an `is_armed` flag. A rule fires once when the count crosses
+    its threshold, then disarms until the count returns to the safe side,
+    preventing repeat-heartbeat spam without a timer.
+  - Hooked into all three count-insert paths in `countsRoutes.js`
+    (heartbeat, submit, manual-submit) as fire-and-forget calls so a
+    Twilio hiccup never delays the count response.
+  - SMS delivery reuses the existing Twilio path (`sendAlertSms` from
+    `alertScheduler.js`); every send attempt is logged to the new
+    `capacity_alert_log` table (sent/failed, recipient count, error).
+  - New admin CRUD UI at `/oversight/tools/capacity-alerts`
+    (`accessAdminConsole`) — create, edit, and delete rules; view recent
+    send history. Linked from the Operations hub (Scheduling section),
+    the header's Operations dropdown, and the sitemap.
+- **Configurable quarter-hour alarm on the Parking Counter.** The
+  :00/:15/:30/:45 alarm interval is fixed, but the notification style
+  is now a per-session setting: On (sound) / Vibration only / Vibration
+  and sound / Off.
+  - **Silent auto-dismiss on recent activity** — if a tap, decrement, or
+    manual entry happened within the previous two heartbeats, the alarm
+    skips entirely (no sound, no vibration, no modal), since that's
+    already evidence the volunteer is present.
+  - **Volume check gate** — selecting a sound-emitting mode plays the
+    alarm tone and requires explicit confirmation before counting
+    starts, since browsers give no way to read or set device volume.
+  - **Alarm modal** with two dismiss paths: a low-emphasis "No Activity"
+    button, and a prominent "Enter Manual Count" flow (number entry →
+    confirmation step, with an extra warning if the entered value is 0)
+    that reuses the same manual-submit path as the existing bottom
+    Manual Count Submission panel.
+  - Vibration uses the Vibration API where supported (not available on
+    iOS Safari).
+
+### Changed
+- **Heartbeat interval reduced from 60s to 15s** on the Parking Counter,
+  for finer-grained live data between explicit submits.
+- **Operations dropdown accordions now default to collapsed.** All
+  `otNav*` sections in `header.ejs` (Docs, Communications, Volunteer
+  Management, Convention, Reports, Signs, Scheduling, Attendance,
+  Counts, Decently Sync, Administration) start collapsed instead of
+  expanded, keeping the dropdown short on first open. "All Tools" stays
+  a plain top-level link, unaffected.
+
+### Fixed
+- `docs/OVERSIGHT_GUIDE.md`'s Parking Counter section described stale
+  behavior (60s heartbeat, Submit resetting the tally to zero,
+  `localStorage` persistence) that predated this release — corrected to
+  match the actual monotonic-tally / `sessionStorage` implementation.
+
 ## [2.76.0] — 2026-07-01
 
 ### Added

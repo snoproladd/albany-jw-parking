@@ -6,8 +6,17 @@
  *  - Auto-detect today's convention day; falls back to manual picker.
  *  - Location picker loaded from /api/counts/locations.
  *  - Tap button increments a monotonic running total; plays 880 Hz beep.
- *  - 60-second heartbeat POST to /api/counts/heartbeat.
- *  - Quarter-hour alarm (880 Hz + 1100 Hz two-tone) at :00/:15/:30/:45.
+ *  - 15-second heartbeat POST to /api/counts/heartbeat.
+ *  - Quarter-hour alarm (880 Hz + 1100 Hz two-tone) at :00/:15/:30/:45, fixed
+ *    interval. Mode is configurable: on (sound) / vibration only /
+ *    vibration and sound / off. If a tap, decrement, or manual entry
+ *    happened within the previous two heartbeats, the alarm dismisses
+ *    itself silently — no sound, no vibration, no modal — since that's
+ *    already evidence the volunteer is present and counting.
+ *  - A one-time "volume check" modal plays the alarm tone and requires
+ *    explicit confirmation before counting starts, whenever a sound mode
+ *    is selected — browsers give no way to read or set device volume,
+ *    so this is a best-effort nudge rather than a guarantee.
  *  - Submit POST to /api/counts/submit records the running total as a
  *    confirmed checkpoint (is_final = 1) WITHOUT resetting the local
  *    tally. This preserves the report's MAX-per-15min-bucket aggregation
@@ -51,8 +60,46 @@ const manualEntry = document.getElementById("manualEntry");
 const manualCountInput = /** @type {HTMLInputElement} */ (document.getElementById("manualCountInput"));
 const manualSubmitBtn = document.getElementById("manualSubmitBtn");
 const decrementBtn = document.getElementById("decrementBtn");
-const subLocationWrap   = document.getElementById("subLocationWrap");
-const subLocationSelect = /** @type {HTMLSelectElement | null} */ (document.getElementById("subLocationSelect"));
+const subLocationWrap = document.getElementById("subLocationWrap");
+const subLocationSelect = /** @type {HTMLSelectElement | null} */ (
+  document.getElementById("subLocationSelect")
+);
+
+const alarmModeSelect = /** @type {HTMLSelectElement} */ (
+  document.getElementById("alarmModeSelect")
+);
+const testAlarmBtn = document.getElementById("testAlarmBtn");
+const volumeCheckModalEl = document.getElementById("volumeCheckModal");
+const volumeCheckReplayBtn = document.getElementById("volumeCheckReplayBtn");
+const volumeCheckContinueBtn = document.getElementById(
+  "volumeCheckContinueBtn",
+);
+const alarmModalEl = document.getElementById("alarmModal");
+const alarmChoiceLocationName = document.getElementById(
+  "alarmChoiceLocationName",
+);
+const alarmChoiceView = document.getElementById("alarmChoiceView");
+const alarmEntryView = document.getElementById("alarmEntryView");
+const alarmConfirmView = document.getElementById("alarmConfirmView");
+const alarmEnterCountBtn = document.getElementById("alarmEnterCountBtn");
+const alarmNoActivityBtn = document.getElementById("alarmNoActivityBtn");
+const alarmManualInput = /** @type {HTMLInputElement} */ (
+  document.getElementById("alarmManualInput")
+);
+const alarmManualSubmitBtn = document.getElementById("alarmManualSubmitBtn");
+const alarmManualBackBtn = document.getElementById("alarmManualBackBtn");
+const alarmConfirmText = document.getElementById("alarmConfirmText");
+const alarmConfirmZeroWarning = document.getElementById(
+  "alarmConfirmZeroWarning",
+);
+const alarmConfirmSubmitBtn = document.getElementById("alarmConfirmSubmitBtn");
+const alarmConfirmEditBtn = document.getElementById("alarmConfirmEditBtn");
+
+/** Heartbeat cadence in milliseconds — single source of truth, also sizes the alarm's "recent activity" dismiss window. */
+const HEARTBEAT_INTERVAL_MS = 15_000;
+
+/** How many prior heartbeats count as "recent" for silently dismissing the quarter-hour alarm. */
+const ALARM_ACTIVITY_HEARTBEATS = 2;
 
 // ── State ───────────────────────────────────────────────────────────────────
 
@@ -69,6 +116,15 @@ const subLocationSelect = /** @type {HTMLSelectElement | null} */ (document.getE
  * successful is_final = 1 submission — displayed in the bottom bar so
  * the user can see how far they've counted since their last checkpoint.
  *
+* `alarmMode` is a device/session preference — one of 'on', 'vibration',
+ * 'vibration_alarm', or 'off'. It survives `returnToSetup()` (unlike the
+ * count/location fields) since it's a notification preference, not part
+ * of a specific counting session.
+ *
+ * `lastActivityAt` is the timestamp (ms) of the most recent tap,
+ * decrement, or manual-entry submission — used to silently dismiss the
+ * quarter-hour alarm when the volunteer was clearly already active.
+ *
  * @typedef {{
  *   locationTaskId:  number | null,
  *   locationName:    string | null,
@@ -78,6 +134,8 @@ const subLocationSelect = /** @type {HTMLSelectElement | null} */ (document.getE
  *   count:           number,
  *   lastConfirmed:   number,
  *   active:          boolean,
+ *   alarmMode:       'on' | 'vibration' | 'vibration_alarm' | 'off',
+ *   lastActivityAt:  number,
  * }} CountState
  */
 
@@ -91,6 +149,8 @@ const state = {
   count:         0,
   lastConfirmed: 0,
   active:        false,
+  alarmMode:      "on",
+  lastActivityAt: 0,
 };
 
 // ── sessionStorage ──────────────────────────────────────────────────────────
@@ -217,6 +277,20 @@ function releaseWakeLock() {
   }
 }
 
+// ── Vibration ────────────────────────────────────────────────────────────────
+
+/**
+ * Vibrate the device in a distinct pattern, if the Vibration API is
+ * supported. Silently no-ops on unsupported browsers (notably iOS
+ * Safari, which has no Vibration API at all).
+ * @returns {void}
+ */
+function vibrateAlarm() {
+  if ("vibrate" in navigator) {
+    navigator.vibrate([300, 150, 300, 150, 300]);
+  }
+}
+
 // ── Heartbeat ────────────────────────────────────────────────────────────────
 
 /** @type {number | null} */
@@ -246,13 +320,13 @@ async function sendHeartbeat() {
 }
 
 /**
- * Start the 60-second heartbeat interval.
+ * Start the 15-second heartbeat interval.
  * Clears any existing interval first.
  * @returns {void}
  */
 function startHeartbeat() {
   clearInterval(heartbeatInterval);
-  heartbeatInterval = setInterval(sendHeartbeat, 60_000);
+  heartbeatInterval = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
 }
 
 /**
@@ -272,9 +346,25 @@ let alarmInterval = null;
 /** Tracks the last minute the alarm fired to prevent duplicate plays. */
 let lastAlarmMinute = -1;
 
+/** @type {import('bootstrap').Modal | null} */
+let alarmModal = null;
+
+/**
+ * Return (or lazily create) the shared alarm modal instance.
+ * @returns {import('bootstrap').Modal}
+ */
+function getAlarmModal() {
+  if (!alarmModal) {
+    alarmModal = new bootstrap.Modal(alarmModalEl, { backdrop: "static", keyboard: false });
+  }
+  return alarmModal;
+}
+
 /**
  * Start checking every 60 seconds whether it's a quarter-hour mark.
- * Plays the two-tone alarm at :00, :15, :30, and :45.
+ * The check runs every minute (not every 15s) since minute-level
+ * resolution is all the :00/:15/:30/:45 mark needs — this is
+ * independent of the heartbeat cadence.
  * @returns {void}
  */
 function startAlarm() {
@@ -285,7 +375,7 @@ function startAlarm() {
     const m = new Date().getMinutes();
     if (m % 15 === 0 && m !== lastAlarmMinute) {
       lastAlarmMinute = m;
-      playAlarm();
+      handleQuarterHourMark();
     }
   }, 60_000);
 }
@@ -299,6 +389,56 @@ function stopAlarm() {
   alarmInterval = null;
 }
 
+/**
+ * Fired once per quarter-hour mark. If alarmMode is 'off', does nothing.
+ * If there was tap/decrement/manual activity within the last
+ * ALARM_ACTIVITY_HEARTBEATS heartbeats, dismisses silently — no sound,
+ * no vibration, no modal — since that's already evidence the volunteer
+ * is present. Otherwise plays sound/vibration per the selected mode and
+ * shows the alarm modal for explicit acknowledgment.
+ * @returns {void}
+ */
+function handleQuarterHourMark() {
+  if (state.alarmMode === "off") return;
+
+  const activityWindowMs = ALARM_ACTIVITY_HEARTBEATS * HEARTBEAT_INTERVAL_MS;
+  const recentActivity = Date.now() - state.lastActivityAt <= activityWindowMs;
+  if (recentActivity) return;
+
+  if (state.alarmMode === "vibration" || state.alarmMode === "vibration_alarm") {
+    vibrateAlarm();
+  }
+  if (state.alarmMode === "on" || state.alarmMode === "vibration_alarm") {
+    playAlarm();
+  }
+
+  showAlarmModal();
+}
+
+/**
+ * Reset the alarm modal to its initial choice view and show it.
+ * @returns {void}
+ */
+function showAlarmModal() {
+  alarmChoiceLocationName.textContent = state.subLocationName
+    ? `${state.locationName} — ${state.subLocationName}`
+    : (state.locationName ?? "this location");
+  setAlarmModalView("choice");
+  alarmManualInput.value = "";
+  getAlarmModal().show();
+}
+
+/**
+ * Switch the alarm modal's visible internal view.
+ * @param {"choice" | "entry" | "confirm"} view
+ * @returns {void}
+ */
+function setAlarmModalView(view) {
+  alarmChoiceView.classList.toggle("d-none", view !== "choice");
+  alarmEntryView.classList.toggle("d-none", view !== "entry");
+  alarmConfirmView.classList.toggle("d-none", view !== "confirm");
+}
+
 // ── UI transitions ───────────────────────────────────────────────────────────
 
 /**
@@ -308,6 +448,7 @@ function stopAlarm() {
  */
 function enterCountingState() {
   state.active = true;
+  state.lastActivityAt = Date.now();
   setupPanel.classList.add("d-none");
   countingPanel.classList.remove("d-none");
   activeLocationName.textContent = state.subLocationName
@@ -320,21 +461,22 @@ function enterCountingState() {
   startHeartbeat();
   startAlarm();
 }
-
 /**
  * Return from the counting panel to the setup panel.
  * Resets state and reloads setup data.
  * @returns {void}
  */
 function returnToSetup() {
-  state.active          = false;
-  state.count           = 0;
-  state.lastConfirmed   = 0;
-  state.locationTaskId  = null;
-  state.locationName    = null;
+  state.active = false;
+  state.count = 0;
+  state.lastConfirmed = 0;
+  state.locationTaskId = null;
+  state.locationName = null;
   state.conventionDayId = null;
-  state.subLocationId   = null;
+  state.subLocationId = null;
   state.subLocationName = null;
+  // alarmMode is intentionally NOT reset — it's a standing device
+  // preference, not part of the counting session being cleared.
   stopHeartbeat();
   stopAlarm();
   releaseWakeLock();
@@ -346,12 +488,12 @@ function returnToSetup() {
 
   // Reset setup UI for a fresh load.
   locationSelect.innerHTML = '<option value="">Loading…</option>';
-  daySelect.innerHTML      = '<option value="">Select a day…</option>';
+  daySelect.innerHTML = '<option value="">Select a day…</option>';
   daySelect.classList.add("d-none");
   dayAutoRow.classList.add("d-none");
   dayNotice.classList.add("d-none");
   setupError.classList.add("d-none");
-  if (subLocationWrap)   subLocationWrap.classList.add("d-none");
+  if (subLocationWrap) subLocationWrap.classList.add("d-none");
   if (subLocationSelect) subLocationSelect.innerHTML = "";
 
   initSetup();
@@ -621,7 +763,9 @@ manualToggleBtn.addEventListener("click", () => {
 });
 
 /**
- * Submit a manually-entered count.
+ * POST a manually-entered delta to /api/counts/manual-submit and fold it
+ * into the running total. Shared by the bottom "Manual Count Submission"
+ * panel and the quarter-hour alarm modal's manual-count path.
  *
  * The value is a DELTA that folds into the running total: `state.count`
  * is incremented by the entered value before the POST, and the POST body
@@ -631,23 +775,15 @@ manualToggleBtn.addEventListener("click", () => {
  * the report's MAX-per-bucket aggregation consistent with tap-flow
  * submits.
  *
- * Negatives are accepted for overcount corrections (per the note in the
- * UI). The running total will drop; future buckets will reflect the
- * corrected value. Within the same bucket as the overcount, the peak
- * remains what was recorded — corrections propagate forward, not
- * retroactively.
+ * Negatives are accepted for overcount corrections. The running total
+ * will drop; future buckets will reflect the corrected value. Within
+ * the same bucket as the overcount, the peak remains what was recorded
+ * — corrections propagate forward, not retroactively.
  *
- * @returns {Promise<void>}
+ * @param {number} value  Delta to fold into the running total. May be negative.
+ * @returns {Promise<{ ok: boolean, newTotal?: number, error?: string }>}
  */
-async function handleManualSubmit() {
-  const value = parseInt(manualCountInput.value, 10);
-  if (isNaN(value)) {
-    manualCountInput.classList.add("is-invalid");
-    return;
-  }
-  manualCountInput.classList.remove("is-invalid");
-  manualSubmitBtn.disabled = true;
-
+async function submitManualCountValue(value) {
   const newTotal = state.count + value;
 
   try {
@@ -664,27 +800,141 @@ async function handleManualSubmit() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
 
-    state.count         = newTotal;
-    state.lastConfirmed = newTotal;
+    state.count          = newTotal;
+    state.lastConfirmed  = newTotal;
+    state.lastActivityAt = Date.now();
     countDisplay.textContent        = String(state.count);
     sessionTotalDisplay.textContent = String(state.lastConfirmed);
     saveState();
+    return { ok: true, newTotal };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
+/**
+ * Handle the bottom "Manual Count Submission" panel's Submit button.
+ * @returns {Promise<void>}
+ */
+async function handleManualSubmit() {
+  const value = parseInt(manualCountInput.value, 10);
+  if (isNaN(value)) {
+    manualCountInput.classList.add("is-invalid");
+    return;
+  }
+  manualCountInput.classList.remove("is-invalid");
+  manualSubmitBtn.disabled = true;
+
+  const result = await submitManualCountValue(value);
+
+  if (result.ok) {
     manualCountInput.value = "";
     manualEntry.classList.add("d-none");
     manualToggleBtn.setAttribute("aria-expanded", "false");
     showBanner(
       value >= 0
-        ? `Manual +${value} · confirmed at ${newTotal}`
-        : `Manual ${value} · confirmed at ${newTotal}`,
+        ? `Manual +${value} · confirmed at ${result.newTotal}`
+        : `Manual ${value} · confirmed at ${result.newTotal}`,
     );
-  } catch (err) {
-    showBanner(`Manual submit failed: ${err.message}`, true);
-  } finally {
-    manualSubmitBtn.disabled = false;
+  } else {
+    showBanner(`Manual submit failed: ${result.error}`, true);
   }
+  manualSubmitBtn.disabled = false;
 }
 
 manualSubmitBtn.addEventListener("click", handleManualSubmit);
+
+// ── Quarter-hour alarm modal ────────────────────────────────────────────────
+
+/** Pending manual count value awaiting confirmation in the alarm modal. */
+let pendingAlarmValue = null;
+
+alarmEnterCountBtn.addEventListener("click", () => {
+  setAlarmModalView("entry");
+  alarmManualInput.focus();
+});
+
+alarmNoActivityBtn.addEventListener("click", () => {
+  getAlarmModal().hide();
+  showBanner("Acknowledged — no activity noted.");
+});
+
+alarmManualBackBtn.addEventListener("click", () => {
+  setAlarmModalView("choice");
+});
+
+alarmManualSubmitBtn.addEventListener("click", () => {
+  const value = parseInt(alarmManualInput.value, 10);
+  if (isNaN(value)) {
+    alarmManualInput.classList.add("is-invalid");
+    return;
+  }
+  alarmManualInput.classList.remove("is-invalid");
+  pendingAlarmValue = value;
+
+  alarmConfirmText.textContent = `Confirm count: ${value}`;
+  alarmConfirmZeroWarning.classList.toggle("d-none", value !== 0);
+  setAlarmModalView("confirm");
+});
+
+alarmConfirmEditBtn.addEventListener("click", () => {
+  setAlarmModalView("entry");
+});
+
+alarmConfirmSubmitBtn.addEventListener("click", async () => {
+  if (pendingAlarmValue == null) return;
+  alarmConfirmSubmitBtn.disabled = true;
+
+  const value  = pendingAlarmValue;
+  const result = await submitManualCountValue(value);
+
+  alarmConfirmSubmitBtn.disabled = false;
+
+  if (result.ok) {
+    pendingAlarmValue = null;
+    getAlarmModal().hide();
+    showBanner(
+      value >= 0
+        ? `Manual +${value} · confirmed at ${result.newTotal}`
+        : `Manual ${value} · confirmed at ${result.newTotal}`,
+    );
+  } else {
+    showBanner(`Manual submit failed: ${result.error}`, true);
+  }
+});
+
+// ── Alarm mode + volume check ───────────────────────────────────────────────
+
+alarmModeSelect.addEventListener("change", () => {
+  state.alarmMode = /** @type {CountState['alarmMode']} */ (alarmModeSelect.value);
+  saveState();
+});
+
+testAlarmBtn?.addEventListener("click", () => {
+  const mode = alarmModeSelect.value;
+  if (mode === "vibration" || mode === "vibration_alarm") vibrateAlarm();
+  if (mode === "on" || mode === "vibration_alarm") playAlarm();
+});
+
+/** @type {import('bootstrap').Modal | null} */
+let volumeCheckModal = null;
+
+/**
+ * Return (or lazily create) the shared volume-check modal instance.
+ * @returns {import('bootstrap').Modal}
+ */
+function getVolumeCheckModal() {
+  if (!volumeCheckModal) {
+    volumeCheckModal = new bootstrap.Modal(volumeCheckModalEl, { backdrop: "static", keyboard: false });
+  }
+  return volumeCheckModal;
+}
+
+volumeCheckReplayBtn?.addEventListener("click", () => playAlarm());
+volumeCheckContinueBtn?.addEventListener("click", () => {
+  getVolumeCheckModal().hide();
+  enterCountingState();
+});
 
 // Page Visibility — beacon the current count when hiding (navigation away, tab
 // switch, screen lock), and catch-up heartbeat + Wake Lock on restore.
@@ -738,8 +988,13 @@ async function init() {
   const saved = loadSavedState();
   if (saved?.active && saved.locationTaskId && saved.conventionDayId) {
     Object.assign(state, saved);
+    alarmModeSelect.value = state.alarmMode;
     enterCountingState();
     return;
+  }
+  if (saved?.alarmMode) {
+    state.alarmMode = saved.alarmMode;
+    alarmModeSelect.value = state.alarmMode;
   }
   await initSetup();
 }

@@ -57,7 +57,7 @@
                     </select>
                 </div>
 
-                <%# Sub-location picker — revealed when the selected location has sub-locations %>
+<%# Sub-location picker — revealed when the selected location has sub-locations %>
                 <div class="counts-field-group mb-4 d-none" id="subLocationWrap">
                     <label class="counts-field-label" for="subLocationSelect">
                         Entrance / Section <span class="counts-field-required">*</span>
@@ -65,6 +65,26 @@
                     <select id="subLocationSelect" class="form-select counts-select" aria-label="Entrance or section">
                         <option value="">Select an entrance or section…</option>
                     </select>
+                </div>
+
+                <%# Quarter-hour alarm mode — interval is fixed at :00/:15/:30/:45, only the notification style is configurable %>
+                <div class="counts-field-group mb-4">
+                    <label class="counts-field-label" for="alarmModeSelect">Quarter-Hour Alarm</label>
+                    <div class="counts-alarm-row">
+                        <select id="alarmModeSelect" class="form-select counts-select" aria-label="Quarter-hour alarm mode">
+                            <option value="on">On (sound)</option>
+                            <option value="vibration">Vibration only</option>
+                            <option value="vibration_alarm">Vibration and sound</option>
+                            <option value="off">Off</option>
+                        </select>
+                        <button type="button" id="testAlarmBtn" class="counts-link-btn counts-test-alarm-btn">
+                            <i class="fa-solid fa-volume-high me-1"></i>Test
+                        </button>
+                    </div>
+                    <p class="counts-alarm-hint">
+                        <i class="fa-solid fa-circle-info me-1"></i>
+                        Fires at :00, :15, :30, and :45 — this can't be changed, only whether it sounds and/or vibrates.
+                    </p>
                 </div>
 
                 <button type="button" id="startBtn" class="btn counts-start-btn w-100" disabled>
@@ -158,6 +178,79 @@
         </div>
 
     </main>
+
+    <%# ── Volume check gate — shown once before starting, only when a sound alarm mode is selected ── %>
+    <div class="modal fade" id="volumeCheckModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fa-solid fa-volume-high me-2"></i>Volume Check</h5>
+                </div>
+                <div class="modal-body">
+                    <p>Playing the quarter-hour alarm tone now. Turn your volume up and make sure your device isn't on silent/mute.</p>
+                    <p class="text-muted small mb-0">If you can't hear it, switch to Vibration Only or Vibration and Sound instead of On.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" id="volumeCheckReplayBtn" class="btn btn-outline-secondary">
+                        <i class="fa-solid fa-rotate-right me-1"></i>Play Again
+                    </button>
+                    <button type="button" id="volumeCheckContinueBtn" class="btn btn-primary">
+                        I Heard It — Start Counting
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <%# ── Quarter-hour alarm modal — three internal views: choice, manual entry, confirm ── %>
+    <div class="modal fade" id="alarmModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fa-solid fa-bell me-2"></i>Quarter-Hour Check</h5>
+                </div>
+                <div class="modal-body">
+
+                    <%# View 1: choice %>
+                    <div id="alarmChoiceView">
+                        <p>Did any activity happen at <span id="alarmChoiceLocationName"></span> in this period?</p>
+                        <div class="d-grid gap-2">
+                            <button type="button" id="alarmEnterCountBtn" class="btn btn-primary btn-lg">
+                                <i class="fa-solid fa-keyboard me-1"></i>Enter Manual Count
+                            </button>
+                            <button type="button" id="alarmNoActivityBtn" class="btn btn-outline-secondary btn-sm mt-2">
+                                No Activity
+                            </button>
+                        </div>
+                    </div>
+
+                    <%# View 2: manual entry %>
+                    <div id="alarmEntryView" class="d-none">
+                        <label class="form-label" for="alarmManualInput">Manual count</label>
+                        <input type="number" id="alarmManualInput" class="form-control form-control-lg" placeholder="0" aria-label="Manual count value" />
+                        <div class="d-grid gap-2 mt-3">
+                            <button type="button" id="alarmManualSubmitBtn" class="btn btn-primary btn-lg">Submit</button>
+                            <button type="button" id="alarmManualBackBtn" class="btn btn-outline-secondary btn-sm mt-2">Back (No Count)</button>
+                        </div>
+                    </div>
+
+                    <%# View 3: confirm %>
+                    <div id="alarmConfirmView" class="d-none">
+                        <p id="alarmConfirmText" class="fs-5 text-center"></p>
+                        <p id="alarmConfirmZeroWarning" class="alert alert-warning d-none">
+                            <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                            You entered 0. If nothing happened, use "No Activity" instead of a manual count of 0.
+                        </p>
+                        <div class="d-grid gap-2 mt-2">
+                            <button type="button" id="alarmConfirmSubmitBtn" class="btn btn-primary btn-lg">Confirm &amp; Submit</button>
+                            <button type="button" id="alarmConfirmEditBtn" class="btn btn-outline-secondary btn-sm mt-2">Edit</button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
 
     <%- include('partials/footer') %>
 

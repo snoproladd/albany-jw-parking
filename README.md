@@ -193,6 +193,7 @@ parking/
 │
 ├── lib/
 │   ├── alertScheduler.js      # Shift-alert scheduling engine (cron-like timer)
+│   ├── capacityAlerter.js     # Event-driven capacity threshold engine (edge-triggered SMS alerts)
 │   ├── blobStorage.js         # Azure Blob Storage helpers (sign photos, lesson photos, published file streaming)
 │   ├── dbSync.js              # All database query functions
 │   ├── graphClient.js         # Microsoft Graph API client (OneDrive)
@@ -221,6 +222,7 @@ parking/
 │   ├── registrationRoutes.js  # Registration flow (multi-step draft)
 │   ├── signsRoutes.js         # Sign Library, Sign Builder, Sign Map — templates, locations, and attachments CRUD
 │   ├── countsRoutes.js        # Parking Counter tally page + count report API
+│   ├── capacityAlertRoutes.js # Capacity Alerts CRUD (rules + send history)
 │   ├── systemVariablesRoutes.js # System Variables management + sub-location CRUD
 │   ├── lessonsLearnedRoutes.js  # Lessons Learned management + PDF proxy + batch-publish
 │   ├── sitemapRoutes.js       # Public role-filtered sitemap page
@@ -824,6 +826,16 @@ Schema highlights:
   (ON DELETE CASCADE)`, `name`, `sub_type_id FK → system_variable_lists`, `display_order`,
   `active BIT`. Deleting a location cascades to its sub-locations; counts that referenced a
   deleted sub-location have `sub_location_id` set to NULL (data preserved).
+- `capacity_alert_rules` — dynamic threshold definitions for the Capacity Alerts feature.
+  Fields: `location_task_id FK`, `sub_location_id INT NULL FK` (NULL = whole location),
+  `threshold_type` (`percent` | `count`), `threshold_value INT`, `direction` (`above` |
+  `below`), `recipient_role` (minimum role tier notified), `message_override NVARCHAR(500)
+  NULL`, `is_armed BIT` (edge-trigger state — set to 0 on fire, back to 1 once the count
+  returns to the safe side), `active BIT`, `created_by FK`. Editing a rule always resets
+  `is_armed` to 1.
+- `capacity_alert_log` — send-attempt audit log for Capacity Alerts. Fields: `rule_id FK`,
+  `location_task_id`, `triggered_count`, `recipient_count`, `status` (`sent` | `failed`),
+  `error_msg NVARCHAR(500) NULL`, `sent_at`.
 - `volunteer_tour_dismissals` — tracks which guided tour prompts a volunteer has permanently dismissed; composite PK `(volunteer_id, tour_id)`, FK to `volunteer_in(id)`. Special `tour_id = '_all'` disables all first-visit prompts site-wide.
 - `shift_rendezvous_points` — one optional meeting point per schedule assignment
   (shift + location pair). Fields: `description`, `address`, `latitude`/`longitude`

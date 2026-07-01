@@ -593,6 +593,21 @@
                   </div>
                 <% } %>
 
+                <% if (can('accessAdminConsole')) { %>
+                  <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="admin-tool-card h-100">
+                      <div class="admin-tool-icon text-warning">
+                        <i class="fa-solid fa-warehouse"></i>
+                      </div>
+                      <h3 class="admin-tool-title">Capacity Alerts</h3>
+                      <p class="admin-tool-desc">Define SMS alert thresholds per location — percent or raw count — and choose who gets notified when a lot fills up.</p>
+                      <a href="/oversight/tools/capacity-alerts" class="btn btn-warning admin-tool-btn">
+                        Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                      </a>
+                    </div>
+                  </div>
+                <% } %>
+
               </div>
             <% } %>
 

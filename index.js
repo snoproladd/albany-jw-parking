@@ -44,6 +44,7 @@ import { scheduleAnalysisRouter }  from "./routes/scheduleAnalysisRoutes.js";
 import { signsRouter } from "./routes/signsRoutes.js";
 import { countsRouter } from "./routes/countsRoutes.js";
 import { systemVariablesRouter } from "./routes/systemVariablesRoutes.js";
+import { capacityAlertRouter } from "./routes/capacityAlertRoutes.js";
 import { lessonsLearnedRouter } from "./routes/lessonsLearnedRoutes.js";
 import { getBaseUrl, resetSmsClient } from "./lib/messaging.js";
 import { startAlertScheduler } from "./lib/alertScheduler.js";
@@ -807,8 +808,15 @@ app.use("/", noteAnalysisRouter({ csrfProtection, logError }));
 app.use("/", constraintRouter({ csrfProtection, logError }));
 app.use("/", scheduleAnalysisRouter({ csrfProtection, logError }));
 app.use("/", blackoutRouter({ csrfProtection, logError }));
-app.use("/", countsRouter({ csrfProtection, logError }));
+app.use("/", countsRouter({
+  csrfProtection,
+  logError,
+  twilioAccountSid: config.TWILIO_ACCOUNT_SID,
+  twilioAuthToken:  config.TWILIO_AUTH_TOKEN,
+  twilioMsgSid:     config.TWILIO_MSG_SID,
+}));
 app.use("/", systemVariablesRouter({ csrfProtection, logError }));
+app.use("/", capacityAlertRouter({ csrfProtection, logError }));
 app.use(
     "/",
     lessonsLearnedRouter({

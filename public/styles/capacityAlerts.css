@@ -1,0 +1,22 @@
+/**
+ * @file capacityAlerts.css
+ * @description Styling for the Capacity Alerts management page
+ * (/oversight/tools/capacity-alerts).
+ */
+
+.ca-card {
+    max-width: none;
+}
+
+#ca-rules-table-wrap {
+    overflow-x: auto;
+}
+
+#ca-rules-table th,
+#ca-rules-table td {
+    vertical-align: middle;
+}
+
+#ca-log-table {
+    font-size: 0.9rem;
+}

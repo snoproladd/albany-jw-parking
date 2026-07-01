@@ -133,13 +133,13 @@
                 <li>
                   <button class="ot-nav-category" type="button"
                           data-bs-toggle="collapse"
-                          data-bs-target="#otNavDocs">
+                          data-bs-target="#otNavDocs" aria-expanded="false">
                     <span><i class="fa-solid fa-folder-open me-2"></i>Docs</span>
                     <i class="fa-solid fa-chevron-down ot-nav-chevron"></i>
                   </button>
                 </li>
                 <li>
-                  <div class="collapse show" id="otNavDocs">
+                  <div class="collapse" id="otNavDocs">
                     <ul class="ot-nav-items">
                       <% if (can('viewMaps')) { %>
                         <li><a class="ot-nav-item" href="/maps">
@@ -166,13 +166,13 @@
                 <li>
                   <button class="ot-nav-category" type="button"
                           data-bs-toggle="collapse"
-                          data-bs-target="#otNavComms">
+                          data-bs-target="#otNavComms" aria-expanded="false">
                     <span><i class="fa-solid fa-paper-plane me-2"></i>Communications</span>
                     <i class="fa-solid fa-chevron-down ot-nav-chevron"></i>
                   </button>
                 </li>
                 <li>
-                  <div class="collapse show" id="otNavComms">
+                  <div class="collapse" id="otNavComms">
                     <ul class="ot-nav-items">
                       <li><a class="ot-nav-item" href="/oversight/tools/campaigns">
                         <i class="fa-solid fa-envelope-open-text"></i>Campaign Center
@@ -193,13 +193,13 @@
                 <li>
                   <button class="ot-nav-category" type="button"
                           data-bs-toggle="collapse"
-                          data-bs-target="#otNavVolunteers">
+                          data-bs-target="#otNavVolunteers" aria-expanded="false">
                     <span><i class="fa-solid fa-users me-2"></i>Volunteer Management</span>
                     <i class="fa-solid fa-chevron-down ot-nav-chevron"></i>
                   </button>
                 </li>
                 <li>
-                  <div class="collapse show" id="otNavVolunteers">
+                  <div class="collapse" id="otNavVolunteers">
                     <ul class="ot-nav-items">
                       <% if (can('editVolunteerInfo')) { %>
                         <li><a class="ot-nav-item" href="/editVolunteer">
@@ -231,13 +231,13 @@
                 <li>
                   <button class="ot-nav-category" type="button"
                           data-bs-toggle="collapse"
-                          data-bs-target="#otNavConvention">
+                          data-bs-target="#otNavConvention" aria-expanded="false">
                     <span><i class="fa-solid fa-book-open me-2"></i>Convention</span>
                     <i class="fa-solid fa-chevron-down ot-nav-chevron"></i>
                   </button>
                 </li>
                 <li>
-                  <div class="collapse show" id="otNavConvention">
+                  <div class="collapse" id="otNavConvention">
                     <ul class="ot-nav-items">
                       <li><a class="ot-nav-item" href="/oversight/tools/lessons-learned">
                         <i class="fa-solid fa-book-open"></i>Lessons Learned
@@ -252,13 +252,13 @@
                 <li>
                   <button class="ot-nav-category" type="button"
                           data-bs-toggle="collapse"
-                          data-bs-target="#otNavReports">
+                          data-bs-target="#otNavReports" aria-expanded="false">
                     <span><i class="fa-solid fa-chart-bar me-2"></i>Reports</span>
                     <i class="fa-solid fa-chevron-down ot-nav-chevron"></i>
                   </button>
                 </li>
                 <li>
-                  <div class="collapse show" id="otNavReports">
+                  <div class="collapse" id="otNavReports">
                     <ul class="ot-nav-items">
                       <li class="ot-nav-group-label">Volunteers</li>
                       <li><a class="ot-nav-item" href="/oversight/tools/reports?tab=app-status">
@@ -294,13 +294,13 @@
                 <li>
                   <button class="ot-nav-category" type="button"
                           data-bs-toggle="collapse"
-                          data-bs-target="#otNavSigns">
+                          data-bs-target="#otNavSigns" aria-expanded="false">
                     <span><i class="fa-solid fa-signs-post me-2"></i>Signs</span>
                     <i class="fa-solid fa-chevron-down ot-nav-chevron"></i>
                   </button>
                 </li>
                 <li>
-                  <div class="collapse show" id="otNavSigns">
+                  <div class="collapse" id="otNavSigns">
                     <ul class="ot-nav-items">
                       <% if (can('viewSigns')) { %>
                         <li><a class="ot-nav-item" href="/signs">
@@ -327,13 +327,13 @@
                 <li>
                   <button class="ot-nav-category" type="button"
                           data-bs-toggle="collapse"
-                          data-bs-target="#otNavScheduling">
+                          data-bs-target="#otNavScheduling" aria-expanded="false">
                     <span><i class="fa-regular fa-calendar-days me-2"></i>Scheduling</span>
                     <i class="fa-solid fa-chevron-down ot-nav-chevron"></i>
                   </button>
                 </li>
                 <li>
-                  <div class="collapse show" id="otNavScheduling">
+                  <div class="collapse" id="otNavScheduling">
                     <ul class="ot-nav-items">
                       <% if (can('manageShifts')) { %>
                         <li><a class="ot-nav-item" href="/oversight/tools/timelines">
@@ -371,6 +371,9 @@
                         <li><a class="ot-nav-item" href="/oversight/tools/shift-alerts">
                           <i class="fa-solid fa-bell"></i>Shift Alerts
                         </a></li>
+                        <li><a class="ot-nav-item" href="/oversight/tools/capacity-alerts">
+                          <i class="fa-solid fa-warehouse"></i>Capacity Alerts
+                        </a></li>
                       <% } %>
                     </ul>
                   </div>
@@ -382,13 +385,13 @@
                 <li>
                   <button class="ot-nav-category" type="button"
                           data-bs-toggle="collapse"
-                          data-bs-target="#otNavAttendance">
+                          data-bs-target="#otNavAttendance" aria-expanded="false">
                     <span><i class="fa-solid fa-clipboard-check me-2"></i>Attendance</span>
                     <i class="fa-solid fa-chevron-down ot-nav-chevron"></i>
                   </button>
                 </li>
                 <li>
-                  <div class="collapse show" id="otNavAttendance">
+                  <div class="collapse" id="otNavAttendance">
                     <ul class="ot-nav-items">
                       <% if (can('logAttendance')) { %>
                         <li><a class="ot-nav-item" href="/oversight/tools/attendance/checkin">
@@ -410,13 +413,13 @@
                 <li>
                   <button class="ot-nav-category" type="button"
                           data-bs-toggle="collapse"
-                          data-bs-target="#otNavCounts">
+                          data-bs-target="#otNavCounts" aria-expanded="false">
                     <span><i class="fa-solid fa-car me-2"></i>Counts</span>
                     <i class="fa-solid fa-chevron-down ot-nav-chevron"></i>
                   </button>
                 </li>
                 <li>
-                  <div class="collapse show" id="otNavCounts">
+                  <div class="collapse" id="otNavCounts">
                     <ul class="ot-nav-items">
                       <% if (navState.canLogParkingCount) { %>
                         <li><a class="ot-nav-item" href="/counts">
@@ -433,13 +436,13 @@
                 <li>
                   <button class="ot-nav-category" type="button"
                           data-bs-toggle="collapse"
-                          data-bs-target="#otNavDecently">
+                          data-bs-target="#otNavDecently" aria-expanded="false">
                     <span><i class="fa-solid fa-rotate me-2"></i>Decently Sync</span>
                     <i class="fa-solid fa-chevron-down ot-nav-chevron"></i>
                   </button>
                 </li>
                 <li>
-                  <div class="collapse show" id="otNavDecently">
+                  <div class="collapse" id="otNavDecently">
                     <ul class="ot-nav-items">
                       <li><a class="ot-nav-item" href="/oversight/tools/decently-export">
                         <i class="fa-solid fa-file-export"></i>Export to Decently
@@ -457,13 +460,13 @@
                 <li>
                   <button class="ot-nav-category" type="button"
                           data-bs-toggle="collapse"
-                          data-bs-target="#otNavAdmin">
+                          data-bs-target="#otNavAdmin" aria-expanded="false">
                     <span><i class="fa-solid fa-gear me-2"></i>Administration</span>
                     <i class="fa-solid fa-chevron-down ot-nav-chevron"></i>
                   </button>
                 </li>
                 <li>
-                  <div class="collapse show" id="otNavAdmin">
+                  <div class="collapse" id="otNavAdmin">
                     <ul class="ot-nav-items">
                       <li><a class="ot-nav-item" href="/oversight/tools/permissions">
                         <i class="fa-solid fa-sliders"></i>Permission Matrix
