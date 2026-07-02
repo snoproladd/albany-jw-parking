@@ -20,6 +20,7 @@ and attendance for the Albany JW Regional Convention parking team.
 | Email | IONOS SMTP via Nodemailer |
 | SMS | Twilio Messaging Services |
 | Email Validation | Kickbox REST API (native fetch, no SDK) |
+| QR Codes | `qrcode` npm package (magic-link login tokens) |
 | Frontend | Bootstrap 5, vanilla JS (no bundler), agnostic-draggable (UMD), Shepherd.js (CDN, tours) |
 | Hosting | Azure App Service (Linux container) |
 | CI/CD | GitHub Actions → Azure Container Registry |
@@ -848,6 +849,13 @@ Schema highlights:
 - `bug_reports` — full lifecycle bug tracking with resolution fields
 - `schedule_publishes` — audit log for schedule PDF publish events
 - `published_files` — generic published file tracking (sign map PDFs, etc.); stores blob name, SharePoint URL, publisher, and timestamp
+- `magic_login_tokens` — passwordless login tokens for shared operational accounts
+  (e.g. COUNTER stations), accessed via printed QR code. Fields: `volunteer_id FK`,
+  `token_hash CHAR(64)` (SHA-256; raw token is never stored, shown once at
+  generation time), `label`, `expires_at` (nullable — null means never expires
+  until manually revoked), `revoked_at`, `last_used_at`. Managed via
+  `/oversight/tools/magic-links` (ADMIN only); tokens generated via
+  `scripts/generateMagicLink.js`.
 - `volunteer_note_reads` — per-overseer read records for intake notes. Fields: `volunteer_id FK`, `read_by FK`, `read_at DATETIME`. Unique on `(volunteer_id, read_by)`; MERGE upsert on re-read updates `read_at`.
 - `volunteer_actions` — actionable items from intake notes and inbound SMS. Fields: `volunteer_id FK`, `source_type NVARCHAR(50)` (`intake_note` | `inbound_sms`), `source_id` (nullable), `solution_found BIT`, `solution NVARCHAR(MAX)`, solution stamp columns, `completed BIT`, completion stamp columns, `created_by FK`, `created_at`. Three columns on `volunteer_in`: `note_dismissed BIT`, `note_dismissed_at DATETIME`, `note_dismissed_by INT FK`.
 - `inbound_sms_messages` — every freeform inbound Twilio SMS: `volunteer_id FK` (nullable), `from_phone`, `raw_body`, `received_at`, AI result columns (`ai_summary`, `ai_category`, `ai_action_items`, `ai_raw_response`, `ai_error`, token counts), `resolved BIT`. Unresolved messages surface in the Notes Report; auto-resolved when all linked AI suggestions are applied.

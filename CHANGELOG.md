@@ -3,6 +3,28 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.80.0] — 2026-07-02
+
+### Added
+- **Magic-link login for shared accounts.** New passwordless login path
+  for shared operational accounts (e.g. COUNTER stations) via a printed
+  QR code. `dbo.magic_login_tokens` (+ `demo` mirror) stores only a
+  SHA-256 hash of each token, never the raw value. `GET /login/magic/:token`
+  establishes a session identically to password login — both now flow
+  through a shared `_establishSession()` helper in `accountRoutes.js` so
+  the two paths can't drift apart. `scripts/generateMagicLink.js` generates
+  a token, persists its hash, and writes a scannable QR PNG. Tokens never
+  expire until manually revoked. New Oversight Tools "Magic Links" page
+  (`/oversight/tools/magic-links`, ADMIN-gated) lists all tokens across all
+  volunteers with one-click revoke.
+
+### Fixed
+- **Magic-link error responses could 500.** The new `GET /login/magic/:token`
+  route called `req.csrfToken()` in its error-render branches without
+  `csrfProtection` in its middleware chain, which would throw on any
+  invalid/revoked/expired token instead of showing the intended error page.
+  Fixed before first production deploy.
+
 ## [2.79.0] — 2026-07-02
 
 ### Added

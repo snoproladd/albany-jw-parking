@@ -41,6 +41,7 @@ send invitations, track RSVPs, log attendance, and administer the platform.
    - [Permission Matrix](#permission-matrix)
    - [Oversight Structure](#oversight-structure-admin)
    - [System Variables](#system-variables-assistant_admin)
+   - [Magic Links](#magic-links-admin)
 10. [Role Reference](#10-role-reference)
 
 ---
@@ -1930,6 +1931,67 @@ classification via the **Applies to** column:
 > **Tip:** Adding a new sub-location type from the Locations page (via
 > **+ Add new type…** in the type dropdown) is equivalent to adding it here.
 > Both update the same vocabulary list.
+
+---
+
+### Magic Links *(ADMIN)*
+
+**Path:** Operations → Administration → Magic Links
+
+Manage passwordless login tokens for shared operational accounts, such as
+the COUNTER account used at parking-lot count stations. A magic link lets
+someone scan a printed QR code and land in a signed-in session without
+typing a password — useful for a shared station where re-entering the
+count account's credentials on every shift handoff is impractical.
+
+#### How it works
+
+- Each token is a long random string. Only its SHA-256 hash is stored in
+  the database — the raw token is shown once, at generation time, and
+  cannot be recovered afterward. If it's lost, revoke it and generate a
+  new one.
+- Tokens never expire on their own. They stay valid until someone revokes
+  them from this page.
+- Scanning a valid token's link signs the person in exactly as if they'd
+  typed that account's password — same role, same permissions, same
+  session behavior (including the COUNTER-role prompt that forces the
+  count-station setup panel on first use after login).
+
+#### Generating a new link
+
+There's no in-app "generate" button yet — new tokens are created by running
+a script against the server:
+
+```
+node scripts/generateMagicLink.js <email> [label]
+```
+
+For example:
+
+```
+node scripts/generateMagicLink.js count@albanyjwparking.org "Lot A Count Station"
+```
+
+This prints the login URL once and saves a scannable QR code PNG you can
+print and post at the station. Write down or save the QR image somewhere
+safe — there's no way to retrieve the same link again later.
+
+#### Managing existing links
+
+The Magic Links page lists every token that's been generated, across all
+volunteers, most recent first: who it belongs to, its label, when it was
+created, when it was last used, and its current status (**Active**,
+**Expired**, or **Revoked**).
+
+- **Revoke** — immediately invalidates a token. Anyone who scans that QR
+  code afterward sees an "invalid or has been revoked" message instead of
+  being signed in. This cannot be undone — generate a new link if the
+  station needs one again.
+
+> **Tip:** If a printed QR code is ever lost, damaged, or you're not sure
+> who's had access to it, revoke it here and print a fresh one. Because
+> each token is independent, revoking one doesn't affect any other links
+> generated for the same account.
 
 ---
 

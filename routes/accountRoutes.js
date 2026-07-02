@@ -24,8 +24,11 @@ import {
   createBlackout,
   deleteBlackoutForVolunteer,
   getSchedulerCategoryAccessForVolunteer,
+  getActiveMagicLoginTokenByHash,
+  touchMagicLoginToken,
 } from "../lib/dbSync.js";
 import { verifyPassword, hashPassword } from "../lib/passwordVer.js";
+import { hashMagicLinkToken } from "../lib/magicLinkToken.js";
 
 import { INCOMPATIBILITIES } from "../src/config/privilegeRules.js";
 
@@ -79,6 +82,60 @@ export function loginRouter({ csrfProtection, logError }) {
     }
     next();
   }
+
+  /**
+   * Establish an authenticated session for a volunteer record, shared
+   * by both password login and magic-link login so the two paths
+   * can never drift out of sync.
+   *
+   * @param {import("express").Request} req
+   * @param {{
+   *   id: number, email: string, firstName: string, lastName: string,
+   *   role: string, registration_status: string|null,
+   *   extra_signs_placement: boolean, extra_parking_count: boolean,
+   * }} user
+   * @returns {Promise<void>}
+   */
+  async function _establishSession(req, user) {
+    function makeInitials(first, last) {
+      const f = (first || "").trim();
+      const l = (last || "").trim();
+      if (!f && !l) return null;
+      const fi = f ? f[0].toUpperCase() : "";
+      const li = l ? l[0].toUpperCase() : "";
+      return fi + li || null;
+    }
+
+    const initials = makeInitials(user.firstName, user.lastName);
+    req.session.userId = user.id;
+    req.session.userEmail = user.email;
+    req.session.userInitials = initials;
+    req.session.firstName = user.firstName || "";
+    req.session.lastName = user.lastName || "";
+    req.session.userRole = user.role || "REGISTERED";
+    req.session.permissions = await loadMergedPermissions();
+    req.session.registrationStatus = user.registration_status || null;
+
+    // Build the delegated extra-permissions array from per-volunteer flags.
+    // Add a new entry here whenever a new extra_* column is added.
+    const extraPermissions = [];
+    if (user.extra_signs_placement) extraPermissions.push("manageSigns");
+    if (user.extra_parking_count) extraPermissions.push("logParkingCount");
+    req.session.extraPermissions = extraPermissions;
+
+    // Populate sensitive scheduler category access.
+    // OVERSEER+ receives null as a sentinel meaning "no filter — see all."
+    // All other roles receive the explicit list of category_ids they may view.
+    const OVERSEER_PLUS = new Set(["OVERSEER", "ASSISTANT_ADMIN", "ADMIN"]);
+    req.session.sensitiveCategories = OVERSEER_PLUS.has(req.session.userRole)
+      ? null
+      : await getSchedulerCategoryAccessForVolunteer(user.id);
+
+    // Login success → clear any leftover pendingEmail
+    req.session.pendingEmail = null;
+    req.session.loginSuccess = true;
+  }
+
   // Normalize phone like phoneVer.js "digitsOnly": strip non-digits only.
   function normalizePhone(p) {
     return (p || "").replace(/\D+/g, "");
@@ -717,49 +774,7 @@ export function loginRouter({ csrfProtection, logError }) {
           loginSuccess: false,
         });
       }
-      function makeInitials(first, last) {
-        const f = (first || "").trim();
-        const l = (last || "").trim();
-        if (!f && !l) return null;
-        const fi = f ? f[0].toUpperCase() : "";
-        const li = l ? l[0].toUpperCase() : "";
-        return fi + li || null;
-      }
-
-      // inside POST /login, after successful password validation:
-      const initials = makeInitials(user.firstName, user.lastName);
-      req.session.userId = user.id;
-      req.session.userEmail = user.email;
-      req.session.userRole = user.role;
-      req.session.userInitials = initials;
-      req.session.firstName = user.firstName || "";
-      req.session.lastName = user.lastName || "";
-      req.session.userRole = user.role || "REGISTERED";
-      req.session.permissions = await loadMergedPermissions();
-      req.session.registrationStatus = user.registration_status || null;
-
-      // Build the delegated extra-permissions array from per-volunteer flags.
-      // Add a new entry here whenever a new extra_* column is added.
-      const extraPermissions = [];
-      if (user.extra_signs_placement) extraPermissions.push("manageSigns");
-      if (user.extra_parking_count) extraPermissions.push("logParkingCount");
-      req.session.extraPermissions = extraPermissions;
-
-      // Populate sensitive scheduler category access.
-      // OVERSEER+ receives null as a sentinel meaning "no filter — see all."
-      // All other roles receive the explicit list of category_ids they may view.
-      const OVERSEER_PLUS = new Set(["OVERSEER", "ASSISTANT_ADMIN", "ADMIN"]);
-      req.session.sensitiveCategories = OVERSEER_PLUS.has(req.session.userRole)
-        ? null
-        : await getSchedulerCategoryAccessForVolunteer(user.id);
-
-      // Login success → clear any leftover pendingEmail
-      req.session.pendingEmail = null;
-
-      // Completed accounts go to Home
-      req.session.userId = user.id;
-      req.session.userEmail = user.email; // for edited_by
-      req.session.loginSuccess = true;
+      await _establishSession(req, user);
       // One-shot flag consumed by GET /counts to force the setup panel on the
       // first visit after login, even if localStorage holds a prior session's
       // location/day. Guards against shared-account handoffs (COUNTER role)
@@ -775,6 +790,49 @@ export function loginRouter({ csrfProtection, logError }) {
         csrfToken: req.csrfToken(),
         error: "An unexpected error occurred. Please try again.",
         email: trimmedEmail,
+        loginSuccess: false,
+      });
+    }
+  });
+
+  /**
+   * GET /login/magic/:token
+   * Passwordless login via a magic-link token (e.g. a printed QR code
+   * for a shared account like COUNTER). Establishes the same session
+   * a password login would, then redirects home.
+   */
+  router.get("/login/magic/:token", csrfProtection, async (req, res) => {
+    try {
+      const tokenHash = hashMagicLinkToken(req.params.token || "");
+      const row = await getActiveMagicLoginTokenByHash(tokenHash);
+
+      if (!row) {
+        return res.status(401).render("authentication_and_accounts/login", {
+          csrfToken: req.csrfToken(),
+          error: "This link is invalid or has been revoked.",
+          email: "",
+          loginSuccess: false,
+        });
+      }
+
+      if (row.account_status === "compromised") {
+        return renderAccountDisabled(req, res);
+      }
+
+      await _establishSession(req, row);
+      await touchMagicLoginToken(row.tokenId);
+
+      // Mirrors the password-login one-shot flag for shared-account
+      // handoffs (COUNTER role) -- see POST /login above.
+      req.session.forceCountsSelection = true;
+
+      return res.redirect("/");
+    } catch (err) {
+      (logError || console.error)("[accountRoutes] Magic link login error:", err);
+      return res.status(500).render("authentication_and_accounts/login", {
+        csrfToken: req.csrfToken(),
+        error: "An unexpected error occurred. Please try again.",
+        email: "",
         loginSuccess: false,
       });
     }

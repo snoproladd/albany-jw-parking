@@ -469,6 +469,14 @@
           "minRole": null,
           "permission": "accessAdminConsole",
           "tourId": "systemVariables"
+        },
+        {
+          "title": "Magic Links",
+          "path": "/oversight/tools/magic-links",
+          "description": "View and revoke passwordless login tokens for shared accounts, such as printed QR codes for COUNTER stations.",
+          "icon": "fa-solid fa-qrcode",
+          "minRole": "ADMIN",
+          "permission": "accessAdminConsole"
         }
       ]
     },

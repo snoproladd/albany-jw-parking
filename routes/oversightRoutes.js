@@ -166,6 +166,8 @@ import {
   getUnresolvedInboundSms,
   getResolvedInboundSms,
   resolveInboundSmsMessage,
+  listAllMagicLoginTokens,
+  revokeMagicLoginToken,
 } from "../lib/dbSync.js";
 
 import { verifyPassword, hashPassword } from "../lib/passwordVer.js";
@@ -2365,6 +2367,64 @@ export function oversightRouter({
       }
     },
   );
+
+  // ===========================
+  // MAGIC LINKS (passwordless login tokens for shared accounts)
+  // ===========================
+
+  /**
+   * GET /oversight/tools/magic-links
+   * List all magic login tokens across all volunteers, most recent
+   * first, for auditing and revocation.
+   */
+  router.get(
+    "/oversight/tools/magic-links",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    csrfProtection,
+    async (req, res) => {
+      try {
+        const tokens = await listAllMagicLoginTokens();
+        return res.render("authentication_and_accounts/magicLinks", {
+          csrfToken: req.csrfToken(),
+          tokens,
+        });
+      } catch (err) {
+        (logError || console.error)("magicLinks GET error:", err);
+        return res.status(500).send("Server error");
+      }
+    },
+  );
+
+  /**
+   * POST /oversight/tools/magic-links/:id/revoke
+   * Revoke a magic login token, immediately invalidating it.
+   * Response: { success }
+   */
+  router.post(
+    "/oversight/tools/magic-links/:id/revoke",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    csrfProtection,
+    async (req, res) => {
+      const id = Number(req.params.id);
+      if (!id)
+        return res.status(400).json({ success: false, error: "Invalid id." });
+
+      try {
+        const ok = await revokeMagicLoginToken(id);
+        if (!ok)
+          return res
+            .status(404)
+            .json({ success: false, error: "Token not found or already revoked." });
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("magicLinks revoke error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
   // ===========================
   // SCHEDULER CATEGORIES (replaces event-types — ASSISTANT_ADMIN+)
   // ===========================
