@@ -3469,12 +3469,12 @@ export function oversightRouter({
    * Body (JSON): { schedule_assignment_id, description, address,
    *                latitude, longitude, floor_number }
    *
-   * @requires manageShifts permission (OVERSEER+)
+   * @requires editRendezvous permission (KEYMAN+)
    */
   router.post(
     "/api/rendezvous",
     requireAuth,
-    requirePermission("manageShifts"),
+    requirePermission("editRendezvous"),
     csrfProtection,
     async (req, res) => {
       const {
@@ -5091,6 +5091,39 @@ export function oversightRouter({
           err,
         );
         res.status(500).json({ error: "Failed to fetch crew staffing data." });
+      }
+    },
+  );
+
+  // ============================================================
+  // CONTACT DIRECTORY
+  // ============================================================
+
+  /**
+   * GET /oversight/tools/contacts
+   * Render the volunteer Contact Directory — name, email, and phone
+   * for every volunteer with a completed registration. Print/export
+   * is left to the client (contactDirectory.js), gated on the
+   * printUserData permission (OVERSEER+); KEYMAN can view on-screen
+   * only.
+   *
+   * @requires viewVolunteerInfo permission (KEYMAN+)
+   */
+  router.get(
+    "/oversight/tools/contacts",
+    requireAuth,
+    requirePermission("viewVolunteerInfo"),
+    csrfProtection,
+    async (req, res) => {
+      try {
+        const volunteers = await getVolunteersForMessaging();
+        return res.render("authentication_and_accounts/contactDirectory", {
+          csrfToken: req.csrfToken(),
+          volunteers,
+        });
+      } catch (err) {
+        (logError || console.error)("contacts GET error:", err);
+        return res.status(500).send("Server error");
       }
     },
   );

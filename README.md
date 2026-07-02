@@ -286,6 +286,7 @@ parking/
 │   │   ├── counts.ejs                 # Parking Counter — mobile-first tally page
 │   │   ├── systemVariables.ejs        # System Variables management (classifications + sub-location types)
 │   │   ├── notesReport.ejs            # Notes report (intake notes + inbound SMS)
+│   │   ├── contactDirectory.ejs       # Contact Directory report (name/email/phone)
 │   │   ├── reports.ejs
 │   │   ├── scheduler.ejs
 │   │   ├── scheduleRules.ejs          # Admin page: schedule analysis rules CRUD
@@ -397,6 +398,7 @@ parking/
 │   │   ├── schedulerReport.js         # Schedule report/PDF page
 │   │   ├── schedulerTimeUtils.js      # Scheduler-specific time helpers
 │   │   ├── volunteerSchedule.js       # Volunteer schedule report (my-schedule + oversight)
+│   │   ├── contactDirectory.js        # Contact Directory: search + sort, no server round-trip
 │   │   │
 │   │   ├── # ── Rendezvous ───────────────────────────────────
 │   │   ├── rendezvous.js              # Shared RV editor/viewer panel (GPS, photo, time guard)
@@ -472,6 +474,7 @@ parking/
 │   │   ├── rendezvous.css             # Rendezvous editor panel + landing page
 │   │   ├── scheduler-categories.css   # Scheduler Categories management page
 │   │   ├── reports.css                # Reports page
+│   │   ├── contactDirectory.css       # Contact Directory report
 │   │   ├── counts.css                 # Parking Counter tally page
 │   │   ├── countReport.css            # Garage Capacity report charts
 │   │   ├── systemVariables.css        # System Variables management page
@@ -659,7 +662,8 @@ The first ADMIN must be granted directly in the database.
   ±15 min of start (sends ad-hoc SMS to assigned volunteers), hard lock >15 min after
   start. T-15 SMS alerts LEFT JOIN rendezvous data and append inline text
   (description/floor/address) plus a link to the public HMAC-gated detail page when a
-  photo exists. Permission key: `editRendezvous` (KEYMAN+ edit, OVERSEER+ create/delete).
+  photo exists. Permission key: `editRendezvous` (KEYMAN+ create/edit; delete and
+  "Apply to Other Shifts" remain `manageShifts`, OVERSEER+).
   RV data is preloaded per day in the scheduler via `preloadRendezvousForDay()` on the
   `scheduler:dayChange` event.
 - **Rendezvous “Apply to Other Shifts” (2.78.0):** copies an existing rendezvous
@@ -769,6 +773,11 @@ The first ADMIN must be granted directly in the database.
   Four tabs: All Notes (intake notes + inbound SMS cards; click-to-read tracking),
   Actionable (unified `volunteer_actions` from all sources), Solutions Summary, Archived
   (dismissed intake notes + resolved SMS messages in two labeled sections).
+- **Contact Directory (2.79.0):** `/oversight/tools/contacts` (KEYMAN+, `viewVolunteerInfo`).
+  Name/email/phone table for every volunteer with a completed registration, sourced from
+  `getVolunteersForMessaging()` — no dedicated query. Client-side search and column sort
+  in `contactDirectory.js`; no server round-trip. Print button only renders server-side
+  for `printUserData` (OVERSEER+), so KEYMAN gets view-only.
 
 ---
 

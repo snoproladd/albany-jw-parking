@@ -246,6 +246,14 @@
           "minRole": "OVERSEER",
           "permission": null,
           "tourId": "notesReport"
+        },
+        {
+          "title": "Contact Directory",
+          "path": "/oversight/tools/contacts",
+          "description": "Email and phone number for every volunteer with a completed registration.",
+          "icon": "fa-solid fa-address-book",
+          "minRole": null,
+          "permission": "viewVolunteerInfo"
         }
       ]
     },

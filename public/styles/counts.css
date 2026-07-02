@@ -384,17 +384,27 @@ body:has(.counts-main) {
 
 .counts-manual-row {
     display: flex;
+    flex-wrap: wrap;
     gap: 0.5rem;
     align-items: flex-start;
 }
 
 .counts-manual-input {
     width: 7rem;
+    max-width: 100%;
     flex-shrink: 0;
     text-align: center;
     font-size: 1.0625rem;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+.counts-manual-input::-webkit-outer-spin-button,
+.counts-manual-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
 }
 
 .counts-manual-submit-btn {
@@ -406,6 +416,8 @@ body:has(.counts-main) {
     font-size: 0.9375rem;
     font-weight: 600;
     white-space: nowrap;
+    flex: 1 1 auto;
+    min-width: 0;
     transition: background 0.15s;
 }
 

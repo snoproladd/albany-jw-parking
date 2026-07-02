@@ -36,7 +36,7 @@
         <div class="d-lg-none mb-3">
           <select class="form-select" id="otMobileNav" aria-label="Jump to section">
             <option value="">Jump to section…</option>
-            <% if (can('manageRoles') || can('editVolunteerInfo') || can('createVolunteerAccounts') || isAtLeast('OVERSEER')) { %>
+            <% if (can('manageRoles') || can('editVolunteerInfo') || can('createVolunteerAccounts') || can('viewVolunteerInfo') || isAtLeast('OVERSEER')) { %>
               <option value="volunteer-management">👥 Volunteer Management</option>
             <% } %>
             <% if (isAtLeast('OVERSEER')) { %>
@@ -72,7 +72,7 @@
           <%# ── Desktop sidebar ─────────────────────────────────────── %>
           <nav class="d-none d-lg-flex flex-column gap-1 ot-sidebar flex-shrink-0" aria-label="Section navigation">
             <div class="ot-sidebar-label">Sections</div>
-             <% if (can('manageRoles') || can('editVolunteerInfo') || can('createVolunteerAccounts') || isAtLeast('OVERSEER')) { %>
+             <% if (can('manageRoles') || can('editVolunteerInfo') || can('createVolunteerAccounts') || can('viewVolunteerInfo') || isAtLeast('OVERSEER')) { %>
               <a class="ot-sidebar-link" href="#volunteer-management">
                 <i class="fa-solid fa-users"></i> Volunteer Management
               </a>
@@ -198,11 +198,26 @@
             <%# ══════════════════════════════════════════════
                 2. VOLUNTEER MANAGEMENT
             ══════════════════════════════════════════════ %>
-            <% if (can('manageRoles') || can('editVolunteerInfo') || can('createVolunteerAccounts') || isAtLeast('OVERSEER')) { %>
+            <% if (can('manageRoles') || can('editVolunteerInfo') || can('createVolunteerAccounts') || can('viewVolunteerInfo') || isAtLeast('OVERSEER')) { %>
               <h2 class="tools-group-heading" id="volunteer-management">
                 <i class="fa-solid fa-users me-2"></i>Volunteer Management
               </h2>
               <div class="row g-4 mb-5">
+
+                <% if (can('viewVolunteerInfo')) { %>
+                  <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="admin-tool-card h-100">
+                      <div class="admin-tool-icon text-info">
+                        <i class="fa-solid fa-address-book"></i>
+                      </div>
+                      <h3 class="admin-tool-title">Contact Directory</h3>
+                      <p class="admin-tool-desc">Email and phone number for every volunteer with a completed registration.</p>
+                      <a href="/oversight/tools/contacts" class="btn btn-info admin-tool-btn">
+                        Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                      </a>
+                    </div>
+                  </div>
+                <% } %>
 
                 <% if (can('editVolunteerInfo')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">

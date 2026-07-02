@@ -1,0 +1,48 @@
+/**
+ * contactDirectory.css
+ * Styles for the Contact Directory report (/oversight/tools/contacts).
+ */
+
+.cd-search-input {
+    max-width: 320px;
+    flex: 1 1 240px;
+}
+
+.cd-sortable {
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.cd-sortable:hover {
+    color: var(--bs-emphasis-color);
+}
+
+.cd-sort-icon {
+    font-size: 0.75rem;
+    color: var(--bs-secondary-color);
+}
+
+.cd-sortable[aria-sort="ascending"] .cd-sort-icon::before,
+.cd-sortable[aria-sort="descending"] .cd-sort-icon::before {
+    content: "\f0dc";
+}
+
+.cd-sortable[aria-sort="ascending"] .cd-sort-icon {
+    color: var(--bs-primary);
+}
+
+.cd-sortable[aria-sort="descending"] .cd-sort-icon {
+    color: var(--bs-primary);
+    transform: scaleY(-1);
+    display: inline-block;
+}
+
+@media print {
+    .card-header,
+    #cdSearch,
+    #cdPrintBtn,
+    #cdVisibleCount {
+        display: none !important;
+    }
+}

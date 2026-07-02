@@ -21,6 +21,7 @@ send invitations, track RSVPs, log attendance, and administer the platform.
    - [Notes Report](#notes-report-overseer)
    - [Inbound SMS Messages](#inbound-sms-messages-overseer)
    - [SMS Management](#sms-management-assistant_admin)
+   - [Contact Directory](#contact-directory-keyman)
 4. [Communications](#4-communications)
 5. [Scheduling](#5-scheduling)
    - [Locations](#locations-overseer)
@@ -642,6 +643,26 @@ The search box filters by name in real time.
 
 ---
 
+### Contact Directory *(KEYMAN+)*
+
+**Path:** Operations → Volunteer Management → Contact Directory, or
+`/oversight/tools/contacts`
+
+A simple lookup table of email and phone number for every volunteer with a
+completed registration — useful for reaching someone directly without going
+through Campaign Center or the Scheduler.
+
+- **Columns:** Name, Email, Phone, Role. Click any column header to sort;
+  click again to reverse the direction.
+- **Search** filters across name, email, and phone as you type — no server
+  round-trip, since the full list is loaded once on page load.
+- Email addresses are `mailto:` links and phone numbers are `tel:` links, so
+  tapping either opens your device's mail or phone app directly.
+- **Print** — OVERSEER+ only. KEYMAN can view and search on-screen but not
+  print or export the list.
+
+---
+
 ## 4. Communications
 
 ### Campaign Center *(OVERSEER+)*
@@ -855,9 +876,8 @@ and an optional photo.
 | Action | Minimum Role |
 |---|---|
 | View rendezvous details | REGISTERED |
-| Edit fields, upload/clear photo | KEYMAN |
-| Create a new rendezvous point | OVERSEER |
-| Delete a rendezvous point | OVERSEER |
+| Create or edit fields, upload/clear photo | KEYMAN |
+| Apply to other shifts, delete a rendezvous point | OVERSEER |
 
 #### Landing page
 
@@ -882,8 +902,9 @@ point is set for that shift, grey means none exists yet). It shows:
 - **Photo** — upload an image (camera-capable on mobile). The photo is
   processed and stored in Azure Blob Storage.
 
-KEYMAN users can edit any field and upload or clear the photo, but only
-OVERSEER+ can create a new rendezvous point or delete one entirely.
+KEYMAN users can create a new rendezvous point, edit any field, and upload or
+clear the photo; only OVERSEER+ can apply a rendezvous point to other shifts
+or delete one entirely.
 
 #### Apply to Other Shifts *(OVERSEER+)*
 

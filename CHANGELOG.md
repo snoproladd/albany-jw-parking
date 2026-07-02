@@ -3,6 +3,38 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.79.0] — 2026-07-02
+
+### Added
+- **Contact Directory report.** New `/oversight/tools/contacts` page listing
+  name, email, and phone for every volunteer with a completed registration.
+  Sortable columns, live search, and an optional Print button gated on the
+  `printUserData` permission (OVERSEER+). Gated on the `viewVolunteerInfo`
+  permission (KEYMAN+), reusing `getVolunteersForMessaging()` for data.
+  Added a card to the Volunteer Management section of Operations, and
+  extended that section's visibility gate so KEYMAN can now see it.
+
+### Changed
+- **Rendezvous points — KEYMAN can now create, not just edit.**
+  `POST /api/rendezvous` previously required `manageShifts` (OVERSEER+);
+  it now requires `editRendezvous` (KEYMAN+), matching every other
+  rendezvous route.
+
+### Fixed
+- **Parking Counter — manual submission button off-screen on mobile.**
+  `<input type="number">` in the Manual Count Submission accordion was
+  reserving hidden width for its spinner controls on some mobile browsers,
+  pushing the Submit button past the edge of the viewport. Removed the
+  spinner via `appearance: textfield`, and added a `flex-wrap` fallback so
+  the row degrades gracefully instead of overflowing.
+- **Upgrade Account link permanently unreachable.** In `header.ejs`,
+  `showUpgrade` (`navState.canUpgrade`, i.e. `!isLoggedIn`) gated a link
+  nested inside the logged-in-only My Account dropdown — a condition that
+  could never be true where it was placed, so the link never rendered for
+  anyone. Moved it to the logged-out nav block next to Login / Create
+  Profile, where `/upgrade`'s self-service (no-auth) lookup flow actually
+  applies.
+
 ## [2.78.0] — 2026-07-01
 
 ### Added
