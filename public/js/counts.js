@@ -92,6 +92,9 @@ const alarmConfirmText = document.getElementById("alarmConfirmText");
 const alarmConfirmZeroWarning = document.getElementById(
   "alarmConfirmZeroWarning",
 );
+const alarmConfirmDeltaWarning = document.getElementById(
+  "alarmConfirmDeltaWarning",
+);
 const alarmConfirmSubmitBtn = document.getElementById("alarmConfirmSubmitBtn");
 const alarmConfirmEditBtn = document.getElementById("alarmConfirmEditBtn");
 
@@ -763,6 +766,23 @@ manualToggleBtn.addEventListener("click", () => {
 });
 
 /**
+ * Heuristic to catch the most common manual-entry mistake: a counter
+ * typing the CURRENT DISPLAYED TOTAL into a field that is documented to
+ * accept a DELTA to fold into the running total. A legitimate periodic
+ * correction (e.g. folding in a physical clicker's reading since the
+ * last fold-in) should be small relative to the running total; a value
+ * that's at least half of the current total is far more likely to be an
+ * accidental re-entry of the total itself than a real delta.
+ *
+ * @param {number} currentTotal  state.count before this submission
+ * @param {number} value         The entered value, treated as a delta
+ * @returns {boolean}
+ */
+function isSuspiciousManualDelta(currentTotal, value) {
+  return currentTotal > 0 && value >= currentTotal * 0.5;
+}
+
+/**
  * POST a manually-entered delta to /api/counts/manual-submit and fold it
  * into the running total. Shared by the bottom "Manual Count Submission"
  * panel and the quarter-hour alarm modal's manual-count path.
@@ -814,6 +834,10 @@ async function submitManualCountValue(value) {
 
 /**
  * Handle the bottom "Manual Count Submission" panel's Submit button.
+ * Warns before submitting a delta that looks like it's actually the
+ * current total (see isSuspiciousManualDelta) — this field ADDS to the
+ * running total rather than replacing it, and typing the total in by
+ * mistake silently doubles the count.
  * @returns {Promise<void>}
  */
 async function handleManualSubmit() {
@@ -823,6 +847,16 @@ async function handleManualSubmit() {
     return;
   }
   manualCountInput.classList.remove("is-invalid");
+
+  if (isSuspiciousManualDelta(state.count, value)) {
+    const proceed = confirm(
+      `This field ADDS to your current total (${state.count}) — it is not the new total.\n\n` +
+      `Entering ${value} will bring the total to ${state.count + value}.\n\n` +
+      `Continue?`,
+    );
+    if (!proceed) return;
+  }
+
   manualSubmitBtn.disabled = true;
 
   const result = await submitManualCountValue(value);
@@ -872,8 +906,12 @@ alarmManualSubmitBtn.addEventListener("click", () => {
   alarmManualInput.classList.remove("is-invalid");
   pendingAlarmValue = value;
 
-  alarmConfirmText.textContent = `Confirm count: ${value}`;
+  const suspicious = isSuspiciousManualDelta(state.count, value);
+  alarmConfirmText.textContent = suspicious
+    ? `Add ${value} to current total ${state.count} -> new total ${state.count + value}?`
+    : `Confirm count: ${value}`;
   alarmConfirmZeroWarning.classList.toggle("d-none", value !== 0);
+  alarmConfirmDeltaWarning.classList.toggle("d-none", !suspicious);
   setAlarmModalView("confirm");
 });
 
