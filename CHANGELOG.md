@@ -3,6 +3,24 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.80.1] — 2026-07-02
+
+### Fixed
+- **Check-In Tool showed no volunteers for Scheduler-assigned shifts.**
+  `getShiftAttendanceData()` sourced its "who's expected" list entirely
+  from `dbo.invitations` — the campaign/RSVP-invite table. But the
+  Scheduler (drag-and-drop assignment, "Apply to Other Shifts," etc.)
+  writes directly to `shift_slot_assignments` and never touches
+  `invitations`, so any shift populated purely through the Scheduler had
+  zero rows to show. Rewrote the query to source the expected-volunteer
+  list from `shift_slot_assignments`/`schedule_assignments` (matching the
+  pattern `getPublishNotificationData()` already uses), unioned with
+  `invitations` so campaign-invited volunteers still show up too. RSVP
+  response/channel now attach via a LEFT JOIN annotation rather than
+  gating inclusion. `getAttendanceDayData()` (the no-shifts-defined path)
+  was left as-is — there's no Scheduler-equivalent data source for a day
+  with no shift structure to fix it *to*.
+
 ## [2.80.0] — 2026-07-02
 
 ### Added

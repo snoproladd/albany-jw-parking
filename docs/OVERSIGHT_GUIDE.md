@@ -1662,7 +1662,9 @@ Used on the day of the convention to record who showed up.
 
 1. Select a **Convention Day** from the dropdown.
 2. Select a **Shift** — the volunteer list loads automatically.
-3. The table shows all invited volunteers with their RSVP response.
+3. The table shows all volunteers assigned to that shift (via the
+   Scheduler, or invited through a campaign), along with RSVP response
+   where one exists.
 4. Toggle the **Attended** switch for each volunteer who is present.
 5. Optionally add a **note** to any row (saved on blur).
 6. Use **Walk-In** to add a volunteer who wasn't on the original invite list.
