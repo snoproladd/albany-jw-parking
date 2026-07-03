@@ -3,6 +3,41 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.81.0] — 2026-07-03
+
+### Added
+- **Capacity alert kill switch.** A single global flag
+  (`capacity_alert_settings`, one row) that pauses every capacity alert
+  immediately across all locations, regardless of individual rules'
+  active/is_armed state. Checked first in `evaluateCapacityAlerts()` and
+  fails CLOSED on read error — silence is the safe default. Surfaced as
+  a red panel at the top of the Capacity Alerts page with a confirmation
+  prompt on either toggle direction and a status line showing who paused
+  it and when.
+- **Bulk enable/disable for capacity alert rules.** Checkbox column plus
+  a header select-all on the rules table; checking any rows reveals an
+  Enable Selected / Disable Selected toolbar. New
+  `PUT /api/capacity-alerts/bulk-active` route and
+  `bulkSetCapacityAlertRulesActive()`.
+- **Capacity alert resend cooldown.** `disarmCapacityAlertRule()` now
+  also enforces a 5-minute minimum interval between sends
+  (`CAPACITY_ALERT_COOLDOWN_MINUTES`, tracked via a new `last_sent_at`
+  column), atomically in the same conditional `UPDATE` that claims the
+  rule. This is deliberately redundant with `is_armed` — a second,
+  independent line of defense after a 2026-07-03 incident where
+  `is_armed` alone let a rule re-fire continuously for ~2.5 hours.
+
+### Fixed
+- **Shift alert schedule fired 3 days early, suppressing its real run.**
+  Schedule 8 ("Today's Shifts", `same_day`) fired once under a since-corrected
+  `fire_date`, logging ~250 volunteer+shift pairs as "sent." When its
+  `fire_date` was corrected to the intended day, the dedup guard in
+  `getShiftsForAlertBurst()` still saw those pairs as already handled and
+  skipped nearly all of them, so the real same-day run only reached 4
+  stragglers. `updateAlertSchedule()` now clears the schedule's
+  `shift_alert_log` automatically whenever `fire_date` changes, so a
+  correction actually takes effect.
+
 ## [2.80.2] — 2026-07-03
 
 ### Fixed

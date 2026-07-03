@@ -3,7 +3,7 @@
 A full-stack web application for managing volunteers, scheduling, messaging,
 and attendance for the Albany JW Regional Convention parking team.
 
-<!-- README last updated: v2.80.2 -->
+<!-- README last updated: v2.81.0 -->
 
 ---
 

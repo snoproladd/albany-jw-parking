@@ -1354,11 +1354,25 @@ A rule fires once per threshold crossing, then goes into a **Waiting to
 re-arm** state until the count returns to the safe side of the threshold —
 so a location hovering right at capacity doesn't trigger a text every time
 a new count comes in. The rule status badge on the management page shows
-**Armed**, **Waiting to re-arm**, or **Inactive** for each rule.
+**Armed**, **Waiting to re-arm**, or **Inactive** for each rule. As a second,
+independent safeguard, a rule also cannot re-fire within 5 minutes of its
+last send regardless of its armed state.
 
 The **Recent Sends** panel below the rules table shows the last 100 alert
 attempts with recipient counts and any failures, useful for confirming a
 rule actually fired during the convention.
+
+**Kill switch.** A red panel at the top of the page pauses every capacity
+alert immediately, across every location, regardless of individual rules'
+settings. Use this if something is misbehaving and you need to stop all
+SMS sends at once rather than editing rules one by one. Toggling it either
+way requires confirmation, and the panel shows who paused it and when
+while it's active.
+
+**Bulk enable/disable.** Check the box on any rule row (or the header
+checkbox to select all) to reveal an Enable Selected / Disable Selected
+toolbar above the table, for updating multiple rules at once instead of
+opening the edit modal for each.
 
 ---
 
@@ -2083,3 +2097,5 @@ Settings → Inbound messages → Request URL). The number-level webhook is over
 by the service and has no effect.
 
 **Inbound SMS from unknown numbers** prompt the system to reply asking for the sender's name and alert overseers automatically. The message is still logged and surfaces in the Notes Report once a volunteer match is established.
+
+**Editing a shift alert schedule's fire date clears its send history.** If you change `fire_date` on an existing schedule, its `shift_alert_log` entries are cleared automatically so the corrected date fires cleanly to everyone. Without this, a schedule that fired once under a wrong date would treat everyone as "already sent" and silently skip them when it re-fires on the corrected date — changing only the name, category, or other fields does not clear history, only a change to the date itself does.

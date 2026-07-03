@@ -20,3 +20,12 @@
 #ca-log-table {
     font-size: 0.9rem;
 }
+
+.ca-kill-switch-panel {
+    background-color: var(--bs-danger-bg-subtle, #f8d7da);
+    border-color: var(--bs-danger-border-subtle, #f1aeb5) !important;
+}
+
+#ca-bulk-toolbar {
+    align-items: center;
+}

@@ -17,8 +17,16 @@
   const saveBtn = document.getElementById("ca-save-btn");
   const locationSelect = document.getElementById("ca-location");
   const subLocationSelect = document.getElementById("ca-sub-location");
+  const killSwitchToggle = document.getElementById("ca-kill-switch-toggle");
+  const killSwitchStatus = document.getElementById("ca-kill-switch-status");
+  const selectAllCheckbox = document.getElementById("ca-select-all");
+  const bulkToolbar = document.getElementById("ca-bulk-toolbar");
+  const bulkCountLabel = document.getElementById("ca-bulk-count");
+  const bulkEnableBtn = document.getElementById("ca-bulk-enable-btn");
+  const bulkDisableBtn = document.getElementById("ca-bulk-disable-btn");
 
   let rulesCache = [];
+  const selectedIds = new Set();
 
   /**
    * Perform a fetch call with JSON body/headers and CSRF token attached.
@@ -86,6 +94,7 @@
           : "Waiting to re-arm";
 
       tr.innerHTML = `
+                <td><input type="checkbox" class="ca-row-checkbox" data-id="${rule.id}" ${selectedIds.has(rule.id) ? "checked" : ""} aria-label="Select rule" /></td>
                 <td>${rule.location_name}</td>
                 <td>${rule.sub_location_name || '<span class="text-muted">Whole location</span>'}</td>
                 <td>${formatThreshold(rule)}</td>
@@ -104,6 +113,79 @@
         openEditModal(Number(btn.dataset.id)),
       );
     });
+
+    document.querySelectorAll(".ca-row-checkbox").forEach((cb) => {
+      cb.addEventListener("change", () => {
+        const id = Number(cb.dataset.id);
+        if (cb.checked) selectedIds.add(id);
+        else selectedIds.delete(id);
+        updateBulkToolbar();
+      });
+    });
+
+    updateBulkToolbar();
+  }
+
+  /**
+   * Show/hide the bulk action toolbar and update its selected-count label
+   * based on the current selection. Also keeps the "select all" checkbox
+   * in sync (checked, unchecked, or indeterminate).
+   *
+   * @returns {void}
+   */
+  function updateBulkToolbar() {
+    const count = selectedIds.size;
+    bulkToolbar.classList.toggle("d-none", count === 0);
+    bulkToolbar.classList.toggle("d-flex", count > 0);
+    bulkCountLabel.textContent = `${count} selected`;
+
+    if (rulesCache.length === 0) {
+      selectAllCheckbox.checked = false;
+      selectAllCheckbox.indeterminate = false;
+    } else if (count === 0) {
+      selectAllCheckbox.checked = false;
+      selectAllCheckbox.indeterminate = false;
+    } else if (count === rulesCache.length) {
+      selectAllCheckbox.checked = true;
+      selectAllCheckbox.indeterminate = false;
+    } else {
+      selectAllCheckbox.checked = false;
+      selectAllCheckbox.indeterminate = true;
+    }
+  }
+
+  /**
+   * Load and render the kill switch's current state.
+   *
+   * @returns {Promise<void>}
+   */
+  async function loadKillSwitch() {
+    try {
+      const state = await apiCall("/api/capacity-alerts/kill-switch", "GET");
+      killSwitchToggle.checked = state.enabled;
+      renderKillSwitchStatus(state);
+    } catch (err) {
+      console.error("Failed to load kill switch state:", err);
+    }
+  }
+
+  /**
+   * Render the kill switch's status line (who/when it was last flipped on).
+   *
+   * @param {{ enabled: boolean, enabledBy: number|null, enabledAt: string|null }} state
+   * @returns {void}
+   */
+  function renderKillSwitchStatus(state) {
+    if (!state.enabled) {
+      killSwitchStatus.classList.add("d-none");
+      killSwitchStatus.textContent = "";
+      return;
+    }
+    const when = state.enabledAt
+      ? new Date(state.enabledAt).toLocaleString()
+      : "unknown time";
+    killSwitchStatus.textContent = `All alerts are paused (enabled ${when}). No SMS will send until this is turned back off.`;
+    killSwitchStatus.classList.remove("d-none");
   }
 
   /**
@@ -229,6 +311,62 @@
     modal.show();
   });
 
+  killSwitchToggle.addEventListener("change", async () => {
+    const enabling = killSwitchToggle.checked;
+    const confirmMsg = enabling
+      ? "Pause ALL capacity alerts immediately? No SMS will send for any location until you turn this back off."
+      : "Resume capacity alerts? Rules will fire normally again as thresholds are crossed.";
+    if (!confirm(confirmMsg)) {
+      killSwitchToggle.checked = !enabling;
+      return;
+    }
+    try {
+      await apiCall("/api/capacity-alerts/kill-switch", "PUT", { enabled: enabling });
+      await loadKillSwitch();
+    } catch (err) {
+      alert(err.message);
+      killSwitchToggle.checked = !enabling;
+    }
+  });
+
+  selectAllCheckbox.addEventListener("change", () => {
+    if (selectAllCheckbox.checked) {
+      rulesCache.forEach((rule) => selectedIds.add(rule.id));
+    } else {
+      selectedIds.clear();
+    }
+    renderRules();
+  });
+
+  bulkEnableBtn.addEventListener("click", async () => {
+    if (selectedIds.size === 0) return;
+    try {
+      await apiCall("/api/capacity-alerts/bulk-active", "PUT", {
+        ids: Array.from(selectedIds),
+        active: true,
+      });
+      selectedIds.clear();
+      await loadAll();
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
+  bulkDisableBtn.addEventListener("click", async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Disable ${selectedIds.size} selected rule(s)?`)) return;
+    try {
+      await apiCall("/api/capacity-alerts/bulk-active", "PUT", {
+        ids: Array.from(selectedIds),
+        active: false,
+      });
+      selectedIds.clear();
+      await loadAll();
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
   locationSelect.addEventListener("change", () => {
     loadSubLocations(Number(locationSelect.value) || null, null);
   });
@@ -287,4 +425,5 @@
   });
 
   loadAll();
+  loadKillSwitch();
 })();

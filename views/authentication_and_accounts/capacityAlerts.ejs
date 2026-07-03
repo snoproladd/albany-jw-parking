@@ -29,15 +29,32 @@
           </header>
 
           <div class="card-body">
+            <div class="ca-kill-switch-panel border rounded p-3 mb-3" id="ca-kill-switch-panel">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="ca-kill-switch-toggle" />
+                <label class="form-check-label" for="ca-kill-switch-toggle">
+                  <strong>Kill switch</strong> — pause every capacity alert immediately, regardless of individual rule settings
+                </label>
+              </div>
+              <p class="text-danger small mb-0 mt-2 d-none" id="ca-kill-switch-status"></p>
+            </div>
+
             <p class="text-muted">
               Rules fire an SMS to the selected role tier once a location's count crosses its
               threshold, then re-arm automatically once the count returns to the safe side.
             </p>
 
+            <div class="d-none align-items-center gap-2 mb-2" id="ca-bulk-toolbar">
+              <span class="text-muted small" id="ca-bulk-count"></span>
+              <button type="button" class="btn btn-sm btn-outline-success" id="ca-bulk-enable-btn">Enable Selected</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="ca-bulk-disable-btn">Disable Selected</button>
+            </div>
+
             <div id="ca-rules-table-wrap">
               <table class="table table-hover align-middle" id="ca-rules-table">
                 <thead>
                   <tr>
+                    <th><input type="checkbox" id="ca-select-all" aria-label="Select all rules" /></th>
                     <th>Location</th>
                     <th>Sub-location</th>
                     <th>Threshold</th>
@@ -48,7 +65,7 @@
                   </tr>
                 </thead>
                 <tbody id="ca-rules-tbody">
-                  <tr><td colspan="7" class="text-center text-muted py-4">Loading…</td></tr>
+                  <tr><td colspan="8" class="text-center text-muted py-4">Loading…</td></tr>
                 </tbody>
               </table>
             </div>
