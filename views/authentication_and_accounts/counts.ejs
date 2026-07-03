@@ -169,6 +169,7 @@
                 class="form-control counts-manual-input"
                 placeholder="0"
                 aria-label="Manual count value"
+                autocomplete="off"
             />
             <button type="button" id="manualSubmitBtn" class="counts-manual-submit-btn">
                 Submit
@@ -229,7 +230,7 @@
                     <%# View 2: manual entry %>
                     <div id="alarmEntryView" class="d-none">
                         <label class="form-label" for="alarmManualInput">Manual count</label>
-                        <input type="number" id="alarmManualInput" class="form-control form-control-lg" placeholder="0" aria-label="Manual count value" />
+                        <input type="number" id="alarmManualInput" class="form-control form-control-lg" placeholder="0" aria-label="Manual count value" autocomplete="off" />
                         <div class="d-grid gap-2 mt-3">
                             <button type="button" id="alarmManualSubmitBtn" class="btn btn-primary btn-lg">Submit</button>
                             <button type="button" id="alarmManualBackBtn" class="btn btn-outline-secondary btn-sm mt-2">Back (No Count)</button>

@@ -473,9 +473,27 @@ function renderGarageChart(loc) {
         },
         tooltip: {
           callbacks: {
+            /**
+             * Sub-location datasets store cumulative (stacked) values so
+             * the area fills nest correctly -- the raw value at any point
+             * is "this entrance plus everything below it in the stack,"
+             * not this entrance's own count. Subtract the previous
+             * sub-location's cumulative value at the same point to
+             * recover the individual count. The "Total" dataset is not
+             * stacked against anything else, so its value is already
+             * correct as-is (the top of the stack IS the true total).
+             */
             label: (ctx) => {
               if (ctx.dataset.label?.startsWith("Capacity")) return null;
-              return ` ${ctx.dataset.label}: ${ctx.parsed.y ?? "\u2014"}`;
+              if (ctx.dataset.label === "Total") {
+                return ` ${ctx.dataset.label}: ${ctx.parsed.y ?? "\u2014"}`;
+              }
+              const prevDataset = ctx.datasetIndex > 0
+                ? ctx.chart.data.datasets[ctx.datasetIndex - 1]
+                : null;
+              const prevValue = prevDataset?.data[ctx.dataIndex] ?? 0;
+              const individual = (ctx.parsed.y ?? 0) - prevValue;
+              return ` ${ctx.dataset.label}: ${individual}`;
             },
           },
           filter: (item) => !item.dataset.label?.startsWith("Capacity"),

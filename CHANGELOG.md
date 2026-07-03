@@ -3,6 +3,40 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.80.2] — 2026-07-03
+
+### Fixed
+- **Capacity alerts fired repeatedly on the same threshold crossing.**
+  `evaluateCapacityAlerts()` disarmed a rule only *after* its SMS send
+  loop finished, so an overlapping heartbeat (e.g. Twilio latency pushing
+  a send past the 60-second heartbeat interval) could read `is_armed`
+  as still true and fire a duplicate blast. `disarmCapacityAlertRule()`
+  is now an atomic conditional `UPDATE ... WHERE is_armed = 1` that
+  reports whether it won the race; the rule is claimed *before* any SMS
+  is sent, so only one concurrent evaluation can ever fire it.
+- **Manual parking-count entry could silently double the running total.**
+  Both the bottom "Manual Count Submission" panel and the quarter-hour
+  alarm modal treat their input as a DELTA to fold into the running
+  total, but a counter re-entering the currently-displayed total (rather
+  than a real increment) would double it. Both paths now warn with the
+  resulting total spelled out before submitting a suspiciously large
+  delta (`isSuspiciousManualDelta()`, ≥ 50% of the current total), and
+  both manual-entry `<input>` fields now set `autocomplete="off"`.
+- **Garage capacity chart tooltip showed cumulative stack values as if
+  they were each entrance's own count.** `countReport.js` builds
+  stacked-area chart data as manually-accumulated cumulative values so
+  the fills nest correctly, but the tooltip printed that cumulative
+  value directly under each entrance's label — e.g. a sub-location deep
+  in the stack could show 1,000+ even though its actual count was in the
+  dozens. The tooltip now subtracts the previous sub-location's
+  cumulative value at the same point to show each entrance's true
+  individual count; the `Total` line is unaffected since it was already
+  correct.
+- **Data repair:** several `parking_counts` rows at OGS Parking Garage
+  (Hamilton St) and MVP Garage (Market St) inflated by the manual-entry
+  doubling bug above were corrected for 2026-07-03 via a one-off
+  session-aware repair script (see `scripts/` history for this date).
+
 ## [2.80.1] — 2026-07-02
 
 ### Fixed
