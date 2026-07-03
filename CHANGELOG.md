@@ -3,6 +3,19 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.81.1] — 2026-07-03
+
+### Fixed
+- **Capacity alert kill switch and bulk enable/disable returned "missing
+  required field."** `PUT /api/capacity-alerts/:id` (existing rule-edit
+  route) was registered before the new `PUT /api/capacity-alerts/bulk-active`
+  and `PUT /api/capacity-alerts/kill-switch` routes. Express matches
+  routes in registration order, and `:id` is a bare string param that
+  matched the literal paths "bulk-active" and "kill-switch" first
+  (`Number("bulk-active")` is `NaN`, tripping the rule-edit route's own
+  required-field check). Reordered so the more specific literal routes
+  are registered before the `:id` routes.
+
 ## [2.81.0] — 2026-07-03
 
 ### Added

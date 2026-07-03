@@ -9,12 +9,16 @@
  * API routes (ASSISTANT_ADMIN+ — accessAdminConsole):
  *   GET    /api/capacity-alerts             All rules
  *   POST   /api/capacity-alerts             Create a rule
- *   PUT    /api/capacity-alerts/:id         Update a rule
- *   DELETE /api/capacity-alerts/:id         Delete a rule
  *   PUT    /api/capacity-alerts/bulk-active Enable/disable multiple rules
- *   GET    /api/capacity-alerts/log         Recent send history
  *   GET    /api/capacity-alerts/kill-switch Global kill switch state
  *   PUT    /api/capacity-alerts/kill-switch Flip the global kill switch
+ *   PUT    /api/capacity-alerts/:id         Update a rule
+ *   DELETE /api/capacity-alerts/:id         Delete a rule
+ *   GET    /api/capacity-alerts/log         Recent send history
+ *
+ * NOTE: bulk-active and kill-switch are registered before the :id routes
+ * below -- Express matches in registration order, and :id is a bare
+ * string param that would otherwise swallow these literal paths first.
  */
 
 import express from "express";
@@ -158,6 +162,86 @@ export function capacityAlertRouter({ csrfProtection, logError }) {
   );
 
   /**
+   * PUT /api/capacity-alerts/bulk-active
+   * Sets the active flag on multiple rules at once, for the management
+   * page's checkbox multi-select.
+   *
+   * Registered before PUT /api/capacity-alerts/:id -- Express matches
+   * routes in registration order, and :id is a bare string param that
+   * would otherwise swallow this literal path first (Number("bulk-active")
+   * is NaN, tripping that route's own "missing required fields" check).
+   *
+   * @param {{ ids: number[], active: boolean }} req.body
+   * @returns {{ ok: true }}
+   */
+  router.put(
+    "/api/capacity-alerts/bulk-active",
+    requirePermission("accessAdminConsole"),
+    async (req, res) => {
+      try {
+        const { ids, active } = req.body;
+        if (!Array.isArray(ids) || ids.length === 0 || typeof active !== "boolean") {
+          return res.status(400).json({ error: "ids (array) and active (boolean) are required." });
+        }
+        await bulkSetCapacityAlertRulesActive(ids.map(Number), active);
+        res.json({ ok: true });
+      } catch (err) {
+        logError("[PUT /api/capacity-alerts/bulk-active]", err);
+        res.status(500).json({ error: "Failed to update rules." });
+      }
+    },
+  );
+
+  /**
+   * GET /api/capacity-alerts/kill-switch
+   * Returns the current state of the global kill switch.
+   *
+   * @returns {{ enabled: boolean, enabledBy: number|null, enabledAt: string|null }}
+   */
+  router.get(
+    "/api/capacity-alerts/kill-switch",
+    requirePermission("accessAdminConsole"),
+    async (req, res) => {
+      try {
+        const state = await getCapacityAlertKillSwitch();
+        res.json(state);
+      } catch (err) {
+        logError("[GET /api/capacity-alerts/kill-switch]", err);
+        res.status(500).json({ error: "Failed to load kill switch state." });
+      }
+    },
+  );
+
+  /**
+   * PUT /api/capacity-alerts/kill-switch
+   * Flips the global kill switch. When enabled, evaluateCapacityAlerts()
+   * sends nothing at all, regardless of individual rules' state.
+   *
+   * Also registered before PUT /api/capacity-alerts/:id -- see the note
+   * on bulk-active above.
+   *
+   * @param {{ enabled: boolean }} req.body
+   * @returns {{ ok: true }}
+   */
+  router.put(
+    "/api/capacity-alerts/kill-switch",
+    requirePermission("accessAdminConsole"),
+    async (req, res) => {
+      try {
+        const { enabled } = req.body;
+        if (typeof enabled !== "boolean") {
+          return res.status(400).json({ error: "enabled (boolean) is required." });
+        }
+        await setCapacityAlertKillSwitch(enabled, req.session.userId);
+        res.json({ ok: true });
+      } catch (err) {
+        logError("[PUT /api/capacity-alerts/kill-switch]", err);
+        res.status(500).json({ error: "Failed to update kill switch." });
+      }
+    },
+  );
+
+  /**
    * PUT /api/capacity-alerts/:id
    * Updates an existing capacity alert rule. Resets is_armed to 1.
    *
@@ -252,78 +336,6 @@ export function capacityAlertRouter({ csrfProtection, logError }) {
       } catch (err) {
         logError("[GET /api/capacity-alerts/log]", err);
         res.status(500).json({ error: "Failed to load send history." });
-      }
-    },
-  );
-
-  /**
-   * PUT /api/capacity-alerts/bulk-active
-   * Sets the active flag on multiple rules at once, for the management
-   * page's checkbox multi-select.
-   *
-   * @param {{ ids: number[], active: boolean }} req.body
-   * @returns {{ ok: true }}
-   */
-  router.put(
-    "/api/capacity-alerts/bulk-active",
-    requirePermission("accessAdminConsole"),
-    async (req, res) => {
-      try {
-        const { ids, active } = req.body;
-        if (!Array.isArray(ids) || ids.length === 0 || typeof active !== "boolean") {
-          return res.status(400).json({ error: "ids (array) and active (boolean) are required." });
-        }
-        await bulkSetCapacityAlertRulesActive(ids.map(Number), active);
-        res.json({ ok: true });
-      } catch (err) {
-        logError("[PUT /api/capacity-alerts/bulk-active]", err);
-        res.status(500).json({ error: "Failed to update rules." });
-      }
-    },
-  );
-
-  /**
-   * GET /api/capacity-alerts/kill-switch
-   * Returns the current state of the global kill switch.
-   *
-   * @returns {{ enabled: boolean, enabledBy: number|null, enabledAt: string|null }}
-   */
-  router.get(
-    "/api/capacity-alerts/kill-switch",
-    requirePermission("accessAdminConsole"),
-    async (req, res) => {
-      try {
-        const state = await getCapacityAlertKillSwitch();
-        res.json(state);
-      } catch (err) {
-        logError("[GET /api/capacity-alerts/kill-switch]", err);
-        res.status(500).json({ error: "Failed to load kill switch state." });
-      }
-    },
-  );
-
-  /**
-   * PUT /api/capacity-alerts/kill-switch
-   * Flips the global kill switch. When enabled, evaluateCapacityAlerts()
-   * sends nothing at all, regardless of individual rules' state.
-   *
-   * @param {{ enabled: boolean }} req.body
-   * @returns {{ ok: true }}
-   */
-  router.put(
-    "/api/capacity-alerts/kill-switch",
-    requirePermission("accessAdminConsole"),
-    async (req, res) => {
-      try {
-        const { enabled } = req.body;
-        if (typeof enabled !== "boolean") {
-          return res.status(400).json({ error: "enabled (boolean) is required." });
-        }
-        await setCapacityAlertKillSwitch(enabled, req.session.userId);
-        res.json({ ok: true });
-      } catch (err) {
-        logError("[PUT /api/capacity-alerts/kill-switch]", err);
-        res.status(500).json({ error: "Failed to update kill switch." });
       }
     },
   );
