@@ -195,9 +195,10 @@ parking/
 ├── lib/
 │   ├── alertScheduler.js      # Shift-alert scheduling engine (cron-like timer)
 │   ├── capacityAlerter.js     # Event-driven capacity threshold engine (edge-triggered SMS alerts)
-│   ├── blobStorage.js         # Azure Blob Storage helpers (sign photos, lesson photos, published file streaming)
+│   ├── blobStorage.js         # Azure Blob Storage helpers (sign photos, lesson photos, maps-files sync, published file streaming)
 │   ├── dbSync.js              # All database query functions
-│   ├── graphClient.js         # Microsoft Graph API client (OneDrive)
+│   ├── graphClient.js         # Microsoft Graph API client (OneDrive listing, download, upload)
+│   ├── mapsSync.js            # Background + on-demand sync: SharePoint "Maps" folder -> maps-files blob container
 │   ├── messaging.js           # Email + SMS delivery helpers (suppressed in demo context)
 │   ├── noteAnalyzer.js        # Azure OpenAI pipeline for volunteer intake note analysis
 │   ├── smsInboundAnalyzer.js  # Azure OpenAI pipeline for freeform inbound SMS analysis
@@ -217,7 +218,7 @@ parking/
 ├── routes/
 │   ├── accountRoutes.js       # Login, My Account, password change
 │   ├── apiRoutes.js           # Internal API endpoints (session touch, etc.)
-│   ├── mapsRoutes.js          # Maps page — OneDrive file listing with ScribbleMaps integration
+│   ├── mapsRoutes.js          # Maps resources page — reads synced files from map_files, serves via /maps/file/:blobName (Blob Storage, no SharePoint links)
 │   ├── schedulesRoutes.js     # Schedules page — OneDrive PDF listing for published day schedules
 │   ├── oversightRoutes.js     # All Oversight Tools routes
 │   ├── registrationRoutes.js  # Registration flow (multi-step draft)
@@ -246,7 +247,7 @@ parking/
 │
 ├── views/
 │   ├── index.ejs              # Home / dashboard page
-│   ├── maps.ejs               # Maps page (OneDrive listing)
+│   ├── maps.ejs               # Maps resources page (synced files served from Blob Storage; no SharePoint links)
 │   ├── schedules.ejs          # Schedules page (OneDrive PDF listing)
 │   ├── lessonsLearned.ejs     # Lessons Learned management (KEYMAN+ submit, OVERSEER+ approve/publish)
 │   ├── lessonsLearnedPdf.ejs  # Puppeteer PDF render target (secret-auth, Lessons Learned)
@@ -370,7 +371,7 @@ parking/
 │   │   ├── systemVariables.js         # System Variables management page (module)
 │   │   ├── lessonsLearned.js          # Lessons Learned management page (submit, review, approve, publish)
 │   │   ├── lessonsLearnedResources.js  # Lessons Learned resources page (batch-publish button)
-│   │   ├── maps.js                    # Maps page (OneDrive listing)
+│   │   ├── maps.js                    # Maps page (Blob-backed file listing, Sync Now button for admins)
 │   │   ├── schedules.js               # Schedules page (OneDrive PDF listing)
 │   │   ├── notesReport.js             # Notes Report: SMS cards, archived panel, AI analysis badges
 │   │   ├── oversightStructure.js      # Oversight structure admin tree
@@ -862,6 +863,7 @@ Schema highlights:
 - `bug_reports` — full lifecycle bug tracking with resolution fields
 - `schedule_publishes` — audit log for schedule PDF publish events
 - `published_files` — generic published file tracking (sign map PDFs, etc.); stores blob name, SharePoint URL, publisher, and timestamp
+- `map_files` — synced copy of each Maps resources file, keyed by Graph `source_item_id` (`folder_name`, `file_name`, `blob_name`, `mime_type`, `size`, `scribble_url`, `embed_url`, `last_modified`, `synced_at`); kept current by `lib/mapsSync.js`
 - `magic_login_tokens` — passwordless login tokens for shared operational accounts
   (e.g. COUNTER stations), accessed via printed QR code. Fields: `volunteer_id FK`,
   `token_hash CHAR(64)` (SHA-256; raw token is never stored, shown once at

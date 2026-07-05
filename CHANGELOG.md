@@ -3,6 +3,40 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.83.0] — 2026-07-05
+
+### Changed
+- **Maps resources page now serves files from Blob Storage instead of
+  live SharePoint links.** New `map_files` table (both `dbo`/`demo`)
+  tracks a synced copy of each file in the SharePoint "Maps" folder.
+  `lib/mapsSync.js` diffs the SharePoint listing against `map_files` by
+  `source_item_id` + `lastModifiedDateTime`, downloads new/changed files
+  via a new `downloadOneDriveFileContent()` in `graphClient.js`, and
+  uploads them to the new `maps-files` blob container (`uploadMapFile()`,
+  `streamMapFileToResponse()`, `deleteMapFileBlob()` in `blobStorage.js`).
+  Files removed from SharePoint are removed from Blob + `map_files` too.
+  `routes/mapsRoutes.js` now reads from `map_files` instead of calling
+  Graph live, and serves files through `/maps/file/:blobName` (gated by
+  `viewMaps`, same as the page itself) instead of linking to SharePoint.
+  The sync runs automatically every 30 minutes
+  (`startMapsSyncInterval()`, wired up in `index.js`) and can also be
+  triggered on demand via a "Sync Now" button on the Maps page, visible
+  to `accessAdminConsole` users, which POSTs to the new
+  `/api/maps/sync` route.
+- **Lessons Learned resources page no longer links to SharePoint.**
+  Removed the "Open in SharePoint" button from
+  `views/lessonsLearnedResources.ejs` — the adjacent "Download PDF"
+  button was already blob-backed, making the SharePoint link redundant.
+
+### Fixed
+- **Shift alert scheduler shutdown handle was never actually captured.**
+  `index.js` declared `let alertScheduler = null;` at module scope for
+  graceful-shutdown use, but the startup block re-declared it with
+  `const alertScheduler = startAlertScheduler(...)`, shadowing the outer
+  variable. `SIGINT`/`SIGTERM` handlers checking `if (alertScheduler)`
+  always saw `null` and never called `.stop()`. Now assigns to the
+  existing outer variable instead of re-declaring it.
+
 ## [2.82.0] — 2026-07-05
 
 ### Added

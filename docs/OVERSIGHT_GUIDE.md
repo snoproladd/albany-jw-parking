@@ -131,13 +131,26 @@ it sits in the navigation.
 **Path:** Resources → Maps (navigation bar), or `/maps`
 
 Available to all registered volunteers (REGISTERED and above). The Maps page
-lists convention-related map files sourced directly from OneDrive, grouped by
-category (e.g. Parking Maps, Pedestrian Maps, Sign Placement Maps).
+lists convention-related map files, grouped by category (e.g. Parking Maps,
+Pedestrian Maps, Sign Placement Maps).
+
+Admins still upload and organize files directly in the SharePoint/OneDrive
+folder as before — that part of the workflow hasn't changed. What's changed
+is how the page serves those files to volunteers: a background sync job
+(`lib/mapsSync.js`) copies files from SharePoint into Azure Blob Storage
+every 30 minutes, and the Maps page reads from that synced copy instead of
+querying SharePoint live. This means volunteers never see or click a
+SharePoint link, and the page keeps working even if SharePoint/Graph is
+temporarily unavailable.
+
+accessAdminConsole users (ASSISTANT_ADMIN+) see a **Sync Now** button above
+the file list, which triggers an immediate sync instead of waiting for the
+next scheduled pass — useful right after uploading a new file.
 
 Each tile shows the map name, description, and last-modified date. Two actions
 may be available per tile depending on what has been configured:
 
-- **View / Download** — opens the file in OneDrive (PDF viewer or download).
+- **View / Download** — opens the file from Blob Storage (PDF viewer or download).
 - **Interactive Map** — opens the live ScribbleMaps version in a new tab for
   a zoomable, pannable view of the same map.
 
@@ -146,10 +159,11 @@ preview appears on the left side of the tile. Clicking the preview also opens
 the interactive map in a new tab.
 
 To add or update maps, place files in the appropriate subfolder under
-`Documents for Distribution/Maps/` in OneDrive. To link a file to its
-ScribbleMaps counterpart, add or update the `_meta.json` sidecar file in
-the same subfolder. See the developer notes in `lib/graphClient.js` for the
-JSON format.
+`Documents for Distribution/Maps/` in OneDrive, same as before. To link a
+file to its ScribbleMaps counterpart, add or update the `_meta.json` sidecar
+file in the same subfolder. See the developer notes in `lib/graphClient.js`
+for the JSON format. Changes appear on the Maps page after the next sync
+(automatic within 30 minutes, or immediately via Sync Now).
 
 ### Schedules
 
@@ -1658,7 +1672,6 @@ A read-only page showing the consolidated published PDF for a given convention
 year.
 
 - **Download PDF** — opens the Blob Storage–hosted PDF in a new tab.
-- **Open in SharePoint** — links to the OneDrive/SharePoint copy (when available).
 - **Last generated / by** — timestamp and name of the last person who ran a
   publish or re-generate.
 - **Lessons included** — count of published lessons in the current PDF.

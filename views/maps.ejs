@@ -15,6 +15,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+    <meta name="csrf-token" content="<%= csrfToken %>" />
 </head>
 <body data-authed="true" class="bg-body-tertiary min-vh-100">
 
@@ -25,13 +26,23 @@
             <div class="col-12 col-lg-10 col-xl-9">
 
                 <%# ── Page header ──────────────────────────────── %>
-                <div class="maps-page-header mb-4">
-                    <h1 class="maps-page-title">
-                        <i class="fa-solid fa-map me-2"></i>Maps
-                    </h1>
-                    <p class="maps-page-subtitle mb-0">
-                        Convention parking maps and reference materials.
-                    </p>
+                <div class="maps-page-header mb-4 d-flex align-items-start justify-content-between gap-3 flex-wrap">
+                    <div>
+                        <h1 class="maps-page-title">
+                            <i class="fa-solid fa-map me-2"></i>Maps
+                        </h1>
+                        <p class="maps-page-subtitle mb-0">
+                            Convention parking maps and reference materials.
+                        </p>
+                    </div>
+                    <% if (canSync) { %>
+                    <div class="text-end">
+                        <button type="button" id="mapsSyncBtn" class="btn btn-sm btn-outline-primary">
+                            <i class="fa-solid fa-rotate me-1"></i>Sync Now
+                        </button>
+                        <div id="mapsSyncStatus" class="small mt-1 d-none"></div>
+                    </div>
+                    <% } %>
                 </div>
 
                 <%# ── Error state ──────────────────────────────── %>

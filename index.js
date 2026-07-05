@@ -48,6 +48,7 @@ import { capacityAlertRouter } from "./routes/capacityAlertRoutes.js";
 import { lessonsLearnedRouter } from "./routes/lessonsLearnedRoutes.js";
 import { getBaseUrl, resetSmsClient } from "./lib/messaging.js";
 import { startAlertScheduler } from "./lib/alertScheduler.js";
+import { startMapsSyncInterval } from "./lib/mapsSync.js";
 import { initRvTokenSecret, verifyRvToken } from "./lib/rvToken.js";
 import {
   getShiftRendezvousById,
@@ -400,6 +401,9 @@ const server = http.createServer(app);
 
 /** @type {ReturnType<typeof startAlertScheduler> | null} */
 let alertScheduler = null;
+
+/** @type {ReturnType<typeof startMapsSyncInterval> | null} */
+let mapsSyncHandle = null;
 
 (async () => {
   try {
@@ -1556,7 +1560,7 @@ app.use(
 
     await initTwilio();
     startExternalServiceWatchdog();
-    const alertScheduler = startAlertScheduler({
+    alertScheduler = startAlertScheduler({
       year: new Date().getFullYear(),
       accountSid: config.TWILIO_ACCOUNT_SID,
       authToken: config.TWILIO_AUTH_TOKEN,
@@ -1564,6 +1568,22 @@ app.use(
       logError,
     });
     log("Shift alert scheduler started.");
+
+    mapsSyncHandle = startMapsSyncInterval({
+      graphConfig: {
+        tenantId: config.GRAPH_TENANT_ID,
+        clientId: config.GRAPH_CLIENT_ID,
+        clientSecret: config.GRAPH_CLIENT_SECRET,
+        driveUser:
+          config.GRAPH_DRIVE_USER ||
+          "jladd@jakeofalltradespropertyserv.onmicrosoft.com",
+        folderPath:
+          config.GRAPH_FOLDER_PATH ||
+          "2026 Convention Parking/Documents for Distribution",
+      },
+      intervalMs: 30 * 60 * 1000,
+    });
+    log("Maps sync interval started.");
   } catch (err) {
     logError("Failed to start server:", err);
     // eslint-disable-next-line no-process-exit
@@ -1575,10 +1595,12 @@ app.use(
 process.on("SIGINT", () => {
   stopDbUpdate();
   if (alertScheduler) alertScheduler.stop();
+  if (mapsSyncHandle) mapsSyncHandle.stop();
   server.close(() => process.exit(0));
 });
 process.on("SIGTERM", () => {
   stopDbUpdate();
   if (alertScheduler) alertScheduler.stop();
+  if (mapsSyncHandle) mapsSyncHandle.stop();
   server.close(() => process.exit(0));
 });
