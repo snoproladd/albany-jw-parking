@@ -3,6 +3,31 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.83.1] — 2026-07-05
+
+### Fixed
+- **Maps sync 500 error on `/api/maps/sync` and Sync Now.**
+  `deleteMapFilesNotInSourceIds()` in `lib/dbSync.js` used a SQL Server
+  table-valued parameter (`sql.Table`), which requires a `CREATE TYPE ...
+  AS TABLE` declared on the server first — never added to the migration.
+  Any sync that found at least one file would throw. Rewrote it to pass
+  the ID list as JSON and unpack it with `OPENJSON` instead, which needs
+  no server-side type.
+- **Republishing a Sign Map created a new file instead of replacing the
+  old one.** `lib/publishSignMap.js` built a date-stamped filename
+  (`Sign_Placement_Map_<date>.pdf`), so publishing on a different day
+  uploaded to a new SharePoint path with a new item ID, leaving prior
+  days' PDFs behind in the `Sign Maps` folder instead of being replaced
+  — and, since the new Maps sync mirrors that folder, they'd start
+  piling up on the Maps page too. Now always publishes as a fixed
+  `Sign_Placement_Map.pdf`, so every republish overwrites the same
+  SharePoint item (same Graph item ID) and correctly replaces the
+  previous file everywhere it's mirrored.
+
+### Changed
+- **Sync Now button style** on the Maps page changed from outline to
+  solid (`btn-primary`).
+
 ## [2.83.0] — 2026-07-05
 
 ### Changed

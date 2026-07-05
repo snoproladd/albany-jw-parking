@@ -428,9 +428,13 @@ dialog — what you see on screen is what prints.
 **Publishing:** OVERSEER+ users see a **Publish** button next to Print.
 Clicking it generates a PDF snapshot of the current map view (with the
 active filters) and uploads it to both SharePoint and the site's file
-storage. A green toast confirms success with a direct SharePoint link.
-The published PDF appears automatically on the **Maps** resource page
-for all volunteers to download.
+storage. Each publish **replaces** the previous one — the file is always
+saved under the same name, so republishing updates the existing sign map
+rather than creating a new dated copy alongside it. A green toast
+confirms success with a direct SharePoint link. The published PDF
+appears automatically on the **Maps** resource page for all volunteers
+to download (synced from SharePoint into Blob Storage within 30 minutes,
+or immediately via the Maps page's Sync Now button).
 
 ##### Legend
 
