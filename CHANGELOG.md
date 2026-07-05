@@ -6,13 +6,14 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 ## [2.82.0] — 2026-07-05
 
 ### Added
-- **Scheduler department filter now persists server-side.** New
-  `scheduler_dept_filter` column on `volunteer_in`, with
-  `getSchedulerDeptFilter()` / `updateSchedulerDeptFilter()` in
-  `dbSync.js` and `GET`/`PUT /api/scheduler/dept-filter` routes.
-  The scheduler page now pre-selects a volunteer's last-used
-  department filter on load, and follows them across machines/browsers
-  since it's tied to the volunteer's account rather than local storage.
+- **Scheduler column layout now persists server-side.** New
+  `scheduler_column_prefs` JSON column on `volunteer_in`, with
+  `getSchedulerColumnPrefs()` / `updateSchedulerColumnPrefs()` in
+  `dbSync.js` and `GET`/`PUT /api/scheduler/column-prefs` routes.
+  The department column order and hide/show state from the "Columns:"
+  toggle pills in the day banner — previously reset every time a day
+  was picked — now survive across day changes, sessions, and machines,
+  since they're tied to the volunteer's account.
 - **Scheduler auto-opens to today's convention day.** On page load,
   `scheduler.js` checks the embedded convention-days data for a day
   matching today's date and auto-selects it in the day picker, exactly

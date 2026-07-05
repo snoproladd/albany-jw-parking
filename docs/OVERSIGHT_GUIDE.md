@@ -972,8 +972,6 @@ color-coding renders correctly.
 2. The **Volunteer Pool** in the sidebar lists all active registered volunteers.
    - Filter by **Rank** to narrow to Registered, Keyman, or Overseer+.
    - Filter by **Department** to show only volunteers with the matching crew flag.
-     This filter is remembered across sessions and machines — it's tied to your
-     account, not the browser.
    - Filter by **Gender** to narrow to Male or Female volunteers.
    - Filter by **Sort** to order the pool by last name, rank, or department.
 3. **Drag** a name pill from the pool onto any highlighted drop zone in the grid.
@@ -1202,6 +1200,9 @@ department:
 - **Drag** a pill onto another to swap their column order. Hold and move more
   than a few pixels to enter drag mode; release over the target pill to confirm
   the swap.
+- Both the hide/show state and the column order are remembered across day
+  changes, sessions, and machines — they're tied to your account, not the
+  browser.
 
 ---
 

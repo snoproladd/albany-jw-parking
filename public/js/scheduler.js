@@ -91,29 +91,29 @@ document.addEventListener("scheduler:attendanceReady", (e) => {
  * @returns {void}
  */
 function _autoSelectTodayIfInConvention() {
-  const picker = /** @type {HTMLSelectElement|null} */ (
-    document.getElementById("dayPicker")
-  );
-  const jsonEl = document.getElementById("schedulerConventionDaysJson");
-  if (!picker || !jsonEl || picker.value) return;
+    const picker = /** @type {HTMLSelectElement|null} */ (
+        document.getElementById("dayPicker")
+    );
+    const jsonEl = document.getElementById("schedulerConventionDaysJson");
+    if (!picker || !jsonEl || picker.value) return;
 
-  let days = [];
-  try {
-    days = JSON.parse(jsonEl.textContent) || [];
-  } catch {
-    return;
-  }
+    let days = [];
+    try {
+        days = JSON.parse(jsonEl.textContent) || [];
+    } catch {
+        return;
+    }
 
-  const todayIso = new Date().toISOString().slice(0, 10);
-  const todayDay = days.find(
-    (d) =>
-      d.convention_date &&
-      new Date(d.convention_date).toISOString().slice(0, 10) === todayIso,
-  );
-  if (!todayDay) return;
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const todayDay = days.find(
+        (d) =>
+            d.convention_date &&
+            new Date(d.convention_date).toISOString().slice(0, 10) === todayIso,
+    );
+    if (!todayDay) return;
 
-  picker.value = String(todayDay.id);
-  picker.dispatchEvent(new Event("change", { bubbles: true }));
+    picker.value = String(todayDay.id);
+    picker.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
 // ─────────────────────────────────────────────

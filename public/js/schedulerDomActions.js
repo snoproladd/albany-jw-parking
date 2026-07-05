@@ -107,6 +107,14 @@ let _meetingHidden = false;
 /** Convention day currently shown — kept in sync for loadDayAssignments. @type {number|null} */
 let _currentDayId = null;
 
+/**
+ * The volunteer's saved scheduler column preferences (department order,
+ * hidden departments, meeting-column hidden state), fetched once on init
+ * and applied every time a day's grid is (re)built.
+ * @type {{order:string[], hidden:string[], meetingHidden:boolean}|null}
+ */
+let _savedColumnPrefs = null;
+
 /** Short labels for the dept visibility toggle buttons. @type {Record<string,string>} */
 const DEPT_ABBREV = {
   lots_and_garages: "L&G",
@@ -231,7 +239,16 @@ export async function initDomActions() {
   document.addEventListener("filter:select", (e) => _onFilterSelect(e.detail));
 
   if (document.body.dataset.canPublish === "true") {
-    document.getElementById("schedulerPublishSlot")?.appendChild(createPublishButton());
+      document.getElementById("schedulerPublishSlot")?.appendChild(createPublishButton());
+  }
+
+  try {
+      const res = await fetch("/api/scheduler/column-prefs");
+      const data = await res.json();
+      _savedColumnPrefs = data.success ? data.prefs : null;
+  } catch (err) {
+      console.error("[scheduler] column-prefs fetch error:", err);
+      _savedColumnPrefs = null;
   }
 
   // Horizontal-scroll listener — toggle right time mirror column.
@@ -787,9 +804,6 @@ export async function initDomActions() {
    * @returns {void}
    */
   function _onFilterSelect({ id, value }) {
-    if (id === "vol-department-filter") {
-      _saveDeptFilterPreference(value);
-    }
     if (
       id === "vol-rank-filter" ||
       id === "vol-department-filter" ||
@@ -800,22 +814,6 @@ export async function initDomActions() {
     ) {
       _applyVolunteerFilters();
     }
-  }
-
-  /**
-   * Persist the volunteer's department filter selection server-side so it
-   * survives across sessions and machines. Fire-and-forget — a failed save
-   * only means the preference isn't remembered next time, nothing breaks now.
-   *
-   * @param {string} value
-   * @returns {void}
-   */
-  function _saveDeptFilterPreference(value) {
-    fetch("/api/scheduler/dept-filter", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ deptFilter: value }),
-    }).catch((err) => console.error("[scheduler] dept-filter save error:", err));
   }
 
   /**
@@ -1155,13 +1153,28 @@ export async function initDomActions() {
       },
     );
 
+    // ── Step 1.4: apply the volunteer's saved column order, if any ──────
+    // Depts not present in the saved order (new departments, etc.) keep
+    // their original relative order and are appended at the end.
+    if (_savedColumnPrefs?.order?.length) {
+        const savedOrder = _savedColumnPrefs.order;
+        deptMeta.sort((a, b) => {
+            const aIdx = savedOrder.indexOf(a.deptKey);
+            const bIdx = savedOrder.indexOf(b.deptKey);
+            if (aIdx === -1 && bIdx === -1) return 0;
+            if (aIdx === -1) return 1;
+            if (bIdx === -1) return -1;
+            return aIdx - bIdx;
+        });
+    }
+
     // ── Step 1.5: meeting column ───────────────────────────────────────
     // When meetings exist, col 2 is reserved for them.
     // Crew dept columns start at col 2 (no meetings) or col 3 (with meetings).
     const hasMeetings = (dayData.meetings?.length || 0) > 0;
     const crewColOffset = hasMeetings ? 3 : 2;
     _hasMeetings = hasMeetings;
-    _meetingHidden = false;
+    _meetingHidden = !!_savedColumnPrefs?.meetingHidden;
 
     // ── Step 2: compute column indices ──────────────────────────────────
     let cursor = crewColOffset;
@@ -1173,7 +1186,10 @@ export async function initDomActions() {
 
     // ── Step 3: store module-level state ──────────────────────────────
     _deptMeta = deptMeta;
-    _hiddenDepts = new Set();
+    const presentDeptKeys = new Set(deptMeta.map((m) => m.deptKey));
+    _hiddenDepts = new Set(
+        (_savedColumnPrefs?.hidden || []).filter((k) => presentDeptKeys.has(k)),
+    );
 
     // ── Step 4: build DOM ───────────────────────────────────────────────
     const subColCount = deptMeta.reduce((s, d) => s + d.subCols.length, 0);
@@ -1439,6 +1455,11 @@ export async function initDomActions() {
 
     wrap.appendChild(grid);
     container.appendChild(wrap);
+
+    // Apply any hidden-department/meeting state restored from saved column
+    // prefs — the DOM above is built with every column at full width, so
+    // this collapse pass is required even on the very first render of a day.
+    _applyColumnLayout();
   }
 
   // ─────────────────────────────────────────────
@@ -1766,6 +1787,7 @@ export async function initDomActions() {
       mtgBtn.classList.add("sched-dept-toggle", "sched-dept-toggle--meeting");
       mtgBtn.title = "Meetings — click to hide/show";
       mtgBtn.textContent = "Meetings";
+      mtgBtn.classList.toggle("dept-hidden", _meetingHidden);
       mtgBtn.addEventListener("click", () => _toggleMeetingVisibility(mtgBtn));
       toggles.appendChild(mtgBtn);
     }
@@ -1780,6 +1802,7 @@ export async function initDomActions() {
       btn.dataset.dept = deptKey;
       btn.title = `${deptData.dpt_name} — click to hide/show · drag to reorder`;
       btn.textContent = DEPT_ABBREV[deptKey] || deptData.dpt_name;
+      btn.classList.toggle("dept-hidden", _hiddenDepts.has(deptKey));
 
       btn.addEventListener("pointerdown", _onTogglePointerDown);
       btn.addEventListener("pointermove", _onTogglePointerMove);
@@ -1892,6 +1915,7 @@ export async function initDomActions() {
     _meetingHidden = !_meetingHidden;
     btn.classList.toggle("dept-hidden", _meetingHidden);
     _applyColumnLayout();
+    _saveColumnPrefs();
   }
 
   /**
@@ -1909,6 +1933,7 @@ export async function initDomActions() {
     }
     btn.classList.toggle("dept-hidden", _hiddenDepts.has(deptKey));
     _applyColumnLayout();
+    _saveColumnPrefs();
   }
 
   /**
@@ -1939,6 +1964,29 @@ export async function initDomActions() {
     placeholder.replaceWith(srcBtn);
 
     _applyColumnLayout();
+    _saveColumnPrefs();
+  }
+
+  /**
+   * Persist the volunteer's current scheduler column preferences
+   * (department order, hidden departments, meeting-column state)
+   * server-side so they survive across sessions and machines.
+   * Fire-and-forget — a failed save only means the layout isn't
+   * remembered next time, nothing breaks now.
+   *
+   * @returns {void}
+   */
+  function _saveColumnPrefs() {
+      const prefs = {
+          order: _deptMeta.map((m) => m.deptKey),
+          hidden: [..._hiddenDepts],
+          meetingHidden: _meetingHidden,
+      };
+      fetch("/api/scheduler/column-prefs", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(prefs),
+      }).catch((err) => console.error("[scheduler] column-prefs save error:", err));
   }
 
   // ─────────────────────────────────────────────

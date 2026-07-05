@@ -653,9 +653,11 @@ The first ADMIN must be granted directly in the database.
     department name with directional arrows.
   - **Fixed-width dropzones (2.54.0):** volunteer slots are `flex: 0 0 calc((100% - 4px) / 3)`,
     always 3 per row with ellipsis-truncated names.
-  - **Persisted department filter (2.82.0):** `scheduler_dept_filter` column on
-    `volunteer_in`; `GET`/`PUT /api/scheduler/dept-filter` load/save the volunteer's
-    last-used pool department filter across sessions and machines.
+  - **Persisted column layout (2.82.0):** `scheduler_column_prefs` JSON column on
+    `volunteer_in`; `GET`/`PUT /api/scheduler/column-prefs` load/save the volunteer's
+    department column order and hide/show state from the "Columns:" toggle pills in
+    the day banner, across day changes, sessions, and machines. Previously reset
+    every time a day was picked.
   - **Day-independent toolbar (2.82.0):** Report link and Publish button live in the
     persistent sidebar header (not the per-day banner), since neither actually depends
     on the currently-loaded day — Report has its own day-picker, Publish lists every

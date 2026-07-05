@@ -168,8 +168,8 @@ import {
   resolveInboundSmsMessage,
   listAllMagicLoginTokens,
   revokeMagicLoginToken,
-  getSchedulerDeptFilter,
-  updateSchedulerDeptFilter,
+  getSchedulerColumnPrefs,
+  updateSchedulerColumnPrefs,
 } from "../lib/dbSync.js";
 
 import { verifyPassword, hashPassword } from "../lib/passwordVer.js";
@@ -5712,21 +5712,21 @@ export function oversightRouter({
     async (req, res) => {
       let dayId = Number(req.query.dayId) || null;
       try {
-        const allDays = await getConventionDays(new Date().getFullYear());
-        const conventionDays = allDays.filter(
-          (d) => d.schedulable !== false && d.schedulable !== 0,
-        );
-        if (!dayId) {
-          const todayIso = new Date().toISOString().slice(0, 10);
-          const todayDay = conventionDays.find(
-            (d) =>
-              d.convention_date &&
-              new Date(d.convention_date).toISOString().slice(0, 10) === todayIso,
+          const allDays = await getConventionDays(new Date().getFullYear());
+          const conventionDays = allDays.filter(
+              (d) => d.schedulable !== false && d.schedulable !== 0,
           );
-          dayId = todayDay?.id || conventionDays[0]?.id || null;
-        }
-        if (!dayId) return res.redirect("/oversight/tools/scheduler");
-        const reportData = await getSchedulerReportData(dayId);
+          if (!dayId) {
+              const todayIso = new Date().toISOString().slice(0, 10);
+              const todayDay = conventionDays.find(
+                  (d) =>
+                      d.convention_date &&
+                      new Date(d.convention_date).toISOString().slice(0, 10) === todayIso,
+              );
+              dayId = todayDay?.id || conventionDays[0]?.id || null;
+          }
+          if (!dayId) return res.redirect("/oversight/tools/scheduler");
+          const reportData = await getSchedulerReportData(dayId);
         return res.render("authentication_and_accounts/schedulerReport", {
           csrfToken: req.csrfToken(),
           reportData,
@@ -5841,13 +5841,11 @@ export function oversightRouter({
         const conventionDays = allDays.filter(
           (d) => d.schedulable !== false && d.schedulable !== 0,
         );
-        const savedDeptFilter = await getSchedulerDeptFilter(req.session.userId);
         return res.render("authentication_and_accounts/scheduler", {
           csrfToken: req.csrfToken(),
           conventionDays,
           year,
           actorId: req.session.userId || 0,
-          savedDeptFilter,
           canPublish:
             !!req.session.permissions?.[req.session.userRole]
               ?.accessAdminConsole,
@@ -5886,49 +5884,55 @@ export function oversightRouter({
   );
 
   /**
-   * GET /api/scheduler/dept-filter
-   * Return the calling volunteer's saved department filter preference.
+   * GET /api/scheduler/column-prefs
+   * Return the calling volunteer's saved scheduler column preferences
+   * (department column order, hidden departments, meeting-column state).
    *
-   * Response: { success: boolean, deptFilter: string|null }
+   * Response: { success: boolean, prefs: {order:string[], hidden:string[], meetingHidden:boolean}|null }
    *
    * @requires createAssignments permission
    */
   router.get(
-    "/api/scheduler/dept-filter",
-    requireAuth,
-    requirePermission("createAssignments"),
-    async (req, res) => {
-      try {
-        const deptFilter = await getSchedulerDeptFilter(req.session.userId);
-        return res.json({ success: true, deptFilter });
-      } catch (err) {
-        (logError || console.error)("api/scheduler/dept-filter GET error:", err);
-        return res.status(500).json({ success: false, error: "Server error." });
-      }
-    },
+      "/api/scheduler/column-prefs",
+      requireAuth,
+      requirePermission("createAssignments"),
+      async (req, res) => {
+          try {
+              const prefs = await getSchedulerColumnPrefs(req.session.userId);
+              return res.json({ success: true, prefs });
+          } catch (err) {
+              (logError || console.error)("api/scheduler/column-prefs GET error:", err);
+              return res.status(500).json({ success: false, error: "Server error." });
+          }
+      },
   );
 
   /**
-   * PUT /api/scheduler/dept-filter
-   * Save the calling volunteer's department filter preference.
+   * PUT /api/scheduler/column-prefs
+   * Save the calling volunteer's scheduler column preferences.
    *
-   * Body (JSON): { deptFilter: string }
+   * Body (JSON): { order: string[], hidden: string[], meetingHidden: boolean }
    *
    * @requires createAssignments permission
    */
   router.put(
-    "/api/scheduler/dept-filter",
-    requireAuth,
-    requirePermission("createAssignments"),
-    async (req, res) => {
-      try {
-        await updateSchedulerDeptFilter(req.session.userId, req.body.deptFilter || "");
-        return res.json({ success: true });
-      } catch (err) {
-        (logError || console.error)("api/scheduler/dept-filter PUT error:", err);
-        return res.status(500).json({ success: false, error: "Server error." });
-      }
-    },
+      "/api/scheduler/column-prefs",
+      requireAuth,
+      requirePermission("createAssignments"),
+      async (req, res) => {
+          try {
+              const prefs = {
+                  order: Array.isArray(req.body.order) ? req.body.order : [],
+                  hidden: Array.isArray(req.body.hidden) ? req.body.hidden : [],
+                  meetingHidden: !!req.body.meetingHidden,
+              };
+              await updateSchedulerColumnPrefs(req.session.userId, prefs);
+              return res.json({ success: true });
+          } catch (err) {
+              (logError || console.error)("api/scheduler/column-prefs PUT error:", err);
+              return res.status(500).json({ success: false, error: "Server error." });
+          }
+      },
   );
 
   /**
