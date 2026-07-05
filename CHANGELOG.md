@@ -3,6 +3,26 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.81.2] — 2026-07-05
+
+### Fixed
+- **Scheduler check-in badges not displaying and crew attendance report
+  totals not populating.** `getAttendanceReportForDay()` computed
+  `invited_count`/`no_show_count` off `dbo.invitations` alone, so a
+  volunteer holding a Scheduler `shift_slot_assignments` slot without a
+  formal invitation was invisible to the report. Rewrote the query to
+  join against a combined "expected" set (Scheduler slot assignments
+  UNIONed with non-revoked invitations), mirroring the same pattern
+  already used in `getShiftAttendanceData()`.
+- **AJAX/API calls on session or CSRF expiry silently failed with no
+  visible error.** The global error handler always rendered an HTML
+  page on CSRF/500 errors, which client-side `res.json().catch(() => ({}))`
+  calls swallow with no feedback to the user. Added `_wantsJsonError()`
+  to `index.js` to detect AJAX/API requests and return a proper JSON
+  error response instead.
+- Added `sessionKeepAlive.js` to `attendanceCheckin.ejs` and
+  `scheduler.ejs` so sessions don't expire mid-shift during live events.
+
 ## [2.81.1] — 2026-07-03
 
 ### Fixed

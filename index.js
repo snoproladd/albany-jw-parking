@@ -1450,9 +1450,29 @@ app.use(
     // ========================================================
 
     /**
+     * Determine whether a request is an AJAX/JSON API call rather than a
+     * full-page navigation, so the error handler can respond with JSON
+     * instead of an HTML render. Without this, a CSRF/session expiry on
+     * an AJAX endpoint (e.g. attendance check-in, crew toggles) returns
+     * an HTML page that client-side `res.json().catch(() => ({}))` calls
+     * silently swallow — the save just quietly fails with no visible cause.
+     *
+     * @param {import("express").Request} req
+     * @returns {boolean}
+     */
+    function _wantsJsonError(req) {
+      return (
+        !!req.is("application/json") ||
+        req.path.startsWith("/api/") ||
+        !!req.xhr
+      );
+    }
+
+    /**
      * Global error handler.
-     * Handles CSRF token expiry with a user-friendly re-render.
-     * All other errors are logged and surfaced as a 500.
+     * Handles CSRF token expiry with a user-friendly re-render (or a JSON
+     * error for AJAX/API callers). All other errors are logged and
+     * surfaced as a 500 (JSON for AJAX/API callers, plain text otherwise).
      * @param {any} err
      * @param {import("express").Request} req
      * @param {import("express").Response} res
@@ -1462,6 +1482,13 @@ app.use(
     app.use((err, req, res, next) => {
       if (err.code === "EBADCSRFTOKEN") {
         logError("CSRF token invalid or expired:", req.method, req.path);
+
+        if (_wantsJsonError(req)) {
+          return res.status(403).json({
+            success: false,
+            error: "Your session expired. Please refresh and try again.",
+          });
+        }
 
         // Re-render whichever page the user was on with a clear message.
         // We attempt to match the originating path to avoid dumping them
@@ -1509,6 +1536,13 @@ app.use(
 
       // All other errors
       logError("Unhandled error:", err);
+
+      if (_wantsJsonError(req)) {
+        return res
+          .status(500)
+          .json({ success: false, error: "Server error." });
+      }
+
       res.status(500).send("An unexpected error occurred. Please try again.");
     });
 
