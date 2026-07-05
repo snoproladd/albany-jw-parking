@@ -79,10 +79,49 @@ document.addEventListener("scheduler:attendanceReady", (e) => {
 });
 
 // ─────────────────────────────────────────────
+//  Auto-select today's convention day
+// ─────────────────────────────────────────────
+
+/**
+ * If today's date matches a convention day, auto-select it in the day
+ * picker and kick off the normal day-change flow, exactly as if the
+ * user had picked it manually. Runs once on page load only — a manual
+ * change away from today later in the same visit is never overridden.
+ *
+ * @returns {void}
+ */
+function _autoSelectTodayIfInConvention() {
+  const picker = /** @type {HTMLSelectElement|null} */ (
+    document.getElementById("dayPicker")
+  );
+  const jsonEl = document.getElementById("schedulerConventionDaysJson");
+  if (!picker || !jsonEl || picker.value) return;
+
+  let days = [];
+  try {
+    days = JSON.parse(jsonEl.textContent) || [];
+  } catch {
+    return;
+  }
+
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const todayDay = days.find(
+    (d) =>
+      d.convention_date &&
+      new Date(d.convention_date).toISOString().slice(0, 10) === todayIso,
+  );
+  if (!todayDay) return;
+
+  picker.value = String(todayDay.id);
+  picker.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+// ─────────────────────────────────────────────
 //  Init
 // ─────────────────────────────────────────────
 
 document.addEventListener("DOMContentLoaded", async () => {
   initDomEvents();
   await initDomActions();
+  _autoSelectTodayIfInConvention();
 });

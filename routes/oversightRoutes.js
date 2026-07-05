@@ -168,6 +168,8 @@ import {
   resolveInboundSmsMessage,
   listAllMagicLoginTokens,
   revokeMagicLoginToken,
+  getSchedulerDeptFilter,
+  updateSchedulerDeptFilter,
 } from "../lib/dbSync.js";
 
 import { verifyPassword, hashPassword } from "../lib/passwordVer.js";
@@ -5708,16 +5710,23 @@ export function oversightRouter({
     requirePermission("createAssignments"),
     csrfProtection,
     async (req, res) => {
-      const dayId = Number(req.query.dayId);
-      if (!dayId) return res.redirect("/oversight/tools/scheduler");
+      let dayId = Number(req.query.dayId) || null;
       try {
-        const [reportData, allDays] = await Promise.all([
-          getSchedulerReportData(dayId),
-          getConventionDays(new Date().getFullYear()),
-        ]);
+        const allDays = await getConventionDays(new Date().getFullYear());
         const conventionDays = allDays.filter(
           (d) => d.schedulable !== false && d.schedulable !== 0,
         );
+        if (!dayId) {
+          const todayIso = new Date().toISOString().slice(0, 10);
+          const todayDay = conventionDays.find(
+            (d) =>
+              d.convention_date &&
+              new Date(d.convention_date).toISOString().slice(0, 10) === todayIso,
+          );
+          dayId = todayDay?.id || conventionDays[0]?.id || null;
+        }
+        if (!dayId) return res.redirect("/oversight/tools/scheduler");
+        const reportData = await getSchedulerReportData(dayId);
         return res.render("authentication_and_accounts/schedulerReport", {
           csrfToken: req.csrfToken(),
           reportData,
@@ -5832,11 +5841,13 @@ export function oversightRouter({
         const conventionDays = allDays.filter(
           (d) => d.schedulable !== false && d.schedulable !== 0,
         );
+        const savedDeptFilter = await getSchedulerDeptFilter(req.session.userId);
         return res.render("authentication_and_accounts/scheduler", {
           csrfToken: req.csrfToken(),
           conventionDays,
           year,
           actorId: req.session.userId || 0,
+          savedDeptFilter,
           canPublish:
             !!req.session.permissions?.[req.session.userRole]
               ?.accessAdminConsole,
@@ -5869,6 +5880,52 @@ export function oversightRouter({
         return res.json({ success: true, volunteers });
       } catch (err) {
         (logError || console.error)("api/scheduler/volunteers GET error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * GET /api/scheduler/dept-filter
+   * Return the calling volunteer's saved department filter preference.
+   *
+   * Response: { success: boolean, deptFilter: string|null }
+   *
+   * @requires createAssignments permission
+   */
+  router.get(
+    "/api/scheduler/dept-filter",
+    requireAuth,
+    requirePermission("createAssignments"),
+    async (req, res) => {
+      try {
+        const deptFilter = await getSchedulerDeptFilter(req.session.userId);
+        return res.json({ success: true, deptFilter });
+      } catch (err) {
+        (logError || console.error)("api/scheduler/dept-filter GET error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * PUT /api/scheduler/dept-filter
+   * Save the calling volunteer's department filter preference.
+   *
+   * Body (JSON): { deptFilter: string }
+   *
+   * @requires createAssignments permission
+   */
+  router.put(
+    "/api/scheduler/dept-filter",
+    requireAuth,
+    requirePermission("createAssignments"),
+    async (req, res) => {
+      try {
+        await updateSchedulerDeptFilter(req.session.userId, req.body.deptFilter || "");
+        return res.json({ success: true });
+      } catch (err) {
+        (logError || console.error)("api/scheduler/dept-filter PUT error:", err);
         return res.status(500).json({ success: false, error: "Server error." });
       }
     },

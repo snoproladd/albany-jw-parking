@@ -963,7 +963,8 @@ color-coding renders correctly.
 
 #### Using the Scheduler
 
-1. Select a **Convention Day** from the sidebar picker.
+1. Select a **Convention Day** from the sidebar picker. If today falls within the
+   convention, the current day is selected automatically when the page loads.
    The schedule grid loads automatically — rows at 15-minute resolution,
    columns organised by department. Departments with multiple locations
    (e.g. Security at MVP Garage and OGS Parking Garage) display one
@@ -971,6 +972,8 @@ color-coding renders correctly.
 2. The **Volunteer Pool** in the sidebar lists all active registered volunteers.
    - Filter by **Rank** to narrow to Registered, Keyman, or Overseer+.
    - Filter by **Department** to show only volunteers with the matching crew flag.
+     This filter is remembered across sessions and machines — it's tied to your
+     account, not the browser.
    - Filter by **Gender** to narrow to Male or Female volunteers.
    - Filter by **Sort** to order the pool by last name, rank, or department.
 3. **Drag** a name pill from the pool onto any highlighted drop zone in the grid.
@@ -1006,11 +1009,13 @@ Every assignment and unassignment can be reversed:
 
 ### Schedule Report *(OVERSEER+)*
 
-**Path:** Operations → Scheduler → Report button in day banner
+**Path:** Operations → Scheduler → Report icon in sidebar header
 
-A printable per-department schedule report for one convention day. After
-assigning volunteers in the Scheduler, click **Report** in the day banner
-to open the report in a new tab.
+A printable per-department schedule report for one convention day. The
+**Report** icon in the scheduler's sidebar header (next to Conflict Grid and
+Crew Assignments) opens the report in a new tab — no day needs to be selected
+in the Scheduler first; the report defaults to today's convention day (or the
+first schedulable day) and has its own day picker.
 
 **Layout:**
 - Departments appear in alphabetical order, each as its own section, with a
@@ -1026,8 +1031,9 @@ Click **Print / Save PDF** to open the browser print dialog. Choose
 hides all browser chrome and navigation when printed.
 
 **Publishing (ASSISTANT_ADMIN+):**
-Click **Publish** (in the scheduler day banner or the report toolbar) to open
-the publish modal. The same modal is used in both places and supports
+Click **Publish** (in the scheduler's persistent sidebar header, or the report
+toolbar) to open the publish modal — no day needs to be selected in the
+Scheduler first. The same modal is used in both places and supports
 publishing one or more convention days in a single batched operation.
 
 *Step 1 — configure:*

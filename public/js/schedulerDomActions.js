@@ -230,6 +230,10 @@ export async function initDomActions() {
   );
   document.addEventListener("filter:select", (e) => _onFilterSelect(e.detail));
 
+  if (document.body.dataset.canPublish === "true") {
+    document.getElementById("schedulerPublishSlot")?.appendChild(createPublishButton());
+  }
+
   // Horizontal-scroll listener — toggle right time mirror column.
   // rAF-throttled so layout reads and writes are batched once per frame,
   // preventing the forced-reflow thrashing that caused jank on every tick.
@@ -783,6 +787,9 @@ export async function initDomActions() {
    * @returns {void}
    */
   function _onFilterSelect({ id, value }) {
+    if (id === "vol-department-filter") {
+      _saveDeptFilterPreference(value);
+    }
     if (
       id === "vol-rank-filter" ||
       id === "vol-department-filter" ||
@@ -793,6 +800,22 @@ export async function initDomActions() {
     ) {
       _applyVolunteerFilters();
     }
+  }
+
+  /**
+   * Persist the volunteer's department filter selection server-side so it
+   * survives across sessions and machines. Fire-and-forget — a failed save
+   * only means the preference isn't remembered next time, nothing breaks now.
+   *
+   * @param {string} value
+   * @returns {void}
+   */
+  function _saveDeptFilterPreference(value) {
+    fetch("/api/scheduler/dept-filter", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deptFilter: value }),
+    }).catch((err) => console.error("[scheduler] dept-filter save error:", err));
   }
 
   /**
@@ -1723,10 +1746,6 @@ export async function initDomActions() {
       refreshBtn.disabled = false;
     });
     historyBtns.appendChild(refreshBtn);
-
-    if (document.body.dataset.canPublish === "true") {
-      historyBtns.appendChild(createPublishButton());
-    }
 
     const togglesWrap = document.createElement("div");
     togglesWrap.classList.add("sched-dept-toggles-wrap");

@@ -653,6 +653,17 @@ The first ADMIN must be granted directly in the database.
     department name with directional arrows.
   - **Fixed-width dropzones (2.54.0):** volunteer slots are `flex: 0 0 calc((100% - 4px) / 3)`,
     always 3 per row with ellipsis-truncated names.
+  - **Persisted department filter (2.82.0):** `scheduler_dept_filter` column on
+    `volunteer_in`; `GET`/`PUT /api/scheduler/dept-filter` load/save the volunteer's
+    last-used pool department filter across sessions and machines.
+  - **Day-independent toolbar (2.82.0):** Report link and Publish button live in the
+    persistent sidebar header (not the per-day banner), since neither actually depends
+    on the currently-loaded day — Report has its own day-picker, Publish lists every
+    convention day in its modal. `GET /oversight/tools/scheduler/report` defaults to
+    today's convention day (or the first schedulable day) when no `dayId` is given.
+  - **Auto-select today (2.82.0):** on page load, `scheduler.js` checks the embedded
+    `schedulerConventionDaysJson` data for a day matching today's date and selects it
+    automatically, same as a manual pick. Runs once on load only.
 - **Rendezvous points (2.55.0):** one optional meeting point per schedule assignment
   (shift + location). Managed via a shared floating panel (`rendezvous.js`) accessible
   from three surfaces: the Rendezvous landing page (`/oversight/tools/rendezvous`),

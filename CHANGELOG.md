@@ -3,6 +3,33 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.82.0] — 2026-07-05
+
+### Added
+- **Scheduler department filter now persists server-side.** New
+  `scheduler_dept_filter` column on `volunteer_in`, with
+  `getSchedulerDeptFilter()` / `updateSchedulerDeptFilter()` in
+  `dbSync.js` and `GET`/`PUT /api/scheduler/dept-filter` routes.
+  The scheduler page now pre-selects a volunteer's last-used
+  department filter on load, and follows them across machines/browsers
+  since it's tied to the volunteer's account rather than local storage.
+- **Scheduler auto-opens to today's convention day.** On page load,
+  `scheduler.js` checks the embedded convention-days data for a day
+  matching today's date and auto-selects it in the day picker, exactly
+  as if it had been picked manually. Only runs once on initial load —
+  manually switching days mid-visit is never overridden.
+
+### Changed
+- **Report and Publish no longer require a day to be selected in the
+  scheduler.** Both previously lived inside the per-day banner, which
+  only exists once a day is picked and its grid loads — hiding them
+  unnecessarily, since neither is actually tied to whatever day happens
+  to be loaded (Report has its own day-picker; Publish lists every
+  convention day in its own modal). Moved both into the persistent
+  sidebar header. `GET /oversight/tools/scheduler/report` now defaults
+  to today's convention day (or the first schedulable day) when no
+  `dayId` is given, instead of redirecting away.
+
 ## [2.81.2] — 2026-07-05
 
 ### Fixed
