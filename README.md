@@ -39,8 +39,8 @@ and attendance for the Albany JW Regional Convention parking team.
 ### Setup
 
 ```bash
-git clone https://github.com/snoproladd/legendary-waffle.git
-cd legendary-waffle
+git clone https://github.com/snoproladd/albany-jw-parking.git
+cd albany-jw-parking
 npm install
 ```
 

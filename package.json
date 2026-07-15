@@ -2,13 +2,13 @@
   "name": "parking",
   "version": "2.83.1",
   "description": "Volunteer management platform for Albany JW Regional Convention parking operations — registration, scheduling, messaging, and oversight tools.",
-  "homepage": "https://github.com/snoproladd/legendary-waffle#readme",
+  "homepage": "https://github.com/snoproladd/albany-jw-parking#readme",
   "bugs": {
-    "url": "https://github.com/snoproladd/legendary-waffle/issues"
+    "url": "https://github.com/snoproladd/albany-jw-parking/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/snoproladd/legendary-waffle.git"
+    "url": "git+https://github.com/snoproladd/albany-jw-parking.git"
   },
   "license": "ISC",
   "author": "",
