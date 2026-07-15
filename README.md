@@ -64,31 +64,15 @@ In dev, secrets fall back to `.env` values when Key Vault is unreachable.
 
 ---
 
-## Demo Environment
+### Demo Environment
 
-A demo instance runs at `https://demo.albanyjwparking.org` on the same App
-Service and database server as production. All data is isolated in a separate
-`demo` SQL schema via a contained SQL user (`parking_demo`) whose
-`DEFAULT_SCHEMA = demo`.
+A demo instance runs at https://demo.albanyjwparking.org. All data is isolated
+in a separate `demo` SQL schema via a contained SQL user (`parking_demo`) whose
+`DEFAULT_SCHEMA = demo`. Routing is transparent — `AsyncLocalStorage` propagates
+the demo flag through the request pipeline; `getSqlPool()` and `query()` route
+automatically based on hostname. Outbound email and SMS are suppressed in demo context.
 
-The routing is transparent — no changes to `dbSync.js` or route handlers.
-`AsyncLocalStorage` propagates the demo flag through the request pipeline;
-`getSqlPool()` and `query()` route automatically based on the hostname.
-
-To run the demo locally, add `127.0.0.1 parking-demo.local` to your hosts
-file and set `DEMO_HOSTNAME=parking-demo.local` in `.env`, then access the
-app at `http://parking-demo.local:3000`.
-
-### Demo login credentials
-
-| Email | Role | Password |
-|---|---|---|
-| `admin@demo.com` | ADMIN | `Demo@2026!` |
-| `asstadmin@demo.com` | ASSISTANT_ADMIN | `Demo@2026!` |
-| `overseer@demo.com` | OVERSEER | `Demo@2026!` |
-| `keyman@demo.com` | KEYMAN | `Demo@2026!` |
-| `desk@demo.com` | DESK | `Demo@2026!` |
-| `volunteer@demo.com` | REGISTERED | `Demo@2026!` |
+Demo credentials are displayed on the demo login page.
 
 To re-seed demo data: `node scripts/seedDemo.js`
 To anonymize names/places in the demo DB: run `scripts/anonymizeDemo.sql`
