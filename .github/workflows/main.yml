@@ -47,11 +47,8 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: ACR Login
-        run: |
-          ACR_PASS=$(az acr credential show --name ${{ env.ACR_NAME }} --query "passwords[0].value" -o tsv)
-          docker login ${{ env.ACR_LOGIN_SERVER }} \
-            --username ${{ env.ACR_NAME }} \
-          --password "$ACR_PASS"
+        run: az acr login --name ${{ env.ACR_NAME }}
+
 
       - name: Build & Push Docker image
         run: |
