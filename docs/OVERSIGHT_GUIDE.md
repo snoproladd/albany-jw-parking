@@ -1122,11 +1122,13 @@ Right-clicking any volunteer name pill opens a context-sensitive menu.
   an inbound SMS). Opens a floating constraints panel showing each pending
   suggestion with its resolved day, start, and end time. For each suggestion you
   can edit the time fields, click **Apply Blackout** to create the blackout and
-  dismiss the suggestion, or click **×** to dismiss it without applying. An
-  **Interpret** form at the bottom lets you type free text (e.g. "can't do
-  Saturday morning") and have the AI convert it to a structured blackout
-  suggestion for review. Applying all suggestions for an SMS message
-  automatically marks that message resolved in the Notes Report.
+  dismiss the suggestion, or click **×** to dismiss it without applying. Applying
+  all suggestions for an SMS message automatically marks that message resolved in
+  the Notes Report.
+
+  The panel is for reviewing suggestions the AI produced from notes and inbound
+  SMS — it is not a place to enter new constraints. To add a blackout you already
+  know about, use **Manage Blackouts** below instead.
 - **Manage Blackouts** — opens a panel showing this volunteer's unavailable
   time windows for the current day. Requires a convention day to be selected
   (the item is disabled with a tooltip otherwise). The add form offers five

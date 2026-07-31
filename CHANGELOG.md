@@ -3,6 +3,38 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.85.0] — 2026-07-31
+
+### Removed
+- **AI interpretation of overseer free text in the scheduling constraint panel.**
+  The panel's *Interpret Constraint* box let an overseer type a plain-English
+  constraint and spend a GPT-4o call converting it into a day and time range.
+  It never earned its keep: an overseer who can describe a constraint already
+  knows the day and time, and could enter it directly in the blackout modal in
+  fewer clicks. Two structural problems made it worse — the box was only
+  reachable when an *unrelated* suggestion already existed (the context-menu
+  item is gated on `pendingConstraints > 0`), and interpreting appended a
+  **second** suggestion rather than resolving the one on screen, leaving the
+  original still pending. AI interpretation remains where it has real value:
+  intake-note analysis and inbound-SMS analysis, which parse unstructured text
+  nobody has read yet.
+  - Deleted `lib/constraintInterpreter.js` (`interpretConstraint`,
+    `buildDayContext`) — `constraintRoutes.js` was its only consumer.
+  - Removed `POST /api/constraints/:volunteerId/interpret` and
+    `POST /api/constraints/:volunteerId/suggestions`.
+  - Removed `_buildInterpretForm`, `_onInterpret`, and
+    `_buildInterpretPreviewHtml` from `public/js/schedulerConstraintPanel.js`.
+  - The panel is now review-and-apply only: review, edit day/time inline if
+    unresolved, then Apply or dismiss.
+
+### Unchanged (deliberately)
+- `createAiBlackoutSuggestion()` stays in `lib/dbSync.js` — the note and SMS
+  producers still call it. `source_type = 'overseer'` becomes an unused enum
+  value; no migration and no data cleanup required.
+- The `pendingConstraints > 0` gate on the scheduler context-menu item is now
+  *correct* rather than a bug. A review-only panel should open only when there
+  is something to review.
+
 ## [2.84.0] — 2026-07-31
 
 ### Added

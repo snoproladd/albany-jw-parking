@@ -6,16 +6,12 @@
  *   Returns all pending (unapplied) blackout suggestions for a volunteer,
  *   plus the convention day+session list for building the Apply form.
  *
- * POST /api/constraints/:volunteerId/interpret
- *   Runs AI interpretation of overseer-entered free text.
- *   Returns a structured suggestion — does NOT save it to the database.
- *
- * POST /api/constraints/:volunteerId/suggestions
- *   Saves a confirmed interpreted suggestion to ai_blackout_suggestions.
- *
  * POST /api/constraints/:volunteerId/suggestions/:id/apply
  *   Applies a suggestion: creates a volunteer_blackouts row (additive) and
  *   marks the suggestion applied. Requires CSRF token.
+ *
+ * DELETE /api/constraints/:volunteerId/suggestions/:id
+ *   Dismisses a single unapplied suggestion (duplicate or incorrect).
  *
  * Access: OVERSEER+ (editVolunteerInfo permission).
  *
@@ -25,10 +21,6 @@
 import express from "express";
 import * as db from "../lib/dbSync.js";
 import { requirePermission } from "../src/config/roles.js";
-import {
-  interpretConstraint,
-  buildDayContext,
-} from "../lib/constraintInterpreter.js";
 
 /**
  * Creates and returns the constraint Express router.
@@ -92,145 +84,6 @@ export function constraintRouter({ csrfProtection, logError }) {
           err,
         );
         return res.status(500).json({ error: "Failed to fetch constraints." });
-      }
-    },
-  );
-
-  // ── POST /api/constraints/:volunteerId/interpret ───────────────────────────
-
-  /**
-   * Interprets overseer free text and returns a structured suggestion.
-   * Does NOT save to the database — the client confirms before saving.
-   *
-   * Body: { text: string }
-   * Response: { suggestion: { blackoutType, description, dayHint, timeHint,
-   *                           startMins, endMins, error } }
-   */
-  router.post(
-    "/api/constraints/:volunteerId/interpret",
-    requireAuth,
-    requirePermission("editVolunteerInfo"),
-    async (req, res) => {
-      const volunteerId = parseInt(req.params.volunteerId, 10);
-      if (!volunteerId)
-        return res.status(400).json({ error: "Invalid volunteer ID." });
-
-      const text = String(req.body?.text || "").trim();
-      if (!text) return res.status(400).json({ error: "text is required." });
-
-      try {
-        const [volunteer, days] = await Promise.all([
-          db.getVolunteerById(volunteerId),
-          db.getConventionDaysWithSessions(),
-        ]);
-
-        if (!volunteer)
-          return res.status(404).json({ error: "Volunteer not found." });
-
-        const dayContext = buildDayContext(days);
-        const suggestion = await interpretConstraint(
-          text,
-          volunteer.firstName || "",
-          volunteer.lastName || "",
-          dayContext,
-        );
-
-        if (suggestion.error) {
-          return res.status(502).json({
-            error: "AI interpretation failed.",
-            aiError: suggestion.error,
-            suggestion: null,
-          });
-        }
-
-        // Attempt day resolution if dayHint came back from the AI
-        let conventionDayId = null;
-        if (suggestion.dayHint) {
-          const year = new Date().getFullYear();
-          const resolved = await db.resolveBlackoutHints(
-            suggestion.dayHint,
-            suggestion.timeHint,
-            suggestion.blackoutType,
-            year,
-          );
-          conventionDayId = resolved.conventionDayId;
-          // If AI already returned specific start/end, prefer those
-          if (suggestion.startMins == null)
-            suggestion.startMins = resolved.startMins;
-          if (suggestion.endMins == null) suggestion.endMins = resolved.endMins;
-        }
-
-        return res.json({
-          suggestion: {
-            ...suggestion,
-            conventionDayId,
-          },
-        });
-      } catch (err) {
-        (logError || console.error)(
-          "POST /api/constraints/:volunteerId/interpret error:",
-          err,
-        );
-        return res.status(500).json({ error: "Interpretation failed." });
-      }
-    },
-  );
-
-  // ── POST /api/constraints/:volunteerId/suggestions ─────────────────────────
-
-  /**
-   * Saves an overseer-confirmed interpreted suggestion to ai_blackout_suggestions.
-   *
-   * Body: { blackoutType, description, dayHint, timeHint,
-   *         conventionDayId?, startMins?, endMins? }
-   * Response: { success: true, id: number }
-   */
-  router.post(
-    "/api/constraints/:volunteerId/suggestions",
-    requireAuth,
-    requirePermission("editVolunteerInfo"),
-    async (req, res) => {
-      const volunteerId = parseInt(req.params.volunteerId, 10);
-      if (!volunteerId)
-        return res.status(400).json({ error: "Invalid volunteer ID." });
-
-      const {
-        blackoutType,
-        description,
-        dayHint,
-        timeHint,
-        conventionDayId,
-        startMins,
-        endMins,
-      } = req.body ?? {};
-
-      if (!blackoutType || !description?.trim()) {
-        return res
-          .status(400)
-          .json({ error: "blackoutType and description are required." });
-      }
-
-      try {
-        const id = await db.createAiBlackoutSuggestion({
-          volunteerId,
-          sourceType: "overseer",
-          sourceId: null,
-          blackoutType,
-          description: description.trim(),
-          dayHint: dayHint ?? null,
-          timeHint: timeHint ?? null,
-          conventionDayId: conventionDayId ?? null,
-          startMins: startMins ?? null,
-          endMins: endMins ?? null,
-        });
-
-        return res.json({ success: true, id });
-      } catch (err) {
-        (logError || console.error)(
-          "POST /api/constraints/:volunteerId/suggestions error:",
-          err,
-        );
-        return res.status(500).json({ error: "Failed to save suggestion." });
       }
     },
   );

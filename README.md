@@ -119,7 +119,7 @@ DEMO_DB_USER=parking_demo
 DEMO_DB_PASSWORD=your-demo-db-password
 DEMO_HOSTNAME=parking-demo.local   # or demo.albanyjwparking.org in production
 
-# Azure OpenAI (note analysis, SMS analysis, constraint interpreter, schedule analyzer)
+# Azure OpenAI (note analysis, SMS analysis, schedule analyzer)
 AzureOpenAIEndpoint=https://albany-parking-resource.openai.azure.com/
 AzureOpenAIKey=your-key
 AzureOpenAIDeployment=gpt-4o
@@ -186,7 +186,6 @@ parking/
 │   ├── messaging.js           # Email + SMS delivery helpers (suppressed in demo context)
 │   ├── noteAnalyzer.js        # Azure OpenAI pipeline for volunteer intake note analysis
 │   ├── smsInboundAnalyzer.js  # Azure OpenAI pipeline for freeform inbound SMS analysis
-│   ├── constraintInterpreter.js # AI free-text → structured scheduling blackout suggestion
 │   ├── scheduleAnalyzer.js    # Schedule violation rule engine + AI enhancement layer
 │   ├── passwordVer.js         # PBKDF2 hashing + verification
 │   ├── publishSchedule.js     # PDF schedule generation + OneDrive upload + Blob Storage delivery
@@ -215,7 +214,7 @@ parking/
 │   ├── blackoutRoutes.js      # GET/POST /api/blackouts/:volunteerId (BlackoutTimeline API)
 │   ├── smsWebhookRoute.js     # Twilio inbound SMS routing + freeform AI pipeline
 │   ├── noteAnalysisRoutes.js  # AI note analysis (analyze, batch, accept action item)
-│   ├── constraintRoutes.js    # AI scheduling constraints (pending, interpret, apply, delete)
+│   ├── constraintRoutes.js    # AI scheduling constraints (pending, apply, delete)
 │   ├── scheduleAnalysisRoutes.js # Schedule violation analysis + rules CRUD
 │   ├── upgradeRoutes.js       # Account upgrade (email/phone → password)
 │   └── validationRoutes.js    # Phone (Twilio) + email (Kickbox) validation
@@ -733,10 +732,11 @@ The first ADMIN must be granted directly in the database.
   `volunteer_action (source_type='inbound_sms')` → notify overseers via SMS + email.
 - **AI Scheduling Constraints (2.67.0):** AI-suggested blackouts from note analysis and
   inbound SMS are persisted as `ai_blackout_suggestions` rows rather than transient JSON.
-  `lib/constraintInterpreter.js` handles overseer free-text interpretation. The scheduler
-  constraint panel (`schedulerConstraintPanel.js`) lets overseers review, edit, and apply
-  suggestions directly from the pool pill context menu. Applying all suggestions for an
-  SMS message auto-resolves it in the Notes Report.
+  The scheduler constraint panel (`schedulerConstraintPanel.js`) lets overseers review,
+  edit, apply, and dismiss suggestions directly from the pool pill context menu. Applying
+  all suggestions for an SMS message auto-resolves it in the Notes Report.
+  As of 2.85.0 the panel is review-and-apply only — overseer free-text AI interpretation
+  (`lib/constraintInterpreter.js`) was removed as redundant with direct blackout entry.
 - **Lessons Learned (2.73.0+):** `/oversight/tools/lessons-learned` (KEYMAN+) — three-state
   workflow: submitted → approved → published, reversible in both directions via
   `POST /api/lessons-learned/:id/unpublish` and `/unapprove` (2.84.0+). On publish,
