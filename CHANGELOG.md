@@ -3,6 +3,60 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.84.0] — 2026-07-31
+
+### Added
+- **Bulk publish for Lessons Learned.** The *Accepted* tab now shows a
+  checkbox on each card plus a select-all bar. `POST /api/lessons-learned/
+  publish-selected` promotes every selected lesson in one `OPENJSON`-driven
+  `UPDATE` and regenerates the consolidated PDF **once** for the whole batch.
+  Previously the only route from approved to published was the per-lesson
+  publish modal, which fired a full Puppeteer render per lesson — publishing
+  ten lessons meant ten complete rebuilds of the same report.
+- **Delete a lesson at any stage** (OVERSEER+), behind a confirmation modal.
+  `DELETE /api/lessons-learned/:id` deletes photo blobs *before* the row,
+  because `FK_llp_lesson` cascades the `lessons_learned_photos` rows away and
+  those rows hold the only record of the blob names — deleting in the other
+  order orphans the files in the `lessons-learned` container permanently.
+  Deleting a published lesson regenerates the year's PDF so the distributed
+  report matches the database.
+- **Un-publish and un-accept.** `POST /api/lessons-learned/:id/unpublish`
+  returns a published lesson to *approved* and regenerates the report;
+  `POST /api/lessons-learned/:id/unapprove` returns an accepted lesson to
+  *submitted*. New `revertLessonStatus()` in `lib/dbSync.js` clears the audit
+  stamps for every stage at or above the target, so a reverted lesson can no
+  longer claim a publication it doesn't hold. The original approver is
+  preserved when reverting only the publication.
+- **Audience flags — Internal / Committee.** New `is_internal` and
+  `is_committee` BIT columns on `lessons_learned` (both schemas), toggled from
+  checkboxes in the expanded card detail (OVERSEER+) and surfaced as badges in
+  the card summary. A lesson may be either or both, never neither — enforced
+  by `CK_ll_audience` rather than by application code alone. Existing rows
+  default to internal. Migration: `scripts/migrations/lessons-learned-audience.sql`.
+- **Audience filter** (All / Internal / Committee) in the Lessons Learned
+  toolbar. Inclusive rather than exclusive: a lesson flagged both appears
+  under either filter. Applied only to the browser-facing list route — the
+  Puppeteer render source and the batch-publish precondition check
+  deliberately ignore it so report contents are never inherited from view state.
+
+### Fixed
+- **Published report PDF returned 404 behind Azure App Service.** The proxy
+  route was `GET /lessons-learned/pdf/:blobName`, and blob names contain
+  slashes (`reports/lessons-learned/lessons-learned-<year>.pdf`). Links
+  percent-encoded them, but the App Service front end normalizes `%2F` into a
+  literal separator before Express matches, so the single-segment param never
+  matched and the request fell through to the default 404 handler — confirmed
+  by an unauthenticated request returning 404 instead of the 401 `requireAuth`
+  would have produced. Re-keyed to `GET /lessons-learned/pdf/:year`, resolving
+  the blob name server-side. Also stops callers naming arbitrary blobs in the
+  `published-files` container.
+- **`batchPublish` sent a double-encoded request body.** `apiFetch()` already
+  runs `JSON.stringify` on `opts.body`, and the caller passed an
+  already-stringified object, so `req.body` arrived as a string and
+  `Number(req.body.year)` evaluated to `NaN`. The route's
+  `new Date().getFullYear()` fallback masked it — Re-generate silently rebuilt
+  the current year regardless of which year was selected.
+
 ## [2.83.1] — 2026-07-05
 
 ### Fixed

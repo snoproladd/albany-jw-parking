@@ -1628,7 +1628,11 @@ should change for next year. Entries move through a three-state workflow:
 | Edit your own submission | Original submitter or OVERSEER+ |
 | Approve a lesson | OVERSEER+ |
 | Publish a lesson | OVERSEER+ |
+| Publish several at once | OVERSEER+ |
+| Un-accept / un-publish a lesson | OVERSEER+ |
+| Set Internal / Committee audience | OVERSEER+ |
 | Archive a lesson | OVERSEER+ (published lessons cannot be archived) |
+| Delete a lesson permanently | OVERSEER+ (any stage) |
 | Generate / Re-generate PDF | OVERSEER+ |
 | Download the published PDF | OVERSEER+ |
 
@@ -1653,6 +1657,48 @@ should change for next year. Entries move through a three-state workflow:
   the consolidated year PDF the next time the report is generated. Published
   lessons cannot be archived or edited.
 
+#### Publishing several lessons at once
+
+On the **Accepted** tab each card carries a checkbox, with a select-all bar above
+the list. Tick the lessons you want, then click **Publish selected**. All of them
+move to *Published* together and the year's PDF is rebuilt **once**.
+
+Publishing lessons one at a time still works, but rebuilds the entire report on
+every publish — use the checkboxes when promoting more than one.
+
+> If an audience filter is active, select-all only covers the lessons currently
+> visible.
+
+#### Audience — Internal and Committee
+
+Expand any lesson to find its **Audience** checkboxes:
+
+- **Internal** — the lesson stays within the department.
+- **Committee** — the lesson goes to the committee alongside next year's
+  operating plan.
+
+A lesson can be both, but never neither. When only one box is ticked it is locked
+so it cannot be cleared; tick the other first if you want to switch. Both flags
+show as badges on the card summary, and the **All / Internal / Committee** filter
+in the toolbar narrows the list. A lesson flagged both appears under either filter.
+
+#### Reversing a decision
+
+- **Un-accept** (Accepted tab) returns a lesson to *Proposed* and clears the
+  approval record.
+- **Un-publish** (Published tab) returns a lesson to *Accepted*, clears the
+  publication record, and regenerates the year's PDF without it — the updated
+  report is re-uploaded to Blob Storage and SharePoint.
+
+#### Deleting a lesson
+
+**Delete** is available on every card at any stage and asks for confirmation
+first. It permanently removes the lesson and all attached photos — there is no
+undo. If the lesson was published, the year's report is regenerated without it.
+
+Prefer **Archive** when you simply want a lesson out of the way: archiving keeps
+the record and is reversible.
+
 #### Generating the consolidated PDF
 
 Each time a lesson is published, the system automatically regenerates the
@@ -1675,7 +1721,8 @@ Operations → Lessons Learned → Published Report (Operations Hub)
 A read-only page showing the consolidated published PDF for a given convention
 year.
 
-- **Download PDF** — opens the Blob Storage–hosted PDF in a new tab.
+- **Download PDF** — opens the Blob Storage–hosted PDF in a new tab. (Fixed in
+  2.84.0 — this link previously returned a 404 in production.)
 - **Last generated / by** — timestamp and name of the last person who ran a
   publish or re-generate.
 - **Lessons included** — count of published lessons in the current PDF.

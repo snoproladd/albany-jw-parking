@@ -48,6 +48,16 @@
             <option value="">All years</option>
           </select>
         </div>
+        <div class="btn-group btn-group-sm ll-audience-filter" id="ll-audience-filter"
+             role="group" aria-label="Filter by audience">
+          <button type="button" class="btn btn-outline-secondary active"
+                  data-ll-audience="">All</button>
+          <button type="button" class="btn btn-outline-secondary"
+                  data-ll-audience="internal">Internal</button>
+          <button type="button" class="btn btn-outline-secondary"
+                  data-ll-audience="committee">Committee</button>
+        </div>
+
         <ul class="nav nav-pills ll-tabs" id="ll-tab-pills" role="tablist">
           <li class="nav-item" role="presentation">
             <button class="nav-link active" id="ll-tab-proposed" type="button"
@@ -76,6 +86,20 @@
         </ul>
         <div id="ll-report-link-wrap" class="ms-auto d-none"></div>
       </div>
+
+      <%# ── Bulk publish bar (Accepted tab, OVERSEER+) ─────────── %>
+      <% if (isOverseer) { %>
+      <div id="ll-bulk-bar" class="ll-bulk-bar d-none">
+        <div class="form-check mb-0">
+          <input class="form-check-input" type="checkbox" id="ll-bulk-all">
+          <label class="form-check-label fw-semibold" for="ll-bulk-all">Select all</label>
+        </div>
+        <span class="ll-bulk-count" id="ll-bulk-count">0 selected</span>
+        <button class="btn btn-sm btn-success ms-auto" id="ll-bulk-publish" type="button" disabled>
+          <i class="fa-solid fa-file-arrow-up me-1"></i>Publish selected
+        </button>
+      </div>
+      <% } %>
 
       <%# ── Card list ──────────────────────────────────────────── %>
       <div id="ll-cards" class="ll-cards" aria-live="polite">
@@ -229,6 +253,37 @@
         </div>
       </div>
     </div>
+
+    <%# ── Delete confirmation modal (OVERSEER+) ─────────────────── %>
+    <% if (isOverseer) { %>
+    <div class="modal fade" id="ll-delete-modal" tabindex="-1"
+         aria-labelledby="ll-delete-modal-title" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2 class="modal-title h5" id="ll-delete-modal-title">
+              <i class="fa-solid fa-triangle-exclamation me-2 text-danger"></i>Delete Lesson
+            </h2>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p>This permanently deletes the lesson and every photo attached to it.
+            <strong>It cannot be undone.</strong></p>
+            <p class="mb-0 text-muted small" id="ll-delete-note"></p>
+            <input type="hidden" id="ll-delete-id">
+            <div class="alert alert-warning mt-3 d-none" id="ll-delete-error" role="alert"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-danger" id="ll-delete-confirm">
+              <span class="ll-submit-label">Delete permanently</span>
+              <span class="ll-submit-spinner spinner-border spinner-border-sm ms-1 d-none" role="status"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <% } %>
 
     <%# ── Page data (read by lessonsLearned.js) ──────────────────── %>
     <script type="application/json" id="ll-meta">

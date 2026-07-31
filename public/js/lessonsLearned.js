@@ -55,6 +55,19 @@
      */
     let currentReport = null;
 
+    /**
+     * Lesson ids checked for bulk publishing on the Accepted tab.
+     * Cleared whenever the tab or year filter changes.
+     * @type {Set<number>}
+     */
+    const selectedIds = new Set();
+
+    /**
+     * Active audience filter: '' (all), 'internal', or 'committee'.
+     * @type {string}
+     */
+    let currentAudience = '';
+
     // ─────────────────────────────────────────────
     //  Bootstrap modal references (lazy)
     // ─────────────────────────────────────────────
@@ -65,6 +78,8 @@
     function editModal()    { return bootstrap.Modal.getOrCreateInstance(document.getElementById('ll-edit-modal')); }
     /** @returns {bootstrap.Modal} */
     function publishModal() { return bootstrap.Modal.getOrCreateInstance(document.getElementById('ll-publish-modal')); }
+    /** @returns {bootstrap.Modal} */
+    function deleteModal()  { return bootstrap.Modal.getOrCreateInstance(document.getElementById('ll-delete-modal')); }
 
     // ─────────────────────────────────────────────
     //  Helpers
@@ -296,6 +311,7 @@
 
         const params = new URLSearchParams({ tab: currentTab });
         if (currentYear) params.set('year', String(currentYear));
+        if (currentAudience) params.set('audience', currentAudience);
 
         const data = await apiFetch(`/api/lessons-learned?${params}`);
         if (!data.success) {
@@ -314,6 +330,9 @@
 
         // Show/hide report link on accepted tab
         updateReportLink(currentYear);
+
+        // Bulk-publish bar is only meaningful on the Accepted tab
+        updateBulkBar();
     }
 
     /**
@@ -331,7 +350,7 @@
         const data = await apiFetch(`/api/lessons-learned/report/${year}`);
         if (data.success && data.report) {
             wrap.classList.remove('d-none');
-            const pdfUrl = `/lessons-learned/pdf/${encodeURIComponent(data.report.blob_name)}`;
+            const pdfUrl = `/lessons-learned/pdf/${year}`;
             wrap.innerHTML = `
               <a class="btn btn-sm btn-outline-success ll-report-link" href="${esc(pdfUrl)}" target="_blank" rel="noopener">
                 <i class="fa-solid fa-file-pdf me-1"></i>Download ${year} Report
@@ -373,9 +392,8 @@
         if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Generating\u2026'; }
         try {
             const data = await apiFetch('/api/lessons-learned/batch-publish', {
-                method:  'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': meta.csrfToken },
-                body:    JSON.stringify({ year }),
+                method: 'POST',
+                body:   { year },
             });
             if (!data.success) throw new Error(data.message || 'Batch publish failed.');
             // Refresh the report link + card PDF buttons
@@ -384,6 +402,80 @@
         } catch (err) {
             alert(`Report generation failed: ${err.message}`);
             if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-rotate me-1"></i>Re-generate'; }
+        }
+    }
+
+    // ─────────────────────────────────────────────
+    //  Bulk publish (Accepted tab)
+    // ─────────────────────────────────────────────
+
+    /**
+     * Show or hide the bulk-publish bar and sync its counter, select-all state,
+     * and button enablement against the current selection.
+     *
+     * @returns {void}
+     */
+    function updateBulkBar() {
+        const bar = document.getElementById('ll-bulk-bar');
+        if (!bar) return;
+
+        const boxes  = Array.from(document.querySelectorAll('.ll-bulk-check'));
+        const active = currentTab === 'accepted' && meta.isOverseer && boxes.length > 0;
+
+        bar.classList.toggle('d-none', !active);
+        if (!active) return;
+
+        // Drop ids that are no longer on screen (year filter changed, etc.)
+        const visible = new Set(boxes.map((b) => Number(b.dataset.id)));
+        selectedIds.forEach((id) => { if (!visible.has(id)) selectedIds.delete(id); });
+
+        const count   = selectedIds.size;
+        const allBox  = document.getElementById('ll-bulk-all');
+        const pubBtn  = document.getElementById('ll-bulk-publish');
+
+        document.getElementById('ll-bulk-count').textContent =
+            `${count} selected`;
+
+        allBox.checked       = count > 0 && count === boxes.length;
+        allBox.indeterminate = count > 0 && count < boxes.length;
+        pubBtn.disabled      = count === 0;
+    }
+
+    /**
+     * Publish every checked lesson in one request, then regenerate the PDF once.
+     *
+     * @returns {Promise<void>}
+     */
+    async function handleBulkPublish() {
+        const ids = Array.from(selectedIds);
+        if (!ids.length) return;
+
+        const year = currentYear
+            || Number(document.querySelector('.ll-bulk-check')?.closest('.ll-card')?.dataset.year)
+            || new Date().getFullYear();
+
+        if (!confirm(`Publish ${ids.length} lesson${ids.length === 1 ? '' : 's'} and regenerate the ${year} report?`)) {
+            return;
+        }
+
+        const btn = document.getElementById('ll-bulk-publish');
+        btn.disabled  = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Publishing…';
+
+        try {
+            const res = await apiFetch('/api/lessons-learned/publish-selected', {
+                method: 'POST',
+                body:   { year, ids },
+            });
+            if (!res.success) throw new Error(res.message || 'Publish failed.');
+
+            selectedIds.clear();
+            await loadLessons();
+        } catch (err) {
+            alert(`Publish failed: ${err.message}`);
+        } finally {
+            btn.disabled  = false;
+            btn.innerHTML = '<i class="fa-solid fa-file-arrow-up me-1"></i>Publish selected';
         }
     }
 
@@ -404,12 +496,19 @@
         const canPublish   = meta.isOverseer && l.status !== 'published' && !l.archived;
         const canArchive   = meta.isOverseer && !l.archived && l.status !== 'published';
         const canUnarchive = meta.isOverseer && !!l.archived;
+        const showCheckbox = meta.isOverseer && currentTab === 'accepted'
+                             && l.status === 'approved' && !l.archived;
+        const canDelete    = meta.isOverseer;
+        const canUnpublish = meta.isOverseer && l.status === 'published' && !l.archived;
+        const canUnapprove = meta.isOverseer && l.status === 'approved'  && !l.archived;
 
         const dept = esc(l.department_name || l.department_other || 'General');
 
         const card = document.createElement('div');
         card.className = 'll-card';
         card.dataset.lessonId = String(l.id);
+        card.dataset.year     = String(l.year);
+        card.dataset.status   = String(l.status);
 
         // ── Action buttons ────────────────────────────────────────
         let actionBtns = '';
@@ -438,6 +537,21 @@
               <i class="fa-solid fa-box-open me-1"></i>Unarchive
             </button>`;
         }
+        if (canUnapprove) {
+            actionBtns += `<button class="btn btn-sm btn-outline-secondary ll-unapprove-btn" data-id="${l.id}" type="button">
+              <i class="fa-solid fa-rotate-left me-1"></i>Un-accept
+            </button>`;
+        }
+        if (canUnpublish) {
+            actionBtns += `<button class="btn btn-sm btn-outline-warning ll-unpublish-btn" data-id="${l.id}" type="button">
+              <i class="fa-solid fa-rotate-left me-1"></i>Un-publish
+            </button>`;
+        }
+        if (canDelete) {
+            actionBtns += `<button class="btn btn-sm btn-outline-danger ll-delete-btn" data-id="${l.id}" type="button">
+              <i class="fa-solid fa-trash me-1"></i>Delete
+            </button>`;
+        }
         // PDF download button on published cards when a report exists
         if (l.status === 'published' && currentReport?.pdfUrl) {
             actionBtns += `<a class="btn btn-sm btn-outline-success ll-pdf-link" href="${esc(currentReport.pdfUrl)}" target="_blank" rel="noopener">
@@ -448,10 +562,17 @@
         card.innerHTML = `
           <div class="ll-card-summary" tabindex="0" role="button" aria-expanded="false"
                data-id="${l.id}" aria-controls="ll-detail-${l.id}">
+            ${showCheckbox ? `<input type="checkbox" class="form-check-input ll-bulk-check"
+                 data-id="${l.id}" aria-label="Select this lesson for publishing"
+                 ${selectedIds.has(l.id) ? 'checked' : ''}>` : ''}
             <div class="ll-card-badges">
               ${statusBadge(l.status, l.archived)}
               <span class="badge bg-light text-dark border">${esc(String(l.year))}</span>
               ${l.photo_count > 0 ? `<span class="badge bg-light text-dark border"><i class="fa-solid fa-image me-1"></i>${l.photo_count}</span>` : ''}
+              <span class="ll-audience-badges">
+                ${l.is_internal  ? '<span class="badge bg-secondary-subtle text-secondary-emphasis border">Internal</span>' : ''}
+                ${l.is_committee ? '<span class="badge bg-primary-subtle text-primary-emphasis border">Committee</span>' : ''}
+              </span>
             </div>
             <div class="ll-card-body">
               <div class="ll-card-dept">${dept}</div>
@@ -531,6 +652,34 @@
 
         let photosBlock = buildPhotosBlock(id, photos, canEdit);
 
+        // Audience flags — OVERSEER+ only, and never on archived lessons.
+        // The sole checked box is disabled so CK_ll_audience can't be violated.
+        const canFlag   = meta.isOverseer && !lesson?.archived;
+        const internal  = !!lesson?.is_internal;
+        const committee = !!lesson?.is_committee;
+        const lockHint  = 'A lesson must be Internal, Committee, or both';
+
+        const audienceBlock = `
+          <div class="ll-audience-block mb-3">
+            <div class="ll-detail-label">Audience</div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input ll-flag-check" type="checkbox"
+                     id="ll-flag-internal-${id}" data-id="${id}" data-flag="internal"
+                     ${internal ? 'checked' : ''}
+                     ${!canFlag || (internal && !committee) ? 'disabled' : ''}
+                     ${canFlag && internal && !committee ? `title="${lockHint}"` : ''}>
+              <label class="form-check-label" for="ll-flag-internal-${id}">Internal</label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input ll-flag-check" type="checkbox"
+                     id="ll-flag-committee-${id}" data-id="${id}" data-flag="committee"
+                     ${committee ? 'checked' : ''}
+                     ${!canFlag || (committee && !internal) ? 'disabled' : ''}
+                     ${canFlag && committee && !internal ? `title="${lockHint}"` : ''}>
+              <label class="form-check-label" for="ll-flag-committee-${id}">Committee</label>
+            </div>
+          </div>`;
+
         let auditItems = [
             `<span><i class="fa-solid fa-user me-1"></i>Submitted by ${esc(lesson?.submitted_by_name || '—')} on ${fmtDate(lesson?.submitted_at)}</span>`,
         ];
@@ -547,6 +696,7 @@
         detail.innerHTML = `
           <div class="ll-detail-label">Lesson / Observation</div>
           <div class="ll-detail-notes mb-3">${esc(lesson?.notes || '')}</div>
+          ${audienceBlock}
           ${commentsBlock}
           ${photosBlock}
           <div class="ll-audit">${auditItems.join('')}</div>`;
@@ -832,6 +982,180 @@
     }
 
     // ─────────────────────────────────────────────
+    //  Audience flags
+    // ─────────────────────────────────────────────
+
+    /**
+     * Sync checkbox and badge state for a lesson without re-rendering the
+     * card, so the detail panel stays expanded after a toggle.
+     *
+     * @param {HTMLElement} card
+     * @param {boolean}     isInternal
+     * @param {boolean}     isCommittee
+     * @returns {void}
+     */
+    function applyFlagState(card, isInternal, isCommittee) {
+        const detail = card.querySelector('.ll-card-detail');
+        const ib = detail?.querySelector('.ll-flag-check[data-flag="internal"]');
+        const cb = detail?.querySelector('.ll-flag-check[data-flag="committee"]');
+
+        if (ib) { ib.checked = isInternal;  ib.disabled = isInternal  && !isCommittee; }
+        if (cb) { cb.checked = isCommittee; cb.disabled = isCommittee && !isInternal;  }
+
+        const wrap = card.querySelector('.ll-audience-badges');
+        if (wrap) {
+            wrap.innerHTML =
+                (isInternal  ? '<span class="badge bg-secondary-subtle text-secondary-emphasis border">Internal</span>' : '') +
+                (isCommittee ? '<span class="badge bg-primary-subtle text-primary-emphasis border">Committee</span>' : '');
+        }
+    }
+
+    /**
+     * Persist an audience flag change.
+     *
+     * @param {number} id
+     * @param {string} flag     'internal' or 'committee'
+     * @param {boolean} checked New state of the toggled box.
+     * @returns {Promise<void>}
+     */
+    async function handleFlagToggle(id, flag, checked) {
+        const card   = document.querySelector(`.ll-card[data-lesson-id="${id}"]`);
+        const detail = card?.querySelector('.ll-card-detail');
+        const ib = detail?.querySelector('.ll-flag-check[data-flag="internal"]');
+        const cb = detail?.querySelector('.ll-flag-check[data-flag="committee"]');
+
+        const isInternal  = flag === 'internal'  ? checked : !!ib?.checked;
+        const isCommittee = flag === 'committee' ? checked : !!cb?.checked;
+
+        try {
+            const res = await apiFetch(`/api/lessons-learned/${id}/flags`, {
+                method: 'PATCH',
+                body:   { isInternal, isCommittee },
+            });
+            if (res.success) {
+                applyFlagState(card, res.isInternal, res.isCommittee);
+            } else {
+                alert(res.message || 'Could not update audience.');
+                applyFlagState(card, !!ib?.defaultChecked, !!cb?.defaultChecked);
+            }
+        } catch {
+            alert('An unexpected error occurred.');
+        }
+    }
+
+    // ─────────────────────────────────────────────
+    //  Revert status
+    // ─────────────────────────────────────────────
+
+    /**
+     * Return a published lesson to Accepted and regenerate the year's PDF.
+     * Confirmed inline because it rewrites the distributed report.
+     *
+     * @param {number} id
+     * @returns {Promise<void>}
+     */
+    async function handleUnpublish(id) {
+        const card = document.querySelector(`.ll-card[data-lesson-id="${id}"]`);
+        const year = card?.dataset.year || '';
+        if (!confirm(`Un-publish this lesson? The ${year} report will be regenerated without it and re-uploaded to blob storage and SharePoint.`)) {
+            return;
+        }
+
+        const btn = document.querySelector(`.ll-unpublish-btn[data-id="${id}"]`);
+        if (btn) btn.disabled = true;
+        try {
+            const res = await apiFetch(`/api/lessons-learned/${id}/unpublish`, { method: 'POST' });
+            if (res.success) {
+                await loadLessons();
+            } else {
+                alert(res.message || 'Could not un-publish lesson.');
+            }
+        } catch {
+            alert('An unexpected error occurred.');
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    /**
+     * Return an accepted lesson to Proposed.
+     *
+     * @param {number} id
+     * @returns {Promise<void>}
+     */
+    async function handleUnapprove(id) {
+        const btn = document.querySelector(`.ll-unapprove-btn[data-id="${id}"]`);
+        if (btn) btn.disabled = true;
+        try {
+            const res = await apiFetch(`/api/lessons-learned/${id}/unapprove`, { method: 'POST' });
+            if (res.success) {
+                selectedIds.delete(id);
+                await loadLessons();
+            } else {
+                alert(res.message || 'Could not un-accept lesson.');
+            }
+        } catch {
+            alert('An unexpected error occurred.');
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    // ─────────────────────────────────────────────
+    //  Delete
+    // ─────────────────────────────────────────────
+
+    /**
+     * Open the delete confirmation modal, tailoring the warning to the
+     * lesson's current stage.
+     *
+     * @param {number} id
+     * @returns {void}
+     */
+    function handleDeleteOpen(id) {
+        const card   = document.querySelector(`.ll-card[data-lesson-id="${id}"]`);
+        const status = card?.dataset.status || '';
+        const year   = card?.dataset.year   || '';
+
+        document.getElementById('ll-delete-note').textContent =
+            status === 'published'
+                ? `This lesson is part of the published ${year} report. The PDF will be regenerated and re-uploaded to blob storage and SharePoint.`
+                : 'No published report will be affected.';
+
+        document.getElementById('ll-delete-id').value = String(id);
+        clearError(document.getElementById('ll-delete-error'));
+        deleteModal().show();
+    }
+
+    /**
+     * Confirm and execute the delete.
+     *
+     * @returns {Promise<void>}
+     */
+    async function handleDelete() {
+        const btn   = document.getElementById('ll-delete-confirm');
+        const errEl = document.getElementById('ll-delete-error');
+        const id    = Number(document.getElementById('ll-delete-id').value);
+        clearError(errEl);
+        setLoading(btn, true);
+
+        try {
+            const res = await apiFetch(`/api/lessons-learned/${id}`, { method: 'DELETE' });
+            if (!res.success) {
+                showError(errEl, res.message || 'Delete failed.');
+                return;
+            }
+            selectedIds.delete(id);
+            deleteModal().hide();
+            await loadLessons();
+        } catch {
+            showError(errEl, 'An unexpected error occurred.');
+        } finally {
+            setLoading(btn, false);
+        }
+    }
+
+    // ─────────────────────────────────────────────
     //  Archive / unarchive
     // ─────────────────────────────────────────────
 
@@ -999,18 +1323,30 @@
      */
     function attachListeners() {
         // Tab switching
+        document.getElementById('ll-audience-filter')?.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-ll-audience]');
+            if (!btn) return;
+            document.querySelectorAll('#ll-audience-filter [data-ll-audience]')
+                .forEach((b) => b.classList.toggle('active', b === btn));
+            currentAudience = btn.dataset.llAudience;
+            selectedIds.clear();
+            loadLessons();
+        });
+
         document.getElementById('ll-tab-pills').addEventListener('click', (e) => {
             const btn = e.target.closest('[data-ll-tab]');
             if (!btn) return;
             document.querySelectorAll('[data-ll-tab]').forEach((b) => b.classList.remove('active'));
             btn.classList.add('active');
             currentTab = btn.dataset.llTab;
+            selectedIds.clear();
             loadLessons();
         });
 
         // Year filter
         document.getElementById('ll-year-filter').addEventListener('change', (e) => {
             currentYear = e.target.value ? Number(e.target.value) : null;
+            selectedIds.clear();
             loadLessons();
         });
 
@@ -1034,6 +1370,27 @@
         // Publish confirm
         document.getElementById('ll-publish-confirm').addEventListener('click', handlePublish);
 
+        // Bulk publish bar (rendered for OVERSEER+ only)
+        document.getElementById('ll-bulk-all')?.addEventListener('change', (e) => {
+            selectedIds.clear();
+            document.querySelectorAll('.ll-bulk-check').forEach((box) => {
+                box.checked = e.target.checked;
+                if (e.target.checked) selectedIds.add(Number(box.dataset.id));
+            });
+            updateBulkBar();
+        });
+        document.getElementById('ll-bulk-publish')?.addEventListener('click', handleBulkPublish);
+
+        // Delete confirm (modal rendered for OVERSEER+ only)
+        document.getElementById('ll-delete-confirm')?.addEventListener('click', handleDelete);
+
+        // Audience flag toggles (change, not click — checkboxes in the detail panel)
+        document.getElementById('ll-cards').addEventListener('change', async (e) => {
+            const flagBox = e.target.closest('.ll-flag-check');
+            if (!flagBox) return;
+            await handleFlagToggle(Number(flagBox.dataset.id), flagBox.dataset.flag, flagBox.checked);
+        });
+
         // Card list delegation
         document.getElementById('ll-cards').addEventListener('click', async (e) => {
             const summary      = e.target.closest('.ll-card-summary');
@@ -1042,10 +1399,22 @@
             const publishBtn   = e.target.closest('.ll-publish-btn');
             const archiveBtn   = e.target.closest('.ll-archive-btn');
             const unarchiveBtn = e.target.closest('.ll-unarchive-btn');
+            const delLessonBtn = e.target.closest('.ll-delete-btn');
+            const unpublishBtn = e.target.closest('.ll-unpublish-btn');
+            const unapproveBtn = e.target.closest('.ll-unapprove-btn');
             const deleteBtn    = e.target.closest('.ll-photo-delete');
             const uploadBtn    = e.target.closest('.ll-photo-upload-btn');
             const thumb        = e.target.closest('.ll-photo-thumb');
+            const bulkCheck    = e.target.closest('.ll-bulk-check');
 
+            if (bulkCheck) {
+                e.stopPropagation();
+                const id = Number(bulkCheck.dataset.id);
+                if (bulkCheck.checked) selectedIds.add(id);
+                else                   selectedIds.delete(id);
+                updateBulkBar();
+                return;
+            }
             if (deleteBtn) {
                 e.stopPropagation();
                 await handlePhotoDelete(Number(deleteBtn.dataset.lessonId), Number(deleteBtn.dataset.photoId));
@@ -1086,6 +1455,21 @@
             if (unarchiveBtn) {
                 e.stopPropagation();
                 await handleUnarchive(Number(unarchiveBtn.dataset.id));
+                return;
+            }
+            if (delLessonBtn) {
+                e.stopPropagation();
+                handleDeleteOpen(Number(delLessonBtn.dataset.id));
+                return;
+            }
+            if (unpublishBtn) {
+                e.stopPropagation();
+                await handleUnpublish(Number(unpublishBtn.dataset.id));
+                return;
+            }
+            if (unapproveBtn) {
+                e.stopPropagation();
+                await handleUnapprove(Number(unapproveBtn.dataset.id));
                 return;
             }
             if (summary) {

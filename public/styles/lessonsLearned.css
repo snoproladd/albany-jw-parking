@@ -254,6 +254,41 @@
     gap:        0.35rem 1.25rem;
 }
 
+/* ── Audience flags ──────────────────────────────────────────── */
+
+.ll-audience-badges {
+    display: inline-flex;
+    gap:     0.25rem;
+}
+
+.ll-audience-block .ll-detail-label {
+    margin-bottom: 0.35rem;
+}
+
+/* ── Bulk publish bar ────────────────────────────────────────── */
+
+.ll-bulk-bar {
+    display:       flex;
+    align-items:   center;
+    gap:           1rem;
+    padding:       0.6rem 0.9rem;
+    margin-bottom: 0.75rem;
+    border:        1px solid var(--bs-border-color);
+    border-radius: 0.5rem;
+    background:    var(--bs-tertiary-bg);
+}
+
+.ll-bulk-count {
+    font-size: 0.85rem;
+    color:     var(--bs-secondary-color);
+}
+
+.ll-bulk-check {
+    flex-shrink: 0;
+    margin-top:  0.25rem;
+    cursor:      pointer;
+}
+
 /* ── Report link strip ───────────────────────────────────────── */
 
 .ll-report-link {

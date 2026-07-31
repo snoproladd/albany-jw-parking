@@ -9,6 +9,8 @@
  *
  * Page routes:
  *   GET  /oversight/tools/lessons-learned          Main page (KEYMAN+)
+ *   GET  /lessons-learned                          Resources page (OVERSEER+)
+ *   GET  /lessons-learned/pdf/:year                Stream published report PDF
  *   GET  /internal/pdf/lessons-learned             Puppeteer render (secret auth)
  *
  * API routes (all return JSON):
@@ -40,8 +42,12 @@ import {
     createLesson,
     updateLesson,
     setLessonStatus,
+    revertLessonStatus,
+    setLessonFlags,
+    publishLessonsBulk,
     addLessonPhotoRecord,
     deleteLessonPhotoRecord,
+    deleteLesson,
     upsertLessonsLearnedReport,
     getLessonsLearnedReport,
     setLessonArchived,
@@ -265,7 +271,11 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
                     status = 'submitted';
                 }
 
-                const lessons = await getLessonsLearned({ year, status, archivedOnly });
+                const audience = ['internal', 'committee'].includes(req.query.audience)
+                    ? req.query.audience
+                    : null;
+
+                const lessons = await getLessonsLearned({ year, status, archivedOnly, audience });
                 return res.json({ success: true, lessons });
             } catch (err) {
                 logError('[GET /api/lessons-learned]', err);
@@ -664,6 +674,211 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
     );
 
     // ─────────────────────────────────────────────
+    //  API — audience flags
+    // ─────────────────────────────────────────────
+
+    /**
+     * PATCH /api/lessons-learned/:id/flags
+     * Set the Internal / Committee audience flags. OVERSEER+ only.
+     *
+     * At least one flag must be set. Validated here so the client gets a
+     * message instead of a CK_ll_audience constraint violation.
+     *
+     * @param {{ isInternal: boolean, isCommittee: boolean }} req.body
+     */
+    router.patch(
+        '/api/lessons-learned/:id/flags',
+        requireAuth,
+        csrfProtection,
+        requirePermission('editVolunteerInfo'),
+        async (req, res) => {
+            try {
+                const id = Number(req.params.id);
+                const isInternal  = !!req.body.isInternal;
+                const isCommittee = !!req.body.isCommittee;
+
+                if (!isInternal && !isCommittee) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'A lesson must be marked Internal, Committee, or both.',
+                    });
+                }
+
+                const lesson = await getLessonById(id);
+                if (!lesson) return res.status(404).json({ success: false });
+                if (lesson.archived) {
+                    return res.status(409).json({ success: false, message: 'Lesson is archived.' });
+                }
+
+                await setLessonFlags(id, isInternal, isCommittee);
+                return res.json({ success: true, isInternal, isCommittee });
+            } catch (err) {
+                logError('[PATCH /api/lessons-learned/:id/flags]', err);
+                return res.status(500).json({ success: false });
+            }
+        },
+    );
+
+    // ─────────────────────────────────────────────
+    //  API — revert status
+    // ─────────────────────────────────────────────
+
+    /**
+     * POST /api/lessons-learned/:id/unpublish
+     * Return a published lesson to 'approved' and regenerate the year's PDF so
+     * the distributed report no longer contains it. OVERSEER+ only.
+     */
+    router.post(
+        '/api/lessons-learned/:id/unpublish',
+        requireAuth,
+        csrfProtection,
+        requirePermission('editVolunteerInfo'),
+        async (req, res) => {
+            try {
+                const id     = Number(req.params.id);
+                const lesson = await getLessonById(id);
+                if (!lesson) return res.status(404).json({ success: false });
+                if (lesson.status !== 'published') {
+                    return res.status(409).json({ success: false, message: 'Lesson is not published.' });
+                }
+
+                await revertLessonStatus(id, 'approved');
+
+                // Regenerate so the report matches the database
+                let reportMeta = null;
+                try {
+                    const { blobName, shareUrl } = await publishLessonsLearnedPdf({
+                        year: lesson.year,
+                        serverPort,
+                        graphConfig,
+                    });
+                    await upsertLessonsLearnedReport(lesson.year, blobName, shareUrl, req.session.userId);
+                    reportMeta = { blobName, shareUrl };
+                } catch (pdfErr) {
+                    logError('[unpublish PDF regen]', pdfErr);
+                }
+
+                const updated = await getLessonById(id);
+                return res.json({ success: true, lesson: updated, report: reportMeta });
+            } catch (err) {
+                logError('[POST /api/lessons-learned/:id/unpublish]', err);
+                return res.status(500).json({ success: false });
+            }
+        },
+    );
+
+    /**
+     * POST /api/lessons-learned/:id/unapprove
+     * Return an approved lesson to 'submitted'. OVERSEER+ only.
+     * No report impact — approved lessons are not in the PDF.
+     */
+    router.post(
+        '/api/lessons-learned/:id/unapprove',
+        requireAuth,
+        csrfProtection,
+        requirePermission('editVolunteerInfo'),
+        async (req, res) => {
+            try {
+                const id     = Number(req.params.id);
+                const lesson = await getLessonById(id);
+                if (!lesson) return res.status(404).json({ success: false });
+                if (lesson.status !== 'approved') {
+                    return res.status(409).json({ success: false, message: 'Lesson is not accepted.' });
+                }
+
+                await revertLessonStatus(id, 'submitted');
+                const updated = await getLessonById(id);
+                return res.json({ success: true, lesson: updated });
+            } catch (err) {
+                logError('[POST /api/lessons-learned/:id/unapprove]', err);
+                return res.status(500).json({ success: false });
+            }
+        },
+    );
+
+    // ─────────────────────────────────────────────
+    //  API — delete
+    // ─────────────────────────────────────────────
+
+    /**
+     * DELETE /api/lessons-learned/:id
+     * Permanently delete a lesson at any stage. OVERSEER+ only.
+     *
+     * Photo blobs are deleted before the row: FK_llp_lesson cascades the
+     * lessons_learned_photos rows away, and those rows hold the only record of
+     * the blob names. Deleting a published lesson regenerates the year's
+     * consolidated PDF so the distributed report matches the database.
+     *
+     * Registered after /:id/photos/:pid so it cannot swallow that path.
+     *
+     * @param {string} req.params.id
+     * @returns {{ success: boolean, photosDeleted?: number, report?: object }}
+     */
+    router.delete(
+        '/api/lessons-learned/:id',
+        requireAuth,
+        csrfProtection,
+        requirePermission('editVolunteerInfo'),
+        async (req, res) => {
+            try {
+                const id = Number(req.params.id);
+                if (!Number.isInteger(id)) {
+                    return res.status(400).json({ success: false, message: 'Invalid lesson id.' });
+                }
+
+                const lesson = await getLessonById(id);
+                if (!lesson) {
+                    return res.status(404).json({ success: false, message: 'Lesson not found.' });
+                }
+
+                const wasPublished = lesson.status === 'published';
+                const year         = lesson.year;
+
+                // 1. Blobs first — the cascade destroys the blob names
+                const photos = await getLessonPhotos(id);
+                let photosDeleted = 0;
+                for (const p of photos) {
+                    try {
+                        await deleteLessonPhotoBlob(p.blob_name);
+                        photosDeleted += 1;
+                    } catch (blobErr) {
+                        // An undeletable blob must not block the record delete,
+                        // but it has to surface so it can be cleaned up later.
+                        logError('[DELETE lesson] orphaned blob', p.blob_name, blobErr);
+                    }
+                }
+
+                // 2. The row (photo rows cascade away)
+                const deleted = await deleteLesson(id);
+                if (!deleted) {
+                    return res.status(404).json({ success: false, message: 'Lesson not found.' });
+                }
+
+                // 3. Published lessons: regenerate so the report matches the DB
+                let reportMeta = null;
+                if (wasPublished) {
+                    try {
+                        const { blobName, shareUrl } = await publishLessonsLearnedPdf({
+                            year,
+                            serverPort,
+                            graphConfig,
+                        });
+                        await upsertLessonsLearnedReport(year, blobName, shareUrl, req.session.userId);
+                        reportMeta = { blobName, shareUrl };
+                    } catch (pdfErr) {
+                        logError('[DELETE lesson] PDF regen', pdfErr);
+                    }
+                }
+
+                return res.json({ success: true, photosDeleted, report: reportMeta });
+            } catch (err) {
+                logError('[DELETE /api/lessons-learned/:id]', err);
+                return res.status(500).json({ success: false, message: 'Delete failed.' });
+            }
+        },
+    );
+
+    // ─────────────────────────────────────────────
     //  Resources page — published PDF (OVERSEER+)
     // ─────────────────────────────────────────────
 
@@ -703,26 +918,42 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
     // ─────────────────────────────────────────────
 
     /**
-     * GET /lessons-learned/pdf/:blobName
+     * GET /lessons-learned/pdf/:year
      * Proxy route to stream a lessons-learned report PDF from Azure Blob Storage.
      * Requires OVERSEER+ so the PDF stays gated.
      *
-     * @param {string} req.params.blobName  Blob name returned by publishLessonsLearnedPdf.
+     * Keyed by convention year rather than blob name. The blob path contains
+     * slashes, and percent-encoding them into a single-segment route param
+     * fails behind the Azure App Service front end, which normalizes %2F into a
+     * literal separator before Express matches. Resolving the blob name
+     * server-side also prevents callers from naming arbitrary blobs in the
+     * published-files container.
+     *
+     * @param {string} req.params.year  Convention year of the report to stream.
      */
     router.get(
-        '/lessons-learned/pdf/:blobName',
+        '/lessons-learned/pdf/:year',
         requireAuth,
         requirePermission('editVolunteerInfo'),
         async (req, res) => {
             try {
-                const { blobName } = req.params;
+                const year = Number(req.params.year);
+                if (!Number.isInteger(year) || year < 2000 || year > 2999) {
+                    return res.status(400).send('Invalid year.');
+                }
+
+                const report = await getLessonsLearnedReport(year);
+                if (!report?.blob_name) {
+                    return res.status(404).send('Report not found.');
+                }
+
                 res.setHeader(
                     'Content-Disposition',
-                    `inline; filename="lessons-learned-${blobName.replace(/[^a-z0-9._-]/gi, '_')}.pdf"`,
+                    `inline; filename="lessons-learned-${year}.pdf"`,
                 );
-                await streamPublishedFileToResponse(blobName, res);
+                await streamPublishedFileToResponse(report.blob_name, res);
             } catch (err) {
-                logError('[GET /lessons-learned/pdf/:blobName]', err);
+                logError('[GET /lessons-learned/pdf/:year]', err);
                 if (!res.headersSent) res.status(404).send('Report not found.');
             }
         },
@@ -775,6 +1006,70 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
             } catch (err) {
                 logError('[POST /api/lessons-learned/batch-publish]', err);
                 return res.status(500).json({ success: false, message: 'PDF generation failed.' });
+            }
+        },
+    );
+
+    // ─────────────────────────────────────────────
+    //  API — publish selected
+    // ─────────────────────────────────────────────
+
+    /**
+     * POST /api/lessons-learned/publish-selected
+     * Promote a set of approved lessons to published, then regenerate the
+     * year's consolidated PDF exactly once.
+     *
+     * Replaces per-lesson publishing for bulk work: publishing N lessons
+     * individually fired N full Puppeteer renders of the same report.
+     *
+     * @param {{ year: number, ids: number[] }} req.body
+     * @returns {{ success: boolean, publishedCount?: number, report?: object }}
+     */
+    router.post(
+        '/api/lessons-learned/publish-selected',
+        requireAuth,
+        csrfProtection,
+        requirePermission('editVolunteerInfo'),
+        async (req, res) => {
+            try {
+                const year = Number(req.body.year);
+                const ids  = Array.isArray(req.body.ids)
+                    ? req.body.ids.map(Number).filter(Number.isInteger)
+                    : [];
+
+                if (!Number.isInteger(year) || year < 2000 || year > 2999) {
+                    return res.status(400).json({ success: false, message: 'A valid year is required.' });
+                }
+                if (!ids.length) {
+                    return res.status(400).json({ success: false, message: 'No lessons selected.' });
+                }
+
+                const publishedCount = await publishLessonsBulk(ids, year, req.session.userId);
+                if (!publishedCount) {
+                    return res.status(409).json({
+                        success: false,
+                        message: 'None of the selected lessons were still awaiting publication.',
+                    });
+                }
+
+                // Regenerate the consolidated PDF once for the whole batch
+                let reportMeta = null;
+                try {
+                    const { blobName, shareUrl } = await publishLessonsLearnedPdf({
+                        year,
+                        serverPort,
+                        graphConfig,
+                    });
+                    await upsertLessonsLearnedReport(year, blobName, shareUrl, req.session.userId);
+                    reportMeta = { blobName, shareUrl };
+                } catch (pdfErr) {
+                    logError('[publish-selected PDF]', pdfErr);
+                }
+
+                return res.json({ success: true, publishedCount, report: reportMeta });
+            } catch (err) {
+                logError('[POST /api/lessons-learned/publish-selected]', err);
+                return res.status(500).json({ success: false, message: 'Publish failed.' });
             }
         },
     );

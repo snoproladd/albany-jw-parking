@@ -504,7 +504,8 @@ parking/
 │       ├── parking_counts_is_manual.sql # adds is_manual BIT to parking_counts
 │       ├── system_variable_lists.sql  # system_variable_lists + location_sub_locations + FK additions
 │       ├── lessons-learned.sql        # lessons_learned + lessons_learned_photos + lessons_learned_reports; lesson-department seed
-│       └── lessons-learned-archive.sql # archive schema for removed lessons
+│       ├── lessons-learned-archive.sql # archive schema for removed lessons
+│       └── lessons-learned-audience.sql # is_internal / is_committee flags + CK_ll_audience
 │
 ├── docs/
 │   └── OVERSIGHT_GUIDE.md     # End-user guide for oversight staff
@@ -737,12 +738,19 @@ The first ADMIN must be granted directly in the database.
   suggestions directly from the pool pill context menu. Applying all suggestions for an
   SMS message auto-resolves it in the Notes Report.
 - **Lessons Learned (2.73.0+):** `/oversight/tools/lessons-learned` (KEYMAN+) — three-state
-  workflow: submitted → approved → published. On publish, Puppeteer renders all published
-  lessons for the year to PDF, uploads to Azure Blob + SharePoint via Microsoft Graph,
-  and upserts `lessons_learned_reports`. Photo attachments in the `lessons-learned`
-  Blob container. `POST /api/lessons-learned/batch-publish` regenerates the PDF
-  without changing lesson status. Published PDF accessible at `/lessons-learned`
-  (OVERSEER+) via authenticated proxy `GET /lessons-learned/pdf/:blobName`.
+  workflow: submitted → approved → published, reversible in both directions via
+  `POST /api/lessons-learned/:id/unpublish` and `/unapprove` (2.84.0+). On publish,
+  Puppeteer renders all published lessons for the year to PDF, uploads to Azure Blob +
+  SharePoint via Microsoft Graph, and upserts `lessons_learned_reports`. Photo attachments
+  in the `lessons-learned` Blob container. `POST /api/lessons-learned/publish-selected`
+  bulk-promotes checked lessons with a single PDF regeneration (2.84.0+);
+  `POST /api/lessons-learned/batch-publish` regenerates the PDF without changing lesson
+  status. `DELETE /api/lessons-learned/:id` (OVERSEER+) deletes photo blobs before the
+  row, since the FK cascade destroys the blob names. Audience flags `is_internal` /
+  `is_committee` classify each lesson, filterable from the toolbar (2.84.0+). Published
+  PDF accessible at `/lessons-learned` (OVERSEER+) via authenticated proxy
+  `GET /lessons-learned/pdf/:year` — keyed by year rather than blob name because the
+  App Service front end normalizes `%2F` before Express route matching.
 - **Parking Counter (2.70.0+):** `/counts` (logParkingCount permission — OVERSEER+ by default,
   delegatable via `extra_parking_count BIT` on `volunteer_in`). Phone-first tally UI with
   60-second heartbeat, quarter-hour alarm, Web Audio API beep, Wake Lock, localStorage
@@ -866,7 +874,10 @@ Schema highlights:
 - `lessons_learned` — submitted lessons from convention operations. Fields: `year`,
   `department_id FK → system_variable_lists`, `department_other`, `notes NVARCHAR(MAX)`,
   `status` (‘submitted’ | ‘approved’ | ‘published’), `archived BIT`, `submitted_by FK`,
-  `approved_by FK`, `published_by FK` with timestamp columns.
+  `approved_by FK`, `published_by FK` with timestamp columns. `is_internal BIT` /
+  `is_committee BIT` classify the audience — internal to the department, and/or submitted
+  to the committee alongside the following year's operating plan. `CK_ll_audience`
+  guarantees at least one is set.
 - `lessons_learned_photos` — photo attachments per lesson. Fields: `lesson_id FK
   (ON DELETE CASCADE)`, `blob_name`, `original_filename`, `uploaded_by FK`.
 - `lessons_learned_reports` — one row per convention year tracking the consolidated
