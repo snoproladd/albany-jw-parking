@@ -43,8 +43,17 @@ function logError(...args) {
 // ============================================================================
 // Azure Key Vault Setup
 // ============================================================================
-const vaultUrl =
-  process.env.AZURE_KEY_VAULT_URL || "https://ApiStorage.vault.azure.net/";
+// Sourced from the environment only — never hardcoded. Set in App Service
+// configuration for production and in .env for local dev.
+// See docs/DEVELOPMENT.md.
+const vaultUrl = process.env.AZURE_KEY_VAULT_URL;
+
+if (!vaultUrl) {
+  throw new Error(
+    "AZURE_KEY_VAULT_URL is not set. Configure it in App Service settings " +
+      "(production) or in your .env file (development)."
+  );
+}
 
 const credential = new DefaultAzureCredential();
 const secretClient = new SecretClient(vaultUrl, credential);

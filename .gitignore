@@ -50,6 +50,14 @@ docker-compose.override.yml
 *.tmp
 *.swp
 
+# Local scratch files at repo root (diagrams, screenshots, one-off SQL,
+# emulator state). Scoped to root so real assets under public/ still track.
+/*.vsdx
+/*.png
+/*.sql
+AzuriteConfig
+README_temp_test.md
+
 # Azure deployment artifacts
 .scmignore
 
