@@ -1,7 +1,7 @@
 {
   "name": "albany-jw-parking",
   "version": "2.86.0",
-  "description": "Volunteer management platform for Albany JW Regional Convention parking operations — registration, scheduling, messaging, and oversight tools.",
+  "description": "Volunteer management platform for regional convention parking operations — registration, scheduling, messaging, and oversight tools.",
   "homepage": "https://github.com/snoproladd/albany-jw-parking#readme",
   "bugs": {
     "url": "https://github.com/snoproladd/albany-jw-parking/issues"

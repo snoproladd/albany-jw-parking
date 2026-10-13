@@ -1,4 +1,4 @@
-# Albany JW Parking — Volunteer Management Platform
+# Volunteer Parking Coordinator — Volunteer Management Platform
 
 A full-stack web application that runs the parking operation for a multi-day
 regional convention: volunteer registration, shift scheduling, SMS
