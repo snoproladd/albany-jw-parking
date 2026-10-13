@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Campaign Center — Albany JW Parking</title>
+    <title>Campaign Center — <%= brand.siteName %></title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
@@ -272,7 +272,7 @@
                     </div>
                     <div class="mb-2">
                         <label class="form-label form-label-sm" for="mcTplSubject">Subject <span class="text-muted">(email only)</span></label>
-                        <input type="text" class="form-control form-control-sm" id="mcTplSubject" placeholder="e.g. You're invited — {year} Albany JW Convention" />
+                        <input type="text" class="form-control form-control-sm" id="mcTplSubject" placeholder="e.g. You're invited — {year} <%= brand.conventionLabel %>" />
                     </div>
                     <div class="mb-2">
                         <label class="form-label form-label-sm" for="mcTplBody">Body</label>
@@ -555,7 +555,7 @@
                         <button type="button" class="mc-merge-chip" data-field="{fullName}"  data-target="mcSubject">Full Name</button>
                         <button type="button" class="mc-merge-chip" data-field="{year}"      data-target="mcSubject">Convention Year</button>
                     </div>
-                    <input type="text" class="form-control" id="mcSubject" placeholder="e.g. You're invited — {year} Albany JW Convention" />
+                    <input type="text" class="form-control" id="mcSubject" placeholder="e.g. You're invited — {year} <%= brand.conventionLabel %>" />
                 </div>
 
                 <%# ── Body ──────────────────────────────────────────────────── %>

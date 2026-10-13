@@ -13,6 +13,7 @@ import {
   finishButtons,
   registerTour,
 } from "./tourBase.js";
+import { bt } from "../brand.js";
 
 /**
  * Builds and returns the Reports tour.
@@ -72,7 +73,7 @@ function buildReportsTour() {
         steps.push({
             id: 'rpt-missing',
             title: 'Missing fields column',
-            text: 'The <strong>Missing Fields</strong> column shows exactly what\'s incomplete for each volunteer — congregation, phone number, required profile fields, etc. This is the fastest way to identify what needs follow-up without opening each account individually.',
+            text: bt('The <strong>Missing Fields</strong> column shows exactly what\'s incomplete for each volunteer — congregation, phone number, required profile fields, etc. This is the fastest way to identify what needs follow-up without opening each account individually.'),
             attachTo: { element: '#appStatusBody', on: 'top' },
             buttons: null,
         });

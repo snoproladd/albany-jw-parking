@@ -62,6 +62,7 @@ import {
 import {
     LL_PDF_SECRET,
     publishLessonsLearnedPdf,
+    generateLessonsLearnedPDF,
 } from '../lib/publishLessonsLearned.js';
 
 /** Minimum role index that can view and submit lessons. */
@@ -951,6 +952,14 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
                     'Content-Disposition',
                     `inline; filename="lessons-learned-${year}.pdf"`,
                 );
+
+                if (req.isDemo) {
+                    // Demo publishes don't upload; render live from demo data.
+                    const pdf = await generateLessonsLearnedPDF(year, serverPort);
+                    res.setHeader('Content-Type', 'application/pdf');
+                    return res.send(pdf);
+                }
+
                 await streamPublishedFileToResponse(report.blob_name, res);
             } catch (err) {
                 logError('[GET /lessons-learned/pdf/:year]', err);

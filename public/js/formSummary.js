@@ -12,6 +12,18 @@
 (() => {
   "use strict";
 
+  /**
+   * Brand text helper (see /js/brand.js). Identity until the module loads;
+   * on the demo it rewrites faith-specific wording.
+   * @type {(text: string) => string}
+   */
+  let bt = (text) => text;
+
+  /** Resolves once /js/brand.js has loaded (or failed — wording stays as-is). */
+  const brandReady = import("/js/brand.js")
+    .then((m) => { bt = m.bt; })
+    .catch(() => {});
+
   document.addEventListener("DOMContentLoaded", () => {
     const form = document.getElementById("summary-form");
     if (!form) return;
@@ -83,7 +95,7 @@
 
               if (!displayValue) {
                 alert(
-                  "Please select your congregation before saving this section.",
+                  bt("Please select your congregation before saving this section."),
                 );
                 return; // STOP SAVE — keep accordion open, stay in edit mode
               }
@@ -123,7 +135,7 @@
 
               if (!city || !state || !lang) {
                 alert(
-                  "Please complete all visiting congregation fields (City, State, and Language) before saving this section.",
+                  bt("Please complete all visiting congregation fields (City, State, and Language) before saving this section."),
                 );
                 return; // STOP SAVE — keep accordion open, stay in edit mode
               }
@@ -525,6 +537,9 @@
     input.className = "form-control mb-1";
     input.autocomplete = "off";
     input.placeholder = "Start typing to search congregations...";
+    brandReady.then(() => {
+      input.placeholder = bt("Start typing to search congregations...");
+    });
     wrapper.insertBefore(input, select);
 
     select.classList.add("d-none");

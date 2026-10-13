@@ -98,7 +98,15 @@ event weekend.
 **Demo isolation without a second deployment.** One codebase serves both
 environments. `AsyncLocalStorage` propagates a demo flag through the request
 pipeline; the connection pool and query layer route on hostname, rewriting
-schema prefixes at runtime. Messaging is suppressed in demo context.
+schema prefixes at runtime. Messaging, publishing to SharePoint/Blob Storage,
+and the Maps sync are suppressed or simulated in demo context.
+
+**Per-environment branding.** `lib/branding.js` gives the demo its own product
+name and neutral wording without forking templates. Views and client JS keep
+the production text and wrap it in `bt()`; on the demo a single term table
+rewrites it. `getBrand()` reads the same `AsyncLocalStorage` flag as the
+database layer, so server code (SMS, email, AI prompts) brands itself without
+access to the request.
 
 **Role hierarchy with runtime overrides.**
 

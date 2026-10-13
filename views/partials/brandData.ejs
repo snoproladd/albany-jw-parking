@@ -1,0 +1,3 @@
+<%# Brand labels for client JS (read by /js/brand.js). Data island — not executed, CSP-safe.
+    Included by header.ejs; standalone pages without the header include it directly. %>
+<script id="app-brand-json" type="application/json"><%- JSON.stringify(brand.client).replace(/</g, '\\u003c') %></script>

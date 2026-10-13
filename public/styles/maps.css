@@ -191,6 +191,15 @@
     color: #fff;
 }
 
+/* Demo-only sample tile badge (not a link). */
+.maps-tile-btn--sample {
+    background: var(--bs-info-bg-subtle);
+    color: var(--bs-info-text-emphasis);
+    border: 1px dashed var(--bs-info-border-subtle);
+    cursor: default;
+    white-space: normal;
+}
+
 /* ── Error alert ─────────────────────────────────────────────────────────────────────── */
 .maps-load-error {
     border-left: 4px solid var(--bs-warning);

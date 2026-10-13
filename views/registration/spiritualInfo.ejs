@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>Spiritual Information</title>
+    <title><%= bt("Spiritual Information") %></title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 
@@ -32,7 +32,7 @@
           <section id="spiritual-info-card" class="card shadow-lg entry-card">
             <header class="card-header text-center">
               <h1 class="text-center mb-4">
-                Tell us about your organization privileges and roles.
+                <%= bt("Tell us about your organization privileges and roles.") %>
               </h1>
               <p class="footnote mt-3">
                 <span class="asterix">*</span> Indicates required fields
@@ -56,14 +56,14 @@
                   class="border-0 p-0 mt-3 scroll-section"
                 >
                   <legend class="form-label mb-3">
-                    Do you have any of the following privileges?<br />
+                    <%= bt("Do you have any of the following privileges?") %><br />
                     (Check all that apply)
                     <span class="asterix">*</span>
                   </legend>
 
                   <!-- Ministry -->
                   <div class="mb-3">
-                    <div class="form-label ms-2 mb-1">Ministry</div>
+                    <div class="form-label ms-2 mb-1"><%= bt("Ministry") %></div>
 
                     <div class="form-check ms-5 mb-3">
                       <input
@@ -75,7 +75,7 @@
                         data-privilege="auxPioneer"
                       />
                       <label class="form-check-label" for="auxPioneer">
-                        Auxiliary Pioneer (including continuous)
+                        <%= bt("Auxiliary Pioneer (including continuous)") %>
                       </label>
                     </div>
 
@@ -89,7 +89,7 @@
                         data-privilege="regPioneer"
                       />
                       <label class="form-check-label" for="regPioneer">
-                        Regular Pioneer
+                        <%= bt("Regular Pioneer") %>
                       </label>
                     </div>
 
@@ -103,14 +103,14 @@
                         data-privilege="specPioneer"
                       />
                       <label class="form-check-label" for="specPioneer">
-                        Special Pioneer
+                        <%= bt("Special Pioneer") %>
                       </label>
                     </div>
                   </div>
 
                   <!-- Congregation -->
                   <div class="mb-3">
-                    <div class="form-label ms-2 mb-1">Congregation</div>
+                    <div class="form-label ms-2 mb-1"><%= bt("Congregation", "Leadership") %></div>
 
                     <div class="form-check ms-5">
                       <input
@@ -122,7 +122,7 @@
                         data-privilege="minServ"
                       />
                       <label class="form-check-label" for="minServ">
-                        Ministerial Servant
+                        <%= bt("Ministerial Servant") %>
                       </label>
                     </div>
 
@@ -136,7 +136,7 @@
                         data-privilege="elder"
                       />
                       <label class="form-check-label" for="elder">
-                        Elder
+                        <%= bt("Elder") %>
                       </label>
                     </div>
                   </div>
@@ -155,7 +155,7 @@
                         data-privilege="sfs"
                       />
                       <label class="form-check-label" for="sfs">
-                        Special Full-Time Servant
+                        <%= bt("Special Full-Time Servant") %>
                       </label>
                     </div>
                   </div>

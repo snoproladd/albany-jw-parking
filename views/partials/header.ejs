@@ -1,11 +1,12 @@
 <header class="py-2 mb-4">
+  <%- include('brandData') %>
   <nav class="navbar navbar-expand-lg navbar-light site-navbar shadow-sm">
     <div class="container-fluid">
 
       <!-- Brand — always far left -->
       <a class="navbar-brand d-flex align-items-center" href="/">
         <i class="fa-solid fa-car-side me-1"></i>
-        Albany JW Parking
+        <%= brand.siteName %>
       </a>
 
       <!-- Mobile: banner sits here, outside the collapse, below brand row -->

@@ -1,6 +1,6 @@
 {
   "name": "albany-jw-parking",
-  "version": "2.85.0",
+  "version": "2.86.0",
   "description": "Volunteer management platform for Albany JW Regional Convention parking operations — registration, scheduling, messaging, and oversight tools.",
   "homepage": "https://github.com/snoproladd/albany-jw-parking#readme",
   "bugs": {
@@ -22,7 +22,7 @@
     "webhook:prod": "node scripts/twilioWebhook.js prod",
     "webhook:dev": "node scripts/twilioWebhook.js dev",
     "dev:sms": "node scripts/devSms.js",
-    "dev:full": "concurrently --kill-others --shell=bash -n server,sms -c blue,green \"node index.js\" \"node scripts/devSms.js\"",
+    "dev:full": "concurrently --kill-others -n server,sms -c blue,green \"npm:dev\" \"npm:dev:sms\"",
     "dev": "nodemon --require ./set-local-env.js index.js"
   },
   "overrides": {},

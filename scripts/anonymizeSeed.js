@@ -160,7 +160,7 @@ const EXACT_STRINGS = [
   ["'Drop-Off/Pickup Area'", "'Arrival & Departure Zone'"],
   ["'Bus Depot'", "'Shuttle Station'"],
   ["'Mezzanine - MVP Arena'", "'Mezzanine Level — Riverdale Arena'"],
-  ["'Schodack KH of JW'", "'Millhaven Kingdom Hall'"],
+  ["'Schodack KH of JW'", "'Millhaven Community Center'"],
   // Addresses
   ["'51 S Pearl St, Albany, NY 12207'", "'12 Arena Way, Riverdale, NY 12001'"],
   [

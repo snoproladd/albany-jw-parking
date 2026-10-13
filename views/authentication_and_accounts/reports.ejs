@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Reports — Albany JW Parking</title>
+  <title>Reports — <%= brand.siteName %></title>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
@@ -308,7 +308,7 @@
             <div class="report-chart-card mt-3">
               <p class="report-chart-card-title">
                 <i class="fa-solid fa-hands-praying me-1 text-muted"></i>
-                Spiritual privileges
+                <%= bt("Spiritual privileges") %>
                 <span class="text-muted fw-normal small ms-2">(active volunteers — multiple may apply)</span>
               </p>
               <div class="report-chart-loading" id="demo-priv-loading" role="status">
@@ -317,7 +317,7 @@
               </div>
               <div class="report-chart-error" id="demo-priv-error" role="alert"></div>
               <div class="report-chart-wrap">
-                <canvas id="demo-priv-canvas" aria-label="Spiritual privileges bar chart" role="img"></canvas>
+                <canvas id="demo-priv-canvas" aria-label="<%= bt('Spiritual privileges bar chart') %>" role="img"></canvas>
               </div>
             </div>
 

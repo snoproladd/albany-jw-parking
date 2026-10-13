@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Site Map — Albany JW Parking</title>
+  <title>Site Map — <%= brand.siteName %></title>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
@@ -68,7 +68,7 @@
               <% group.pages.forEach(function(page) { %>
                 <div
                   class="col-12 col-sm-6 col-lg-4 sitemap-card-col"
-                  data-search="<%= (page.title + ' ' + page.description + ' ' + page.path).toLowerCase() %>"
+                  data-search="<%= (page.title + ' ' + bt(page.description) + ' ' + page.path).toLowerCase() %>"
                 >
                   <a href="<%= page.path %>" class="sitemap-card-link">
                     <div class="sitemap-card h-100">
@@ -78,7 +78,7 @@
                       <div class="sitemap-card-body">
                         <div class="sitemap-card-title"><%= page.title %></div>
                         <div class="sitemap-card-path"><%= page.path %></div>
-                        <p class="sitemap-card-desc"><%= page.description %></p>
+                        <p class="sitemap-card-desc"><%= bt(page.description) %></p>
                       </div>
                     </div>
                   </a>

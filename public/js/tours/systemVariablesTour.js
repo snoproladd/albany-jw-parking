@@ -14,6 +14,7 @@ import {
     finishButtons,
     registerTour,
 } from "./tourBase.js";
+import { bt } from "../brand.js";
 
 /**
  * Builds and returns the System Variables tour.
@@ -40,7 +41,7 @@ function buildSystemVariablesTour() {
     steps.push({
         id: "sv-classifications",
         title: "Location Classifications",
-        text: "Categorizes parking locations — Parking Garage, Parking Area, Kingdom Hall, and so on. This list feeds the classification dropdown when creating or editing a location.",
+        text: bt("Categorizes parking locations — Parking Garage, Parking Area, Kingdom Hall, and so on. This list feeds the classification dropdown when creating or editing a location."),
         attachTo: { element: "#sv-classifications-root", on: "top" },
         buttons: null,
     });

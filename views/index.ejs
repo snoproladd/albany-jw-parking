@@ -21,7 +21,7 @@
 
     <%# ── HERO — slim banner for logged-in users ──────────────────── %>
     <div class="db-banner">
-      <h1 class="hero-heading db-banner-title">Albany Regional Convention of Jehovah's Witnesses</h1>
+      <h1 class="hero-heading db-banner-title"><%= brand.conventionName %></h1>
     </div>
 
     <%# ── DASHBOARD — logged-in view ──────────────────────────────── %>
@@ -334,7 +334,7 @@
             <div class="container">
                 <div class="hero-text-contain d-flex flex-column text-center align-items-center h-100">
                     <h1 class="text-body-emphasis hero-heading p-3">
-                        Albany Regional Convention of Jehovah's Witnesses
+                        <%= brand.conventionName %>
                     </h1>
                     <h2 class="mt-3 text-body-emphasis hero-subheading p-3">
                         Welcome, Convention Volunteers!

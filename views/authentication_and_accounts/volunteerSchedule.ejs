@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title><%= mode === 'self' ? 'My Schedule' : 'Volunteer Schedule' %> — Albany JW Parking</title>
+  <title><%= mode === 'self' ? 'My Schedule' : 'Volunteer Schedule' %> — <%= brand.siteName %></title>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
@@ -201,7 +201,7 @@
           <% } %>
         </h1>
         <p class="vs-subtitle">
-          Albany JW Parking &mdash;
+          <%= brand.siteName %> &mdash;
           Generated <%= new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) %>
         </p>
       </div>

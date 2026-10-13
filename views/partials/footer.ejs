@@ -17,11 +17,18 @@
   <% const year = new Date().getFullYear(); %>
   <p class="footer-text">Copyright &copy; <%= year %></p>
 
+  <% if (brand.showFaithDisclaimer) { %>
   <p class="footer-text">
     <strong>Disclaimer:</strong>
     This website is not sponsored, created, or controlled by Jehovah's Witnesses or www.JW.org,
     legally known as the Watch Tower Bible and Tract Society of Pennsylvania.
   </p>
+  <% } else if (brand.demoNotice) { %>
+  <p class="footer-text">
+    <strong>Note:</strong>
+    <%= brand.demoNotice %>
+  </p>
+  <% } %>
 
   <p class="footer-text">
     <a class="footer-text" href="/sitemap">Site Map</a>

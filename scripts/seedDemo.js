@@ -246,7 +246,7 @@ const LOCATIONS = [
   },
   {
     oldId: 8,
-    name: "Millhaven KH of JW",
+    name: "Millhaven Community Center",
     type: "location",
     description: null,
     capacity: null,
@@ -3548,8 +3548,8 @@ async function seed() {
     const templates = [
       {
         name: "Standard Invitation",
-        subject: "You're Invited — 2026 Riverdale JW Regional Convention Parking",
-        body: "Dear [Name],\n\nWe'd like to invite you to serve on the parking team for the 2026 Riverdale JW Regional Convention. Please respond using the link below.\n\nThank you!",
+        subject: "You're Invited — 2026 Albany Summer Convention Parking",
+        body: "Dear [Name],\n\nWe'd like to invite you to serve on the parking team for the 2026 Albany Summer Convention. Please respond using the link below.\n\nThank you!",
       },
       {
         name: "Reminder — No Response",
@@ -3591,7 +3591,7 @@ async function seed() {
       .input(
         "subj",
         sql.NVarChar(255),
-        "You're Invited — 2026 Riverdale JW Regional Convention Parking",
+        "You're Invited — 2026 Albany Summer Convention Parking",
       )
       .input(
         "body",
@@ -3622,7 +3622,7 @@ async function seed() {
         .input(
           "subj",
           sql.NVarChar(255),
-          "You're Invited — 2026 Riverdale JW Regional Convention Parking",
+          "You're Invited — 2026 Albany Summer Convention Parking",
         )
         .input("body", sql.NVarChar(sql.MAX), "Invitation text.")
         .input("sentBy", sql.NVarChar(100), "admin@demo.com")

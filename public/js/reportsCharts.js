@@ -33,6 +33,8 @@ import {
   registerables,
 } from "https://cdn.jsdelivr.net/npm/chart.js@4.4.4/+esm";
 
+import { bt } from "./brand.js";
+
 Chart.register(...registerables);
 
 // ─── Global Chart.js defaults ─────────────────────────────────────────────
@@ -271,12 +273,12 @@ function buildAgeBins(rows) {
  */
 function buildPrivilegeCounts(rows) {
   const entries = [
-    { label: "Elder", key: "elder" },
-    { label: "Min. Servant", key: "min_serv" },
-    { label: "Aux. Pioneer", key: "aux_pioneer" },
-    { label: "Reg. Pioneer", key: "reg_pioneer" },
-    { label: "Spec. Pioneer", key: "spec_pioneer" },
-    { label: "School — Family", key: "sfs" },
+    { label: bt("Elder"), key: "elder" },
+    { label: bt("Min. Servant"), key: "min_serv" },
+    { label: bt("Aux. Pioneer"), key: "aux_pioneer" },
+    { label: bt("Reg. Pioneer"), key: "reg_pioneer" },
+    { label: bt("Spec. Pioneer"), key: "spec_pioneer" },
+    { label: bt("School — Family"), key: "sfs" },
   ];
   for (const e of entries) {
     e.count = rows.filter((r) => !!r[e.key]).length;

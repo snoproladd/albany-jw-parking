@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Privacy Policy — Albany JW Parking</title>
+    <title>Privacy Policy — <%= brand.siteName %></title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
@@ -22,15 +22,19 @@
         <section class="mb-4">
             <h2 class="h5">1. About This Site</h2>
             <p>
-                Albany JW Parking is a volunteer coordination platform operated by and for the
-                parking team of the Albany Regional Convention of Jehovah's Witnesses. This policy
+                <%= brand.siteName %> is a volunteer coordination platform operated by and for the
+                parking team of the <%= brand.conventionName %>. This policy
                 explains what personal information we collect, how we use it, and your rights
                 regarding that information.
             </p>
+            <% if (brand.showFaithDisclaimer) { %>
             <p class="text-muted small">
                 This website is not sponsored, created, or controlled by Jehovah's Witnesses or
                 www.JW.org, legally known as the Watch Tower Bible and Tract Society of Pennsylvania.
             </p>
+            <% } else if (brand.demoNotice) { %>
+            <p class="text-muted small"><%= brand.demoNotice %></p>
+            <% } %>
         </section>
 
         <section class="mb-4">
@@ -41,8 +45,12 @@
                 <li>Email address</li>
                 <li>Phone number</li>
                 <li>Date of birth</li>
-                <li>Congregation name</li>
+                <li><%= brand.client.congregation %> name</li>
+                <% if (brand.isDemo) { %>
+                <li>Volunteer qualifications (team lead, certifications, etc.)</li>
+                <% } else { %>
                 <li>Spiritual status (elder, ministerial servant, pioneer, etc.)</li>
+                <% } %>
                 <li>Notes relevant to parking assignments</li>
                 <li>Crew and scheduling preferences</li>
             </ul>

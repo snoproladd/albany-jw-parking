@@ -14,6 +14,7 @@ import {
     finishButtons,
     registerTour,
 } from "./tourBase.js";
+import { bt } from "../brand.js";
 
 /**
  * Builds and returns the My Account tour.
@@ -56,8 +57,8 @@ function buildMyAccountTour() {
 
     steps.push({
         id: "ma-other-sections",
-        title: "Personal, Congregation, Spiritual, Notes",
-        text: "The remaining editable sections follow the same pattern: <strong>Personal Info</strong> (birthdate, gender, stamina), <strong>Congregation Info</strong> (your assigned congregation or visiting details), <strong>Spiritual Info</strong> (privileges — some automatically disable others based on conflicting rules), and free-text <strong>Additional Notes</strong>.",
+        title: bt("Personal, Congregation, Spiritual, Notes"),
+        text: bt("The remaining editable sections follow the same pattern: <strong>Personal Info</strong> (birthdate, gender, stamina), <strong>Congregation Info</strong> (your assigned congregation or visiting details), <strong>Spiritual Info</strong> (privileges — some automatically disable others based on conflicting rules), and free-text <strong>Additional Notes</strong>."),
         attachTo: { element: "#accountAccordion", on: "top" },
         buttons: null,
     });

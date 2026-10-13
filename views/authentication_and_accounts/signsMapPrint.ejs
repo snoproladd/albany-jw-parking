@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Print Sign Map — Albany JW Parking</title>
+    <title>Print Sign Map — <%= brand.siteName %></title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content="<%= csrfToken %>" />
@@ -149,7 +149,7 @@
         <%# Title %>
         <div class="signs-print-title" id="printTitle">
             <h1 class="signs-print-title-text">
-                Albany JW Parking — Sign Placement Map
+                <%= brand.siteName %> — Sign Placement Map
             </h1>
             <div class="signs-print-title-meta">
                 <span id="printDate"></span>

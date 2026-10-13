@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>Congregation Information</title>
+    <title><%= bt("Congregation Information") %></title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 
@@ -31,7 +31,7 @@
           <section id="congregation-card" class="card shadow-lg entry-card">
             <header class="card-header text-center">
               <h1 class="text-center mb-1">
-                Tell us about your congregation and responsibilities.
+                <%= bt("Tell us about your congregation and responsibilities.") %>
               </h1>
               <p class="footnote mt-3">
                 <span class="asterix">*</span> Indicates required fields
@@ -50,12 +50,12 @@
                   id="congAssigned-section"
                 >
                   <legend class="form-label mb-2">
-                    Is your Congregation assigned to this convention?
+                    <%= bt("Is your Congregation assigned to this convention?") %>
                     <span class="asterix">*</span>
                   </legend>
 
                   <div class="form-text mb-2">
-                    Select <strong>Yes</strong> if your congregation is assigned.
+                    Select <strong>Yes</strong> if your <%= bt("congregation") %> is assigned.
                   </div>
 
                   <div
@@ -96,7 +96,7 @@
                      ============================================================ -->
                 <div class="mb-3 d-none scroll-section" id="congregation-group">
                   <label for="congregation" class="form-label">
-                    Which congregation are you assigned to?
+                    <%= bt("Which congregation are you assigned to?") %>
                     <span class="asterix">*</span>
                   </label>
 
@@ -106,7 +106,7 @@
                     class="form-control"
                     required
                   >
-                 <option value="">Select your congregation:</option>
+                 <option value=""><%= bt("Select your congregation:") %></option>
                   <% if (congregations && congregations.length) { %>
                     <% congregations
                         .filter(c => c && c.trim() !== "")
@@ -114,7 +114,7 @@
                           <option value="<%= c %>"><%= c %></option>
                     <% }) %>
                   <% } else { %>
-                    <option disabled>No congregations found</option>
+                    <option disabled><%= bt("No congregations found") %></option>
                   <% } %>
                   </select>
                 </div>
@@ -124,7 +124,7 @@
                      ============================================================ -->
                 <div class="mb-3 d-none scroll-section" id="congregationEnter">
                   <label for="congregationOtherCity" class="form-label">
-                    Which congregation are you visiting from?
+                    <%= bt("Which congregation are you visiting from?") %>
                     <span class="asterix">*</span>
                   </label>
 

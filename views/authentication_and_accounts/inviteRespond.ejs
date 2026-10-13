@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Convention Invite — Albany JW Parking</title>
+    <title>Convention Invite — <%= brand.siteName %></title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
@@ -58,7 +58,7 @@
                         <div class="mb-2">
                             <i class="fa-solid fa-car-side fa-2x text-primary"></i>
                         </div>
-                        <h1 class="h4 mb-0">Albany JW Parking</h1>
+                        <h1 class="h4 mb-0"><%= brand.siteName %></h1>
                         <p class="text-muted small mb-0">Convention Volunteer Invite</p>
                     </div>
 
@@ -114,7 +114,7 @@
                             <%# ── Response form ──────────────────────────────── %>
                             <h2 class="h5 mb-1">Hi <%= invitation.firstName %>,</h2>
                             <p class="text-muted small mb-3">
-                                You received this invite from the Albany JW Convention parking team.
+                                You received this invite from the <%= brand.conventionLabel %> parking team.
                             </p>
 
                             <%# ── Event context block ────────────────────────── %>
@@ -292,8 +292,8 @@
                                 <% if (isSms) { %>
                                     <p class="text-muted mt-3 mb-0 ir-sms-consent">
                                         <i class="fa-solid fa-shield-halved me-1"></i>
-                                        By responding, you consent to receive SMS messages from the Albany JW
-                                        Convention parking team regarding your volunteer assignment.
+                                        By responding, you consent to receive SMS messages from the <%= brand.conventionLabel %>
+                                        parking team regarding your volunteer assignment.
                                         Reply STOP at any time to opt out.
                                     </p>
                                 <% } %>
@@ -306,7 +306,7 @@
 
                     <%# ── Card footer ─────────────────────────────────────── %>
                     <div class="card-footer text-center text-muted small py-2">
-                        Albany JW Regional Convention Parking Team
+                        <%= brand.conventionShortName %> Parking Team
                     </div>
 
                 </div>

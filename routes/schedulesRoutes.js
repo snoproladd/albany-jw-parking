@@ -9,13 +9,15 @@
  *
  * Routes:
  *   GET /schedules
- *   GET /schedule/pdf/:blobName   (public, no auth)
+ *   GET /schedule/pdf/:blobName   (public, no auth; 404 on the demo)
+ *   GET /schedule/demo-pdf/:dayId (demo only; renders the PDF live from demo data)
  */
 
 import express from "express";
 import { requirePermission } from "../src/config/roles.js";
 import { getPublishedSchedules } from "../lib/dbSync.js";
 import { streamPublishedFileToResponse } from "../lib/blobStorage.js";
+import { generateReportPDF } from "../lib/publishSchedule.js";
 
 /**
  * Factory: build the schedules router.
@@ -100,6 +102,10 @@ export function schedulesRouter({ csrfProtection, logError, graphConfig }) {
    */
   router.get("/schedule/pdf/:blobName", async (req, res) => {
     const { blobName } = req.params;
+    if (req.isDemo) {
+      // Blob storage is shared with production; never serve it on the demo.
+      return res.status(404).send("File not found.");
+    }
     if (!blobName || /[/\\]/.test(blobName)) {
       return res.status(400).send("Invalid file name.");
     }
@@ -115,6 +121,36 @@ export function schedulesRouter({ csrfProtection, logError, graphConfig }) {
       }
     }
   });
+
+  /**
+   * GET /schedule/demo-pdf/:dayId
+   * Demo only. Demo publishes don't upload anything, so their schedule links
+   * point here and the PDF is rendered on request from demo-schema data
+   * (generateReportPDF adds ?demo=1 to its internal render while in a demo
+   * request). Returns 404 on production.
+   *
+   * @param {string} dayId - convention_days.id in the demo schema.
+   */
+  router.get(
+    "/schedule/demo-pdf/:dayId",
+    requirePermission("viewSchedules"),
+    async (req, res) => {
+      if (!req.isDemo) return res.status(404).send("File not found.");
+      const dayId = Number(req.params.dayId);
+      if (!Number.isInteger(dayId) || dayId <= 0) {
+        return res.status(400).send("Invalid day.");
+      }
+      try {
+        const pdf = await generateReportPDF(dayId, Number(process.env.PORT) || 3000);
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `inline; filename="schedule-day-${dayId}.pdf"`);
+        return res.send(pdf);
+      } catch (err) {
+        (logError || console.error)("/schedule/demo-pdf/:dayId error:", err);
+        if (!res.headersSent) res.status(500).send("Could not generate the schedule PDF.");
+      }
+    },
+  );
 
   return router;
 }

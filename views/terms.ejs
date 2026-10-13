@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Terms of Service — Albany JW Parking</title>
+    <title>Terms of Service — <%= brand.siteName %></title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
@@ -36,7 +36,7 @@
             <h2 class="h5">Your account</h2>
             <p>
                 Please keep your login credentials to yourself and make sure the information on your
-                profile is accurate. If something changes — like your phone number or congregation —
+                profile is accurate. If something changes — like your phone number or <%= brand.client.congregation.toLowerCase() %> —
                 update it in your account so we can reach you.
             </p>
         </section>
@@ -72,12 +72,19 @@
         </section>
 
         <section class="mb-4">
+            <% if (brand.showFaithDisclaimer) { %>
             <h2 class="h5">A note on affiliation</h2>
             <p>
                 This site was built and is operated independently by parking team volunteers.
                 It is not sponsored, created, or controlled by Jehovah's Witnesses or www.JW.org,
                 legally known as the Watch Tower Bible and Tract Society of Pennsylvania.
             </p>
+            <% } else { %>
+            <h2 class="h5">A note on this demo</h2>
+            <p>
+                This is a demonstration environment. <%= brand.demoNotice %>
+            </p>
+            <% } %>
         </section>
 
         <section>

@@ -107,7 +107,17 @@ function initMapsSync() {
                 throw new Error(data.message || `HTTP ${res.status}`);
             }
 
-            const { added, updated, removed } = data.summary;
+            const { added, updated, removed, simulated } = data.summary;
+            if (simulated) {
+                // Demo site: sync is simulated server-side; nothing to reload.
+                if (statusEl) {
+                    statusEl.className = "small mt-1 text-info";
+                    statusEl.textContent = "Demo: sync simulated \u2014 nothing was changed.";
+                }
+                btn.disabled = false;
+                btn.innerHTML = origLabel;
+                return;
+            }
             if (statusEl) {
                 statusEl.className = "small mt-1 text-success";
                 statusEl.textContent = `\u2713 ${added} added, ${updated} updated, ${removed} removed. Reloading\u2026`;

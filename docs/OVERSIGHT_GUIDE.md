@@ -9,6 +9,7 @@ send invitations, track RSVPs, log attendance, and administer the platform.
 ## Table of Contents
 
 1. [Getting Started](#1-getting-started)
+   - [The Demo Site](#the-demo-site)
    - [Site Map](#site-map)
    - [Maps](#maps)
    - [Schedules](#schedules)
@@ -115,6 +116,25 @@ On the Timelines page, the tour opens each form modal automatically so you
 can see every field. The Save and Delete buttons are disabled while a modal
 is open in tour mode — Cancel remains active so you can close the form
 manually if needed. Nothing is saved during a tour.
+
+### The Demo Site
+
+The demo (`demo.albanyjwparking.org`) runs the same code against a separate,
+fictional data set. A few things behave differently so nothing on the demo
+can reach real people or real files:
+
+- **Wording.** The demo is branded *Volunteer Parking Coordinator* for the
+  *Albany Summer Convention*, and uses neutral terms (e.g. *Home Team*,
+  *Volunteer Qualifications*). Production wording is unchanged.
+- **No outbound messages.** Invitations, reset links, schedule notifications,
+  shift alerts and meet-up updates are suppressed — the actions complete, but
+  no email or SMS is sent.
+- **Simulated publishing.** Publishing a schedule, the sign map, or Lessons
+  Learned records the publish but uploads nothing to SharePoint or Blob
+  Storage. Schedule and Lessons Learned PDFs are generated from demo data
+  when opened.
+- **Maps.** The Maps page shows sample tiles instead of real files, and
+  **Sync Now** reports a simulated sync.
 
 ### Site Map
 

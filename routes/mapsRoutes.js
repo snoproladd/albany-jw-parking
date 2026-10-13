@@ -20,6 +20,7 @@ import { requirePermission, can, PERMISSIONS } from "../src/config/roles.js";
 import { getMapFiles } from "../lib/dbSync.js";
 import { streamMapFileToResponse } from "../lib/blobStorage.js";
 import { syncMapsFromOneDrive } from "../lib/mapsSync.js";
+import { DEMO_MAP_SECTIONS } from "../src/config/demoMaps.js";
 
 /**
  * Group a flat list of map_files rows into the folder-sectioned shape
@@ -98,8 +99,13 @@ export function mapsRouter({ csrfProtection, logError, graphConfig }) {
             let loadError = null;
 
             try {
-                const rows = await getMapFiles();
-                sections = groupMapFilesIntoSections(rows);
+                if (req.isDemo) {
+                    // Demo: descriptive sample tiles only — no real files.
+                    sections = DEMO_MAP_SECTIONS;
+                } else {
+                    const rows = await getMapFiles();
+                    sections = groupMapFilesIntoSections(rows);
+                }
             } catch (err) {
                 logError("[GET /maps] DB error:", err);
                 loadError =
@@ -129,6 +135,10 @@ export function mapsRouter({ csrfProtection, logError, graphConfig }) {
         requirePermission("viewMaps"),
         async (req, res) => {
             const { blobName } = req.params;
+            if (req.isDemo) {
+                // Blob storage is shared with production; never serve it on the demo.
+                return res.status(404).send("Map files are not available in the demo.");
+            }
             if (!blobName || /[/\\]/.test(blobName)) {
                 return res.status(400).send("Invalid file name.");
             }

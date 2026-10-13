@@ -14,6 +14,7 @@ import {
     finishButtons,
     registerTour,
 } from "./tourBase.js";
+import { bt } from "../brand.js";
 
 /**
  * Selects "Not assigned" in the congregation dropdown to reveal the
@@ -91,15 +92,15 @@ function buildCreateVolunteerTour() {
 
     steps.push({
         id: "cv-congregation",
-        title: "Congregation",
-        text: "Pick from local Albany-area congregations, choose <strong>Not known</strong> if the volunteer will update it themselves later, or <strong>Not assigned</strong> for a visiting volunteer from elsewhere.",
+        title: bt("Congregation"),
+        text: bt("Pick from local Albany-area congregations, choose <strong>Not known</strong> if the volunteer will update it themselves later, or <strong>Not assigned</strong> for a visiting volunteer from elsewhere."),
         attachTo: { element: "#congSelect", on: "bottom" },
         buttons: null,
     });
 
     steps.push({
         id: "cv-visiting",
-        title: "Visiting congregation details",
+        title: bt("Visiting congregation details"),
         text: "Selecting <strong>Not assigned</strong> reveals these fields — City, State, and Language — so you can record where a visiting volunteer is actually from.",
         attachTo: { element: "#visitingFields", on: "top" },
         beforeShowPromise: showVisitingFields,

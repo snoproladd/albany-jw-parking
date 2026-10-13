@@ -199,7 +199,7 @@
                                           Inactive volunteers are excluded from scheduling and exports for the current year.
                                           This does not delete or archive their account.
                                         </p>
-                                        <p class="text small mb-3">Note: A volunteer <span><strong>MUST</strong></span> be approved by their Congregation Service Committee for the <span><strong>CURRENT</strong></span> year before being marked 'ACTIVE'.</p>
+                                        <p class="text small mb-3">Note: A volunteer <span><strong>MUST</strong></span> be approved by their <%= bt("Congregation Service Committee") %> for the <span><strong>CURRENT</strong></span> year before being marked 'ACTIVE'.</p>
 
                                         <div class="d-flex align-items-center gap-3">
                                           <div class="form-check form-switch">
@@ -501,7 +501,7 @@
                                     <h2 class="accordion-header" id="headingCong">
                                       <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
                                         data-bs-target="#collapseCong">
-                                        Congregation Info
+                                        <%= bt("Congregation Info") %>
                                       </button>
                                     </h2>
 
@@ -520,7 +520,7 @@
                                         <!-- Assigned? -->
                                         <fieldset class="mb-3">
                                           <legend class="form-label small mb-1">
-                                            Congregation assigned to this convention?
+                                            <%= bt("Congregation assigned to this convention?") %>
                                           </legend>
 
                                           <div class="d-flex gap-3">
@@ -540,9 +540,9 @@
 
                                         <!-- Assigned congregation -->
                                         <div id="cong-assigned-block" class="mb-3">
-                                          <label class="form-label small">Congregation you are assigned to</label>
+                                          <label class="form-label small"><%= bt("Congregation you are assigned to") %></label>
                                           <select name="congregation" class="form-select">
-                                            <option value="">Select congregation…</option>
+                                            <option value=""><%= bt("Select congregation…") %></option>
 
                                             <% congregations.forEach(c=> { %>
                                               <option value="<%= c %>" <%=targetUser.assignedToConv &&
@@ -602,7 +602,7 @@
                                     <h2 class="accordion-header" id="headingSpiritual">
                                       <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
                                         data-bs-target="#collapseSpiritual">
-                                        Spiritual Info
+                                        <%= bt("Spiritual Info") %>
                                       </button>
                                     </h2>
 
@@ -622,15 +622,15 @@
 
                                           <!-- Ministry -->
                                           <div class="col">
-                                            <h3 class="h6 text-uppercase text-muted mb-2">Ministry</h3>
+                                            <h3 class="h6 text-uppercase text-muted mb-2"><%= bt("Ministry") %></h3>
 
                                             <% ['auxPioneer','regPioneer','specPioneer'].forEach(p=> { %>
                                               <div class="form-check">
                                                 <input class="form-check-input privilege-checkbox" type="checkbox"
                                                   value="<%= p %>" <%=targetUser[p] ? 'checked' : '' %>>
                                                 <label class="form-check-label">
-                                                  <%= p==='auxPioneer' ? 'Auxiliary Pioneer' : p==='regPioneer'
-                                                    ? 'Regular Pioneer' : 'Special Pioneer / Missionary' %>
+                                                  <%= bt(p==='auxPioneer' ? 'Auxiliary Pioneer' : p==='regPioneer'
+                                                    ? 'Regular Pioneer' : 'Special Pioneer / Missionary') %>
                                                 </label>
                                               </div>
                                               <% }) %>
@@ -638,14 +638,14 @@
 
                                           <!-- Congregation -->
                                           <div class="col">
-                                            <h3 class="h6 text-uppercase text-muted mb-2">Congregation</h3>
+                                            <h3 class="h6 text-uppercase text-muted mb-2"><%= bt("Congregation", "Leadership") %></h3>
 
                                             <% ['minServ','elder'].forEach(p=> { %>
                                               <div class="form-check">
                                                 <input class="form-check-input privilege-checkbox" type="checkbox"
                                                   value="<%= p %>" <%=targetUser[p] ? 'checked' : '' %>>
                                                 <label class="form-check-label">
-                                                  <%= p==='minServ' ? 'Ministerial Servant' : 'Elder' %>
+                                                  <%= bt(p==='minServ' ? 'Ministerial Servant' : 'Elder') %>
                                                 </label>
                                               </div>
                                               <% }) %>
@@ -653,13 +653,13 @@
 
                                           <!-- SFTS -->
                                           <div class="col">
-                                            <h3 class="h6 text-uppercase text-muted mb-2">Special Full-Time</h3>
+                                            <h3 class="h6 text-uppercase text-muted mb-2"><%= bt("Special Full-Time") %></h3>
 
                                             <div class="form-check">
                                               <input class="form-check-input privilege-checkbox" type="checkbox"
                                                 value="sfs" <%=targetUser.sfs ? 'checked' : '' %>>
                                               <label class="form-check-label">
-                                                Special Full-Time Service
+                                                <%= bt("Special Full-Time Service") %>
                                               </label>
                                             </div>
                                           </div>

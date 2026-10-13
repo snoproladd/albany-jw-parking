@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Maps — Albany JW Parking</title>
+    <title>Maps — <%= brand.siteName %></title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
@@ -129,12 +129,18 @@
                                     </div>
 
                                     <div class="maps-tile-actions">
+                                        <% if (file.isSample) { %>
+                                        <span class="maps-tile-btn maps-tile-btn--sample">
+                                            <i class="fa-solid fa-eye-slash me-1"></i>Sample — available in the live system
+                                        </span>
+                                        <% } else { %>
                                         <a href="<%= file.webUrl %>"
                                            target="_blank"
                                            rel="noopener noreferrer"
                                            class="maps-tile-btn maps-tile-btn--download">
                                             <i class="fa-solid fa-arrow-down me-1"></i>View / Download
                                         </a>
+                                        <% } %>
                                         <% if (file.scribbleUrl) { %>
                                         <a href="<%= file.scribbleUrl %>"
                                            target="_blank"

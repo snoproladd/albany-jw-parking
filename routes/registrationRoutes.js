@@ -1,6 +1,7 @@
 // routes/registrationRoutes.js
 import express from "express";
 import crypto from "crypto";
+import { getBrand } from "../lib/branding.js";
 
 /**
  * Registration Router (Final Correct Version)
@@ -492,7 +493,7 @@ export function createRegistrationRouter(deps) {
 
         // Block empty or whitespace-only values
         if (!congregationTrimmed) {
-          return res.status(400).send("Congregation selection is required.");
+          return res.status(400).send(getBrand().text("Congregation selection is required."));
           // (Optional: instead of .send, you could re-render the form with an error)
         }
 
@@ -506,7 +507,7 @@ export function createRegistrationRouter(deps) {
         if (!city || !state || !lang) {
           return res
             .status(400)
-            .send("Visiting congregation details are required.");
+            .send(getBrand().text("Visiting congregation details are required."));
         }
 
         congregationValue = `${city}, ${state} - ${lang}`;
@@ -523,7 +524,7 @@ export function createRegistrationRouter(deps) {
       return res.redirect("/spiritualInfo");
     } catch (err) {
       console.error("submit-congregationInfo error:", err);
-      return res.status(500).send("Failed to save congregation information.");
+      return res.status(500).send(getBrand().text("Failed to save congregation information."));
     }
   });
 
@@ -550,7 +551,7 @@ export function createRegistrationRouter(deps) {
       return res.redirect("/notes");
     } catch (err) {
       console.error("submitSpiritual error:", err);
-      return res.status(500).send("Failed to save spiritual information.");
+      return res.status(500).send(getBrand().text("Failed to save spiritual information."));
     }
   });
 

@@ -3,6 +3,70 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.86.0] — 2026-10-13
+
+### Added
+- **Per-environment branding layer (`lib/branding.js`).** The demo site
+  (`demo.albanyjwparking.org`) now presents as a neutral product —
+  *Volunteer Parking Coordinator* serving the *Albany Summer Convention* —
+  while production wording is unchanged. Two mechanisms:
+  - Named values (`siteName`, `conventionName`, `conventionShortName`,
+    `conventionLabel`, `teamSignature`, `aiOrgDescription`, `venueExample`,
+    `showFaithDisclaimer`, `demoNotice`) for strings used everywhere.
+  - `brand.text()` / `bt()` — templates and JS keep production wording
+    verbatim and wrap it; on the demo a single term table (`DEMO_TERMS`)
+    rewrites faith-specific terms, longest phrase first, whole words only.
+    `bt(text, demoOverride)` supplies an exact demo string where term
+    rewriting doesn't fit (e.g. the *Congregation* privilege group →
+    *Leadership*).
+  - `getBrand()` reads the same `AsyncLocalStorage` demo flag as
+    `lib/sql.js`, so lib and route code need no `req`.
+    `middleware/demoContext.js` exposes `res.locals.brand` and
+    `res.locals.bt` to every view; client JS gets `brand.client` via the new
+    `views/partials/brandData.ejs` data island and `public/js/brand.js`.
+- **Demo Maps sample tiles** (`src/config/demoMaps.js`). On the demo the Maps
+  page shows descriptive sample cards ("Sample — available in the live
+  system") instead of linking to synced files.
+- **Live demo PDFs.** `GET /schedule/demo-pdf/:dayId` (demo only) renders a
+  schedule PDF on request from demo data; on the demo,
+  `GET /lessons-learned/pdf/:year` renders the report live instead of reading
+  the blob.
+- **`scripts/migrations/demo_neutral_branding_demo.sql`** — demo-only, data-only
+  migration that audits every demo text column for faith-specific wording and
+  rewrites a fixed phrase list. Dry run by default (`@apply = 0`). No `dbo`
+  counterpart by design.
+
+### Changed
+- **Demo wording across the app:** header brand and all page `<title>`s, home
+  banners, registration (*Spiritual Info* → *Volunteer Qualifications*,
+  *Congregation* → *Home Team*, privilege labels → Bronze/Silver/Gold
+  Certified, Assistant Lead, Team Lead, Advanced Training), My Account,
+  Volunteer Account Oversight, Create Volunteer, Reports charts and
+  missing-field badges, Send Links, Site Map descriptions, guided tours,
+  privacy and terms pages, SMS/email copy, and the three AI system prompts.
+- The footer, privacy and terms JW.org disclaimer renders on production only;
+  the demo shows *"Demo environment — all names and data are fictional."*
+- `scripts/seedDemo.js` / `scripts/anonymizeSeed.js` seed neutral names
+  ("Millhaven Community Center", "2026 Albany Summer Convention Parking").
+- `dev:full` no longer forces `--shell=bash` (broke on Windows) and runs the
+  existing `dev` / `dev:sms` scripts so `set-local-env.js` loads.
+
+### Fixed
+- **Demo could send real SMS.** `sendAlertSms()` (shift-alert *Send now*,
+  rendezvous updates) had no demo guard; it now mirrors `lib/messaging.js`
+  and suppresses sends in demo context.
+- **Demo publishes could overwrite production files.** Sign-map
+  (`Sign_Placement_Map.pdf`) and Lessons Learned (fixed per-year blob path)
+  publishes target names shared with production; schedule publish and the
+  Maps sync also wrote to shared SharePoint / Blob Storage. All four are now
+  simulated on the demo, and the demo never streams files from shared blob
+  storage (`/maps/file/*`, `/schedule/pdf/*` return 404).
+- **Demo PDFs rendered production data.** Puppeteer loads `/internal/pdf/*`
+  over loopback, which never matched the demo hostname. Generators now append
+  `?demo=1` during demo requests; `demoContextMiddleware` honours it only for
+  `/internal/pdf/*` from a loopback socket.
+- `lessonsLearnedResources.ejs` `<title>` rendered a literal `\u2014`.
+
 ## [2.85.0] — 2026-07-31
 
 ### Removed

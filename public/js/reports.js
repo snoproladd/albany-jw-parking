@@ -8,6 +8,8 @@
  * No external dependencies — vanilla JS + Bootstrap 5.
  */
 
+import { bt } from "./brand.js";
+
 // ─── Data ──────────────────────────────────────────────────────────────────
 
 /**
@@ -194,7 +196,7 @@ function renderTable() {
           ? v.missingFields
               .map(
                 (f) =>
-                  `<span class="badge bg-warning text-dark me-1 mb-1">${f}</span>`,
+                  `<span class="badge bg-warning text-dark me-1 mb-1">${bt(f)}</span>`,
               )
               .join("")
           : '<span class="text-muted small">—</span>';

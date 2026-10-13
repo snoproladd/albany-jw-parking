@@ -187,6 +187,7 @@ import { sendResetEmail, sendResetSms, getBaseUrl } from "../lib/messaging.js";
 
 import { PDF_SECRET, publishDays } from "../lib/publishSchedule.js";
 import { buildAlertMessage, sendAlertSms, sendRows } from "../lib/alertScheduler.js";
+import { getBrand } from "../lib/branding.js";
 
 import {
   uploadRendezvousPhoto,
@@ -1411,11 +1412,11 @@ export function oversightRouter({
         // ── Message copy depends on link type ────────────────────────
         const firstName = volunteer.firstName || "there";
         const emailSubject = isResume
-          ? "Action needed — complete your Albany JW Parking registration"
-          : "Reset your Albany JW Parking password";
+          ? `Action needed — complete your ${getBrand().siteName} registration`
+          : `Reset your ${getBrand().siteName} password`;
         const smsBody = isResume
-          ? `Albany JW Parking: Hi ${firstName}, your registration is incomplete. Tap to finish:\n${linkUrl}`
-          : `Albany JW Parking: Hi ${firstName}, tap the link to reset your password:\n${linkUrl}`;
+          ? `${getBrand().siteName}: Hi ${firstName}, your registration is incomplete. Tap to finish:\n${linkUrl}`
+          : `${getBrand().siteName}: Hi ${firstName}, tap the link to reset your password:\n${linkUrl}`;
 
         let ok = false;
 
@@ -2161,7 +2162,7 @@ export function oversightRouter({
           ok = await sendResetEmail(volunteer.email, linkUrl, {
             ...smtpConfig,
             firstName,
-            subject: "Welcome to Albany JW Parking — set your password",
+            subject: `Welcome to ${getBrand().siteName} — set your password`,
             isResume: false,
           });
         } else {
@@ -3643,7 +3644,7 @@ export function oversightRouter({
             let failed = 0;
             for (const vol of vols) {
               const body =
-                `Albany JW Parking: Updated meet-up for your ` +
+                `${getBrand().siteName}: Updated meet-up for your ` +
                 `${vol.event_type_name} shift at ` +
                 `${_fmtTimeShort(vol.start_time)}: ${desc}`;
               try {
@@ -4430,7 +4431,7 @@ export function oversightRouter({
             const ok = await sendResetEmail(vol.email, rsvpUrl, {
               ...smtpConfig,
               firstName: vol.firstName,
-              subject: resolvedSubject || "Albany JW Parking — You're invited",
+              subject: resolvedSubject || `${getBrand().siteName} — You're invited`,
               isResume: false,
               customBody: resolvedBody,
             });
@@ -7705,7 +7706,7 @@ export function oversightRouter({
 
         // Build schedule text
         const lines = [
-          `Albany JW Parking — Schedule for ${volunteer.firstName} ${volunteer.lastName}`,
+          `${getBrand().siteName} — Schedule for ${volunteer.firstName} ${volunteer.lastName}`,
         ];
         lines.push("");
 
@@ -7771,7 +7772,7 @@ export function oversightRouter({
           const { sendResetEmail } = await import("../lib/messaging.js");
           const sent = await sendResetEmail(volunteer.email, "", {
             ...smtpConfig,
-            subject: `Your Albany JW Parking Schedule — ${volunteer.firstName} ${volunteer.lastName}`,
+            subject: `Your ${getBrand().siteName} Schedule — ${volunteer.firstName} ${volunteer.lastName}`,
             firstName: volunteer.firstName,
             customBody: textBody,
           });

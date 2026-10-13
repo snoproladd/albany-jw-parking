@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>Send Links — Albany JW Parking</title>
+    <title>Send Links — <%= brand.siteName %></title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
@@ -146,8 +146,8 @@
                               emailPass:        'Email/password',
                               volunteerIn:      'Phone',
                               personalInfo:     'Personal info',
-                              congregationInfo: 'Congregation',
-                              spiritualInfo:    'Spiritual info',
+                              congregationInfo: bt('Congregation'),
+                              spiritualInfo:    bt('Spiritual info'),
                               notes:            'Notes',
                               formSummary:      'Summary',
                             }[v.last_step] || v.last_step || '—';

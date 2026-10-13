@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Operations — Albany JW Parking</title>
+  <title>Operations — <%= brand.siteName %></title>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
@@ -226,7 +226,7 @@
                         <i class="fa-solid fa-id-card"></i>
                       </div>
                       <h3 class="admin-tool-title">Edit Volunteer</h3>
-                      <p class="admin-tool-desc">View and edit volunteer account information including contact, congregation, and spiritual details.</p>
+                      <p class="admin-tool-desc"><%= bt("View and edit volunteer account information including contact, congregation, and spiritual details.") %></p>
                       <a href="/editVolunteer" class="btn btn-success admin-tool-btn">
                         Open <i class="fa-solid fa-arrow-right ms-1"></i>
                       </a>
@@ -327,7 +327,7 @@
                       <i class="fa-solid fa-chart-pie"></i>
                     </div>
                     <h3 class="admin-tool-title">Demographics</h3>
-                    <p class="admin-tool-desc">Age distribution, gender split, and spiritual privilege breakdown across active volunteers.</p>
+                    <p class="admin-tool-desc"><%= bt("Age distribution, gender split, and spiritual privilege breakdown across active volunteers.") %></p>
                     <a href="/oversight/tools/reports?tab=demographics" class="btn btn-primary admin-tool-btn">
                       Open <i class="fa-solid fa-arrow-right ms-1"></i>
                     </a>
