@@ -71,9 +71,9 @@
 }
 
 /* ── Per-day header colors ─────────────────────────────────────── */
-.cg-day-header-0 { background: #4a7ab5; }
-.cg-day-header-1 { background: #5a9e6f; border-left: 3px solid #3a5c4a; }
-.cg-day-header-2 { background: #b8893a; border-left: 3px solid #8a6828; }
+.cg-day-header-0 { background: #4470a9; }
+.cg-day-header-1 { background: #49805a; border-left: 3px solid #3a5c4a; }
+.cg-day-header-2 { background: #936e2e; border-left: 3px solid #8a6828; }
 
 .cg-shift-header {
     padding: 0;
@@ -137,7 +137,7 @@
     left: 0;
     z-index: 4;
     background: var(--bs-gray-200);
-    border-right: 3px solid #4a7ab5;
+    border-right: 3px solid #4470a9;
     border-bottom: 2px solid var(--bs-border-color);
     min-width: 160px;
     padding: 0.25rem;
@@ -171,7 +171,7 @@
     left: 0;
     z-index: 2;
     background: var(--bs-body-bg);
-    border-right: 3px solid #4a7ab5;
+    border-right: 3px solid #4470a9;
     padding: 0.2rem 0.5rem;
     font-weight: 600;
     min-width: 160px;
@@ -201,7 +201,7 @@
 
 /* ── Day boundary divider (header + body) ──────────────────────── */
 .cg-day-start {
-    border-left: 3px solid #4a7ab5 !important;
+    border-left: 3px solid #4470a9 !important;
 }
 
 /* ── Column hover highlight (translucent band) ─────────────────── */
@@ -246,7 +246,7 @@
 }
 
 .cg-cell-scpc {
-    background-color: #e35d6a !important;
+    background-color: #cc3c4b !important;
     color: #fff;
     font-weight: 800;
 }
@@ -315,7 +315,7 @@
 }
 
 .cg-legend-swatch-scpc {
-    background-color: #e35d6a;
+    background-color: #cc3c4b;
     color: #fff;
 }
 

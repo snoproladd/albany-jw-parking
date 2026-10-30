@@ -3,6 +3,63 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.86.1] — 2026-10-30
+
+Accessibility pass from a Lighthouse audit plus a 38-page signed-in contrast
+survey. CSS and markup only, apart from one chart colour string; no schema,
+route or behaviour changes.
+
+### Added
+- **Shared contrast tokens** in the `styles.css` `:root`: `--ui-muted` /
+  `--ui-muted-rgb` (`#565e64`), `--ui-link` / `--ui-link-hover`
+  (`#0a58ca` / `#084298`) and `--scrim-navy`. Bootstrap's `--bs-link-color*`
+  variables now follow `--ui-link`.
+- **`.page-header-glass`** — one shared panel (white at 85%, the same glass
+  as the cards) for page titles and section headings that sit directly on the
+  background photo. Applied to Maps, Schedules, Notes Report, Reports, Master
+  Conflict Grid, Schedule Analysis Rules, System Variables and both Lessons
+  Learned pages, plus the section headings on Maps and Schedules.
+- Styles for `.nr-badge--sms` (navy pill) and `.nr-badge--sms-category`
+  (gray tint) in `notesReport.css`.
+
+### Changed
+- **Translucency moved off text.** `.form-entry` no longer sets
+  `opacity: 0.75`; the card and its header carry the 85% white background
+  instead. Accordion items and bodies, and the scheduler's "Columns:" label,
+  likewise stop fading their text.
+- **Bootstrap stock colours used as text on light or glass surfaces** are
+  darkened to a shade of the same hue: `.text-secondary` and
+  `.btn-outline-secondary` use `--ui-muted`; `.btn-outline-primary` uses
+  `--ui-link`; `.btn-outline-danger` is `#b02a37`; `.btn-outline-warning` is
+  `#664d03`; links inside `.form-entry` use `--ui-link`.
+- Home hero: the "Get started" hint and the sign-in line sit in one navy scrim
+  pill (`.hero-cta-note`, one wrapper div in `index.ejs`) with white text.
+- Cookie banner: "Essential Only" button text is `#084298`; on phones the
+  text block no longer uses its `flex-basis` as a height.
+- Operations menu sub-labels (`.ot-nav-group-label`) raised to 80% alpha.
+- Master Conflict Grid: day 1–3 header colours darkened (`#4470a9`,
+  `#49805a`, `#936e2e`) and the SC/PC cell and legend swatch set to
+  `#cc3c4b`; white text is now at least 4.6:1 on all of them.
+- Dashboard weather lows use `--Primary`; Schedules and Maps tile dates and
+  sizes and the Enhanced account badge use `--ui-muted`.
+- Scheduler D/P crew badge uses black text on orange, as the MS badge does.
+- "Coming soon" tiles on the Operations hub keep full-strength text and dim
+  only the icon, with a dashed border.
+- Footer "Report a Bug" link `opacity` 0.6 → 0.85.
+- Guided tours: the cancel × is white and the Back button uses `#ced4da` on
+  the navy footer.
+- Dashboard oversight charts: default text colour `#6b7280` → `#374151`.
+
+### Fixed
+- **Notes Report SMS and AI-category badges were invisible.** The classes had
+  no styles, so Bootstrap's white badge text rendered on a transparent
+  background.
+- Pill tabs (e.g. the active *Proposed* tab on Lessons Learned) showed navy
+  text on bright blue because the navbar's `.nav-link.active` rule reached
+  them; `.nav-pills .nav-link.active` now sets white text.
+- Page titles, subtitles and section headings rendering near-black directly on
+  the blue background photo (see `.page-header-glass` above).
+
 ## [2.86.0] — 2026-10-13
 
 ### Added

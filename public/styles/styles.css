@@ -34,6 +34,63 @@
   --fs-body: clamp(1rem, 2vw, 1.125rem);
 }
 
+/* -------------------- Shared text, link and scrim tokens -------------------- */
+:root {
+    --ui-muted: #565e64;
+    --ui-muted-rgb: 86, 94, 100;
+    --ui-link: #0a58ca;
+    --ui-link-hover: #084298;
+    --scrim-navy: rgba(10, 35, 65, 0.78);
+    --bs-link-color: var(--ui-link);
+    --bs-link-color-rgb: 10, 88, 202;
+    --bs-link-hover-color: var(--ui-link-hover);
+    --bs-link-hover-color-rgb: 8, 66, 152;
+}
+
+.text-secondary {
+    --bs-text-opacity: 1;
+    color: rgba(var(--ui-muted-rgb), var(--bs-text-opacity)) !important;
+}
+
+.btn-outline-secondary {
+    --bs-btn-color: var(--ui-muted);
+}
+
+/* Bootstrap's stock accents are fine as fills and borders but too light as text */
+.btn-outline-primary {
+    --bs-btn-color: var(--ui-link);
+}
+
+.btn-outline-danger {
+    --bs-btn-color: #b02a37;
+}
+
+.btn-outline-warning {
+    --bs-btn-color: #664d03;
+}
+
+/* The navbar's .nav-link.active rule (navy, !important) also reaches pill tabs */
+.nav-pills .nav-link.active {
+    color: #fff !important;
+}
+
+.form-entry a:not(.btn) {
+    color: var(--ui-link);
+}
+
+.form-entry a:not(.btn):hover {
+    color: var(--ui-link-hover);
+}
+
+/* Page headings that sit directly on the background photo get the same glass as the cards */
+.page-header-glass {
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.38);
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+    padding: 0.75rem 1rem;
+}
+
 /* -------------------- Body & Background -------------------- */
 body {
   min-height: 100dvh;
@@ -223,12 +280,20 @@ b {
 
 /* -------------------- Entry card (form pages) -------------------- */
 .form-entry {
-  max-width: 500px;
-  /* was 400px, increased for better mobile usability */
-  width: 100%;
-  /* allows shrinking on small screens */
-  opacity: 0.75;
-  justify-content: center;
+    max-width: 500px;
+    /* was 400px, increased for better mobile usability */
+    width: 100%;
+    /* allows shrinking on small screens */
+    justify-content: center;
+}
+
+/* Translucency lives on the card background, never on its text */
+.form-entry > .card {
+    --bs-card-bg: rgba(255, 255, 255, 0.85);
+}
+
+.form-entry > .card .card-header {
+    background: rgba(255, 255, 255, 0.85);
 }
 
 
@@ -1685,7 +1750,11 @@ b {
 }
 
 .admin-tool-card--soon {
-  opacity: 0.6;
+    border-style: dashed;
+}
+
+.admin-tool-card--soon .admin-tool-icon {
+    opacity: 0.6;
 }
 
 .admin-tool-icon {
@@ -2159,13 +2228,14 @@ footer p:not(.footer-text) {
 }
 
 .cookie-consent-actions .btn-outline-primary {
-  border-color: #0d6efd;
-  color: #0d6efd;
-  background: #cfe2ff;
+    border-color: #0d6efd;
+    color: #084298;
+    background: #cfe2ff;
 }
 
 .cookie-consent-actions .btn-outline-primary:hover {
-  background: #9ec5fe;
+    color: #084298;
+    background: #9ec5fe;
 }
 
 .cookie-manage-panel {
@@ -2193,6 +2263,10 @@ footer p:not(.footer-text) {
     flex-direction: column;
     align-items: flex-start;
   }
+
+    .cookie-consent-text {
+        flex: 0 0 auto;
+    }
 
   .cookie-consent-actions {
     width: 100%;
@@ -2301,7 +2375,7 @@ footer p:not(.footer-text) {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: rgba(144, 196, 248, 0.45);
+    color: rgba(144, 196, 248, 0.8);
     padding: 0.55rem 1rem 0.1rem 2rem;
     pointer-events: none;
     cursor: default;

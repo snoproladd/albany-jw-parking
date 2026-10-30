@@ -46,7 +46,7 @@
 .shepherd-element.ajwp-tour-step .shepherd-cancel-icon {
     background: none;
     border: none;
-    color: rgba(255, 255, 255, 0.75);
+    color: #ffffff;
     font-size: 1.25rem;
     line-height: 1;
     cursor: pointer;
@@ -108,8 +108,8 @@
 
 .ajwp-tour-btn--secondary {
     background-color: transparent;
-    border-color: #6c757d;
-    color: #6c757d;
+    border-color: #ced4da;
+    color: #ced4da;
 }
 
 .ajwp-tour-btn--secondary:hover {

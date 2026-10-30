@@ -40,7 +40,7 @@ Chart.register(...registerables);
 
 Chart.defaults.font.family = "'Archivo', system-ui, sans-serif";
 Chart.defaults.font.size   = 12;
-Chart.defaults.color       = "#6b7280";
+Chart.defaults.color       = "#374151";
 Chart.defaults.plugins.legend.labels.boxWidth = 12;
 Chart.defaults.plugins.legend.labels.padding  = 14;
 

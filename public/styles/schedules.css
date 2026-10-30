@@ -21,9 +21,12 @@
     font-size: 1.1rem;
     font-weight: 600;
     color: var(--bs-emphasis-color);
-    padding-bottom: 0.5rem;
     margin-bottom: 1rem;
-    border-bottom: 2px solid var(--bs-border-color);
+}
+
+.schedules-section-heading.page-header-glass {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
 }
 
 /* ── Tile card ────────────────────────────────────────────────────────────────── */
@@ -92,7 +95,7 @@
 .schedules-tile-date,
 .schedules-tile-size {
     font-size: 0.72rem;
-    color: var(--bs-tertiary-color);
+    color: var(--ui-muted);
 }
 
 /* ── Action buttons ───────────────────────────────────────────────────────────── */

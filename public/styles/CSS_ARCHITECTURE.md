@@ -54,6 +54,19 @@ Global design tokens are defined in `:root` inside `styles.css`:
 | `--TextDark` | `#111827` | Body text |
 | `--TextLight` | `#ffffff` | Text on dark backgrounds |
 | `--fs-h1` through `--fs-body` | `clamp()` values | Fluid typography |
+| `--ui-muted` / `--ui-muted-rgb` | `#565e64` / `86, 94, 100` | Muted text (replaces `#6c757d` and opacity dimming); 6.6:1 on white |
+| `--ui-link` / `--ui-link-hover` | `#0a58ca` / `#084298` | Link and outline-button text on light or glass surfaces |
+| `--scrim-navy` | `rgba(10, 35, 65, 0.78)` | Navy backing for white text that sits directly on the background photo |
+
+Contrast rules that follow from these:
+
+- Put translucency on the background colour, never on text: no `opacity`
+  on an element that contains text.
+- Bootstrap's stock accent colours (`#0d6efd`, `#6c757d`, `#ffc107`,
+  `#dc3545`) are fine as fills and borders but too light as text on light
+  or glass surfaces; use the tokens above or a darker shade of the same hue.
+- Text that sits directly on the background photo goes on `--scrim-navy`
+  (white text) or inside `.page-header-glass` (dark text) from `styles.css`.
 
 ---
 

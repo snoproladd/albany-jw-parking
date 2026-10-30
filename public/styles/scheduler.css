@@ -212,7 +212,7 @@
 
 .crew-dropoff-pickup {
     background: #fd7e14;
-    color: #fff;
+    color: #000;
     border: 1px solid #ca6510;
 }
 
@@ -962,7 +962,6 @@
     font-weight: 600;
     color: var(--bs-warning-text-emphasis);
     white-space: nowrap;
-    opacity: 0.75;
 }
 
 .sched-dept-toggles {

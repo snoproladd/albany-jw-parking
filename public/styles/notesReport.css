@@ -4,10 +4,6 @@
 
 /* ── Page header ──────────────────────────────────────────────────────────── */
 
-.nr-page-header {
-    padding-bottom: 0.25rem;
-}
-
 .nr-page-title {
     font-size: 1.6rem;
     font-weight: 700;
@@ -313,6 +309,16 @@
 .nr-badge--complete {
     background: color-mix(in srgb, #198754 20%, transparent);
     color: #0f5132;
+}
+
+.nr-badge--sms {
+    background: var(--Primary);
+    color: #fff;
+}
+
+.nr-badge--sms-category {
+    background: color-mix(in srgb, var(--bs-secondary) 12%, transparent);
+    color: var(--ui-muted);
 }
 
 /* ── Modal shared ─────────────────────────────────────────────────────────── */

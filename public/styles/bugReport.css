@@ -17,7 +17,7 @@
    ───────────────────────────────────────────────────────────── */
 
 .bug-report-trigger {
-    opacity: 0.6;
+    opacity: 0.85;
     font-size: 0.8rem;
     transition: opacity 0.15s ease;
 }
