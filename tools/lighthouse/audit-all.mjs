@@ -189,6 +189,44 @@ async function auditPage(url, formFactor, port) {
 }
 
 /**
+ * Poll the site until it answers, so a restarting dev server does not fail an audit.
+ * @param {string} base - Site origin.
+ * @param {number} timeoutMs - Give up after this many milliseconds.
+ * @returns {Promise<boolean>} True once the server responds.
+ */
+async function waitForServer(base, timeoutMs) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        try {
+            const res = await fetch(`${base}/login`, { redirect: "manual", signal: AbortSignal.timeout(3000) });
+            if (res.status < 500) return true;
+        } catch {
+            /* server not up yet */
+        }
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+    return false;
+}
+
+/**
+ * Audit a page, retrying once if Chrome could not reach the server (for example while
+ * nodemon is restarting it).
+ * @param {string} url - Absolute URL to audit.
+ * @param {"desktop"|"mobile"} formFactor - Emulation preset.
+ * @param {number} port - Chrome remote-debugging port.
+ * @param {string} base - Site origin.
+ * @returns {Promise<object>} The Lighthouse result (lhr).
+ */
+async function auditWithRetry(url, formFactor, port, base) {
+    const lhr = await auditPage(url, formFactor, port);
+    const code = lhr.runtimeError && lhr.runtimeError.code;
+    if (code !== "CHROME_INTERSTITIAL_ERROR") return lhr;
+    console.log("  ...server did not answer; waiting for it to come back");
+    if (!(await waitForServer(base, 60000))) return lhr;
+    return auditPage(url, formFactor, port);
+}
+
+/**
  * Whether an audit has a pass/fail style score below a threshold.
  * @param {object} audit - Lighthouse audit result.
  * @param {number} limit - Score threshold (exclusive).
@@ -380,7 +418,7 @@ async function main() {
             for (const ff of formFactors) {
                 const label = `${p} (${ff})`;
                 try {
-                    const lhr = await auditPage(`${opts.base}${p}`, ff, chrome.port);
+                    const lhr = await auditWithRetry(`${opts.base}${p}`, ff, chrome.port, opts.base);
                     version = lhr.lighthouseVersion;
                     fs.writeFileSync(path.join(outDir, `${slugify(p)}.${ff}.json`), JSON.stringify(lhr));
                     const rec = summarise(lhr, p, ff);
