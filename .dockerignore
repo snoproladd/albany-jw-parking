@@ -33,6 +33,7 @@ public/js/*.js.map
 
 *.sh
 scripts/
+tools/
 
 set_local_env.js
 parking/
