@@ -8,8 +8,9 @@
     <link rel="stylesheet" href="/styles/fontawesome/css/all.css">
     <link rel="stylesheet" type="text/css" href="/styles/styles.css">
     <link rel="stylesheet" type="text/css" href="/styles/index.css">
-    <link href="https://fonts.googleapis.com/css2?family=Georama:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+    <link rel="preload" href="/fonts/archivo-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/georama-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="/styles/fonts.css" />
 </head>
 <body data-authed="<%= typeof volunteer !== 'undefined' && volunteer ? 'true' : 'false' %>"
       class="<%= typeof volunteer !== 'undefined' && volunteer ? 'db-bg' : '' %>">

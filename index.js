@@ -305,6 +305,15 @@ app.use(compression());
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+// Self-hosted fonts never change in place (rename a file if it is replaced),
+// so they can be cached for a year.
+app.use(
+    "/fonts",
+    express.static(path.join(__dirname, "public", "fonts"), {
+        maxAge: "365d",
+        immutable: true,
+    }),
+);
 app.use(express.static(path.join(__dirname, "public")));
 
 app.set("view engine", "ejs");
