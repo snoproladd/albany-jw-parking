@@ -350,19 +350,19 @@
 .accordion-body .bt-day-chip {
     background: rgba(30, 58, 138, 0.06);
     border-color: rgba(30, 58, 138, 0.22);
-    color: #1e3a8a;
+    color: var(--Primary);
 }
 
 .accordion-body .bt-day-chip:hover {
     background: rgba(30, 58, 138, 0.12);
     border-color: rgba(30, 58, 138, 0.38);
-    color: #1e3a8a;
+    color: var(--Primary);
 }
 
 .accordion-body .bt-day-chip.bt-active {
     background: rgba(30, 58, 138, 0.16);
     border-color: rgba(30, 58, 138, 0.5);
-    color: #1e3a8a;
+    color: var(--Primary);
     box-shadow: none;
 }
 
@@ -373,19 +373,19 @@
 .accordion-body .bt-chip-add {
     background: rgba(30, 58, 138, 0.06);
     border-color: rgba(30, 58, 138, 0.25);
-    color: #1e3a8a;
+    color: var(--Primary);
 }
 
 .accordion-body .bt-chip-add:hover {
     background: rgba(30, 58, 138, 0.14);
     border-color: rgba(30, 58, 138, 0.45);
-    color: #1e3a8a;
+    color: var(--Primary);
 }
 
 .accordion-body .bt-save-btn {
     background: rgba(30, 58, 138, 0.08);
     border-color: rgba(30, 58, 138, 0.35);
-    color: #1e3a8a;
+    color: var(--Primary);
 }
 
 .accordion-body .bt-save-btn:hover {
@@ -402,7 +402,7 @@
 /* ── SVG: text and stroke elements ───────────────────────────────────────── */
 
 .accordion-body .bt-session-label {
-    fill: #1e3a8a;
+    fill: var(--Primary);
 }
 
 .accordion-body .bt-track-label {
@@ -410,7 +410,7 @@
 }
 
 .accordion-body .bt-track-active-label {
-    fill: #1e3a8a;
+    fill: var(--Primary);
 }
 
 .accordion-body .bt-cursor-line {
@@ -418,11 +418,11 @@
 }
 
 .accordion-body .bt-glow-tick {
-    stroke: #2563eb;
+    stroke: var(--Secondary);
 }
 
 .accordion-body .bt-session-bound-glow {
-    stroke: #2563eb;
+    stroke: var(--Secondary);
 }
 
 .accordion-body .bt-tooltip-bg {
@@ -431,7 +431,7 @@
 }
 
 .accordion-body .bt-tooltip-text {
-    fill: #1e3a8a;
+    fill: var(--Primary);
 }
 
 .accordion-body .bt-ruler-tick {
@@ -443,7 +443,7 @@
 }
 
 .accordion-body .bt-ruler-label {
-    fill: #2563eb;
+    fill: var(--Secondary);
 }
 
 .accordion-body .bt-range-remove-x {
@@ -467,7 +467,7 @@
 }
 
 .accordion-body .bt-range-handle {
-    fill: #1e3a8a;
+    fill: var(--Primary);
     stroke: rgba(255, 255, 255, 0.5);
 }
 /* ── Wide-card expansion at xxl — myAccount / volunteerAccountOversight ───── */

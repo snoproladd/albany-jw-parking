@@ -347,7 +347,7 @@
 
 .db-weather-icon {
     font-size: 1.5rem;
-    color: #f59e0b;
+    color: var(--Accent);
     flex-shrink: 0;
 }
 
@@ -407,7 +407,7 @@
 
 .db-wx-day-icon {
     font-size: 1rem;
-    color: #f59e0b;
+    color: var(--Accent);
     margin: 0.1rem 0;
 }
 

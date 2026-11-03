@@ -37,7 +37,7 @@
 }
 
 .report-kpi-value.kpi-blue {
-    color: #1e3a8a;
+    color: var(--Primary);
 }
 
 .report-kpi-value.kpi-green {

@@ -70,11 +70,6 @@
     --bs-btn-color: #664d03;
 }
 
-/* The navbar's .nav-link.active rule (navy, !important) also reaches pill tabs */
-.nav-pills .nav-link.active {
-    color: #fff !important;
-}
-
 .form-entry a:not(.btn) {
     color: var(--ui-link);
 }
@@ -991,8 +986,14 @@ b {
   color: #d5ecff;
 }
 
-.nav-link.active,
-.dropdown-item.active {
+.site-navbar .nav-link.active,
+.site-navbar .dropdown-item.active {
+  font-weight: 600;
+  color: var(--Primary, #0d6efd) !important;
+}
+
+/* Page tabs keep the bold navy active label the navbar rule used to give them */
+.nav-tabs .nav-link.active {
   font-weight: 600;
   color: var(--Primary, #0d6efd) !important;
 }
@@ -1813,7 +1814,7 @@ b {
 @keyframes draftPulse {
   0% {
     box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
-    background: #f59e0b;
+    background: var(--Accent);
   }
 
   50% {
@@ -1823,7 +1824,7 @@ b {
 
   100% {
     box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
-    background: #f59e0b;
+    background: var(--Accent);
   }
 }
 
