@@ -3,6 +3,70 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.86.5] — 2026-11-03
+
+Performance and layout-stability pass from the production Lighthouse run of
+2026-11-03: compression, self-hosted fonts, and CSS/EJS changes that stop pages
+jumping as their data loads. One new dependency (`compression`, so run
+`npm ci`); no schema, route or behaviour changes.
+
+### Added
+- **Response compression.** `compression` middleware in `index.js` (new
+  dependency `compression ^1.8.2`). Text responses are gzip- or
+  brotli-compressed; streamed PDFs and images are skipped by the default
+  filter. Checked on production: `styles.css` 54,088 → 11,721 bytes and the
+  Invitation Tracker page 5,250 KB → 119 KB.
+- **Self-hosted fonts.** Archivo and Georama (Fontsource 5.3.0 variable fonts,
+  weights 100–900, latin and latin-ext, normal and italic, with their SIL OFL
+  licences) are served from `public/fonts/`, with the `@font-face` rules in
+  `public/styles/fonts.css`. The 57 views that loaded Google Fonts now preload
+  the two main files and link `fonts.css`. `/fonts` is served with a one-year
+  `immutable` cache, so rename a file if it is ever replaced. The Content
+  Security Policy is unchanged because Google Maps still needs the Google font
+  hosts.
+- **`tools/lighthouse/cls-probe.mjs`.** Loads pages in a signed-in Chrome and
+  reports every layout shift: the element that moved, where it moved from and
+  to, and the requests or font loads that finished just before. Raw data goes
+  to `tools/lighthouse/reports/cls-<timestamp>/` (git-ignored).
+- **`page-fill` body class** (`styles.css`). Keeps `<main>` about one window
+  tall, so the footer starts below the fold on pages that fill in their data
+  after first paint. Used on Contacts, Notes Report, Shift Alerts, Capacity
+  Alerts, System Variables, Oversight Structure, Schedule Rules and the Master
+  Conflict Grid.
+
+### Fixed
+- **Layout shift (CLS) on pages that load their data after first paint.**
+  Desktop scores from the probe, before → after: Notes Report 0.82 → 0.002,
+  Contacts 0.76 → 0.000, Shift Alerts 0.50 → 0.001, Capacity Alerts
+  0.35 → 0.034, Master Conflict Grid 0.34 → 0.001, Home 0.28 → 0.076,
+  Oversight Structure 0.26 → 0.001, System Variables 0.22 → 0.001, Schedule
+  Rules 0.17 → 0.005. On mobile emulation the worst page is the Conflict Grid
+  at 0.036. Besides `page-fill`:
+  - Home shows a hidden placeholder shaped like the weather widget instead of
+    a spinner, so the dashboard no longer drops about 30 px when the forecast
+    arrives.
+  - Space is reserved for the Capacity Alerts rules table (28rem) and
+    kill-switch status line, the System Variables classifications list (21rem)
+    and the Schedule Rules list (21rem). The reserved heights are estimates
+    for the current data; tune them if the lists are usually much shorter.
+  - The Master Conflict Grid's container is full width from the start instead
+    of shrinking to its legend and then widening when the grid loads.
+  - Home can still jump about 31 px (up to 0.076) when the web fonts arrive
+    after first paint; it stays under the 0.1 threshold, so it is left as is.
+- **Capacity Alerts kill-switch status text** was `text-danger` on the
+  pale-red panel, below 4.5:1; it is now `text-danger-emphasis`.
+
+### Changed
+- **Brand colour tokens.** 18 hard-coded colours in `blackoutTimeline.css`
+  (13), `index.css` (2), `reportsCharts.css` (1) and `styles.css` (2) now use
+  `var(--Primary)`, `var(--Secondary)` or `var(--Accent)`.
+- **Active link styling.** The global `.nav-link.active` colour rule is scoped
+  to `.site-navbar` (nav links and dropdown items) with a separate
+  `.nav-tabs .nav-link.active` rule for page tabs, and the
+  `.nav-pills .nav-link.active { color: #fff !important }` workaround is gone.
+- **Duplicate Font Awesome stylesheet.** The extra `fontawesome.min.css` link
+  was removed from 66 views; `all.css` already provides the icons.
+
 ## [2.86.4] — 2026-11-03
 
 Third accessibility pass, from the 2.86.3 signed-in Lighthouse (desktop) run.

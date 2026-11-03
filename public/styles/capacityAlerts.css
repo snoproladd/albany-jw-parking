@@ -8,8 +8,11 @@
     max-width: none;
 }
 
+/* min-height reserves room for the rules (about eight rows) so the send
+   history below does not jump down when they load. */
 #ca-rules-table-wrap {
     overflow-x: auto;
+    min-height: 28rem;
 }
 
 #ca-rules-table th,
@@ -24,6 +27,15 @@
 .ca-kill-switch-panel {
     background-color: var(--bs-danger-bg-subtle, #f8d7da);
     border-color: var(--bs-danger-border-subtle, #f1aeb5) !important;
+}
+
+/* The status line is hidden (d-none) until the kill-switch state loads. Keep
+   its space (one small line) so the rules table and everything below it do not
+   jump down when it appears. */
+#ca-kill-switch-status.d-none {
+    display: block !important;
+    visibility: hidden;
+    min-height: 1.3125rem;
 }
 
 #ca-bulk-toolbar {

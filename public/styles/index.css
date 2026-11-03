@@ -436,6 +436,13 @@
     padding: 0.4rem 0.6rem;
 }
 
+/* Placeholder used until the forecast arrives: the same markup as the loaded
+   widget with its content hidden, so the greeting row is already its final
+   height and nothing below it moves when the weather loads. */
+.db-weather-skeleton * {
+    visibility: hidden;
+}
+
 /* Forecast wraps below current on narrow screens */
 @media (max-width: 767.98px) {
     .db-weather {

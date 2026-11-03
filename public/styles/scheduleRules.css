@@ -43,6 +43,13 @@
     padding: 0;
 }
 
+/* Reserve room for the rules list (about five rules) so the Add Rule card
+   below it does not jump down when the rules load. */
+#sarLoading,
+#sarList {
+    min-height: 21rem;
+}
+
 .sar-row {
     border-bottom: 1px solid var(--bs-border-color);
     transition: background 0.1s;

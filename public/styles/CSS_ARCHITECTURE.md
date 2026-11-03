@@ -16,6 +16,7 @@ in the relevant EJS template — there are no inline styles anywhere.
 | File | Purpose |
 |---|---|
 | `styles.css` | Global layout, scroll ownership, entry-card system, nav, shared components |
+| `fonts.css` | `@font-face` rules for the self-hosted Archivo and Georama fonts (files in `public/fonts/`) |
 | `index.css` | Dashboard / home page |
 | `signs.css` | Sign Map (fixed-position map, info sheet, context menu, geofencing FAB, marker overlays) |
 | `signsPrint.css` | Print-optimized sign map with WYSIWYG preview and `@media print` rules |
@@ -38,6 +39,10 @@ in the relevant EJS template — there are no inline styles anywhere.
 
 Page-specific files are self-contained. They do not interact with the
 scroll ownership model in `styles.css` unless the page uses `.entry-card`.
+
+Pages whose content is filled in by JavaScript after first paint add `class="page-fill"`
+to `<body>`. `styles.css` then keeps `<main>` about one window tall, so the footer starts
+below the fold and does not jump (a layout shift) when the data arrives.
 
 ---
 

@@ -27,6 +27,12 @@
     font-size: 0.9375rem;
 }
 
+/* Reserve room for the classifications list so the Sub-location Types card
+   below it does not jump down when the list loads. */
+#sv-classifications-root {
+    min-height: 21rem;
+}
+
 /* ── Table ──────────────────────────────────────────────────────────────────── */
 
 .sv-table {

@@ -7,12 +7,13 @@
     border: 1px solid var(--bs-border-color);
     border-radius: 0.375rem;
     background: var(--bs-body-bg);
-}
-/* ── Centering container ───────────────────────────────────────── */
-.cg-container {
     width: fit-content;
     max-width: 100%;
     margin: 0 auto;
+}
+/* ── Centering container ───────────────────────────────────────── */
+.cg-container {
+    width: 100%;
 }
 .cg-controls-row {
     display: flex;

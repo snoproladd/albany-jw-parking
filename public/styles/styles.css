@@ -2147,6 +2147,19 @@ footer p:not(.footer-text) {
 }
 
 /* =====================================================================
+   PAGE-FILL (stops layout shift on pages filled in by JavaScript)
+   Add class="page-fill" to <body>. <main> is always about one window tall,
+   so the footer starts just below the fold and is already out of sight when
+   the page's data arrives and pushes it further down. Without this the footer
+   paints mid-screen first and visibly jumps. Because the page always scrolls,
+   the scrollbar is also there from the first paint, so nothing slides sideways.
+   ===================================================================== */
+
+body.page-fill > main {
+    min-height: calc(100dvh - 5rem);
+}
+
+/* =====================================================================
    COOKIE CONSENT BANNER
    Injected into <body> by cookieConsent.js. Kept here rather than a
    separate file so it loads globally on every page.

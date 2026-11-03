@@ -315,6 +315,7 @@ parking/
 │   │   ├── signsPrint.css             # Printable sign map (WYSIWYG page preview + @media print)
 │   │   ├── sitemap.css                # Sitemap page
 │   │   ├── volunteerAccountOversight.css  # Edit Volunteer page
+│   │   ├── fonts.css                  # @font-face rules for the self-hosted fonts in public/fonts/
 │   │   ├── CSS_ARCHITECTURE.md        # CSS conventions and architecture notes
 │   │   └── fontawesome/               # FontAwesome 6 (self-hosted)
 │   │       ├── css/                   # fontawesome.min.css, all.css
@@ -322,6 +323,8 @@ parking/
 │   │
 │   ├── css/                   # Additional CSS (loaded separately from styles/)
 │   │   └── tours.css                  # Shepherd.js tour styling and z-index rules
+│   │
+│   ├── fonts/                 # Self-hosted Archivo and Georama variable fonts (woff2) and their OFL licences
 │   │
 │   ├── images/                # Static images (SVGs, JPGs for dashboard cards)
 │   │
