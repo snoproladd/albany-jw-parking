@@ -181,7 +181,7 @@
                         <th>Address</th>
                         <th>Map</th>
                         <th>Status</th>
-                        <th></th>
+                        <th><span class="visually-hidden">Actions</span></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -251,6 +251,7 @@
                                 <i class="fa-solid fa-chevron-down loc-chevron"></i>
                               </button>
                               <button type="button" class="btn btn-outline-primary btn-sm edit-btn"
+                                aria-label="Edit <%= r.name %>"
                                 data-id="<%= r.id %>">
                                 <i class="fa-solid fa-pen"></i>
                               </button>

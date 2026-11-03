@@ -146,7 +146,7 @@
                         <th class="text-center">Order</th>
                         <th>Status</th>
                         <th>Visibility</th>
-                        <th></th>
+                        <th><span class="visually-hidden">Actions</span></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -200,6 +200,7 @@
                           </td>
                           <td class="text-end">
                             <button type="button" class="btn btn-outline-secondary btn-sm et-edit-btn"
+                              aria-label="Edit <%= et.name %>"
                               data-id="<%= et.id %>">
                               <i class="fa-solid fa-pen"></i>
                             </button>
@@ -368,7 +369,7 @@
                         <div class="card-body py-3 d-flex flex-column">
                           <div class="d-flex justify-content-between align-items-start">
                             <div>
-                              <h3 class="h6 mb-1 fw-bold"><%= day.label %></h3>
+                              <h2 class="h6 mb-1 fw-bold"><%= day.label %></h2>
                               <div class="text-muted small">
                                   <span class="fmt-date" data-raw="<%= day.convention_date instanceof Date ? day.convention_date.toISOString().slice(0,10) : String(day.convention_date).slice(0,10) %>"></span>
                               </div>
@@ -388,6 +389,7 @@
                             </div>
                             <div class="d-flex gap-1">
                               <button type="button" class="btn btn-outline-secondary btn-sm day-edit-btn"
+                                aria-label="Edit <%= day.label %>"
                                 data-id="<%= day.id %>"
                                 data-label="<%= day.label %>"
                                 data-date="<%= day.convention_date instanceof Date ? day.convention_date.toISOString().slice(0,10) : String(day.convention_date).slice(0,10) %>"

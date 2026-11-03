@@ -153,6 +153,7 @@
                                   type="checkbox"
                                   role="switch"
                                   id="toggle-<%= role %>-<%= perm %>"
+                                  aria-label="<%= role %>: <%= permLabels[perm] || perm %>"
                                   data-role="<%= role %>"
                                   data-permission="<%= perm %>"
                                   data-default="<%= defaultVal %>"

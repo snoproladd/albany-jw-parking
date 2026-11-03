@@ -41,7 +41,7 @@
     </span>
 
     <form method="GET" action="/oversight/tools/scheduler/report" class="d-flex align-items-center gap-2">
-      <select name="dayId" id="report-day-picker" class="form-select form-select-sm report-day-select">
+      <select name="dayId" id="report-day-picker" class="form-select form-select-sm report-day-select" aria-label="Select report day">
         <% conventionDays.forEach(day => { %>
           <option value="<%= day.id %>" <%= day.id === selectedDayId ? 'selected' : '' %>>
             <%= day.label %>
@@ -81,7 +81,7 @@
     </button>
   </div>
 
-  <div class="report-container">
+  <main class="report-container">
 
     <% if (!reportData.day || reportData.departments.length === 0) { %>
 
@@ -200,7 +200,7 @@
 
     <% } %>
 
-  </div>
+  </main>
 
   <%- include('../partials/footer') %>
 

@@ -3,6 +3,48 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.86.4] — 2026-11-03
+
+Third accessibility pass, from the 2.86.3 signed-in Lighthouse (desktop) run.
+Markup, CSS and a few script template strings only; no schema, route or
+behaviour changes. A re-audit of the 18 affected pages scores 100 on
+Accessibility on all of them; the one remaining finding is the Google Maps
+marker labels on `/signs/map`, which come from Google's own markup.
+
+### Fixed
+- **Form controls without accessible names.** `aria-label` or `for` added to:
+  the volunteer picker (Edit Volunteer), the day pickers (My Schedule, Volunteer
+  Schedule, Schedule Report), the campaign Response type and Link to event
+  selects, the campaign volunteer list (`role="listbox"`), the per-volunteer
+  role selects (Roles, 107 on the live data), the volunteer select on each
+  Oversight Structure row, the permission toggles (Permission Matrix, 207), and
+  the First Name, Last Name, Suffix, Email and Phone fields on My Account.
+- **Icon-only buttons without names.** Campaign template edit and delete
+  (server-rendered and JS-rendered), Locations edit, Convention Day edit and
+  Event Type edit now say what they act on, for example "Edit Thursday".
+- **Empty table header cells.** The blank last `<th>` over each action column
+  now contains visually hidden "Actions" text (Roles, Locations, Event Types,
+  both System Variables tables, Invitation Tracker). The action cells had no
+  header, which `td-has-header` reports.
+- **Missing `<main>` landmark** on My Schedule, Volunteer Schedule and Schedule
+  Report. `<main>` is the existing `.vs-container` / `.report-container`
+  element rather than a new wrapper, so the print stylesheets
+  (`body > *:not(.vs-container)`) keep working.
+- **Heading order.** Create Profile cards, Convention Day cards (Timelines) and
+  the Signs Map sidebar sections no longer skip from `h1` to `h3`/`h6`. The
+  tags changed; sizes are unchanged (`.account-card h2` in
+  `createProfileLaunch.css`, the existing `h6` class on the day cards, and the
+  explicit `font-size` on `.signs-sidebar-section-title`).
+- **Lessons Learned status pills** had `role="tablist"` with no `role="tab"`
+  children. The list now has a plain label, and the selected pill is marked
+  with `aria-current` (set in markup and updated in `lessonsLearned.js`).
+
+### Changed
+- **Notes Report cards** (`role="button"`) no longer carry an `aria-label` such
+  as "View note for Jane Doe". It did not contain the card's visible text,
+  which `label-content-name-mismatch` flags; the accessible name now comes from
+  the card's own text. Screen readers lose the "View note for" prefix.
+
 ## [2.86.3] — 2026-11-03
 
 Console errors and blocked handlers found by the signed-in Lighthouse audits.

@@ -179,7 +179,7 @@ function renderClassifications() {
                 <tr>
                     <th>Name</th>
                     <th>Active</th>
-                    <th></th>
+                    <th><span class="visually-hidden">Actions</span></th>
                 </tr>
             </thead>
             <tbody>${rows}</tbody>
@@ -349,7 +349,7 @@ function renderSubTypes() {
                     <th>Name</th>
                     <th>Applies to</th>
                     <th>Active</th>
-                    <th></th>
+                    <th><span class="visually-hidden">Actions</span></th>
                 </tr>
             </thead>
             <tbody>${rows}</tbody>

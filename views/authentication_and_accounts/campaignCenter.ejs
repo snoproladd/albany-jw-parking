@@ -130,7 +130,7 @@
             </div>
 
             <%# ── Volunteer list ───────────────────────────────────────────── %>
-            <ul class="mc-volunteer-list" id="mcVolunteerList" role="listbox" aria-multiselectable="true">
+            <ul class="mc-volunteer-list" id="mcVolunteerList" role="listbox" aria-multiselectable="true" aria-label="Volunteers">
                 <% volunteers.forEach(function(v) { %>
                     <%
                         const displayName = v.lastName + ', ' + v.firstName + (v.suffix ? ' ' + v.suffix : '');
@@ -252,10 +252,10 @@
                                     <i class="fa-regular fa-file-lines me-1"></i><%= t.name %>
                                 </button>
                                 <div class="mc-template-actions">
-                                    <button type="button" class="btn btn-link btn-sm p-0 text-secondary mc-template-edit" data-id="<%= t.id %>">
+                                    <button type="button" class="btn btn-link btn-sm p-0 text-secondary mc-template-edit" data-id="<%= t.id %>" aria-label="Edit template <%= t.name %>">
                                         <i class="fa-solid fa-pencil"></i>
                                     </button>
-                                    <button type="button" class="btn btn-link btn-sm p-0 text-danger mc-template-delete" data-id="<%= t.id %>" data-name="<%= t.name %>">
+                                    <button type="button" class="btn btn-link btn-sm p-0 text-danger mc-template-delete" data-id="<%= t.id %>" data-name="<%= t.name %>" aria-label="Delete template <%= t.name %>">
                                         <i class="fa-solid fa-trash"></i>
                                     </button>
                                 </div>
@@ -442,7 +442,7 @@
 
                     <%# Response type selector %>
                     <div class="mb-2">
-                        <label class="mc-filter-label mb-1">Response type</label>
+                        <label class="mc-filter-label mb-1" for="mcResponseType">Response type</label>
                         <select class="form-select form-select-sm" id="mcResponseType">
                             <option value="standard">Standard — Yes / No / Maybe</option>
                             <option value="custom">Custom choices</option>
@@ -524,7 +524,7 @@
                         </p>
                     <% } else { %>
                         <div class="d-flex gap-2 flex-wrap">
-                            <select class="form-select form-select-sm mc-event-day-select" id="mcEventDay">
+                            <select class="form-select form-select-sm mc-event-day-select" id="mcEventDay" aria-label="Link to event">
                                 <option value="">— No event —</option>
                                 <% conventionDays.forEach(function(day) { %>
                                     <option value="<%= day.id %>"

@@ -58,7 +58,7 @@
 
     <%# ── Day filter ──────────────────────────────────────── %>
     <div class="vs-day-filter">
-      <select id="vs-day-picker" class="form-select form-select-sm vs-day-select">
+      <select id="vs-day-picker" class="form-select form-select-sm vs-day-select" aria-label="Filter schedule by day">
         <option value="all" selected>All Days</option>
         <% conventionDays.forEach(day => { %>
           <option value="<%= day.id %>"><%= day.label %></option>
@@ -162,7 +162,7 @@
   <% } %>
 
   <%# ── Schedule content ────────────────────────────────────── %>
-  <div class="vs-container">
+  <main class="vs-container">
 
     <% if (mode === 'oversight' && !volunteer) { %>
 
@@ -293,7 +293,7 @@
 
     <% } %>
 
-  </div>
+  </main>
 
   <%- include('../partials/footer') %>
 

@@ -363,8 +363,7 @@ function buildSmsCard(m) {
         <div class="nr-card nr-card--sms"
              data-sms-id="${m.id}"
              role="button"
-             tabindex="0"
-             aria-label="View SMS from ${escHtml(m.first_name)} ${escHtml(m.last_name)}">
+             tabindex="0">
             <div class="nr-card-main">
                 <div class="nr-card-name">
                     <i class="fa-solid fa-message me-1 text-primary"></i>
@@ -416,8 +415,7 @@ function buildNoteCard(v) {
         <div class="nr-card"
              data-volunteer-id="${v.id}"
              role="button"
-             tabindex="0"
-             aria-label="View note for ${escHtml(v.first_name)} ${escHtml(v.last_name)}">
+             tabindex="0">
             <div class="nr-card-main">
                 <div class="nr-card-name">${escHtml(v.first_name)} ${escHtml(v.last_name)}</div>
                 <div class="nr-card-note">${escHtml(truncate(v.notes, 160))}</div>
@@ -498,8 +496,7 @@ function buildActionCard(a) {
         <div class="nr-card"
              data-action-id="${a.id}"
              role="button"
-             tabindex="0"
-             aria-label="View action for ${escHtml(a.volunteer_name)}">
+             tabindex="0">
             <div class="nr-card-main">
                 <div class="nr-card-name">${escHtml(a.volunteer_name)}</div>
                 <div class="nr-card-note">${escHtml(truncate(a.notes, 120))}</div>
@@ -584,8 +581,7 @@ function buildSolutionCard(a) {
         <div class="nr-card${a.completed ? " nr-card--complete" : ""}"
              data-action-id="${a.id}"
              role="button"
-             tabindex="0"
-             aria-label="View solution for ${escHtml(a.volunteer_name)}">
+             tabindex="0">
             <div class="nr-card-main">
                 <div class="nr-card-name">${escHtml(a.volunteer_name)}</div>
                 ${a.solution ? `<div class="nr-card-solution"><i class="fa-solid fa-lightbulb me-1 text-success"></i>${escHtml(a.solution)}</div>` : ""}
@@ -703,8 +699,7 @@ function buildDismissedCard(v) {
              data-dismissed-id="${v.id}"
              role="button"
              tabindex="0"
-             title="Click to restore"
-             aria-label="Restore note for ${escHtml(v.first_name)} ${escHtml(v.last_name)}">
+             title="Click to restore">
             <div class="nr-card-main">
                 <div class="nr-card-name">${escHtml(v.first_name)} ${escHtml(v.last_name)}</div>
                 <div class="nr-card-note">${escHtml(truncate(v.notes, 160))}</div>

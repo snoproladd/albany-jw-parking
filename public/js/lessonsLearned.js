@@ -1336,8 +1336,12 @@
         document.getElementById('ll-tab-pills').addEventListener('click', (e) => {
             const btn = e.target.closest('[data-ll-tab]');
             if (!btn) return;
-            document.querySelectorAll('[data-ll-tab]').forEach((b) => b.classList.remove('active'));
+            document.querySelectorAll('[data-ll-tab]').forEach((b) => {
+                b.classList.remove('active');
+                b.removeAttribute('aria-current');
+            });
             btn.classList.add('active');
+            btn.setAttribute('aria-current', 'true');
             currentTab = btn.dataset.llTab;
             selectedIds.clear();
             loadLessons();

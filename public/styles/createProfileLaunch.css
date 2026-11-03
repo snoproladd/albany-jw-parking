@@ -91,7 +91,7 @@
 
 /* ── Card body content ────────────────────────────────────── */
 
-.account-card h3 {
+.account-card h2 {
     font-size: 1.2rem;
     color: var(--Primary);
     margin-bottom: 0.35rem;

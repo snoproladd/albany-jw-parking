@@ -76,7 +76,7 @@
                       <th>Email</th>
                       <th>Current Role</th>
                       <th>Change To</th>
-                      <th></th>
+                      <th><span class="visually-hidden">Actions</span></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -106,7 +106,7 @@
                         </td>
                         <td>
                           <% if (canChange && assignableRoles.length > 0) { %>
-                            <select class="form-select form-select-sm role-select">
+                            <select class="form-select form-select-sm role-select" aria-label="New role for <%= v.firstName %> <%= v.lastName %>">
                               <option value="">Select role…</option>
                               <% assignableRoles.forEach(r => { %>
                                 <option value="<%= r %>" <%= v.role === r ? 'selected' : '' %>>

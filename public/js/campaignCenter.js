@@ -1424,10 +1424,11 @@ function updateSubjectVisibility() {
                     <i class="fa-regular fa-file-lines me-1"></i>${escapeHtml(t.name)}
                 </button>
                 <div class="mc-template-actions">
-                    <button type="button" class="btn btn-link btn-sm p-0 text-secondary mc-template-edit" data-id="${t.id}">
+                    <button type="button" class="btn btn-link btn-sm p-0 text-secondary mc-template-edit" data-id="${t.id}" aria-label="Edit template ${escapeAttr(t.name)}">
                         <i class="fa-solid fa-pencil"></i>
                     </button>
                     <button type="button" class="btn btn-link btn-sm p-0 text-danger mc-template-delete"
+                        aria-label="Delete template ${escapeAttr(t.name)}"
                         data-id="${t.id}" data-name="${escapeAttr(t.name)}">
                         <i class="fa-solid fa-trash"></i>
                     </button>

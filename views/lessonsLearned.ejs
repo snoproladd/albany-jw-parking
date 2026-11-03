@@ -58,25 +58,25 @@
                   data-ll-audience="committee">Committee</button>
         </div>
 
-        <ul class="nav nav-pills ll-tabs" id="ll-tab-pills" role="tablist">
-          <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="ll-tab-proposed" type="button"
+        <ul class="nav nav-pills ll-tabs" id="ll-tab-pills" aria-label="Lesson status">
+          <li class="nav-item">
+            <button class="nav-link active" id="ll-tab-proposed" type="button" aria-current="true"
                     data-ll-tab="proposed">Proposed</button>
           </li>
-          <li class="nav-item" role="presentation">
+          <li class="nav-item">
             <button class="nav-link" id="ll-tab-accepted" type="button"
                     data-ll-tab="accepted">
               <i class="fa-solid fa-circle-check me-1"></i>Accepted
             </button>
           </li>
-          <li class="nav-item" role="presentation">
+          <li class="nav-item">
             <button class="nav-link" id="ll-tab-published" type="button"
                     data-ll-tab="published">
               <i class="fa-solid fa-file-arrow-up me-1"></i>Published
             </button>
           </li>
           <% if (isOverseer) { %>
-          <li class="nav-item" role="presentation">
+          <li class="nav-item">
             <button class="nav-link" id="ll-tab-archived" type="button"
                     data-ll-tab="archived">
               <i class="fa-solid fa-box-archive me-1"></i>Archived

@@ -310,7 +310,8 @@ function _render() {
               <input type="text" class="ch-title-input form-control form-control-sm"
                      value="${_esc(node.role_title)}" placeholder="Role title"
                      data-id="${node.id}" />
-              <select class="ch-vol-select form-select form-select-sm" data-id="${node.id}">
+              <select class="ch-vol-select form-select form-select-sm" data-id="${node.id}"
+                      aria-label="Volunteer assigned to ${_esc(node.role_title) || "this role"}">
                 <option value="">— Unassigned —</option>
                 ${_volunteers
                   .map(
