@@ -8,6 +8,7 @@ import helmet from "helmet";
 import { fileURLToPath } from "url";
 import crypto from "crypto";
 import cookieParser from "cookie-parser";
+import compression from "compression";
 import session from "express-session";
 import csurf from "csurf";
 import { RedisStore } from "connect-redis";
@@ -298,6 +299,9 @@ function stopDbUpdate() {
 // Express Middleware
 // ============================================================
 
+// Compress text responses (HTML, CSS, JS, JSON). Must come before express.static.
+// Images, PDFs and other already-compressed types are skipped by the default filter.
+app.use(compression());
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
