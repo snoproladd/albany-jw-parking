@@ -45,6 +45,7 @@
     --bs-link-color-rgb: 10, 88, 202;
     --bs-link-hover-color: var(--ui-link-hover);
     --bs-link-hover-color-rgb: 8, 66, 152;
+    --bs-code-color: #b02a6b;
 }
 
 .text-secondary {
@@ -450,6 +451,7 @@ b {
 #summary-card .accordion-body,
 #summary-card .accordion-item {
   opacity: 1;
+  background-color: var(--Background);
 }
 
 /* =====================================================================
@@ -473,13 +475,11 @@ b {
 .accordion-body {
   padding-top: 0.2rem;
   padding-bottom: 0.25rem;
-  background-color: var(--Background);
-  opacity: 0.8;
+  background-color: transparent;
 }
 
 .accordion-item {
-  background-color: var(--Background);
-  opacity: 0.8;
+  background-color: color-mix(in srgb, var(--Background) 80%, transparent);
 }
 
 /* Locked summary sections — disable interaction without hiding content */

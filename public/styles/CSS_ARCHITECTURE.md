@@ -57,6 +57,7 @@ Global design tokens are defined in `:root` inside `styles.css`:
 | `--ui-muted` / `--ui-muted-rgb` | `#565e64` / `86, 94, 100` | Muted text (replaces `#6c757d` and opacity dimming); 6.6:1 on white |
 | `--ui-link` / `--ui-link-hover` | `#0a58ca` / `#084298` | Link and outline-button text on light or glass surfaces |
 | `--scrim-navy` | `rgba(10, 35, 65, 0.78)` | Navy backing for white text that sits directly on the background photo |
+| `--bs-code-color` | `#b02a6b` | Inline `<code>` text; 5.8:1 on light surfaces (Bootstrap's default pink is 4.2:1) |
 
 Contrast rules that follow from these:
 

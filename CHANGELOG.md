@@ -3,6 +3,45 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.86.2] — 2026-11-03
+
+Second accessibility pass, from signed-in Lighthouse audits of 44 pages (desktop
+and mobile). Markup and CSS only, plus a developer audit tool; no schema,
+route or behaviour changes.
+
+### Added
+- **`tools/lighthouse/`** — a standalone Lighthouse runner with its own
+  `package.json`, lockfile and `.gitignore`. It opens a clean Chrome profile,
+  waits for you to sign in, reads `/sitemap` and audits every page it lists,
+  writing per-page JSON plus `summary.md` / `summary.json` to a git-ignored
+  `reports/` folder. Options: `--form-factor desktop|mobile|both`, `--only`,
+  `--urls`, `--base`. If Chrome cannot reach the server (for example while
+  nodemon restarts it), the page is retried once after waiting up to 60 s.
+- `--bs-code-color: #b02a6b` in the `styles.css` `:root` (5.8:1 on light
+  surfaces; Bootstrap's default pink is 4.2:1).
+
+### Changed
+- **Accordion translucency moved off text.** `.accordion-item` carries the
+  80% background (`color-mix`) and `.accordion-body` is transparent; neither
+  sets `opacity`. This completes the change described under 2.86.1, which had
+  not actually been applied. The My Account summary card's accordion keeps its
+  solid `--Background`.
+- Master Conflict Grid "Run Analysis" button uses `--Secondary` and darkens to
+  `--Primary` on hover instead of fading. It had measured 3.6:1 because its
+  accordion item rendered at 80% opacity.
+- Scheduler Report "KA" role badge text is black on cyan (1.95:1 → 10.7:1).
+- `nodemon.json` ignores `tools/*`, so audit reports no longer restart the dev
+  server; `.dockerignore` excludes `tools/` from the image.
+
+### Fixed
+- Dashboard day-navigation arrows had no accessible name; they now carry
+  `aria-label`s ("Previous day" / "Next day").
+- The five Scheduler sidebar filters (rank, department, usage, gender, sort)
+  had no labels.
+- Logged-out home page: the three feature-card titles jumped from `h2` to
+  `h4`; they are now `h3.h4`, with the same appearance.
+- Inline `<code>` text on Magic Links failed contrast (4.2:1).
+
 ## [2.86.1] — 2026-10-30
 
 Accessibility pass from a Lighthouse audit plus a 38-page signed-in contrast
