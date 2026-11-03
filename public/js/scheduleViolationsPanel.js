@@ -291,7 +291,7 @@
       'Active Rules <span class="sv-rules-count">(' +
       _rules.length +
       ")</span>" +
-      '<a href="/oversight/tools/schedule-rules" class="sv-rules-manage-link" onclick="event.stopPropagation()">' +
+      '<a href="/oversight/tools/schedule-rules" class="sv-rules-manage-link">' +
       '<i class="fa-solid fa-arrow-up-right-from-square me-1"></i>Manage' +
       "</a>" +
       "</button>" +
@@ -306,7 +306,9 @@
     var toggle = document.getElementById("svRulesToggle");
     var list = document.getElementById("svRulesList");
     if (!toggle || !list) return;
-    toggle.addEventListener("click", function () {
+    toggle.addEventListener("click", function (e) {
+      // The "Manage" link sits inside the toggle; let it navigate without expanding the list.
+      if (e.target.closest(".sv-rules-manage-link")) return;
       var hidden = list.classList.toggle("d-none");
       var chevron = toggle.querySelector(".sv-rules-chevron");
       if (chevron) chevron.style.transform = hidden ? "" : "rotate(90deg)";

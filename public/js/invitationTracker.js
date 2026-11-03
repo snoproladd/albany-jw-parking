@@ -351,6 +351,7 @@ document.addEventListener("DOMContentLoaded", () => {
    */
   function updateAddVolunteersLink() {
     const batchVal = batchFilter?.value || "";
+    const { rootId: familyRootVal } = resolveFamilyRoot(batchVal);
     if (!addVolunteersWrap || !addVolunteersBtn) return;
 
     if (familyRootVal) {
@@ -382,6 +383,7 @@ document.addEventListener("DOMContentLoaded", () => {
    */
   function updateRemindButton(livePendingCount) {
     const batchVal = batchFilter?.value || "";
+    const { rootId: familyRootVal } = resolveFamilyRoot(batchVal);
     const pendingCount =
       livePendingCount ?? Number(remindWrap?.dataset.pendingCount ?? 0);
 

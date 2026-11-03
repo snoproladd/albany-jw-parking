@@ -348,7 +348,7 @@
                         <button
                             type="button"
                             class="btn btn-sm btn-outline-primary"
-                            onclick="submitSelectVol(${v.id})"
+                            data-select-vol-id="${v.id}"
                         >
                             <i class="fa-solid fa-pen-to-square me-1"></i>Edit this volunteer
                         </button>
@@ -384,6 +384,13 @@
         document.body.appendChild(f);
         f.submit();
     };
+
+    // Delegated handler for the "Edit this volunteer" buttons built by renderDuplicates().
+    // Inline onclick attributes are blocked by the site's Content Security Policy.
+    dupList.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-select-vol-id]");
+        if (btn) window.submitSelectVol(Number(btn.dataset.selectVolId));
+    });
 
     // ── Form submission (AJAX) ──────────────────────────────────────────────
 

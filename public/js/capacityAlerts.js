@@ -7,7 +7,7 @@
 (function () {
   "use strict";
 
-  const csrfToken = window.__CSRF_TOKEN__;
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || "";
   const rulesTbody = document.getElementById("ca-rules-tbody");
   const logTbody = document.getElementById("ca-log-tbody");
   const modalEl = document.getElementById("ca-rule-modal");

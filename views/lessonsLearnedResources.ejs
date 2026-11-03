@@ -39,8 +39,7 @@
             <div class="d-flex align-items-center gap-2 mb-4">
               <label class="form-label mb-0 fw-semibold small text-uppercase text-muted" for="yearPicker">Year</label>
               <form method="GET" action="/lessons-learned" class="d-flex align-items-center gap-2">
-                <select id="yearPicker" name="year" class="form-select form-select-sm" style="width:auto"
-                        onchange="this.form.submit()">
+                <select id="yearPicker" name="year" class="form-select form-select-sm w-auto">
                   <% years.forEach(y => { %>
                     <option value="<%= y %>" <%= y === year ? 'selected' : '' %>><%= y %></option>
                   <% }) %>

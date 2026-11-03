@@ -13,6 +13,12 @@ const batchBtn   = document.getElementById('batchPublishBtn');
 const statusEl   = document.getElementById('batchStatus');
 const reportBody = document.getElementById('reportBody');
 
+// Year picker: submit the surrounding GET form as soon as a year is chosen.
+// An inline onchange attribute would be blocked by the Content Security Policy.
+document.getElementById('yearPicker')?.addEventListener('change', (e) => {
+    e.target.form.submit();
+});
+
 if (!batchBtn) {
     // Non-admin view — nothing to wire up.
 } else {

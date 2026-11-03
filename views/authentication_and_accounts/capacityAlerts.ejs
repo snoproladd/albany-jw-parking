@@ -4,11 +4,12 @@
   <title>Capacity Alerts — <%= brand.siteName %></title>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="csrf-token" content="<%= csrfToken %>" />
   <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="/styles/fontawesome/css/fontawesome.min.css" />
   <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
   <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
-  <link rel="stylesheet" href="/css/capacityAlerts.css" />
+  <link rel="stylesheet" href="/styles/capacityAlerts.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@15.2.2/dist/css/shepherd.css" />
   <link rel="stylesheet" href="/css/tours.css" />
 </head>
@@ -175,7 +176,6 @@
 
   <%- include('../partials/footer') %>
 
-  <script>window.__CSRF_TOKEN__ = "<%= csrfToken %>";</script>
   <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
   <script src="/js/capacityAlerts.js"></script>
   <script type="module" src="/js/tours/capacityAlertsTour.js"></script>
