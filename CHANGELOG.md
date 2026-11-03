@@ -3,6 +3,36 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.86.3] — 2026-11-03
+
+Console errors and blocked handlers found by the signed-in Lighthouse audits.
+Mostly JavaScript and template fixes; one new database table (migrations below).
+
+### Added
+- **`capacity_alert_settings` table**
+  (`scripts/migrations/add_capacity_alert_settings.dbo.sql` and `.demo.sql`).
+  The kill-switch code in `lib/dbSync.js` (v2.81.0) read this single-row table,
+  but no migration existed, so on databases without it the Capacity Alerts page
+  failed to load the switch and the alert evaluator skipped every alert.
+  Seeded with the kill switch ON; turn it off from the Capacity Alerts page
+  when alerts should start.
+
+### Fixed
+- **Inline event handlers blocked by the Content Security Policy** replaced
+  with listeners in the page scripts: "Edit this volunteer" in the
+  duplicate-volunteer popup (Create Volunteer), the lessons-learned year
+  picker, and the "Manage" link on the Master Conflict Grid's rules bar.
+- **Capacity Alerts page.** The CSRF token was printed by an inline script the
+  policy blocked, so saves from the page would have been rejected; it now
+  comes from a `csrf-token` meta tag. The stylesheet link pointed at
+  `/css/capacityAlerts.css` (404); it is now `/styles/capacityAlerts.css`.
+- **Invitation Tracker.** `updateAddVolunteersLink()` and
+  `updateRemindButton()` used `familyRootVal`, which only exists inside
+  `applyFilters()`, throwing a `ReferenceError` on load. The Remind button and
+  Add volunteers link now update with the selected campaign.
+- **Privacy and Terms** loaded `cookieConsent.js` twice (once in the shared
+  footer); the duplicate include is removed.
+
 ## [2.86.2] — 2026-11-03
 
 Second accessibility pass, from signed-in Lighthouse audits of 44 pages (desktop

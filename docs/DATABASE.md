@@ -126,6 +126,10 @@ Schema highlights:
 - `capacity_alert_log` — send-attempt audit log for Capacity Alerts. Fields: `rule_id FK`,
   `location_task_id`, `triggered_count`, `recipient_count`, `status` (`sent` | `failed`),
   `error_msg NVARCHAR(500) NULL`, `sent_at`.
+- `capacity_alert_settings` — single-row (`id = 1`) global settings for Capacity Alerts.
+  Fields: `kill_switch_enabled BIT`, `kill_switch_enabled_by INT NULL FK`,
+  `kill_switch_enabled_at DATETIME2 NULL`. When the kill switch is on, no capacity
+  alert is sent regardless of rule state.
 - `volunteer_tour_dismissals` — tracks which guided tour prompts a volunteer has permanently dismissed; composite PK `(volunteer_id, tour_id)`, FK to `volunteer_in(id)`. Special `tour_id = '_all'` disables all first-visit prompts site-wide.
 - `shift_rendezvous_points` — one optional meeting point per schedule assignment
   (shift + location pair). Fields: `description`, `address`, `latitude`/`longitude`
