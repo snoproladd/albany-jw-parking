@@ -3,6 +3,19 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.86.9] — 2026-11-06
+
+Removes a layout read from mobile page load. No schema, route or dependency
+changes.
+
+### Fixed
+- **`mobileDropdownSafety.js` no longer forces a layout while the page loads.**
+  It read `window.innerWidth` the moment it ran, which Lighthouse reported as a
+  41 ms forced reflow on `/my-account` (mobile). The width check now happens
+  when a dropdown opens or a select takes focus. This also fixes a side
+  effect: a phone first loaded in landscape (wider than 768 px) never got the
+  listeners, even after rotating to portrait.
+
 ## [2.86.8] — 2026-11-06
 
 Faster first paint on pages with a guided tour. No schema, route or dependency
