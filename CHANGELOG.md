@@ -3,6 +3,20 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.86.8] — 2026-11-06
+
+Faster first paint on pages with a guided tour. No schema, route or dependency
+changes.
+
+### Changed
+- **The tour stylesheets load when the page's tour code starts, not from every
+  page's `<head>`.** `shepherd.css` came from the jsDelivr CDN and, with
+  `tours.css`, blocked first paint on 35 pages; the Lighthouse run of
+  2026-11-06 put the CDN file alone at about 0.8 s of the tracker's mobile
+  load. `tourBase.js` now adds both files itself (every tour module imports
+  it), and the first-visit prompt waits for them so it never shows unstyled.
+  The two `<link>` tags were removed from the 35 views.
+
 ## [2.86.7] — 2026-11-06
 
 SEO fix: every page now has a meta description. One new partial; no schema,

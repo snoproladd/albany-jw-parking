@@ -13,6 +13,52 @@
 
 import Shepherd from "https://cdn.jsdelivr.net/npm/shepherd.js@15.2.2/dist/js/shepherd.mjs";
 
+/* ── Tour stylesheets (added on demand, off the critical path) ─── */
+
+/**
+ * Stylesheets the tours need. They used to be <link> tags in the <head> of
+ * every view, where they blocked first paint: shepherd.css comes from a CDN
+ * and cost about 0.8 s on a throttled phone, for a feature used after a
+ * click. Every tour module imports this file, so it adds them itself.
+ * Order matters: tours.css overrides shepherd.css.
+ *
+ * @type {string[]}
+ */
+const TOUR_STYLESHEETS = [
+    "https://cdn.jsdelivr.net/npm/shepherd.js@15.2.2/dist/css/shepherd.css",
+    "/css/tours.css",
+];
+
+/**
+ * Adds a stylesheet to <head> unless it is already there.
+ *
+ * @param {string} href - Stylesheet URL.
+ * @returns {Promise<void>} Resolves when the file has loaded, or failed: a
+ *   missing stylesheet must never stop the page from working.
+ */
+function loadStylesheet(href) {
+    return new Promise((resolve) => {
+        if (document.querySelector(`link[rel="stylesheet"][href="${href}"]`)) {
+            resolve();
+            return;
+        }
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = href;
+        link.addEventListener("load", () => resolve(), { once: true });
+        link.addEventListener("error", () => resolve(), { once: true });
+        document.head.appendChild(link);
+    });
+}
+
+/**
+ * Resolves once every tour stylesheet has loaded. The first-visit prompt
+ * waits for it so the popover never appears unstyled.
+ *
+ * @type {Promise<void[]>}
+ */
+const _stylesReady = Promise.all(TOUR_STYLESHEETS.map(loadStylesheet));
+
 /* ── Unhide the universal tour button ──────────────────────────── */
 
 const _tourItem = document.getElementById("tourTriggerItem");
@@ -152,7 +198,7 @@ export function createTour(options = {}) {
  * @returns {Promise<void>}
  */
 export async function registerTour(tourId, buildFn) {
-  await _dismissalsReady;
+  await Promise.all([_dismissalsReady, _stylesReady]);
   if (_dismissals.has("_all") || _dismissals.has(tourId)) return;
   _showPrompt(tourId, buildFn);
 }
