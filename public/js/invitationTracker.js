@@ -723,7 +723,8 @@
     }
 
     remindWrap.innerHTML = `
-      <a href="/oversight/tools/campaigns?batchId=${familyRootVal}&selectPending=1"
+      <a id="itRemindBtn"
+         href="/oversight/tools/campaigns?batchId=${familyRootVal}&selectPending=1"
          class="btn btn-warning btn-sm">
         <i class="fa-solid fa-bell me-1"></i>Remind ${pendingCount} pending
       </a>`;

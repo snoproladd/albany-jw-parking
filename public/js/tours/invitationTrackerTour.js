@@ -34,14 +34,6 @@ function buildInvitationTrackerTour() {
   const steps = [];
 
   steps.push({
-    id: "it-campaign-filter",
-    title: "Campaign filter",
-    text: "Narrow to a specific campaign. Follow-up campaigns (↳) are merged into their parent — selecting either shows the combined family view with each volunteer shown once using their most definitive response. The group note below confirms how many child sends are included.",
-    attachTo: { element: "#itBatchFilter", on: "bottom" },
-    buttons: null,
-  });
-
-  steps.push({
     id: "it-stats",
     title: "Summary stats",
     text: "These cards give you an instant snapshot: total sent, Yes / No / Maybe responses, Pending (no reply yet), and Revoked. The counts update live as you apply filters below.",
@@ -52,7 +44,7 @@ function buildInvitationTrackerTour() {
   steps.push({
     id: "it-campaign-filter",
     title: "Campaign filter",
-    text: "Narrow to a specific campaign send. Follow-up campaigns are indented with an arrow (↳) to show their parent. Selecting a campaign here also enables the <strong>Add volunteers</strong> shortcut.",
+    text: "Narrow to a specific campaign. Follow-up campaigns are indented with an arrow (↳) to show their parent. Selecting either a parent or a follow-up shows the combined family view, with each volunteer shown once using their most definitive response; a note below the filter says how many follow-up sends are included. Selecting a campaign also enables the <strong>Add volunteers</strong> shortcut.",
     attachTo: { element: "#itBatchFilter", on: "bottom" },
     buttons: null,
   });
@@ -85,7 +77,7 @@ function buildInvitationTrackerTour() {
     steps.push({
       id: "it-table",
       title: "Invitation table",
-      text: "Each row shows the volunteer, which campaign they were sent, the linked event and shift, delivery channel (email/SMS), send date, reminder history, and their response. Rows are filterable but not paginated — all records load at once.",
+      text: "Each row shows the volunteer, which campaign they were sent, the linked event and shift, delivery channel (email/SMS), send date, reminder history, and their response. The first 100 matching rows are shown, with <strong>Show more</strong> and <strong>Show all</strong> buttons under the table. The filters, stats and Remind count always cover every matching invitation, not just the rows on screen.",
       attachTo: { element: "#itTable", on: "top" },
       buttons: null,
     });

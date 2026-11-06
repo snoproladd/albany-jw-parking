@@ -69,6 +69,11 @@ buttons, which were calling a route that no longer exists. One new file
   padding is 0.5rem, but a `.row` directly inside it kept Bootstrap's 0.75rem
   negative margins and poked 4px past the viewport. Those rows now use a 1rem
   gutter.
+- **The Invitation Tracker tour never offered its "Remind" step and showed
+  "Campaign filter" twice.** The Remind link had no `id` (`itRemindBtn`) for
+  the tour to attach to, and the tour listed the campaign-filter step twice
+  with the same id; it is now one step, after the summary stats. The table
+  step no longer says the rows are "not paginated".
 
 ## [2.86.5] — 2026-11-03
 
