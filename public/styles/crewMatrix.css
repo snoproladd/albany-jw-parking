@@ -2,6 +2,12 @@
    Crew Matrix
    ============================================================ */
 
+/* The shared admin card is capped at 850px, which left the 865px table wider
+   than its scroll wrapper. */
+.admin-console-card.card.shadow-lg.crew-card-wide {
+    max-width: 1000px;
+}
+
 .crew-matrix-table .crew-col-name {
     min-width: 180px;
 }

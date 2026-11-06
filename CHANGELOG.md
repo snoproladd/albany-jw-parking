@@ -3,6 +3,73 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.86.6] — 2026-11-03
+
+Invitation Tracker speed-up, plus a fix for its revoke, reinstate and edit
+buttons, which were calling a route that no longer exists. One new file
+(`lib/trackerPayload.js`); no schema or dependency changes.
+
+### Added
+- **`lib/trackerPayload.js`.** `buildTrackerRows` reduces the tracker query's
+  rows to the fields the page uses (the token, response config and message
+  subject are no longer sent to the browser) and formats the dates once, in the
+  server's time zone as before. `jsonForScript` serialises JSON so it can sit
+  safely in a `<script>` block.
+- "Show 100 more" and "Show all N" buttons under the Invitation Tracker table.
+
+### Changed
+- **The Invitation Tracker renders its rows in the browser, 100 at a time.**
+  The server used to print every invitation as a table row (about 19 elements
+  each): 5.25 MB of HTML, 23,000 elements and 119 KB gzipped, with about 190 ms
+  of the server's render time spent formatting dates. The rows now travel as a
+  JSON block (`#it-rows-data`) and `invitationTracker.js` renders the first 100
+  matching ones. Filters, the search box, the stat cards and the Remind count
+  run on that data instead of on the DOM, so they still cover every matching
+  invitation, not only the rows on screen. On a synthetic 1,233-invitation page
+  with the CPU slowed 4× the server render went from 185 ms to 8 ms, the page
+  from 166 KB to 37 KB gzipped and from 25,900 to 2,300 elements, mobile-lab
+  first paint from 2.8 s to 1.3 s, and clicking Reset from 2.4 s to 0.23 s.
+- Blank placeholder rows (`.it-skeleton-row`) hold the table's height until the
+  real rows arrive, so the footer does not jump.
+- The script runs as soon as it is reached instead of on `DOMContentLoaded`,
+  which also waits for the tour module and its CDN import.
+- Reinstating an invitation now shows its real state (Yes, No, Pending...), as
+  after a reload; it used to show "Pending" until the page was refreshed.
+- The Revoke and Reinstate buttons carry the volunteer's name in their
+  `aria-label` ("Revoke invitation for Smith, Ann").
+
+### Fixed
+- **Revoke, Reinstate and Edit Campaign did nothing on the Invitation
+  Tracker.** `invitationTracker.js` still posted to
+  `/oversight/tools/messaging/...`, which the 2.12.0 rename to
+  `/oversight/tools/campaigns/...` removed, so each click ended in a 404 and a
+  "failed" alert.
+- **The Edit Campaign button could never appear.** The view gave it the id
+  `itEditcampaignbtn`; the script and the tour look for `itEditCampaignBtn`. The
+  tour now offers its "Edit campaign" step only while the button is visible.
+- **Campaign data in the Invitation Tracker page could end its own script
+  block.** `it-batches-data` was written with a plain `JSON.stringify`, so a
+  campaign message containing `</script>` closed the block early. `<`, `>` and
+  `&` are now escaped, for this block and the new row data.
+- **Wide tables scrolled sideways inside their cards.** The shared
+  `.admin-console-card` is capped at 850px, which left the Invitation Tracker
+  table (826px), the Crew Assignments table (865px) and the Permissions table
+  (1281px) wider than their scroll wrappers. Each page now raises the cap for
+  its own card (`it-card-wide` 1200px, `crew-card-wide` 1000px,
+  `perm-card-wide` 1320px). Permissions still scrolls below about 1385px
+  viewports, with its permission column pinned.
+- **Phones could drag the whole page sideways on the Invitation Tracker,
+  Locations & Tasks and Event Types.** The visually-hidden "Actions" column
+  label is absolutely positioned; its nearest positioned ancestor was the card,
+  outside the scroll wrapper, so the wrapper could not clip it and the page grew
+  to the table's width (826, 577 and 443px). `.table-responsive` is now
+  `position: relative`.
+- **A 4px sideways wobble on phones** on a dozen pages (Roles, Send Reset,
+  Attendance, Decently, My Account, Signs...). Below 577px the `.container`
+  padding is 0.5rem, but a `.row` directly inside it kept Bootstrap's 0.75rem
+  negative margins and poked 4px past the viewport. Those rows now use a 1rem
+  gutter.
+
 ## [2.86.5] — 2026-11-03
 
 Performance and layout-stability pass from the production Lighthouse run of
@@ -31,8 +98,8 @@ jumping as their data loads. One new dependency (`compression`, so run
 - **`page-fill` body class** (`styles.css`). Keeps `<main>` about one window
   tall, so the footer starts below the fold on pages that fill in their data
   after first paint. Used on Contacts, Notes Report, Shift Alerts, Capacity
-  Alerts, System Variables, Oversight Structure, Schedule Rules and the Master
-  Conflict Grid.
+  Alerts, System Variables, Oversight Structure, Schedule Rules, the Master
+  Conflict Grid and Reports.
 
 ### Fixed
 - **Layout shift (CLS) on pages that load their data after first paint.**
@@ -51,6 +118,8 @@ jumping as their data loads. One new dependency (`compression`, so run
     for the current data; tune them if the lists are usually much shorter.
   - The Master Conflict Grid's container is full width from the start instead
     of shrinking to its legend and then widening when the grid loads.
+  - The Reports page showed a steady desktop shift of 0.114 (the footer
+    moving when the web fonts arrived) and now uses `page-fill`.
   - Home can still jump about 31 px (up to 0.076) when the web fonts arrive
     after first paint; it stays under the 0.1 threshold, so it is left as is.
 - **Capacity Alerts kill-switch status text** was `text-danger` on the

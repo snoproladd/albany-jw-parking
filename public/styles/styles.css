@@ -1631,6 +1631,21 @@ b {
   margin-right: auto;
 }
 
+/* The visually-hidden "Actions" header label is absolutely positioned. Without
+   a positioned scroll wrapper its containing block is the card, so the wrapper
+   cannot clip it and a wide table drags the whole page sideways on phones. */
+.table-responsive {
+    position: relative;
+}
+
+/* Below 577px .container has 0.5rem padding, but a .row inside it kept
+   Bootstrap's 0.75rem negative margins and poked 4px past the viewport. */
+@media (max-width: 576px) {
+    .container > .row {
+        --bs-gutter-x: 1rem;
+    }
+}
+
 #rolesTable th,
 #rolesTable td {
   padding: 0.35rem 0.5rem;

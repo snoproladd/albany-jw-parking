@@ -110,6 +110,27 @@
     min-width: 130px;
 }
 
+/* Blank rows the server prints (as many as the first page will hold) so the
+   table keeps its height until invitationTracker.js has rendered the real
+   rows; without them the footer jumps down when the rows arrive. The height
+   approximates a real row. */
+.it-skeleton-row {
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.it-skeleton-row td {
+    height: 4rem;
+    padding: 0;
+    border: 0;
+}
+
+/* The shared admin card is capped at 850px, which left the 826px table wider
+   than its scroll wrapper. The extra class outranks the cap. */
+.admin-console-card.card.shadow-lg.it-card-wide {
+    max-width: 1200px;
+}
+
 
 /* ─────────────────────────────────────────────────────────────
    3. Response badges

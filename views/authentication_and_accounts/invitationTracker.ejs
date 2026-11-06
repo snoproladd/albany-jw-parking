@@ -42,7 +42,7 @@
 
       <div class="row justify-content-center">
         <div class="col-12 col-xxl-11">
-          <section class="card shadow-lg admin-console-card mb-4">
+          <section class="card shadow-lg admin-console-card it-card-wide mb-4">
             <header class="card-header">
               <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
                 <h1 class="h4 mb-0">
@@ -124,7 +124,7 @@
                             <% if (canManageCampaigns) { %>
                                 <button type="button"
                                     class="btn btn-outline-secondary btn-sm d-none"
-                                    id="itEditcampaignbtn"
+                                    id="itEditCampaignBtn"
                                     title="edit this campaign">
                                     <i class="fa-solid fa-pen-to-square"></i>
                                 </button>
@@ -209,6 +209,9 @@
         <%# ── Table ─────────────────────────────────────────────────────────── %>
         <div class="card shadow-sm">
             <div class="card-body p-0">
+                <noscript>
+                    <div class="alert alert-warning m-3 mb-0">JavaScript is required to list the invitations.</div>
+                </noscript>
                 <% if (invitations.length === 0) { %>
                     <div class="text-center text-muted py-5">
                         <i class="fa-solid fa-inbox fa-2x mb-3 d-block"></i>
@@ -230,165 +233,13 @@
                                     <th class="it-col-actions"><span class="visually-hidden">Actions</span></th>
                                 </tr>
                             </thead>
-                            <tbody id="itTableBody">
-                                <% invitations.forEach(function(inv) { %>
-                                    <%
-                                        const volName  = inv.lastName + ', ' + inv.firstName;
-                                        const sentDate = new Date(inv.sent_at).toLocaleDateString('en-US', {
-                                            month:'short', day:'numeric', year:'numeric'
-                                        });
-                                        const respDate = inv.responded_at
-                                            ? new Date(inv.responded_at).toLocaleDateString('en-US', {
-                                                month:'short', day:'numeric', year:'numeric'
-                                              })
-                                            : null;
-                                    %>
-                                    <tr class="it-row <%= inv.revoked ? 'it-row--revoked' : '' %>"
-                                        data-id="<%= inv.id %>"
-                                        data-name="<%= volName.toLowerCase() %>"
-                                        data-gender="<%= inv.gender || '' %>"
-                                        data-revoked="<%= inv.revoked ? 'true' : 'false' %>"
-                                        data-batch-id="<%= inv.batch_id || '' %>"
-                                        data-family-root-id="<%= inv.family_root_id || inv.batch_id || '' %>"
-                                        data-day-id="<%= inv.convention_day_id || '' %>"
-                                        data-response="<%= inv.response || (inv.revoked ? 'revoked' : 'pending') %>"
-                                        data-response-other="<%= inv.response_other || '' %>"
-                                        data-reminder-count="<%= inv.reminder_count || 0 %>"
-                                        data-last-reminded-channel="<%= inv.last_reminded_channel || '' %>"
-                                        data-vol-status="<%= inv.volunteer_status || '' %>"
-                                        data-volunteer-id="<%= inv.volunteer_id %>"
-                                        data-message-type="<%= inv.batch_message_type || 'invitation' %>"
-                                        data-response-needed="<%= inv.response_needed ? 'true' : 'false' %>">
-                                        <td class="it-col-name fw-semibold"><%= volName %></td>
-
-                                        <td class="it-col-campaign">
-                                            <% if (inv.batch_name) { %>
-                                                <% if (inv.parent_batch_id) { %>
-                                                    <span class="text-muted small me-1" title="follow-up campaign">↳</span>
-                                                <% } %>
-                                                <span class="small"><%= inv.batch_name %></span>
-                                                <% if (inv.batch_message_type === 'alert') { %>
-                                                    <span class="badge bg-warning text-dark ms-1 it-type-badge">Alert</span>
-                                                <% } else if (inv.batch_message_type === 'followup') { %>
-                                                    <span class="badge bg-info text-white ms-1 it-type-badge">Follow-up</span>
-                                                <% } %>
-                                            <% } else { %>
-                                                <span class="text-muted">—</span>
-                                            <% } %>
-                                        </td>
-
-                                        <td class="it-col-event">
-                                            <% if (inv.day_label) { %>
-                                                <span class="it-event-label">
-                                                    <% if (inv.event_type_color) { %>
-                                                        <span class="it-event-dot"
-                                                              data-color="<%= inv.event_type_color %>"></span>
-                                                    <% } %>
-                                                    <%= inv.day_label %>
-                                                    <% if (inv.shift_label) { %>
-                                                        <span class="text-muted">
-                                                            · <%= inv.event_type_name %>
-                                                            (<%= inv.shift_label %>)
-                                                        </span>
-                                                    <% } %>
-                                                </span>
-                                            <% } else { %>
-                                                <span class="text-muted">—</span>
-                                            <% } %>
-                                        </td>
-
-                                        <td class="it-col-channel text-center">
-                                            <% if (inv.channel === 'email' || inv.channel === 'both') { %>
-                                                <i class="fa-solid fa-envelope text-info me-1" title="Email"></i>
-                                            <% } %>
-                                            <% if (inv.channel === 'sms' || inv.channel === 'both') { %>
-                                                <i class="fa-solid fa-comment-sms text-success" title="SMS"></i>
-                                            <% } %>
-                                        </td>
-
-                                        <td class="it-col-sent text-muted small"><%= sentDate %></td>
-
-                                        <td class="it-col-reminded text-muted small">
-                                            <% if (inv.last_reminded_at && inv.reminder_count > 0) { %>
-                                                <% let remindedDate = new Date(inv.last_reminded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); %>
-                                                <%= remindedDate %>
-                                                <span class="ms-1">
-                                                    <% if (inv.last_reminded_channel === 'email' || inv.last_reminded_channel === 'both') { %>
-                                                        <i class="fa-solid fa-envelope text-info me-1" title="Email"></i>
-                                                    <% } %>
-                                                    <% if (inv.last_reminded_channel === 'sms' || inv.last_reminded_channel === 'both') { %>
-                                                        <i class="fa-solid fa-comment-sms text-success" title="SMS"></i>
-                                                    <% } %>
-                                                </span>
-                                                <% if (inv.reminder_count > 1) { %>
-                                                    <span class="badge bg-secondary ms-1" title="<%= inv.reminder_count %> reminders sent">×<%= inv.reminder_count %></span>
-                                                <% } %>
-                                            <% } else { %>
-                                                <span class="text-muted">—</span>
-                                            <% } %>
-                                        </td>
-
-                                        <td class="it-col-response">
-                                            <% if (inv.revoked) { %>
-                                                <span class="badge it-badge-revoked">
-                                                    <i class="fa-solid fa-ban me-1"></i>Revoked
-                                                </span>
-                                            <% } else if (!inv.responded_at) { %>
-                                                <% if (!inv.response_needed) { %>
-                                                    <span class="text-muted small">—</span>
-                                                <% } else { %>
-                                                    <span class="badge it-badge-pending">Pending</span>
-                                                <% } %>
-                                            <% } else if (inv.response === 'yes') { %>
-                                                <span class="badge it-badge-yes">
-                                                    <i class="fa-solid fa-circle-check me-1"></i>Yes
-                                                </span>
-                                            <% } else if (inv.response === 'no') { %>
-                                                <span class="badge it-badge-no">
-                                                    <i class="fa-solid fa-circle-xmark me-1"></i>No
-                                                </span>
-                                            <% } else if (inv.response === 'maybe') { %>
-                                                <span class="badge it-badge-maybe">
-                                                    <i class="fa-solid fa-circle-question me-1"></i>Maybe
-                                                </span>
-                                            <% } else if (inv.response === 'other' && inv.response_other) { %>
-                                                <span class="badge bg-secondary" title="<%= inv.response_other %>">
-                                                    <i class="fa-solid fa-pen me-1"></i><%= inv.response_other.length > 20 ? inv.response_other.slice(0, 20) + '…' : inv.response_other %>
-                                                </span>
-                                            <% } else if (inv.response) { %>
-                                                <%# Custom / poll response %>
-                                                <span class="badge bg-info text-dark">
-                                                    <%= inv.response %>
-                                                </span>
-                                            <% } %>
-                                        </td>
-
-                                        <td class="it-col-responded text-muted small">
-                                            <%= respDate || '—' %>
-                                        </td>
-
-                                        <td class="it-col-actions text-end">
-                                            <% if (inv.revoked) { %>
-                                                <button type="button"
-                                                    class="btn btn-outline-success btn-sm it-reinstate-btn"
-                                                    data-id="<%= inv.id %>"
-                                                    data-name="<%= volName %>"
-                                                    title="Reinstate invitation">
-                                                    <i class="fa-solid fa-rotate-left"></i>
-                                                </button>
-                                            <% } else { %>
-                                                <button type="button"
-                                                    class="btn btn-outline-danger btn-sm it-revoke-btn"
-                                                    data-id="<%= inv.id %>"
-                                                    data-name="<%= volName %>"
-                                                    title="Revoke invitation">
-                                                    <i class="fa-solid fa-ban"></i>
-                                                </button>
-                                            <% } %>
-                                        </td>
-
-                                    </tr>
-                                <% }); %>
+                            <% const pageSize = 100; /* keep in step with the fallback PAGE_SIZE in invitationTracker.js */ %>
+                            <tbody id="itTableBody" data-page-size="<%= pageSize %>">
+                                <%# Blank placeholder rows hold the table's height until invitationTracker.js
+                                    renders the real ones, so the footer does not jump when they arrive. %>
+                                <% for (let i = 0; i < Math.min(invitations.length, pageSize); i++) { %>
+                                    <tr class="it-skeleton-row" aria-hidden="true"><td colspan="9"></td></tr>
+                                <% } %>
                             </tbody>
                         </table>
                     </div>
@@ -399,6 +250,15 @@
         <p class="text-muted small mt-2 mb-0" id="itRowCount">
             Showing <%= invitations.length %> invitation<%= invitations.length !== 1 ? 's' : '' %>
         </p>
+
+        <%# Rows are rendered in chunks by invitationTracker.js; these reveal the rest. %>
+        <div class="mt-2 d-none" id="itShowMoreWrap">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="itShowMoreBtn"></button>
+            <button type="button" class="btn btn-link btn-sm" id="itShowAllBtn"></button>
+        </div>
+
+        <%# Every invitation as data (lib/trackerPayload.js). "<" is escaped, so no field can close this block. %>
+        <script id="it-rows-data" type="application/json"><%- trackerRowsJson %></script>
 
             </div><%# /.card-body %>
           </section>
@@ -508,7 +368,7 @@
         </div>
     </div>
 
-    <script id="it-batches-data" type="application/json"><%- JSON.stringify(batches) %></script>
+    <script id="it-batches-data" type="application/json"><%- batchesJson %></script>
     <% } %>
 
     <input type="hidden" id="itCsrfToken" value="<%= csrfToken %>" />

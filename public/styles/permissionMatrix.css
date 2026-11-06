@@ -26,6 +26,14 @@
    2. Table
    ───────────────────────────────────────────────────────────── */
 
+/* The shared admin card is capped at 850px, which left a 1281px table in an
+   816px wrapper. 1320px matches the other wide cards (Blackout Timeline, Send
+   Reset). Below about 1385px the table still scrolls, with the permission
+   column pinned. */
+.admin-console-card.card.shadow-lg.perm-card-wide {
+    max-width: 1320px;
+}
+
 .perm-table th,
 .perm-table td {
     white-space: nowrap;

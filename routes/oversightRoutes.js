@@ -188,6 +188,7 @@ import { sendResetEmail, sendResetSms, getBaseUrl } from "../lib/messaging.js";
 import { PDF_SECRET, publishDays } from "../lib/publishSchedule.js";
 import { buildAlertMessage, sendAlertSms, sendRows } from "../lib/alertScheduler.js";
 import { getBrand } from "../lib/branding.js";
+import { buildTrackerRows, jsonForScript } from "../lib/trackerPayload.js";
 
 import {
   uploadRendezvousPhoto,
@@ -4930,9 +4931,14 @@ export function oversightRouter({
           getInvitationBatches(year),
         ]);
 
+        // The rows travel as a JSON island and the page renders them in
+        // chunks client-side (see lib/trackerPayload.js). `invitations` is
+        // still passed for the server-rendered stat cards.
         return res.render("authentication_and_accounts/invitationTracker", {
           csrfToken: req.csrfToken(),
           invitations,
+          trackerRowsJson: jsonForScript(buildTrackerRows(invitations)),
+          batchesJson: jsonForScript(batches),
           conventionDays,
           batches,
           year,

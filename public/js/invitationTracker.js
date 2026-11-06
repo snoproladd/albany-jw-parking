@@ -3,16 +3,32 @@
  * @description Client-side logic for the Invitation Tracker page.
  *
  * Responsibilities:
+ *  - Render the invitation rows. The server embeds every invitation as JSON
+ *    (#it-rows-data, built by lib/trackerPayload.js); this file renders them
+ *    into the table in chunks of PAGE_SIZE with a "Show more" control, so the
+ *    page holds 100 table rows instead of over a thousand.
  *  - Live filtering (campaign, day, response, revoked, gender, name search)
- *    entirely client-side against rendered table rows.
+ *    entirely client-side against that data, not against the DOM.
  *  - Event dot color application (CSP-safe via data-color → JS).
- *  - Revoke / reinstate AJAX actions with inline row state update.
+ *  - Revoke / reinstate AJAX actions (one delegated click listener); the
+ *    table is re-rendered from the updated data.
  *  - Row count update after filtering or actions.
  *  - Add-volunteers shortcut link — updates href dynamically to match
  *    the currently selected campaign filter.
  */
 
-document.addEventListener("DOMContentLoaded", () => {
+/**
+ * Initialise the Invitation Tracker page.
+ *
+ * Runs as soon as the script is reached rather than on DOMContentLoaded. This
+ * script is the last element in <body>, so everything it needs already exists,
+ * and the table rows must be in the DOM before the first paint:
+ * DOMContentLoaded also waits for the deferred tour module and its imports,
+ * which would leave the table empty (and the page jumping) for that long.
+ *
+ * @returns {void}
+ */
+(function initInvitationTracker() {
   // =========================================================
   // Element references
   // =========================================================
@@ -43,6 +59,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const addVolunteersBtn = document.getElementById("itAddVolunteersBtn");
   /** @type {HTMLButtonElement|null} */
   const editCampaignBtn = document.getElementById("itEditCampaignBtn");
+  /** @type {HTMLTableSectionElement|null} */
+  const tableBody = document.getElementById("itTableBody");
+  /** @type {HTMLElement|null} */
+  const showMoreWrap = document.getElementById("itShowMoreWrap");
+  /** @type {HTMLButtonElement|null} */
+  const showMoreBtn = document.getElementById("itShowMoreBtn");
+  /** @type {HTMLButtonElement|null} */
+  const showAllBtn = document.getElementById("itShowAllBtn");
 
   // =========================================================
   // Helpers
@@ -52,6 +76,303 @@ document.addEventListener("DOMContentLoaded", () => {
   function getCsrf() {
     return csrfTokenEl?.value || "";
   }
+
+  // =========================================================
+  // Invitation data and table rendering
+  // =========================================================
+
+  /**
+   * Rows rendered at a time. Every invitation is held as data, but only this
+   * many are put in the DOM until the user asks for more. The view sets it
+   * (data-page-size on the tbody) because it also prints that many placeholder
+   * rows; 100 is the fallback.
+   * @type {number}
+   */
+  const PAGE_SIZE = Number(tableBody?.dataset.pageSize) || 100;
+
+  /**
+   * An invitation as embedded by the server (see lib/trackerPayload.js), plus
+   * the lower-cased `search` key added by loadRows.
+   * @typedef {import("../../lib/trackerPayload.js").TrackerRow & { search: string }} InvitationRow
+   */
+
+  /** True when #it-rows-data was missing or could not be parsed. */
+  let loadFailed = false;
+
+  /**
+   * Read the invitation rows the server embedded in #it-rows-data. Adds a
+   * lower-cased `search` key to each row once, so typing in the name box does
+   * not lower-case every name on every keystroke.
+   *
+   * @returns {InvitationRow[]} The rows, or [] if the data is missing or invalid.
+   */
+  function loadRows() {
+      try {
+          const el = document.getElementById("it-rows-data");
+          const rows = el ? JSON.parse(el.textContent) : [];
+          if (!Array.isArray(rows)) throw new Error("rows is not an array");
+          rows.forEach((row) => {
+              row.search = row.name.toLowerCase();
+          });
+          return rows;
+      } catch (err) {
+          loadFailed = true;
+          console.error("[invitationTracker] could not read invitation data:", err);
+          return [];
+      }
+  }
+
+  /** @type {InvitationRow[]} Every invitation, in table order. */
+  const trackerRows = loadRows();
+
+  /** @type {InvitationRow[]} The rows that pass the current filters. */
+  let matchedRows = [];
+
+  /** How many of matchedRows are currently in the table. */
+  let renderedCount = 0;
+
+  /**
+   * The row's response bucket as the filters and stat cards see it: its
+   * answer, or "revoked" / "pending" when it has none.
+   *
+   * @param {InvitationRow} row
+   * @returns {string}
+   */
+  function responseOf(row) {
+      return row.response || (row.revoked ? "revoked" : "pending");
+  }
+
+  /** @type {Record<string, string>} */
+  const HTML_ESCAPES = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+  };
+
+  /**
+   * Escape a value for use in HTML text or a double-quoted attribute.
+   *
+   * @param {*} value
+   * @returns {string}
+   */
+  function esc(value) {
+      return String(value ?? "").replace(/[&<>"']/g, (ch) => HTML_ESCAPES[ch]);
+  }
+
+  /**
+   * Email / SMS channel icons.
+   *
+   * @param {string|null} channel - "email", "sms", "both" or null.
+   * @returns {string}
+   */
+  function channelIconsHtml(channel) {
+      const email = channel === "email" || channel === "both";
+      const sms = channel === "sms" || channel === "both";
+      return (
+          (email ? '<i class="fa-solid fa-envelope text-info me-1" title="Email"></i>' : "") +
+          (sms ? '<i class="fa-solid fa-comment-sms text-success" title="SMS"></i>' : "")
+      );
+  }
+
+  /**
+   * Campaign cell: name, follow-up arrow and Alert / Follow-up badge.
+   *
+   * @param {InvitationRow} row
+   * @returns {string}
+   */
+  function campaignCellHtml(row) {
+      if (!row.batchName) return '<span class="text-muted">—</span>';
+      const parts = [];
+      if (row.isFollowUp) {
+          parts.push('<span class="text-muted small me-1" title="follow-up campaign">↳</span>');
+      }
+      parts.push(`<span class="small">${esc(row.batchName)}</span>`);
+      if (row.messageType === "alert") {
+          parts.push('<span class="badge bg-warning text-dark ms-1 it-type-badge">Alert</span>');
+      } else if (row.messageType === "followup") {
+          parts.push('<span class="badge bg-info text-white ms-1 it-type-badge">Follow-up</span>');
+      }
+      return parts.join(" ");
+  }
+
+  /**
+   * Event / shift cell. The dot colour is applied afterwards by
+   * applyEventDotColors (CSP: no inline style attributes).
+   *
+   * @param {InvitationRow} row
+   * @returns {string}
+   */
+  function eventCellHtml(row) {
+      if (!row.dayLabel) return '<span class="text-muted">—</span>';
+      const dot = row.eventColor
+          ? `<span class="it-event-dot" data-color="${esc(row.eventColor)}"></span>`
+          : "";
+      const shift = row.shiftLabel
+          ? `<span class="text-muted"> · ${esc(row.eventTypeName)} (${esc(row.shiftLabel)})</span>`
+          : "";
+      return `<span class="it-event-label">${dot}${esc(row.dayLabel)}${shift}</span>`;
+  }
+
+  /**
+   * Reminded cell: last reminder date, channel icons and a ×N badge.
+   *
+   * @param {InvitationRow} row
+   * @returns {string}
+   */
+  function remindedCellHtml(row) {
+      if (!row.remindedAt) return '<span class="text-muted">—</span>';
+      const parts = [
+          esc(row.remindedAt),
+          `<span class="ms-1">${channelIconsHtml(row.lastRemindedChannel)}</span>`,
+      ];
+      if (row.reminderCount > 1) {
+          parts.push(
+              `<span class="badge bg-secondary ms-1" title="${row.reminderCount} reminders sent">×${row.reminderCount}</span>`,
+          );
+      }
+      return parts.join(" ");
+  }
+
+  /**
+   * Response cell: Revoked / Pending / Yes / No / Maybe / other badge.
+   *
+   * @param {InvitationRow} row
+   * @returns {string}
+   */
+  function responseCellHtml(row) {
+      if (row.revoked) {
+          return '<span class="badge it-badge-revoked"><i class="fa-solid fa-ban me-1"></i>Revoked</span>';
+      }
+      if (!row.respondedAt) {
+          return row.responseNeeded
+              ? '<span class="badge it-badge-pending">Pending</span>'
+              : '<span class="text-muted small">—</span>';
+      }
+      if (row.response === "yes") {
+          return '<span class="badge it-badge-yes"><i class="fa-solid fa-circle-check me-1"></i>Yes</span>';
+      }
+      if (row.response === "no") {
+          return '<span class="badge it-badge-no"><i class="fa-solid fa-circle-xmark me-1"></i>No</span>';
+      }
+      if (row.response === "maybe") {
+          return '<span class="badge it-badge-maybe"><i class="fa-solid fa-circle-question me-1"></i>Maybe</span>';
+      }
+      if (row.response === "other" && row.responseOther) {
+          const text =
+              row.responseOther.length > 20
+                  ? `${row.responseOther.slice(0, 20)}…`
+                  : row.responseOther;
+          return `<span class="badge bg-secondary" title="${esc(row.responseOther)}"><i class="fa-solid fa-pen me-1"></i>${esc(text)}</span>`;
+      }
+      if (row.response) {
+          return `<span class="badge bg-info text-dark">${esc(row.response)}</span>`;
+      }
+      return "";
+  }
+
+  /**
+   * Actions cell: a Reinstate button for revoked rows, otherwise Revoke.
+   *
+   * @param {InvitationRow} row
+   * @returns {string}
+   */
+  function actionsCellHtml(row) {
+      const name = esc(row.name);
+      return row.revoked
+          ? `<button type="button" class="btn btn-outline-success btn-sm it-reinstate-btn" data-id="${row.id}" data-name="${name}" title="Reinstate invitation" aria-label="Reinstate invitation for ${name}"><i class="fa-solid fa-rotate-left"></i></button>`
+          : `<button type="button" class="btn btn-outline-danger btn-sm it-revoke-btn" data-id="${row.id}" data-name="${name}" title="Revoke invitation" aria-label="Revoke invitation for ${name}"><i class="fa-solid fa-ban"></i></button>`;
+  }
+
+  /**
+   * The markup for one table row.
+   *
+   * @param {InvitationRow} row
+   * @returns {string}
+   */
+  function buildRowHtml(row) {
+      return (
+          `<tr class="it-row${row.revoked ? " it-row--revoked" : ""}" data-id="${row.id}">` +
+          `<td class="it-col-name fw-semibold">${esc(row.name)}</td>` +
+          `<td class="it-col-campaign">${campaignCellHtml(row)}</td>` +
+          `<td class="it-col-event">${eventCellHtml(row)}</td>` +
+          `<td class="it-col-channel text-center">${channelIconsHtml(row.channel)}</td>` +
+          `<td class="it-col-sent text-muted small">${esc(row.sentAt)}</td>` +
+          `<td class="it-col-reminded text-muted small">${remindedCellHtml(row)}</td>` +
+          `<td class="it-col-response">${responseCellHtml(row)}</td>` +
+          `<td class="it-col-responded text-muted small">${esc(row.respondedAt || "—")}</td>` +
+          `<td class="it-col-actions text-end">${actionsCellHtml(row)}</td>` +
+          "</tr>"
+      );
+  }
+
+  /**
+   * Update the "Showing N invitations" line and the Show more buttons from
+   * matchedRows and renderedCount.
+   *
+   * @returns {void}
+   */
+  function updateRowCount() {
+      const total = matchedRows.length;
+      const remaining = total - renderedCount;
+      const noun = `invitation${total !== 1 ? "s" : ""}`;
+
+      if (rowCount) {
+          if (loadFailed) {
+              rowCount.textContent = "Could not load the invitations — please reload the page.";
+          } else if (remaining > 0) {
+              rowCount.textContent = `Showing ${renderedCount} of ${total} ${noun}`;
+          } else {
+              rowCount.textContent = `Showing ${total} ${noun}`;
+          }
+      }
+
+      showMoreWrap?.classList.toggle("d-none", remaining <= 0);
+      if (remaining > 0) {
+          if (showMoreBtn) {
+              showMoreBtn.textContent = `Show ${Math.min(PAGE_SIZE, remaining)} more`;
+          }
+          if (showAllBtn) showAllBtn.textContent = `Show all ${total}`;
+      }
+  }
+
+  /**
+   * Replace the table body with the first `count` rows of matchedRows.
+   *
+   * @param {number} count - How many rows to render.
+   * @returns {void}
+   */
+  function renderRows(count) {
+      if (tableBody) {
+          const chunk = matchedRows.slice(0, count);
+          tableBody.innerHTML = chunk.map(buildRowHtml).join("");
+          renderedCount = chunk.length;
+          applyEventDotColors();
+      }
+      updateRowCount();
+  }
+
+  /**
+   * Add the next `count` rows of matchedRows to the end of the table.
+   *
+   * @param {number} count - How many more rows to render.
+   * @returns {void}
+   */
+  function appendRows(count) {
+      if (!tableBody) return;
+      const firstNew = renderedCount;
+      const chunk = matchedRows.slice(renderedCount, renderedCount + count);
+      tableBody.insertAdjacentHTML("beforeend", chunk.map(buildRowHtml).join(""));
+      renderedCount += chunk.length;
+      applyEventDotColors(firstNew);
+      updateRowCount();
+  }
+
+  showMoreBtn?.addEventListener("click", () => appendRows(PAGE_SIZE));
+  showAllBtn?.addEventListener("click", () => {
+      appendRows(matchedRows.length - renderedCount);
+  });
 
   // =========================================================
   // Batch metadata maps — built once from filter option data attributes
@@ -102,13 +423,21 @@ document.addEventListener("DOMContentLoaded", () => {
   // =========================================================
 
   /**
-   * Apply data-color attribute values as inline background-color.
+   * Apply data-color attribute values as inline background-color to the
+   * event dots in the rendered rows.
+   * @param {number} [startIndex=0] - Only colour rows from this index on
+   *   (used after appending a chunk, so earlier rows are not revisited).
    * @returns {void}
    */
-  function applyEventDotColors() {
-    document.querySelectorAll(".it-event-dot[data-color]").forEach((dot) => {
-      dot.style.backgroundColor = dot.dataset.color;
-    });
+  function applyEventDotColors(startIndex = 0) {
+      if (!tableBody) return;
+      Array.from(tableBody.rows)
+          .slice(startIndex)
+          .forEach((row) => {
+              row.querySelectorAll(".it-event-dot[data-color]").forEach((dot) => {
+                  dot.style.backgroundColor = dot.dataset.color;
+              });
+          });
   }
 
   // =========================================================
@@ -116,11 +445,16 @@ document.addEventListener("DOMContentLoaded", () => {
   // =========================================================
 
   /**
-   * Apply all active filters to the table rows, then recompute and update
-   * the summary stat cards and remind button from the visible rows.
+   * Apply all active filters to the invitation data, then render the first
+   * page of matching rows and recompute the summary stat cards and remind
+   * button from the matching rows.
+   * @param {{ keepRendered?: boolean }} [options] - keepRendered: re-render at
+   *   least as many rows as are showing now (used after revoke / reinstate)
+   *   instead of going back to the first page. Also tolerates being passed an
+   *   Event when used directly as a listener.
    * @returns {void}
    */
-  function applyFilters() {
+  function applyFilters(options) {
     const query      = (searchInput?.value || "").trim().toLowerCase();
     const batchVal   = batchFilter?.value   || "";
     const dayVal     = dayFilter?.value     || "";
@@ -132,8 +466,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const { rootId: familyRootVal, childCount: batchChildCount } =
       resolveFamilyRoot(batchVal);
 
-    const rows = document.querySelectorAll(".it-row");
-    let visible = 0;
+    const rows = trackerRows;
+    /** Rows that pass every filter, in table order. */
+    const matched = [];
 
     // Sets of volunteer IDs per response bucket — deduplicates volunteers
     // who have multiple historical rows from pre-reminder sends.
@@ -149,69 +484,38 @@ document.addEventListener("DOMContentLoaded", () => {
      * rows before resolving to stat card buckets. Prevents a volunteer who
      * responded to the parent campaign from also counting as pending because
      * they appear in a follow-up campaign row.
-     * @type {Map<string, {yes:boolean, no:boolean, maybe:boolean, pending:boolean, revoked:boolean}>}
+     * @type {Map<number, {yes:boolean, no:boolean, maybe:boolean, pending:boolean, revoked:boolean}>}
      */
     const volResponseAccum = new Map();
 
     rows.forEach((row) => {
-      const name = row.dataset.name || "";
-      const batchId = row.dataset.batchId || "";
-      const dayId = row.dataset.dayId || "";
-      const response = row.dataset.response || "";
-      const revoked = row.dataset.revoked === "true";
-      const volId = row.dataset.volunteerId || "";
+      const response = responseOf(row);
+      const revoked = row.revoked;
+      const volId = row.volunteerId;
 
       // Revoked visibility
-      if (revoked && !showRevoked) {
-        row.hidden = true;
-        return;
-      }
+      if (revoked && !showRevoked) return;
 
       // Campaign filter — match on family_root_id so follow-up rows are
       // included when viewing the parent, and child selection resolves to parent.
-      const familyRootId = row.dataset.familyRootId || '';
-      if (familyRootVal && familyRootId !== familyRootVal) {
-        row.hidden = true;
-        return;
-      }
+      if (familyRootVal && row.familyRootId !== familyRootVal) return;
 
       // Day filter
-      if (dayVal && dayId !== dayVal) {
-        row.hidden = true;
-        return;
-      }
+      if (dayVal && row.dayId !== dayVal) return;
 
       // Response filter
-      if (responseVal !== "all") {
-        if (responseVal === "pending" && response !== "pending") {
-          row.hidden = true;
-          return;
-        } else if (responseVal !== "pending" && response !== responseVal) {
-          row.hidden = true;
-          return;
-        }
-      }
+      if (responseVal !== "all" && response !== responseVal) return;
 
       // Response required filter
-      if (responseRequiredOnly && row.dataset.responseNeeded !== "true") {
-        row.hidden = true;
-        return;
-      }
+      if (responseRequiredOnly && !row.responseNeeded) return;
 
       // Gender filter
-      if (genderVal && (row.dataset.gender || "") !== genderVal) {
-        row.hidden = true;
-        return;
-      }
+      if (genderVal && row.gender !== genderVal) return;
 
       // Name search
-      if (query && !name.includes(query)) {
-        row.hidden = true;
-        return;
-      }
+      if (query && !row.search.includes(query)) return;
 
-      row.hidden = false;
-      visible++;
+      matched.push(row);
 
       // Accumulate this row's response state for later per-volunteer resolution
       if (!volResponseAccum.has(volId)) {
@@ -268,20 +572,24 @@ document.addEventListener("DOMContentLoaded", () => {
     // Since the DB now returns one row per volunteer per family, each visible
     // pending row IS the canonical pending state — no cross-row dedup needed.
     const cntPendingParentOnly = new Set(
-      Array.from(rows)
+      matched
         .filter(
           (r) =>
-            !r.hidden &&
-            r.dataset.response === 'pending' &&
-            r.dataset.volStatus === 'completed' &&
-            batchResponseNeededMap.get(r.dataset.batchId) !== false,
+            responseOf(r) === 'pending' &&
+            r.volStatus === 'completed' &&
+            batchResponseNeededMap.get(r.batchId) !== false,
         )
-        .map((r) => r.dataset.volunteerId),
+        .map((r) => r.volunteerId),
     ).size;
 
-    if (rowCount) {
-      rowCount.textContent = `Showing ${visible} invitation${visible !== 1 ? "s" : ""}`;
-    }
+    // Render the first page of matches (or as many as were showing, after a
+    // revoke / reinstate) and refresh the "Showing N" line.
+    matchedRows = matched;
+    renderRows(
+      options?.keepRendered === true
+        ? Math.max(PAGE_SIZE, renderedCount)
+        : PAGE_SIZE,
+    );
 
     // Update stat cards
     const statTotal = document.getElementById("itStatTotal");
@@ -426,54 +734,23 @@ document.addEventListener("DOMContentLoaded", () => {
   // =========================================================
 
   /**
-   * Update a row's visual state after a revoke or reinstate action
-   * without requiring a page reload.
-   *
-   * @param {HTMLElement} row
-   * @param {boolean} revoked
-   * @param {string} name
-   * @returns {void}
+   * Base path of the revoke / reinstate endpoints. (These pointed at
+   * /oversight/tools/messaging/... until now, which no longer exists since
+   * the 2.12.0 rename to /campaigns, so both actions returned 404.)
+   * @type {string}
    */
-  function updateRowState(row, revoked, name) {
-    row.dataset.revoked = revoked ? "true" : "false";
-    row.dataset.response = revoked ? "revoked" : "pending";
-    row.classList.toggle("it-row--revoked", revoked);
-
-    const responseCell = row.querySelector(".it-col-response");
-    if (responseCell) {
-      responseCell.innerHTML = revoked
-        ? `<span class="badge it-badge-revoked"><i class="fa-solid fa-ban me-1"></i>Revoked</span>`
-        : `<span class="badge it-badge-pending">Pending</span>`;
-    }
-
-    const actionsCell = row.querySelector(".it-col-actions");
-    if (actionsCell) {
-      const id = row.dataset.id;
-      actionsCell.innerHTML = revoked
-        ? `<button type="button" class="btn btn-outline-success btn-sm it-reinstate-btn"
-                       data-id="${id}" data-name="${name}" title="Reinstate invitation">
-                       <i class="fa-solid fa-rotate-left"></i>
-                   </button>`
-        : `<button type="button" class="btn btn-outline-danger btn-sm it-revoke-btn"
-                       data-id="${id}" data-name="${name}" title="Revoke invitation">
-                       <i class="fa-solid fa-ban"></i>
-                   </button>`;
-      wireActionButton(actionsCell.querySelector("button"));
-    }
-
-    // Re-run filters so revoked rows obey the "show revoked" toggle
-    applyFilters();
-  }
+  const INVITATION_API = "/oversight/tools/campaigns/invitations";
 
   /**
-   * Wire a single revoke or reinstate button.
-   * @param {HTMLElement|null} btn
-   * @returns {void}
+   * Confirm, then revoke or reinstate the invitation behind a row button.
+   * On success the row's data is updated and the table re-rendered through
+   * applyFilters, so the row obeys the "Show revoked" toggle and the stat
+   * cards and Remind count follow.
+   *
+   * @param {HTMLButtonElement} btn - A .it-revoke-btn or .it-reinstate-btn.
+   * @returns {Promise<void>}
    */
-  function wireActionButton(btn) {
-    if (!btn) return;
-
-    btn.addEventListener("click", async () => {
+  async function handleRowAction(btn) {
       const id = Number(btn.dataset.id);
       const name = btn.dataset.name || "this volunteer";
       const isRevoke = btn.classList.contains("it-revoke-btn");
@@ -487,40 +764,42 @@ document.addEventListener("DOMContentLoaded", () => {
       btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span>`;
 
       try {
-        const res = await fetch(
-          `/oversight/tools/messaging/invitations/${id}/${action}`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-CSRF-Token": getCsrf(),
-            },
-            body: JSON.stringify({}),
-          },
-        );
-        const data = await res.json().catch(() => ({}));
+          const res = await fetch(`${INVITATION_API}/${id}/${action}`, {
+              method: "POST",
+              headers: {
+                  "Content-Type": "application/json",
+                  "X-CSRF-Token": getCsrf(),
+              },
+              body: JSON.stringify({}),
+          });
+          const data = await res.json().catch(() => ({}));
 
-        if (!res.ok || !data.success) {
+          if (!res.ok || !data.success) {
+              btn.disabled = false;
+              btn.innerHTML = origHtml;
+              alert(data.error || `${label} failed — please try again.`);
+              return;
+          }
+
+          const row = trackerRows.find((r) => r.id === id);
+          if (row) row.revoked = isRevoke;
+          applyFilters({ keepRendered: true });
+      } catch (err) {
+          console.error(`[invitationTracker] ${action} error:`, err);
           btn.disabled = false;
           btn.innerHTML = origHtml;
-          alert(data.error || `${label} failed — please try again.`);
-          return;
-        }
-
-        const row = btn.closest(".it-row");
-        if (row) updateRowState(row, isRevoke, name);
-      } catch (err) {
-        console.error(`[invitationTracker] ${action} error:`, err);
-        btn.disabled = false;
-        btn.innerHTML = origHtml;
-        alert("Network error — please try again.");
+          alert("Network error — please try again.");
       }
-    });
   }
 
-  document
-    .querySelectorAll(".it-revoke-btn, .it-reinstate-btn")
-    .forEach(wireActionButton);
+  // One listener for every row button, including rows rendered later.
+  tableBody?.addEventListener("click", (event) => {
+      const btn =
+          event.target instanceof Element
+              ? event.target.closest(".it-revoke-btn, .it-reinstate-btn")
+              : null;
+      if (btn && !btn.disabled) handleRowAction(btn);
+  });
 
   // Remind button initial state — wire toast if no batch active on load
   updateRemindButton(Number(remindWrap?.dataset.pendingCount ?? 0));
@@ -679,7 +958,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const messageType =
           document.getElementById("itEditMessageType")?.value || "invitation";
         const res = await fetch(
-          `/oversight/tools/messaging/batches/${editingBatchId}`,
+          `/oversight/tools/campaigns/batches/${editingBatchId}`,
           {
             method: "PUT",
             headers: {
@@ -776,6 +1055,5 @@ document.addEventListener("DOMContentLoaded", () => {
   // Init
   // =========================================================
 
-  applyEventDotColors();
   applyFilters();
-});
+})();

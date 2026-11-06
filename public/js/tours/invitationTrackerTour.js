@@ -114,7 +114,8 @@ function buildInvitationTrackerTour() {
   const hasRemindBtn =
     !!document.getElementById("itRemindBtn") &&
     !document.getElementById("itRemindBtn")?.closest(".d-none");
-  const hasEditBtn = !!document.getElementById("itEditCampaignBtn");
+  const editBtn = document.getElementById("itEditCampaignBtn");
+  const hasEditBtn = !!editBtn && !editBtn.classList.contains("d-none");
 
   if (hasRemindBtn) {
     steps.push({

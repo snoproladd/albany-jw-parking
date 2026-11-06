@@ -779,6 +779,11 @@ View all sent invitations for the current year. Filter by:
 - **Gender** — Male or Female
 - **Show Revoked** — toggle to include/exclude revoked invitations
 
+The table lists the first 100 matching invitations; **Show 100 more** and
+**Show all** under it reveal the rest. Filters, the search box, the stat cards
+and the Remind count always cover every matching invitation, not only the rows
+on screen.
+
 #### Stat Cards
 
 The six cards (Total Sent, Yes, No, Maybe, Pending, Revoked) update live as you
