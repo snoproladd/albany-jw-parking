@@ -3,6 +3,22 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.86.7] — 2026-11-06
+
+SEO fix: every page now has a meta description. One new partial; no schema,
+route or dependency changes.
+
+### Added
+- **`views/partials/metaDescription.ejs`.** Prints `<meta name="description">`
+  for a page head. It uses a site-wide default built from the brand names (so
+  the demo site gets its own wording); a page can supply its own text by
+  passing `metaDescription` to `res.render` or to the include.
+
+### Fixed
+- **Lighthouse "Document does not have a meta description" on every page.** It
+  was the only failing SEO audit (score 90). All 67 page views now include
+  the partial right after their viewport meta tag.
+
 ## [2.86.6] — 2026-11-03
 
 Invitation Tracker speed-up, plus a fix for its revoke, reinstate and edit

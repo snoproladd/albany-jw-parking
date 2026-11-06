@@ -1,0 +1,20 @@
+<%#
+    metaDescription.ejs
+    Prints the <meta name="description"> tag for a page <head>. Include it
+    right after the viewport meta tag, using the path that matches the view's
+    folder: include('partials/metaDescription') for views in /views, or
+    include('../partials/metaDescription') for views in a sub-folder.
+
+    A page can supply its own text in either of two ways: pass
+    { metaDescription: '...' } as the second argument of the include, or pass
+    metaDescription to res.render. Without it the site-wide default below is
+    used. Keep custom text under about 155 characters.
+
+    @param {string} [metaDescription] Text for this page.
+%>
+<%
+    const metaText =
+        (typeof metaDescription === 'string' && metaDescription.trim()) ||
+        `${brand.siteName}: volunteer registration, scheduling, invitations and check-in for ${brand.conventionLabel} parking operations.`;
+-%>
+<meta name="description" content="<%= metaText %>" />
