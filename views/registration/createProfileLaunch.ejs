@@ -4,7 +4,12 @@
     <title>Create Your Profile — <%= brand.siteName %></title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <%- include('../partials/metaDescription') %>
+    <%- include('../partials/metaDescription', {
+        metaDescription: bt(
+            "Volunteering for convention parking in Albany? Create your Albany JW Parking profile to register and get scheduled.",
+            "Volunteering for convention parking? Create your Volunteer Parking Coordinator profile to register and get scheduled.",
+        ),
+    }) %>
     <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="/styles/fontawesome/css/all.css">
     <link rel="stylesheet" type="text/css" href="/styles/styles.css">

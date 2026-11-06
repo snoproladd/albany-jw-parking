@@ -4,7 +4,12 @@
     <title>Terms of Service — <%= brand.siteName %></title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <%- include('partials/metaDescription') %>
+    <%- include('partials/metaDescription', {
+        metaDescription: bt(
+            "The terms for using Albany JW Parking, the volunteer registration and scheduling site for the Albany regional convention parking team.",
+            "The terms for using Volunteer Parking Coordinator, the volunteer registration and scheduling site for the Albany Summer Convention parking team.",
+        ),
+    }) %>
     <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/styles/fontawesome/css/all.css">
     <link rel="stylesheet" href="/styles/styles.css">

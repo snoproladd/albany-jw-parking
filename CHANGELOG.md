@@ -3,6 +3,19 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.86.10] — 2026-11-06
+
+Custom meta descriptions for the five public pages. No schema, route or
+dependency changes.
+
+### Changed
+- **Home, login, create-profile, privacy and terms now have their own meta
+  description** instead of the site-wide default added in 2.86.7. Each view
+  passes its text to `partials/metaDescription` through `bt()`, so the
+  production site keeps its wording and the demo site gets neutral wording
+  with no faith-specific references. Every description is under 155
+  characters so search results do not cut it off.
+
 ## [2.86.9] — 2026-11-06
 
 Removes a layout read from mobile page load. No schema, route or dependency

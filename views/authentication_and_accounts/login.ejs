@@ -4,7 +4,12 @@
   <title>Login</title>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <%- include('../partials/metaDescription') %>
+  <%- include('../partials/metaDescription', {
+      metaDescription: bt(
+          "Sign in to Albany JW Parking to see your convention parking shifts, update your account and respond to invitations.",
+          "Sign in to Volunteer Parking Coordinator to see your convention parking shifts, update your account and respond to invitations.",
+      ),
+  }) %>
 
   <!-- Bootstrap & theme styles -->
   <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
