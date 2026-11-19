@@ -3,6 +3,26 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.89.0] — 2026-11-19
+
+The app can connect to a SQL Server outside Azure — a local SQL Server 2025
+Express instance for development, and later the personal server. Production
+on Azure is unchanged. No schema or dependency changes.
+
+### Added
+- **SQL login option for the main database pool** (`lib/sql.js`). Set
+  `SQL_AUTH=sql` with `SQL_USER` and `SQL_PASSWORD` to use a SQL login instead
+  of Azure auth. Unset (the default), it behaves exactly as before: managed
+  identity on App Service, `DefaultAzureCredential` locally.
+- **`SQL_INSTANCE`** for a named instance (e.g. `SQLEXPRESS`); the port is then
+  resolved by the SQL Server Browser service.
+- **`SQL_TRUST_SERVER_CERT=1`** accepts the self-signed certificate a fresh
+  local SQL Server uses, and **`SQL_ENCRYPT=0`** turns encryption off. Both
+  apply to the main and demo pools; the defaults (encrypted, certificate
+  verified) are what Azure requires.
+- `docs/DEVELOPMENT.md` has a "Local SQL Server" section: install, TCP/IP,
+  contained users, bacpac export/import, app login and `.env` settings.
+
 ## [2.88.1] — 2026-11-19
 
 Security fix. No schema, route-list or dependency changes.

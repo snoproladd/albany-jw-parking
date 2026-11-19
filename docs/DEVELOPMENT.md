@@ -72,6 +72,15 @@ AZSQLServer=your-server.database.windows.net
 AZSQLDb=your-database-name
 AZSQLPort=1433
 
+# SQL login instead of Azure auth — for a server outside Azure, such as a
+# local SQL Server 2025 Express copy (see "Local SQL Server" below).
+# Leave SQL_AUTH unset to use Azure auth (the default).
+# SQL_AUTH=sql
+# SQL_USER=parking_dev
+# SQL_PASSWORD=your-local-password
+# SQL_INSTANCE=SQLEXPRESS        # only if not listening on a fixed port
+# SQL_TRUST_SERVER_CERT=1        # accept a local server's self-signed certificate
+
 # Session
 SESSION_SECRET=a-long-random-string
 
@@ -116,6 +125,58 @@ AzureOpenAIDeployment=gpt-4o
 
 > **Note:** `IONOS_SMTP_USER` (used in some legacy paths) is the same value
 > as `IONOS_SMTP_USER_INFO`. Both are referenced in different route contexts.
+
+---
+
+## Local SQL Server (branch work)
+
+The `multi-department` branch must never run migrations against the Azure
+database, so it uses a local SQL Server 2025 Express copy — the same edition
+planned for the personal server.
+
+1. **Install SQL Server 2025 Express.** Choose *Mixed Mode* authentication (SQL
+   logins plus Windows), or turn it on afterwards in SSMS → Server Properties →
+   Security and restart the service.
+2. **Turn on TCP/IP.** In SQL Server Configuration Manager, enable TCP/IP and set
+   *IPAll → TCP Port* to `1433`, then restart the service. (Or skip the fixed
+   port, run the SQL Server Browser service and set `SQL_INSTANCE=SQLEXPRESS`.)
+3. **Allow contained users** — the demo login is a contained database user:
+
+   ```sql
+   EXEC sp_configure 'contained database authentication', 1;
+   RECONFIGURE;
+   ```
+
+4. **Export the Azure database** to a `.bacpac` (Azure portal → database →
+   Export, or SqlPackage):
+
+   ```bash
+   SqlPackage /Action:Export /SourceServerName:<server>.database.windows.net /SourceDatabaseName:<database> /UniversalAuthentication:True /TargetFile:parking.bacpac
+   ```
+
+5. **Import it locally** (Windows authentication):
+
+   ```bash
+   SqlPackage /Action:Import /SourceFile:parking.bacpac /TargetServerName:localhost /TargetDatabaseName:<database> /TargetTrustServerCertificate:True
+   ```
+
+   This brings both the `dbo` and `demo` schemas. If the import stops on a user
+   created `FROM EXTERNAL PROVIDER` (Entra / managed-identity users exist only in
+   Azure), those users have to be removed from the bacpac before importing.
+
+6. **Create a login for the app** (development only; `db_owner` lets migrations run):
+
+   ```sql
+   CREATE LOGIN parking_dev WITH PASSWORD = 'your-local-password';
+   USE [<database>];
+   CREATE USER parking_dev FOR LOGIN parking_dev;
+   ALTER ROLE db_owner ADD MEMBER parking_dev;
+   ```
+
+7. **Point `.env` at it:** `AZSQLServer=localhost`, the local database name,
+   `SQL_AUTH=sql`, `SQL_USER`, `SQL_PASSWORD` and `SQL_TRUST_SERVER_CERT=1`.
+   Remove those lines (or switch branches with a separate `.env`) to go back to
+   Azure.
 
 ---
 
