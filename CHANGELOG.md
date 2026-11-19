@@ -3,6 +3,30 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.87.1] — 2026-11-19
+
+Mailer pooling and missing scheduler styles. No schema, route or dependency
+changes.
+
+### Changed
+- **Email sends reuse one pooled SMTP transporter** (`getMailTransporter` in
+  `lib/messaging.js`) instead of building a new connection per message, so
+  Campaign Center bursts connect and authenticate once. The transporter is
+  rebuilt when the SMTP settings change, and the SMTP watchdog now resets it
+  on a failed check (`resetMailTransporter`), as it already did for Twilio.
+
+### Fixed
+- **Scheduling constraint panel was unstyled.** The `sched-constraint-*`
+  classes used by `schedulerConstraintPanel.js` are now defined in
+  `scheduler.css`.
+- **Pending-constraint badge on pool pills was unstyled**
+  (`.pill-constraint-badge`).
+
+### Security
+- **The mailer no longer logs part of the SMTP password.** It used to log the
+  password's length and first three characters on every send; it now logs
+  host, port and user once, when the transporter is created.
+
 ## [2.87.0] — 2026-11-19
 
 Convention years. The app now knows which convention year is active, starts

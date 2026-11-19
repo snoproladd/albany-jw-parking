@@ -47,7 +47,7 @@ import { countsRouter } from "./routes/countsRoutes.js";
 import { systemVariablesRouter } from "./routes/systemVariablesRoutes.js";
 import { capacityAlertRouter } from "./routes/capacityAlertRoutes.js";
 import { lessonsLearnedRouter } from "./routes/lessonsLearnedRoutes.js";
-import { getBaseUrl, resetSmsClient } from "./lib/messaging.js";
+import { getBaseUrl, resetSmsClient, resetMailTransporter } from "./lib/messaging.js";
 import { startAlertScheduler } from "./lib/alertScheduler.js";
 import { startMapsSyncInterval } from "./lib/mapsSync.js";
 import { initRvTokenSecret, verifyRvToken } from "./lib/rvToken.js";
@@ -220,7 +220,11 @@ function startExternalServiceWatchdog() {
         await transporter.verify();
         log("Watchdog: SMTP OK.");
       } catch (err) {
-        logError("Watchdog: SMTP check failed:", err.message);
+        logError(
+          "Watchdog: SMTP check failed — resetting transporter:",
+          err.message,
+        );
+        resetMailTransporter();
       } finally {
         transporter?.close?.();
       }
