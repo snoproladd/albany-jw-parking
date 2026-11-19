@@ -33,7 +33,30 @@ Schema highlights:
   and `response_other` (free-text "Other" input for dynamic RSVP)
 - `invitation_batches` — campaign metadata; `response_config` (JSON, nullable)
   stores dynamic RSVP configuration (type, options, allowOther, question)
+  - `is_recruitment BIT DEFAULT 0` — Yes / Maybe replies put the volunteer on
+    that year's Decently export
+- `convention_years` — one row per year: `year` PK, `status`
+  (`active` | `closed`), `first_date`, `last_date`, `started_by`,
+  `started_at`, `closed_by`, `closed_at`. A filtered unique index on
+  `status = 'active'` allows one active year. Read through
+  `lib/conventionYear.js` (`getActiveYear()`); written by
+  `startConventionYear()` in one transaction.
+- `volunteer_year_status` — per-volunteer snapshot taken when a year closes.
+  PK `(volunteer_id, year)`; `was_active`, `recruitment_response`,
+  `response_other`, `response_batch_id`, `responded_at`,
+  `decently_exported_at`, `decently_imported_at`, `was_disapproved`,
+  `snapshot_at`.
+- `volunteer_in` year columns
+  - `registration_completed_at DATETIME2(0)` — first time registration was
+    completed; decides whether a volunteer with no recruitment reply joined
+    during the year (Decently export)
+  - `disapproved_year INT`, `disapproved_by`, `disapproved_at` — "not
+    approved for parking" for that year; keeps the volunteer inactive
+    whatever Decently imports or recruitment replies say. Cleared when the
+    volunteer is reactivated.
 - `convention_days → sessions → shifts` — scheduling hierarchy
+  - `convention_days.program_start / program_end` are nullable: days created
+    by the year rollover have no times until they are set in Timelines.
   - `shifts.is_meeting BIT` — crew-agnostic meeting shift; no category,
     no schedule assignments. Appears in a dedicated Meetings column in the
     Scheduler and uses `MT` SMS code prefix. T-15 alerts broadcast to all

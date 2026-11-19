@@ -30,7 +30,7 @@ function buildDecentlyExportTour() {
     steps.push({
         id: "de-welcome",
         title: "Decently Export",
-        text: "Generates a CSV of volunteers who haven't been sent to Decently yet, for the ongoing sync between this app and Decently's registration system.",
+        text: "Generates a CSV of volunteers to send to Decently this convention year. Everyone goes through Decently again each year. A volunteer is included when their latest reply to one of this year's <strong>recruitment campaigns</strong> is Yes or Maybe, or when they have no reply and joined this year (walk-up or entered by oversight). A No, or <strong>Not approved for parking</strong>, leaves them out.",
         buttons: null,
     });
 

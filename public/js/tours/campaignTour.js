@@ -26,6 +26,8 @@ function buildCampaignTour() {
     const hasBatches    = !!document.getElementById('mcModeAddTo') &&
                           !document.getElementById('mcModeAddTo').disabled;
     const hasEventDays  = !!document.getElementById('mcEventDay');
+    // Hidden in Add to Existing mode — only show the step when visible.
+    const hasRecruit    = !!document.getElementById('mcIsRecruitment')?.offsetParent;
 
     const steps = [];
 
@@ -98,6 +100,16 @@ function buildCampaignTour() {
             title: 'Link to an event',
             text: 'Optionally link this campaign to a convention day and shift. This populates the merge fields like <strong>{shiftDate}</strong>, <strong>{shiftStart}</strong>, and <strong>{locationName}</strong> with real data when messages are sent.',
             attachTo: { element: '#mcEventPickerWrap', on: 'top' },
+            buttons: null,
+        });
+    }
+
+    if (hasRecruit) {
+        steps.push({
+            id: 'mc-recruitment',
+            title: 'Recruitment campaign',
+            text: 'Check this when the campaign asks volunteers whether they\'ll serve this year (it needs <strong>Response needed</strong> on). Yes and Maybe replies put the volunteer on this year\'s Decently export; Maybes stay off scheduling lists until they reply Yes.',
+            attachTo: { element: '#mcIsRecruitment', on: 'right' },
             buttons: null,
         });
     }

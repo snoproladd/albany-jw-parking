@@ -61,7 +61,7 @@ function buildFullTour() {
   tour.addStep({
     id: "status",
     title: "Activate or deactivate",
-    text: "Open the <strong>Status</strong> section to toggle whether this volunteer is active for the current year. A volunteer must be active before they can appear in scheduling or receive campaign messages.",
+    text: "Open the <strong>Status</strong> section to toggle whether this volunteer is active for the current year. A volunteer must be active before they can appear in scheduling or receive campaign messages. The same section has <strong>Mark not approved for parking</strong>, for someone Decently approved who doesn't meet parking's standard — it keeps them inactive for this convention year.",
     attachTo: {
       element: 'button[data-bs-target="#collapseStatus"]',
       on: "bottom",

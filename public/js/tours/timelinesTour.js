@@ -163,7 +163,7 @@ function buildTimelinesDaysTour() {
     tour.addStep({
         id: 'tl-year',
         title: 'Convention year',
-        text: 'All days, sessions, and shifts are tied to this year. Confirm the correct year is selected before adding anything.',
+        text: 'All days, sessions, and shifts are tied to this year. Days created when a new convention year starts have dates but no program times yet — set them here. Earlier years open read-only, for reference.',
         attachTo: { element: '#yearPicker', on: 'bottom' },
         buttons: navButtons(tour),
     });

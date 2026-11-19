@@ -31,7 +31,7 @@ function buildDecentlyImportTour() {
     steps.push({
         id: "di-welcome",
         title: "Decently Import",
-        text: "Uploads an approved volunteer CSV from Decently and syncs it against this app's records — matching by name, email, and phone, then setting active/inactive status accordingly.",
+        text: "Uploads an approved volunteer CSV from Decently and syncs it against this app's records — matching by name, email, and phone, then setting active/inactive status accordingly. Volunteers who replied <strong>Maybe</strong> to recruitment, or are marked <strong>Not approved for parking</strong>, are approved but kept inactive.",
         buttons: null,
     });
 
@@ -55,7 +55,7 @@ function buildDecentlyImportTour() {
         steps.push({
             id: "di-matched",
             title: "Exact Matches",
-            text: "CSV rows that matched a database volunteer with high confidence. These will be marked active and logged as imported once you apply.",
+            text: "CSV rows that matched a database volunteer with high confidence. These will be marked approved and active once you apply — except Maybes (held until they reply Yes) and anyone marked Not approved for parking.",
             attachTo: { element: "#matchedSection", on: "top" },
             buttons: null,
         });
@@ -71,7 +71,7 @@ function buildDecentlyImportTour() {
         steps.push({
             id: "di-inactive",
             title: "Not in CSV",
-            text: "Volunteers in the database who didn't appear anywhere in the uploaded CSV — these get marked inactive for the current year when you apply.",
+            text: "Volunteers in the database who didn't appear anywhere in the uploaded CSV — Decently dropped them. When you apply they're marked inactive and lose their Decently approval, so a later Yes to recruitment won't reactivate them.",
             attachTo: { element: "#inactiveSection", on: "top" },
             buttons: null,
         });
@@ -87,7 +87,7 @@ function buildDecentlyImportTour() {
         steps.push({
             id: "di-apply",
             title: "Apply Import",
-            text: "Commits everything above in one batch — exact and confirmed fuzzy matches go active, unmatched database volunteers go inactive. This is the one step that actually writes to the database.",
+            text: "Commits everything above in one batch — exact and confirmed fuzzy matches are approved and go active (held Maybes and not-approved volunteers stay inactive), and volunteers not in the CSV go inactive. The result shows how many were held. This is the one step that actually writes to the database.",
             attachTo: { element: "#applyBtn", on: "top" },
             buttons: null,
         });
@@ -103,7 +103,7 @@ function buildDecentlyImportTour() {
     steps.push({
         id: "di-followup",
         title: "After applying",
-        text: "If any CSV rows had no match, a modal offers to create accounts for them — email and phone get validated first, with invalid rows flagged. Once accounts are created, a second modal lets you send each new volunteer a welcome link to set their password.",
+        text: "If any CSV rows had no match, a modal offers to create accounts for them — email and phone get validated first, with invalid rows flagged. New accounts are marked approved and active straight away. Once they're created, a second modal lets you send each new volunteer a welcome link to set their password.",
         buttons: null,
     });
 

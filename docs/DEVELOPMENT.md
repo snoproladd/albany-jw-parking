@@ -53,7 +53,11 @@ automatically based on hostname. Outbound email and SMS are suppressed in demo c
 Demo credentials are displayed on the demo login page.
 
 To re-seed demo data: `node scripts/seedDemo.js`
-To anonymize names/places in the demo DB: run `scripts/anonymizeDemo.sql`
+To preview what the seed will clear first: `node scripts/seedDemo.js --plan`
+
+The seed's volunteer roster is fictional (made-up names, shifted birth dates).
+It seeds the current calendar year, or `DEMO_YEAR` if set, and moves the
+dates to the same weekdays.
 
 ---
 
@@ -101,6 +105,10 @@ DEMO_HOSTNAME=parking-demo.local   # or demo.albanyjwparking.org in production
 AzureOpenAIEndpoint=https://<your-openai-resource>.openai.azure.com/
 AzureOpenAIKey=your-key
 AzureOpenAIDeployment=gpt-4o
+
+# SharePoint folder for published files (optional). {year} becomes the
+# active convention year. Default:
+# GRAPH_FOLDER_PATH={year} Convention Parking/Documents for Distribution
 
 # Azure Key Vault (set automatically by set-local-env.js)
 # AZURE_KEY_VAULT_URL=https://<your-key-vault>.vault.azure.net/

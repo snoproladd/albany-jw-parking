@@ -123,7 +123,7 @@ function buildInvitationTrackerTour() {
     steps.push({
       id: "it-edit-campaign",
       title: "Edit campaign",
-      text: "The pencil icon opens a modal to rename the campaign, edit its saved message, change its parent link, toggle <strong>Response needed</strong>, or deactivate it. Admin only.",
+      text: "The pencil icon opens a modal to rename the campaign, edit its saved message, change its parent link, toggle <strong>Response needed</strong> or <strong>Recruitment campaign</strong>, or deactivate it. Admin only.",
       attachTo: { element: "#itEditCampaignBtn", on: "left" },
       buttons: null,
     });

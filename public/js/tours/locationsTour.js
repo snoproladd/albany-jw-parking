@@ -69,7 +69,7 @@ function buildLocationsTour() {
     steps.push({
         id: 'loc-year',
         title: 'Convention year',
-        text: 'Locations are year-specific. Changing the year shows only locations defined for that year — you\'ll need to add locations again for a new year, or copy them manually.',
+        text: 'Locations are year-specific. When a new convention year starts, an admin can bring the previous year\'s locations forward with their sub-locations and capacity alert rules. Earlier years open read-only, for reference.',
         attachTo: { element: '#yearPicker', on: 'bottom' },
         buttons: null,
     });

@@ -47,6 +47,8 @@ permission matrix, so access rules can be adjusted without a deploy.
 | Capacity | Phone-first tally UI with heartbeat and offline persistence, edge-triggered threshold alerts, stacked-area capacity charts |
 | Rendezvous | Per-shift meeting points with GPS and photo, appended to shift alert SMS, public HMAC-gated detail pages |
 | Reporting | Conflict grid, slot fill rate, crew attendance, contact directory, garage capacity, lessons-learned PDF workflow |
+| Convention years | Dated prompt to start the next year, carry-forward of locations, shift structure and signs, read-only past-year views, per-year SharePoint folder |
+| Recruitment | Recruitment campaigns feed a yearly Decently export; held Maybes; per-year "not approved for parking" mark |
 | Onboarding | Shepherd.js guided tours across 34 pages with per-user dismissal tracking |
 
 ### AI Features
@@ -117,6 +119,15 @@ NON_REGISTERED → COUNTER → REGISTERED → DESK → KEYMAN → OVERSEER → A
 Defaults live in `src/config/roles.js`; an ADMIN-only permission matrix editor
 writes deltas to the database. Individual permissions can also be delegated to
 a single volunteer without a role promotion.
+
+**Convention-year rollover in one transaction.** The active year lives in
+`convention_years`. Starting the next year is a single T-SQL batch
+(`XACT_ABORT ON`): it snapshots every volunteer's year into
+`volunteer_year_status`, resets them to inactive, closes the old year, and
+copies locations, sessions, shifts and assignments onto the new dates, using
+`MERGE … OUTPUT` to map old IDs to new ones. Closed years stay viewable but
+read-only: a route-to-record lookup in `closedYearGuard` blocks writes to any
+record that belongs to a closed year.
 
 **Connection resilience.** Azure kills idle SQL connections at roughly four
 minutes. The pool keeps a three-minute keep-alive ping, detects stale pools via

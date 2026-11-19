@@ -3,7 +3,7 @@
  * @description
  *   Seeds the demo schema with data mirroring the real dbo structure:
  *   real event types, real Riverdale Arena / OGS Garage locations, real
- *   session / shift layout, full volunteer roster (anonymized emails),
+ *   session / shift layout, a full-size volunteer roster (fictional names),
  *   and correct oversight structure.
  *
  *   Safe to re-run — clears all demo tables before inserting.
@@ -18,12 +18,12 @@
  *   DEMO_DB_PASSWORD                 - password set in setupDemoSchema scripts
  *
  * Named login accounts (password: Demo@2026!):
- *   admin@demo.com          ADMIN           (mirrors Jacob Ladd)
- *   asstadmin@demo.com      ASSISTANT_ADMIN (mirrors Danny Munoz)
- *   overseer@demo.com       OVERSEER        (mirrors Ryan Fagan)
- *   keyman@demo.com         KEYMAN          (mirrors Matthew Kyarsgaard)
- *   desk@demo.com           DESK            (mirrors Jason Ladd)
- *   volunteer@demo.com      REGISTERED      (mirrors Winston Austin)
+ *   admin@demo.com          ADMIN           (mirrors Barrett Bainbridge)
+ *   asstadmin@demo.com      ASSISTANT_ADMIN (mirrors Arlo Wakefield)
+ *   overseer@demo.com       OVERSEER        (mirrors Tristan Hawthorne)
+ *   keyman@demo.com         KEYMAN          (mirrors Carson Barlowe)
+ *   desk@demo.com           DESK            (mirrors Ross Bainbridge)
+ *   volunteer@demo.com      REGISTERED      (mirrors Rufus Thackeray)
  */
 
 import sql from "mssql";
@@ -104,8 +104,38 @@ const poolConfig = {
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-const YEAR = 2026;
+/**
+ * Year the seed data was captured in. CONVENTION_DAYS dates below are
+ * written in this year and moved to YEAR by shiftToYear().
+ */
+const SOURCE_YEAR = 2026;
+
+/**
+ * Convention year the demo is seeded as: the current year, so the demo
+ * always looks current (override with DEMO_YEAR=2027 etc.).
+ */
+const YEAR = Number(process.env.DEMO_YEAR) || new Date().getUTCFullYear();
+
 const DEMO_PASS_PW = "Demo@2026!";
+
+/**
+ * Move a SOURCE_YEAR date ("YYYY-MM-DD") into YEAR, keeping its weekday:
+ * same month/day in YEAR, then nudged to the nearest same weekday (±3 days).
+ * Fri Jul 3 2026 → Fri Jul 2 2027.
+ *
+ * @param {string} iso
+ * @returns {string} "YYYY-MM-DD"
+ */
+function shiftToYear(iso) {
+  const [, m, d] = iso.split("-").map(Number);
+  const src = new Date(Date.UTC(SOURCE_YEAR, m - 1, d));
+  const dst = new Date(Date.UTC(YEAR, m - 1, d));
+  let delta = src.getUTCDay() - dst.getUTCDay();
+  if (delta > 3) delta -= 7;
+  if (delta < -3) delta += 7;
+  dst.setUTCDate(dst.getUTCDate() + delta);
+  return dst.toISOString().slice(0, 10);
+}
 
 // Volunteers whose original dbo IDs map to named demo login accounts
 const NAMED_EMAIL_MAP = {
@@ -1262,15 +1292,16 @@ const HIERARCHY = [
   },
 ];
 
-// Real volunteer roster from dbo — emails anonymized, all data preserved
+// Volunteer roster shaped like dbo (roles, flags, congregations, stamina),
+// with fictional names and shifted birth dates — no real people.
 const VOLUNTEERS = [
   {
     oldId: 232,
-    firstName: "Brian",
-    lastName: "Alling",
+    firstName: "Oakley",
+    lastName: "Lockhart",
     suffix: null,
     gender: "male",
-    dob: "1974-07-06",
+    dob: "1974-03-30",
     stamina: 3,
     role: null,
     accountType: "non-registered",
@@ -1293,11 +1324,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 137,
-    firstName: "Winston",
-    lastName: "Austin",
+    firstName: "Rufus",
+    lastName: "Thackeray",
     suffix: null,
     gender: "male",
-    dob: "1998-08-26",
+    dob: "1998-07-22",
     stamina: 3,
     role: "REGISTERED",
     accountType: "registered",
@@ -1320,11 +1351,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 83,
-    firstName: "Collin",
-    lastName: "Begnoche",
+    firstName: "Finn",
+    lastName: "Harrowgate",
     suffix: null,
     gender: "male",
-    dob: "1998-02-08",
+    dob: "1998-01-18",
     stamina: 5,
     role: "REGISTERED",
     accountType: "registered",
@@ -1347,11 +1378,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 112,
-    firstName: "Jeremy",
-    lastName: "Boshart",
+    firstName: "Vaughn",
+    lastName: "Southwell",
     suffix: null,
     gender: "male",
-    dob: "1969-02-13",
+    dob: "1969-04-14",
     stamina: 5,
     role: "REGISTERED",
     accountType: "registered",
@@ -1374,11 +1405,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 199,
-    firstName: "Jeff",
-    lastName: "Brownell",
+    firstName: "Harlan",
+    lastName: "Mansfield",
     suffix: null,
     gender: "male",
-    dob: "1965-05-01",
+    dob: "1965-01-15",
     stamina: 4,
     role: "REGISTERED",
     accountType: "registered",
@@ -1401,11 +1432,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 168,
-    firstName: "Sean",
-    lastName: "Chrysler",
+    firstName: "Ian",
+    lastName: "Sandford",
     suffix: null,
     gender: "male",
-    dob: "1976-08-14",
+    dob: "1976-03-24",
     stamina: 4,
     role: "REGISTERED",
     accountType: "registered",
@@ -1428,11 +1459,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 117,
-    firstName: "Justin",
-    lastName: "Cook",
+    firstName: "Fabian",
+    lastName: "Redmond",
     suffix: null,
     gender: "male",
-    dob: "1982-05-13",
+    dob: "1982-08-09",
     stamina: 4,
     role: "REGISTERED",
     accountType: "registered",
@@ -1455,11 +1486,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 84,
-    firstName: "John",
-    lastName: "Crankshaw",
+    firstName: "Gideon",
+    lastName: "Farnsworth",
     suffix: null,
     gender: "male",
-    dob: "1973-08-02",
+    dob: "1973-03-25",
     stamina: 4,
     role: "OVERSEER",
     accountType: "registered",
@@ -1482,11 +1513,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 134,
-    firstName: "Lucas",
-    lastName: "Cunningham",
+    firstName: "Pierce",
+    lastName: "Lowell",
     suffix: null,
     gender: "male",
-    dob: "1985-04-24",
+    dob: "1985-02-04",
     stamina: 4,
     role: "REGISTERED",
     accountType: "registered",
@@ -1509,11 +1540,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 89,
-    firstName: "Rick",
-    lastName: "Davis",
+    firstName: "Lachlan",
+    lastName: "Thornbury",
     suffix: null,
     gender: "male",
-    dob: "1969-03-14",
+    dob: "1968-10-21",
     stamina: 4,
     role: "REGISTERED",
     accountType: "registered",
@@ -1536,11 +1567,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 115,
-    firstName: "Logan",
-    lastName: "Detrick",
+    firstName: "Damon",
+    lastName: "Brightman",
     suffix: null,
     gender: "male",
-    dob: "2002-10-16",
+    dob: "2002-12-11",
     stamina: 5,
     role: "REGISTERED",
     accountType: "registered",
@@ -1563,11 +1594,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 114,
-    firstName: "Lee",
-    lastName: "Duprey",
+    firstName: "Yates",
+    lastName: "Quimby",
     suffix: null,
     gender: "male",
-    dob: "1957-05-15",
+    dob: "1957-10-10",
     stamina: 4,
     role: "REGISTERED",
     accountType: "registered",
@@ -1590,11 +1621,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 119,
-    firstName: "Moses",
-    lastName: "Duprey",
+    firstName: "Julian",
+    lastName: "Quimby",
     suffix: null,
     gender: "male",
-    dob: "1988-06-29",
+    dob: "1988-05-18",
     stamina: 4,
     role: "REGISTERED",
     accountType: "registered",
@@ -1617,11 +1648,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 121,
-    firstName: "Collin",
-    lastName: "Erhardt",
+    firstName: "Alden",
+    lastName: "Garland",
     suffix: null,
     gender: "male",
-    dob: "2005-06-26",
+    dob: "2005-07-04",
     stamina: 5,
     role: "REGISTERED",
     accountType: "registered",
@@ -1644,11 +1675,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 214,
-    firstName: "Osvaldo",
-    lastName: "Estrada",
+    firstName: "Silas",
+    lastName: "Coldwell",
     suffix: null,
     gender: "male",
-    dob: "1976-09-02",
+    dob: "1977-01-22",
     stamina: 2,
     role: "REGISTERED",
     accountType: "non-registered",
@@ -1671,11 +1702,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 178,
-    firstName: "Noah",
-    lastName: "Ewbank",
+    firstName: "Orson",
+    lastName: "Claymore",
     suffix: null,
     gender: "male",
-    dob: "2004-12-27",
+    dob: "2004-12-15",
     stamina: 5,
     role: "REGISTERED",
     accountType: "registered",
@@ -1698,11 +1729,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 211,
-    firstName: "Jeff",
-    lastName: "Fagan",
+    firstName: "Sutton",
+    lastName: "Hawthorne",
     suffix: null,
     gender: "male",
-    dob: "1982-07-30",
+    dob: "1982-11-29",
     stamina: 4,
     role: "REGISTERED",
     accountType: "registered",
@@ -1725,11 +1756,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 81,
-    firstName: "Ryan",
-    lastName: "Fagan",
+    firstName: "Tristan",
+    lastName: "Hawthorne",
     suffix: null,
     gender: "male",
-    dob: "1974-02-01",
+    dob: "1974-03-27",
     stamina: 5,
     role: "OVERSEER",
     accountType: "registered",
@@ -1752,11 +1783,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 233,
-    firstName: "Stephen",
-    lastName: "Finch",
+    firstName: "Wyatt",
+    lastName: "Ainsworth",
     suffix: null,
     gender: "male",
-    dob: "1967-06-23",
+    dob: "1967-03-28",
     stamina: 2,
     role: null,
     accountType: "non-registered",
@@ -1779,11 +1810,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 241,
-    firstName: "Zachary",
-    lastName: "Folts",
+    firstName: "Lorenzo",
+    lastName: "Rutherford",
     suffix: null,
     gender: "male",
-    dob: "1988-10-25",
+    dob: "1988-07-09",
     stamina: 5,
     role: null,
     accountType: "registered",
@@ -1806,11 +1837,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 176,
-    firstName: "Vahe",
-    lastName: "Garabedian",
+    firstName: "Reid",
+    lastName: "Kingsley",
     suffix: null,
     gender: "male",
-    dob: "1962-01-01",
+    dob: "1962-05-10",
     stamina: 4,
     role: "REGISTERED",
     accountType: "registered",
@@ -1833,11 +1864,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 122,
-    firstName: "Elijah",
-    lastName: "Garcia",
+    firstName: "Corbin",
+    lastName: "Marlowe",
     suffix: null,
     gender: "male",
-    dob: "2005-11-19",
+    dob: "2006-01-21",
     stamina: 4,
     role: "REGISTERED",
     accountType: "registered",
@@ -1860,11 +1891,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 206,
-    firstName: "Tom",
-    lastName: "Gifford",
+    firstName: "Archer",
+    lastName: "Cobbett",
     suffix: null,
     gender: "male",
-    dob: "1961-04-29",
+    dob: "1961-04-07",
     stamina: 3,
     role: "REGISTERED",
     accountType: "registered",
@@ -1887,11 +1918,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 193,
-    firstName: "Jayson",
-    lastName: "Glover",
+    firstName: "Zane",
+    lastName: "Holbrook",
     suffix: null,
     gender: "male",
-    dob: "1981-01-08",
+    dob: "1980-09-14",
     stamina: 2,
     role: "REGISTERED",
     accountType: "registered",
@@ -1914,11 +1945,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 215,
-    firstName: "Bobby",
-    lastName: "Guaschino",
+    firstName: "Weston",
+    lastName: "Ingram",
     suffix: null,
     gender: "male",
-    dob: "1984-02-27",
+    dob: "1984-01-09",
     stamina: 4,
     role: "REGISTERED",
     accountType: "non-registered",
@@ -1941,11 +1972,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 230,
-    firstName: "Shane",
-    lastName: "Gulotta",
+    firstName: "Tate",
+    lastName: "Hastings",
     suffix: null,
     gender: "male",
-    dob: "1973-05-09",
+    dob: "1973-06-25",
     stamina: 5,
     role: "REGISTERED",
     accountType: "non-registered",
@@ -1968,11 +1999,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 167,
-    firstName: "Daniel",
-    lastName: "Hart",
+    firstName: "Marshall",
+    lastName: "Halston",
     suffix: null,
     gender: "male",
-    dob: "1985-10-16",
+    dob: "1986-02-14",
     stamina: 5,
     role: "REGISTERED",
     accountType: "registered",
@@ -1995,11 +2026,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 238,
-    firstName: "Matthew",
-    lastName: "Hebert",
+    firstName: "Jensen",
+    lastName: "Blakemore",
     suffix: null,
     gender: "male",
-    dob: "2006-04-05",
+    dob: "2006-08-21",
     stamina: 4,
     role: null,
     accountType: "non-registered",
@@ -2022,11 +2053,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 82,
-    firstName: "Scott",
-    lastName: "Holmes",
+    firstName: "Dashiell",
+    lastName: "Carrington",
     suffix: null,
     gender: "male",
-    dob: "1995-06-10",
+    dob: "1995-06-20",
     stamina: 5,
     role: "OVERSEER",
     accountType: "registered",
@@ -2049,11 +2080,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 131,
-    firstName: "Rohit",
-    lastName: "Kanchan",
+    firstName: "Stellan",
+    lastName: "Edgerton",
     suffix: null,
     gender: "male",
-    dob: "1990-01-01",
+    dob: "1989-11-11",
     stamina: 4,
     role: "REGISTERED",
     accountType: "registered",
@@ -2076,11 +2107,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 231,
-    firstName: "Rockiem",
-    lastName: "Kennedy",
+    firstName: "Quinn",
+    lastName: "Northcott",
     suffix: null,
     gender: "male",
-    dob: "1986-10-29",
+    dob: "1986-08-14",
     stamina: 2,
     role: null,
     accountType: "registered",
@@ -2103,11 +2134,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 138,
-    firstName: "Shane",
-    lastName: "King",
+    firstName: "Thaddeus",
+    lastName: "Oakhurst",
     suffix: null,
     gender: "male",
-    dob: "1992-12-08",
+    dob: "1992-08-23",
     stamina: 3,
     role: "REGISTERED",
     accountType: "registered",
@@ -2130,11 +2161,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 208,
-    firstName: "Matthew",
-    lastName: "Kirk",
+    firstName: "Atticus",
+    lastName: "Chadwick",
     suffix: null,
     gender: "male",
-    dob: "1996-07-07",
+    dob: "1996-05-05",
     stamina: 5,
     role: "REGISTERED",
     accountType: "registered",
@@ -2157,11 +2188,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 198,
-    firstName: "Nicholas",
-    lastName: "Kirk",
+    firstName: "Soren",
+    lastName: "Chadwick",
     suffix: null,
     gender: "male",
-    dob: "1984-05-22",
+    dob: "1984-06-11",
     stamina: 5,
     role: "REGISTERED",
     accountType: "registered",
@@ -2184,11 +2215,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 88,
-    firstName: "Matthew",
-    lastName: "Kyarsgaard",
+    firstName: "Carson",
+    lastName: "Barlowe",
     suffix: null,
     gender: "male",
-    dob: "1968-04-11",
+    dob: "1968-06-13",
     stamina: 3,
     role: "KEYMAN",
     accountType: "non-registered",
@@ -2211,11 +2242,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 80,
-    firstName: "Jacob",
-    lastName: "Ladd",
+    firstName: "Barrett",
+    lastName: "Bainbridge",
     suffix: null,
     gender: "male",
-    dob: "1983-09-19",
+    dob: "1983-11-02",
     stamina: 5,
     role: "ADMIN",
     accountType: "registered",
@@ -2238,11 +2269,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 237,
-    firstName: "Jason",
-    lastName: "Ladd",
+    firstName: "Ross",
+    lastName: "Bainbridge",
     suffix: null,
     gender: "male",
-    dob: "1983-09-19",
+    dob: "1983-06-29",
     stamina: 5,
     role: "DESK",
     accountType: "registered",
@@ -2265,11 +2296,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 203,
-    firstName: "Earl",
-    lastName: "Lamphear",
+    firstName: "Ezra",
+    lastName: "Dalrymple",
     suffix: null,
     gender: "male",
-    dob: "1983-06-04",
+    dob: "1983-01-29",
     stamina: 4,
     role: "REGISTERED",
     accountType: "registered",
@@ -2292,11 +2323,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 227,
-    firstName: "Jude",
-    lastName: "Leight",
+    firstName: "Dalton",
+    lastName: "Gilchrist",
     suffix: null,
     gender: "male",
-    dob: "2006-11-12",
+    dob: "2006-09-16",
     stamina: 5,
     role: "REGISTERED",
     accountType: "non-registered",
@@ -2319,11 +2350,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 133,
-    firstName: "Cody",
-    lastName: "Lowry",
+    firstName: "Beckett",
+    lastName: "Fenwick",
     suffix: null,
     gender: "male",
-    dob: "1992-12-21",
+    dob: "1992-07-30",
     stamina: 4,
     role: "REGISTERED",
     accountType: "registered",
@@ -2346,11 +2377,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 132,
-    firstName: "Mirko",
-    lastName: "Manrique",
+    firstName: "Hale",
+    lastName: "Birchall",
     suffix: null,
     gender: "male",
-    dob: "2003-05-27",
+    dob: "2003-10-17",
     stamina: 4,
     role: "REGISTERED",
     accountType: "registered",
@@ -2373,11 +2404,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 116,
-    firstName: "Mirko",
-    lastName: "Manrique Fong",
+    firstName: "Crispin",
+    lastName: "Mayfield",
     suffix: null,
     gender: "male",
-    dob: "1969-10-05",
+    dob: "1969-12-19",
     stamina: 5,
     role: "REGISTERED",
     accountType: "registered",
@@ -2400,11 +2431,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 192,
-    firstName: "Cameron",
-    lastName: "McKee",
+    firstName: "Forrest",
+    lastName: "Fitzgerald",
     suffix: null,
     gender: "male",
-    dob: "1994-03-01",
+    dob: "1994-06-16",
     stamina: 5,
     role: "REGISTERED",
     accountType: "registered",
@@ -2427,11 +2458,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 207,
-    firstName: "Thomas",
-    lastName: "Mogensen",
+    firstName: "Leo",
+    lastName: "Westbrook",
     suffix: null,
     gender: "male",
-    dob: "1999-03-13",
+    dob: "1999-04-01",
     stamina: 4,
     role: "REGISTERED",
     accountType: "non-registered",
@@ -2454,11 +2485,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 195,
-    firstName: "Danny",
-    lastName: "Munoz",
+    firstName: "Arlo",
+    lastName: "Wakefield",
     suffix: null,
     gender: "male",
-    dob: "1978-01-08",
+    dob: "1977-11-21",
     stamina: 4,
     role: "ASSISTANT_ADMIN",
     accountType: "registered",
@@ -2481,11 +2512,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 163,
-    firstName: "Amos",
-    lastName: "Page",
+    firstName: "Chase",
+    lastName: "Vance",
     suffix: "Jr",
     gender: "male",
-    dob: "1966-06-03",
+    dob: "1966-04-02",
     stamina: 4,
     role: "REGISTERED",
     accountType: "registered",
@@ -2508,11 +2539,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 169,
-    firstName: "Bryce",
-    lastName: "Parker",
+    firstName: "Bram",
+    lastName: "Granger",
     suffix: null,
     gender: "male",
-    dob: "2000-06-13",
+    dob: "2000-06-09",
     stamina: 4,
     role: "REGISTERED",
     accountType: "registered",
@@ -2535,11 +2566,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 197,
-    firstName: "Reese",
-    lastName: "Parker",
+    firstName: "Jasper",
+    lastName: "Granger",
     suffix: null,
     gender: "male",
-    dob: "2002-07-13",
+    dob: "2002-04-02",
     stamina: 4,
     role: "NON_REGISTERED",
     accountType: "registered",
@@ -2562,11 +2593,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 213,
-    firstName: "Paul",
-    lastName: "Patulski",
+    firstName: "Remy",
+    lastName: "Sherwood",
     suffix: null,
     gender: "male",
-    dob: "1950-01-07",
+    dob: "1949-11-25",
     stamina: 3,
     role: "REGISTERED",
     accountType: "registered",
@@ -2589,11 +2620,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 194,
-    firstName: "Joseph",
-    lastName: "Potter",
+    firstName: "Leland",
+    lastName: "Beckford",
     suffix: null,
     gender: "male",
-    dob: "1968-01-14",
+    dob: "1968-04-11",
     stamina: 2,
     role: "REGISTERED",
     accountType: "registered",
@@ -2616,11 +2647,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 234,
-    firstName: "Alec",
-    lastName: "Raynor",
+    firstName: "Upton",
+    lastName: "Corwin",
     suffix: null,
     gender: "male",
-    dob: "1998-10-23",
+    dob: "1998-08-31",
     stamina: 3,
     role: null,
     accountType: "non-registered",
@@ -2643,11 +2674,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 140,
-    firstName: "Nevin",
-    lastName: "Raynor",
+    firstName: "Nash",
+    lastName: "Corwin",
     suffix: null,
     gender: "male",
-    dob: "1996-01-08",
+    dob: "1995-12-11",
     stamina: 3,
     role: "REGISTERED",
     accountType: "registered",
@@ -2670,11 +2701,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 210,
-    firstName: "Anthony",
-    lastName: "Rebecca",
+    firstName: "Lyle",
+    lastName: "Glenwood",
     suffix: null,
     gender: "male",
-    dob: "1990-04-13",
+    dob: "1989-12-21",
     stamina: 5,
     role: "ASSISTANT_ADMIN",
     accountType: "registered",
@@ -2697,11 +2728,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 142,
-    firstName: "Josiah",
-    lastName: "Rivera",
+    firstName: "Xavier",
+    lastName: "Lancaster",
     suffix: null,
     gender: "male",
-    dob: "2006-04-11",
+    dob: "2006-05-02",
     stamina: 3,
     role: "REGISTERED",
     accountType: "registered",
@@ -2724,11 +2755,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 240,
-    firstName: "Aaron",
-    lastName: "Saul",
+    firstName: "Edison",
+    lastName: "Darrow",
     suffix: null,
     gender: "male",
-    dob: "2008-09-07",
+    dob: "2008-07-17",
     stamina: 4,
     role: "DESK",
     accountType: "registered",
@@ -2751,11 +2782,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 236,
-    firstName: "Micah",
-    lastName: "Saul",
+    firstName: "Rollins",
+    lastName: "Darrow",
     suffix: null,
     gender: "male",
-    dob: "2011-04-20",
+    dob: "2011-01-11",
     stamina: 3,
     role: "DESK",
     accountType: "registered",
@@ -2778,11 +2809,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 85,
-    firstName: "Brian",
-    lastName: "Schiemer",
+    firstName: "Ellis",
+    lastName: "Winslow",
     suffix: null,
     gender: "male",
-    dob: "1972-01-27",
+    dob: "1971-12-02",
     stamina: 4,
     role: "REGISTERED",
     accountType: "registered",
@@ -2805,11 +2836,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 173,
-    firstName: "Brian",
-    lastName: "Smith",
+    firstName: "Conrad",
+    lastName: "Abernathy",
     suffix: null,
     gender: "male",
-    dob: "1960-09-27",
+    dob: "1960-12-28",
     stamina: 4,
     role: "REGISTERED",
     accountType: "registered",
@@ -2832,11 +2863,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 202,
-    firstName: "Liam",
-    lastName: "Smith",
+    firstName: "Theo",
+    lastName: "Abernathy",
     suffix: null,
     gender: "male",
-    dob: "2000-01-05",
+    dob: "2000-05-24",
     stamina: 4,
     role: "REGISTERED",
     accountType: "registered",
@@ -2859,11 +2890,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 216,
-    firstName: "Ryan",
-    lastName: "Thomas",
+    firstName: "Milo",
+    lastName: "Huxley",
     suffix: null,
     gender: "male",
-    dob: "1978-01-20",
+    dob: "1977-11-05",
     stamina: 5,
     role: "ASSISTANT_ADMIN",
     accountType: "registered",
@@ -2886,11 +2917,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 175,
-    firstName: "John",
-    lastName: "Tomchik",
+    firstName: "Dexter",
+    lastName: "Kendrick",
     suffix: null,
     gender: "male",
-    dob: "1957-05-01",
+    dob: "1957-08-25",
     stamina: 4,
     role: "REGISTERED",
     accountType: "registered",
@@ -2913,11 +2944,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 165,
-    firstName: "Aubrey",
-    lastName: "Welch",
+    firstName: "Nolan",
+    lastName: "Babcock",
     suffix: null,
     gender: "male",
-    dob: "1995-07-11",
+    dob: "1995-04-17",
     stamina: 4,
     role: "REGISTERED",
     accountType: "registered",
@@ -2940,11 +2971,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 144,
-    firstName: "Caleb",
-    lastName: "Wells",
+    firstName: "Lars",
+    lastName: "Yardley",
     suffix: null,
     gender: "male",
-    dob: "1994-07-23",
+    dob: "1994-11-04",
     stamina: 5,
     role: "REGISTERED",
     accountType: "registered",
@@ -2967,11 +2998,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 120,
-    firstName: "Aidan",
-    lastName: "Wilkes",
+    firstName: "Desmond",
+    lastName: "Maxwell",
     suffix: null,
     gender: "male",
-    dob: "2003-09-16",
+    dob: "2003-05-28",
     stamina: 4,
     role: "REGISTERED",
     accountType: "registered",
@@ -2994,11 +3025,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 196,
-    firstName: "Brennan",
-    lastName: "Wilkes",
+    firstName: "Flynn",
+    lastName: "Maxwell",
     suffix: null,
     gender: "male",
-    dob: "2001-07-20",
+    dob: "2001-09-06",
     stamina: 5,
     role: "NON_REGISTERED",
     accountType: "registered",
@@ -3021,11 +3052,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 242,
-    firstName: "Benjamin",
-    lastName: "Williams",
+    firstName: "Rhett",
+    lastName: "Highsmith",
     suffix: null,
     gender: "male",
-    dob: "2010-04-27",
+    dob: "2010-04-01",
     stamina: 5,
     role: "DESK",
     accountType: "registered",
@@ -3048,11 +3079,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 118,
-    firstName: "Maurice",
-    lastName: "Williams",
+    firstName: "Monty",
+    lastName: "Highsmith",
     suffix: null,
     gender: "male",
-    dob: "1998-06-09",
+    dob: "1998-09-24",
     stamina: 5,
     role: "REGISTERED",
     accountType: "registered",
@@ -3075,11 +3106,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 164,
-    firstName: "Jay",
-    lastName: "Wynn",
+    firstName: "Sawyer",
+    lastName: "Burlingame",
     suffix: null,
     gender: "male",
-    dob: "1975-07-09",
+    dob: "1975-11-09",
     stamina: 4,
     role: "REGISTERED",
     accountType: "registered",
@@ -3102,11 +3133,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 177,
-    firstName: "Travis",
-    lastName: "Wynn",
+    firstName: "Graham",
+    lastName: "Burlingame",
     suffix: null,
     gender: "male",
-    dob: "1982-01-14",
+    dob: "1981-09-16",
     stamina: 3,
     role: "REGISTERED",
     accountType: "registered",
@@ -3129,11 +3160,11 @@ const VOLUNTEERS = [
   },
   {
     oldId: 190,
-    firstName: "Brisbane",
-    lastName: "Young",
+    firstName: "Brooks",
+    lastName: "Underhill",
     suffix: null,
     gender: "male",
-    dob: "1966-04-26",
+    dob: "1966-07-17",
     stamina: 4,
     role: "REGISTERED",
     accountType: "registered",
@@ -3187,6 +3218,88 @@ const CONGREGATIONS = [
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
+/** `node scripts/seedDemo.js --plan` prints the clear order and stops. */
+const PLAN_ONLY = process.argv.includes("--plan");
+
+/**
+ * Work out a safe DELETE order for re-seeding.
+ *
+ * Starts from `baseTables` (what this script re-populates), adds every
+ * table in the connected user's default schema (demo) that references one
+ * of them — directly or through another — and orders the result so each
+ * table is cleared before any table it references. Self-references are
+ * ignored (a whole-table DELETE satisfies them).
+ *
+ * @param {import("mssql").ConnectionPool} pool
+ * @param {string[]} baseTables
+ * @returns {Promise<string[]>} table names, children first
+ * @throws {Error} if any base table does not exist in the schema
+ */
+async function planClearOrder(pool, baseTables) {
+  // Fail before anything is deleted if the list names a table that
+  // doesn't exist in this schema (e.g. after a rename).
+  const existing = await pool.request().query(
+    `SELECT name FROM sys.tables WHERE schema_id = SCHEMA_ID();`,
+  );
+  const have = new Set(existing.recordset.map((r) => r.name.toLowerCase()));
+  const missing = baseTables.filter((t) => !have.has(t.toLowerCase()));
+  if (missing.length) {
+    throw new Error(
+      `Clear list names table(s) not found in schema: ${missing.join(", ")}`,
+    );
+  }
+
+  const fk = await pool.request().query(`
+    SELECT DISTINCT
+           OBJECT_NAME(f.parent_object_id)     AS child,
+           OBJECT_NAME(f.referenced_object_id) AS parent
+    FROM   sys.foreign_keys f
+    WHERE  OBJECT_SCHEMA_NAME(f.parent_object_id)     = SCHEMA_NAME()
+      AND  OBJECT_SCHEMA_NAME(f.referenced_object_id) = SCHEMA_NAME()
+      AND  f.parent_object_id <> f.referenced_object_id;
+  `);
+  /** @type {Map<string, Set<string>>} parent -> children */
+  const childrenOf = new Map();
+  for (const { child, parent } of fk.recordset) {
+    if (!childrenOf.has(parent)) childrenOf.set(parent, new Set());
+    childrenOf.get(parent).add(child);
+  }
+
+  // Everything to clear: base tables plus all (transitive) dependents.
+  const toClear = new Set(baseTables);
+  const queue = [...baseTables];
+  while (queue.length) {
+    const t = queue.shift();
+    for (const c of childrenOf.get(t) || []) {
+      if (!toClear.has(c)) {
+        toClear.add(c);
+        queue.push(c);
+      }
+    }
+  }
+
+  // Children before parents: repeatedly take tables with no remaining
+  // children inside the set.
+  const order = [];
+  const remaining = new Set(toClear);
+  while (remaining.size) {
+    const ready = [...remaining].filter(
+      (t) => ![...(childrenOf.get(t) || [])].some((c) => remaining.has(c)),
+    );
+    if (ready.length === 0) {
+      // Foreign-key cycle — fall back to the remaining tables as listed.
+      logError("Foreign-key cycle among:", [...remaining].join(", "));
+      order.push(...remaining);
+      break;
+    }
+    for (const t of ready) {
+      order.push(t);
+      remaining.delete(t);
+    }
+  }
+  return order;
+}
+
 async function seed() {
   log("Connecting as", DEMO_USER, "...");
   const pool = await new sql.ConnectionPool(poolConfig).connect();
@@ -3198,6 +3311,10 @@ async function seed() {
     // -------------------------------------------------------------------
     log("Clearing demo tables...");
     const clears = [
+      // Year-rollover tables reference volunteer_in / invitation_batches,
+      // so they go first.
+      "volunteer_year_status",
+      "convention_years",
       "shift_alert_log",
       "shift_alert_schedules",
       "shift_slot_assignments",
@@ -3209,7 +3326,7 @@ async function seed() {
       "shifts",
       "sessions",
       "volunteer_blackouts",
-      "oversightstructure",
+      "oversight_structure",
       "sms_opt_out_log",
       "attendance",
       "bug_reports",
@@ -3222,7 +3339,23 @@ async function seed() {
       "roles",
       "congregations",
     ];
-    for (const t of clears) await pool.request().query(`DELETE FROM ${t};`);
+    // The list above is what this script re-populates. Newer tables that
+    // point at those (rendezvous points, capacity rules, publish snapshots,
+    // ...) would block the DELETEs, so work the order out from the demo
+    // schema's own foreign keys: everything above plus anything that
+    // references it, children before parents.
+    const order = await planClearOrder(pool, clears);
+    const extra = order.filter((t) => !clears.includes(t));
+    log(`  Clearing ${order.length} tables` +
+        (extra.length ? ` (incl. ${extra.length} dependent: ${extra.join(", ")})` : "") + ".");
+
+    if (PLAN_ONLY) {
+      log("PLAN ONLY (--plan) — nothing deleted. Clear order:");
+      order.forEach((t, i) => log(`  ${String(i + 1).padStart(2)}. ${t}`));
+      return;
+    }
+
+    for (const t of order) await pool.request().query(`DELETE FROM ${t};`);
     log("Tables cleared.");
 
     // -------------------------------------------------------------------
@@ -3273,6 +3406,15 @@ async function seed() {
       },
       { name: "ADMIN", level: 5, desc: "Full sitewide access" },
     ];
+    // The level column was renamed at some point; use whichever exists.
+    const levelColRes = await pool.request().query(`
+      SELECT TOP 1 name FROM sys.columns
+      WHERE  object_id = OBJECT_ID(SCHEMA_NAME() + '.roles')
+        AND  name LIKE '%level%'
+      ORDER BY column_id;
+    `);
+    const levelCol = levelColRes.recordset[0]?.name;
+    if (!levelCol) throw new Error("roles table has no *level* column.");
     for (const r of roleRows) {
       await pool
         .request()
@@ -3280,7 +3422,7 @@ async function seed() {
         .input("level", sql.Int, r.level)
         .input("desc", sql.NVarChar(500), r.desc)
         .query(
-          `INSERT INTO roles (role_name, oversightstructure_level, description) VALUES (@name, @level, @desc);`,
+          `INSERT INTO roles (role_name, [${levelCol}], description) VALUES (@name, @level, @desc);`,
         );
     }
     log(`  ${roleRows.length} roles.`);
@@ -3339,7 +3481,7 @@ async function seed() {
         .request()
         .input("year", sql.Int, YEAR)
         .input("label", sql.NVarChar(50), d.label)
-        .input("date", sql.Date, new Date(d.date + "T12:00:00Z"))
+        .input("date", sql.Date, new Date(shiftToYear(d.date) + "T12:00:00Z"))
         .input("start", sql.NVarChar(8), d.start)
         .input("end", sql.NVarChar(8), d.end)
         .input("sched", sql.Bit, d.schedulable)
@@ -3348,7 +3490,19 @@ async function seed() {
         );
       dayMap[d.oldId] = r.recordset[0].id;
     }
-    log(`  ${CONVENTION_DAYS.length} convention days. Map:`, dayMap);
+    log(`  ${CONVENTION_DAYS.length} convention days (${YEAR}). Map:`, dayMap);
+
+    // The demo's active convention year (lib/conventionYear.js reads this).
+    const seededDates = CONVENTION_DAYS.map((d) => shiftToYear(d.date)).sort();
+    await pool
+      .request()
+      .input("year", sql.Int, YEAR)
+      .input("first", sql.Date, new Date(seededDates[0] + "T12:00:00Z"))
+      .input("last", sql.Date, new Date(seededDates[seededDates.length - 1] + "T12:00:00Z"))
+      .query(
+        `INSERT INTO convention_years (year, status, first_date, last_date) VALUES (@year, 'active', @first, @last);`,
+      );
+    log(`  Active convention year set to ${YEAR}.`);
 
     // -------------------------------------------------------------------
     // 6. Sessions — build oldId → newId map
@@ -3445,7 +3599,7 @@ async function seed() {
     log(`  ${assignCount} assignments.`);
 
     // -------------------------------------------------------------------
-    // 9. Volunteers — real roster, anonymized emails
+    // 9. Volunteers — fictional roster
     // -------------------------------------------------------------------
     log("Seeding volunteers...");
     const oldIdToNewId = {}; // old dbo id → new demo id
@@ -3519,7 +3673,7 @@ async function seed() {
     // -------------------------------------------------------------------
     log("Seeding oversight structure...");
     // Insert root first, then children. Build nodeVolId → nodeId map.
-    const oversightstructureNodeMap = {}; // oldVolId → new oversight structurenode id (for parent lookup)
+    const oversightstructureNodeMap = {}; // oldVolId → new oversight structure node id (for parent lookup)
     for (const h of HIERARCHY) {
       const newVolId =
         h.oldVolId != null ? (oldIdToNewId[h.oldVolId] ?? null) : null;
@@ -3534,7 +3688,7 @@ async function seed() {
         .input("title", sql.NVarChar(100), h.title)
         .input("order", sql.Int, h.order)
         .query(
-          `INSERT INTO oversight structure(volunteer_id, parent_id, role_title, sort_order) OUTPUT INSERTED.id VALUES (@volId, @parentId, @title, @order);`,
+          `INSERT INTO oversight_structure (volunteer_id, parent_id, role_title, sort_order) OUTPUT INSERTED.id VALUES (@volId, @parentId, @title, @order);`,
         );
       if (h.oldVolId != null) oversightstructureNodeMap[h.oldVolId] = r.recordset[0].id;
       else oversightstructureNodeMap[`null_${h.order}`] = r.recordset[0].id; // null-vol node
@@ -3548,8 +3702,8 @@ async function seed() {
     const templates = [
       {
         name: "Standard Invitation",
-        subject: "You're Invited — 2026 Albany Summer Convention Parking",
-        body: "Dear [Name],\n\nWe'd like to invite you to serve on the parking team for the 2026 Albany Summer Convention. Please respond using the link below.\n\nThank you!",
+        subject: `You're Invited — ${YEAR} Albany Summer Convention Parking`,
+        body: `Dear [Name],\n\nWe'd like to invite you to serve on the parking team for the ${YEAR} Albany Summer Convention. Please respond using the link below.\n\nThank you!`,
       },
       {
         name: "Reminder — No Response",
@@ -3585,13 +3739,13 @@ async function seed() {
       .input(
         "name",
         sql.NVarChar(150),
-        "2026 Initial Invitation — All Volunteers",
+        `${YEAR} Initial Invitation — All Volunteers`,
       )
       .input("dayId", sql.Int, fridayNewId)
       .input(
         "subj",
         sql.NVarChar(255),
-        "You're Invited — 2026 Albany Summer Convention Parking",
+        `You're Invited — ${YEAR} Albany Summer Convention Parking`,
       )
       .input(
         "body",
@@ -3603,9 +3757,9 @@ async function seed() {
       .input("resp", sql.Bit, 1)
       .input("type", sql.NVarChar(20), "invitation")
       .query(
-        `INSERT INTO invitation_batches (name, convention_day_id, message_subject, message_body, year, created_by, response_needed, message_type) OUTPUT INSERTED.id VALUES (@name, @dayId, @subj, @body, @year, @by, @resp, @type);`,
+        `INSERT INTO invitation_batches (name, convention_day_id, message_subject, message_body, year, created_by, response_needed, message_type, is_recruitment) OUTPUT INSERTED.id VALUES (@name, @dayId, @subj, @body, @year, @by, @resp, @type, 1);`,
       );
-    const batchId = batchR.recordset[0].id;
+    const batchId = batchR.recordset[0].id; // recruitment campaign: Yes/Maybe replies feed the Decently export
 
     // Send to first 8 volunteers — vary responses
     const responses = ["yes", "yes", "yes", "yes", null, null, null, null];
@@ -3622,7 +3776,7 @@ async function seed() {
         .input(
           "subj",
           sql.NVarChar(255),
-          "You're Invited — 2026 Albany Summer Convention Parking",
+          `You're Invited — ${YEAR} Albany Summer Convention Parking`,
         )
         .input("body", sql.NVarChar(sql.MAX), "Invitation text.")
         .input("sentBy", sql.NVarChar(100), "admin@demo.com")
@@ -3651,12 +3805,12 @@ async function seed() {
     log("=========================================");
     log("");
     log("Login credentials (password: Demo@2026!):");
-    log("  admin@demo.com        ADMIN           (Jacob Ladd)");
-    log("  asstadmin@demo.com    ASSISTANT_ADMIN (Danny Munoz)");
-    log("  overseer@demo.com     OVERSEER        (Ryan Fagan)");
-    log("  keyman@demo.com       KEYMAN          (Matthew Kyarsgaard)");
-    log("  desk@demo.com         DESK            (Jason Ladd)");
-    log("  volunteer@demo.com    REGISTERED      (Winston Austin)");
+    log("  admin@demo.com        ADMIN           (Barrett Bainbridge)");
+    log("  asstadmin@demo.com    ASSISTANT_ADMIN (Arlo Wakefield)");
+    log("  overseer@demo.com     OVERSEER        (Tristan Hawthorne)");
+    log("  keyman@demo.com       KEYMAN          (Carson Barlowe)");
+    log("  desk@demo.com         DESK            (Ross Bainbridge)");
+    log("  volunteer@demo.com    REGISTERED      (Rufus Thackeray)");
   } finally {
     await pool.close();
     log("Connection closed.");

@@ -3,6 +3,132 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.87.0] — 2026-11-19
+
+Convention years. The app now knows which convention year is active, starts
+the next one from a dated prompt, keeps earlier years as read-only reference,
+and runs recruitment through Decently every year. Three migrations; no new
+dependencies.
+
+### Added
+- **Convention years (`convention_years`).** One row per year, `active` or
+  `closed`; a filtered unique index allows only one active year. 2026 is
+  seeded as active. `lib/conventionYear.js` reads the active year (cached per
+  environment for five minutes, falling back to the calendar year) and
+  replaces the hard-coded year in routes, the alert scheduler and the
+  Decently export.
+- **"Has the next convention year begun?" prompt.** From September 1 of the
+  active year, ADMIN and ASSISTANT_ADMIN get a modal with a calendar to pick
+  the next year's dates, plus three options: bring Locations & Tasks forward
+  (with sub-locations and capacity alert rules), bring the session and shift
+  structure forward, and reset sign attachments to planned. **Not yet**
+  hides it for the session. Starting the year runs in one transaction
+  (`startConventionYear`): it saves every volunteer's status for the old year,
+  marks everyone inactive, closes the old year, and creates a convention day
+  for each picked date with no program times. Each new date is matched to
+  the old day the same number of days before the last convention day, so
+  setup days line up with setup days. Shifts keep their SMS codes and alert
+  schedules move by the same number of days. Inactive lots stay inactive.
+- **Stale-year banner.** From September 1, other signed-in users (except
+  COUNTER accounts) see a banner saying the site may not be on the current
+  year yet and to contact an admin. Neither the prompt nor the banner shows
+  on the demo site.
+- **Past-year view.** Opening a page with `?year=` for a closed year shows a
+  banner with a link back to the active year, and the page is read-only:
+  `public/js/pastYearLock.js` blocks form posts and `fetch` writes in the
+  browser, and `middleware/closedYearGuard.js` returns 403 for writes to
+  records that belong to a closed year (73 routes, including Lessons
+  Learned).
+- **Per-volunteer year history (`volunteer_year_status`).** Filled in when a
+  year closes: whether the volunteer was active, their latest recruitment
+  reply, Decently export and import times, and whether they were marked not
+  approved for parking.
+- **Recruitment campaigns.** A **Recruitment campaign** checkbox in Campaign
+  Center and in the Invitation Tracker's Edit campaign modal
+  (`invitation_batches.is_recruitment`). Yes and Maybe replies to a
+  recruitment campaign put the volunteer on that year's Decently export.
+- **"Not approved for parking."** A per-year mark in Volunteer Account
+  Oversight for someone Decently approves who doesn't meet parking's
+  standard. It keeps them inactive for the year whatever later imports or
+  replies say, so they no longer flip between approved and removed.
+  Reactivating them asks for confirmation and clears the mark.
+- **People who join through Decently.** Accounts created from a Decently
+  import's unmatched rows are marked imported and active straight away.
+- **Per-year SharePoint folder.** `GRAPH_FOLDER_PATH` may contain `{year}`,
+  which becomes the active convention year (default:
+  `{year} Convention Parking/Documents for Distribution`). Schedules, sign
+  maps, Lessons Learned and the Maps sync all use it.
+- **`node scripts/seedDemo.js --plan`** prints the order the seed would clear
+  the demo tables in, without deleting anything.
+
+### Changed
+- **Decently export rule.** Every volunteer goes through Decently again each
+  year. A completed volunteer not yet exported this year is included when
+  their latest reply to a recruitment campaign this year is Yes or Maybe, or
+  when they have no reply and joined this year (walk-up registration or
+  entered by oversight). A No, or "not approved for parking", excludes them.
+  The 8 CSV columns are unchanged.
+- **Decently import.**
+  - Maybes are held: marked approved but left inactive until they reply Yes,
+    so they stay off scheduling lists.
+  - Volunteers marked not approved for parking stay inactive.
+  - Volunteers missing from the file (dropped by Decently) lose their
+    approval as well as their active status, so a later Yes can't
+    reactivate them.
+  - The result reports how many were held.
+- **A Yes to a current-year recruitment campaign** activates a volunteer who
+  is already Decently-approved and inactive.
+- **Timelines Copy Day works across years.** Locations are matched by type and
+  name in the target year; keyman flags are kept; SMS codes carry over only
+  when copying into a different year.
+- **Convention days may have no program times**
+  (`program_start` / `program_end` are nullable) until they are set in
+  Timelines.
+- **Maps sync** skips, without clearing the current maps, when the year's
+  folder doesn't exist yet or is empty (`listOneDriveFolder` throws
+  `FOLDER_NOT_FOUND` on a missing folder).
+- **The alert scheduler** reads the active year on every tick instead of
+  once at startup.
+- **Demo roster is fictional.** `seedDemo.js` now holds made-up names and
+  shifted birth dates for all 70 demo volunteers (it previously held real
+  names), seeds the demo for the current year with its dates moved to the
+  same weekdays, and marks the demo campaign as recruitment.
+- **Guided tours** updated for the above: Campaign Center, Invitation Tracker,
+  Decently Export, Decently Import, Volunteers, Timelines and Locations.
+
+### Fixed
+- **Invitation Tracker Save button stayed on "Saving…"** after a successful
+  campaign edit.
+- **Editing a campaign wiped its response options.** `updateInvitationBatch`
+  now keeps the stored response config and recruitment flag when the edit
+  doesn't send them.
+- **`seedDemo.js` failed on a foreign key** (`FK_demo_sps_publish`). The clear
+  order is now built from the schema's foreign keys (`planClearOrder`),
+  including dependent tables the script doesn't seed, and the script stops
+  before deleting anything if its list names a table that doesn't exist.
+- **`seedDemo.js` used table and column names broken by an earlier rename**
+  (`oversight structure`, `oversightstructure_level`).
+
+### Removed
+- `lib/constraintInterpreter.js` (unused since 2.85.0).
+- `scripts/anonymizeSeed.js` — no longer needed now that the seed data is
+  fictional, and it no longer matched the seed file's quote style.
+
+### Migrations
+Run in this order (each targets `dbo` and `demo`):
+- `convention_years.sql` — `convention_years`, `volunteer_year_status`,
+  nullable `convention_days.program_start` / `program_end`, seeds 2026 as
+  active.
+- `add_recruitment_flag.sql` — `invitation_batches.is_recruitment`,
+  `volunteer_in.registration_completed_at`.
+- `add_parking_disapproval.sql` — `volunteer_in.disapproved_year`,
+  `disapproved_by`, `disapproved_at`;
+  `volunteer_year_status.was_disapproved`.
+
+### Notes
+In App Service settings, either remove `GRAPH_FOLDER_PATH` or set it to a
+pattern that contains `{year}`.
+
 ## [2.86.10] — 2026-11-06
 
 Custom meta descriptions for the five public pages. No schema, route or

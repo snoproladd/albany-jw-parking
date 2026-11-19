@@ -39,6 +39,7 @@ send invitations, track RSVPs, log attendance, and administer the platform.
    - [Master Conflict Grid](#master-conflict-grid-overseer)
 8. [Decently Sync](#8-decently-sync)
 9. [Administration](#9-administration-admin-only)
+   - [Convention Years](#convention-years-assistant_admin)
    - [Permission Matrix](#permission-matrix)
    - [Oversight Structure](#oversight-structure-admin)
    - [System Variables](#system-variables-assistant_admin)
@@ -654,6 +655,15 @@ Filter the volunteer dropdown by **Active / Inactive**, **Male / Female**, or re
   All saved scheduler slot assignments for that volunteer are automatically
   purged on deactivation so they cannot silently re-occupy filled positions
   if reactivated later
+- **Mark not approved for parking** (in the **Status** section) — for someone
+  Decently approves who doesn't meet parking's standard. They stay inactive
+  for the current convention year even if a later Decently import approves
+  them or they reply Yes to a recruitment campaign, and they are left off
+  the Decently export. A red notice shows who marked them and when.
+  **Clear — leave inactive** removes the mark without activating them.
+  Turning **Active** back on asks you to confirm (**Reactivate anyway**) and
+  clears the mark. The mark applies to one year only; it does not carry into
+  the next convention year
 - **Delete** — soft-deletes the account (preserves data, removes from active lists)
 - **Reinstate** — restores a deleted volunteer to their previous status
 
@@ -761,6 +771,24 @@ If you leave response config at its default (all three standard options, no
 Other), no config is stored — existing RSVP links and tracker display are
 fully unaffected.
 
+#### Recruitment campaigns
+
+Check **Recruitment campaign** (under **Response needed**) when the campaign
+asks volunteers whether they'll serve this year. The box is only available
+when **Response needed** is on.
+
+- A **Yes** or **Maybe** reply puts the volunteer on this year's
+  [Decently export](#8-decently-sync). A **No** keeps them off it.
+- A **Maybe** is not activated after Decently approves them — they stay off
+  scheduling lists until they reply **Yes**.
+- A **Yes** from a volunteer Decently has already approved makes them active
+  automatically.
+
+Every volunteer goes through Decently again each year, so send a recruitment
+campaign to everyone you want back — including those who served last year.
+The flag can also be turned on or off later from the Invitation Tracker's
+**Edit campaign** modal.
+
 #### Templates
 
 Save and reuse message templates via the Templates panel. Templates can
@@ -825,7 +853,8 @@ When a campaign is selected in the **Campaign** filter:
   Only appears when the selected campaign has **Response needed** enabled.
 - **Edit campaign** (pencil icon next to the Campaign dropdown, ADMIN only) —
   opens a modal to rename the campaign, edit its saved message, change its
-  parent campaign, toggle **Response needed**, or deactivate it.
+  parent campaign, toggle **Response needed** or **Recruitment campaign**, or
+  deactivate it. Editing a campaign keeps its response options.
 
 #### Actions Per Row
 
@@ -869,8 +898,18 @@ Manage the convention schedule hierarchy: **Days → Sessions → Shifts**.
 Click **+ Add Day** to create a new convention day. Each day has a label
 (e.g. "Day 1"), date, and program start/end times.
 
+Days created when a new convention year starts (see
+[Convention Years](#convention-years-assistant_admin)) have their dates but
+no program times — set the times here. This is also where you correct a date
+picked by mistake.
+
 The **Copy Day** button duplicates an entire day including all its sessions,
 shifts, and schedule assignments — useful for setting up similar days quickly.
+It can copy into a different year: schedule assignments are matched to that
+year's locations by type and name, and shift SMS codes are kept.
+
+Choosing an earlier year in the year picker shows that year read-only — see
+[Viewing a past year](#viewing-a-past-year).
 
 #### Sessions
 
@@ -1355,6 +1394,10 @@ has a name, optional description, capacity, address, and map URL.
 Locations are attached to shifts via the **Schedule Assignments** panel on
 each shift in Timelines.
 
+Locations belong to a convention year. When a new year starts, the admin can
+bring the previous year's locations forward with their sub-locations and
+capacity alert rules; inactive locations stay inactive.
+
 #### Classification
 
 Each location can be assigned a **classification** (Parking Garage, Parking Area,
@@ -1647,6 +1690,8 @@ A structured space for volunteers to record what worked, what didn’t, and what
 should change for next year. Entries move through a three-state workflow:
 **Submitted → Approved → Published**.
 
+Lessons from a closed convention year can be read but not changed.
+
 #### Who can do what
 
 | Action | Minimum role |
@@ -1935,25 +1980,115 @@ the conflict grid and the drag-and-drop scheduler.
 
 ## 8. Decently Sync
 
+Every volunteer — new or returning — must be sent to Decently and approved
+there each convention year before they can be scheduled. When a new year
+starts, everyone's export and approval flags are reset.
+
+The usual paths into a year:
+
+1. A volunteer gets a [recruitment campaign](#recruitment-campaigns) and
+   replies **Yes** or **Maybe**, **or** registers on their own (walk-up),
+   **or** is entered by oversight.
+2. They go out on the next **Export to Decently**.
+3. Decently approves them, and the next **Import from Decently** makes them
+   active and available for scheduling.
+
+Someone can also join through Decently first: their row shows up in the
+import with no match, and you can create their account from there.
+
 ### Export to Decently *(ADMIN)*
 
 **Path:** Operations → Export to Decently
 
-Downloads a CSV of all volunteers not yet exported to Decently, then marks
-them as exported in the system. Run this after finalizing volunteer registrations
-to keep Decently in sync.
+Downloads a CSV (the same 8 columns as before) of volunteers to send to
+Decently, then marks them as exported. A volunteer with a completed
+registration who hasn't been exported this year is included when:
+
+- their most recent reply to one of this year's recruitment campaigns is
+  **Yes** or **Maybe**, or
+- they have no reply to one and joined this year (walk-up registration or
+  entered by oversight).
+
+A **No**, or [Not approved for parking](#volunteer-account-oversight-assistant_admin),
+leaves them out. If nobody qualifies, the page says why — for example, that
+no campaign this year is flagged as recruitment.
 
 ### Import from Decently *(ADMIN)*
 
 **Path:** Operations → Import from Decently
 
 Upload an approved volunteer CSV from Decently. The system matches records
-by name/email/phone, sets active status for matched volunteers, and flags
-new volunteers for review.
+by name, email and phone, and nothing changes until you click
+**Apply Import**. Then:
+
+- **Matched** volunteers are marked approved and made active — except:
+  - a volunteer whose latest recruitment reply is **Maybe** is approved but
+    stays inactive until they reply **Yes** (held);
+  - a volunteer marked **Not approved for parking** stays inactive.
+  The result lists how many were held.
+- **Volunteers not in the file** — Decently dropped them — are made inactive
+  and lose their Decently approval, so a later **Yes** can't reactivate them.
+  Decently can drop someone mid-year when their standing changes.
+- **Rows with no match** can be turned into new accounts. These are marked
+  approved and active straight away, and you can send each one a welcome
+  link to finish their profile.
 
 ---
 
 ## 9. Administration *(ADMIN only)*
+
+### Convention Years *(ASSISTANT_ADMIN+)*
+
+The app works in one active convention year at a time. Earlier years are
+kept for reference.
+
+#### Starting the next year
+
+From **September 1**, ADMIN and ASSISTANT_ADMIN accounts are asked
+**"Has the next convention year begun?"** when they open a page.
+
+1. Click the convention dates on the calendar — setup days and program days.
+   They show under **Selected dates**.
+2. Under **Bring forward**, choose what to copy from this year (all on by
+   default):
+   - **Locations & Tasks**, with sub-locations and capacity alert rules
+   - **Session & shift structure**, matched to the new dates
+   - **Reset sign attachments to "planned"**
+3. Click **Continue** and check the summary. Each new date is matched to this
+   year's day the same number of days before the last convention day, so
+   setup days line up with setup days. A date with no match gets an empty day
+   labelled with its weekday.
+4. Click **Start <year>**.
+
+Starting a year:
+
+- closes the current year — it becomes read-only;
+- marks every volunteer inactive for the new year (their status and
+  recruitment replies for the closed year are kept);
+- creates a convention day for each date, without program times — set those
+  in [Timelines](#timelines-overseer), where you can also fix a date;
+- copies what you chose, moving shift alert schedules by the same number of
+  days the convention moved.
+
+Click **Not yet** to hide the prompt until you next sign in. Everyone else
+sees a banner that the site may not be on the current year yet and to
+contact an admin. Neither appears on the demo site.
+
+#### Viewing a past year
+
+Choosing an earlier year (for example in the Timelines or Locations year
+picker) shows a banner — **Viewing <year>** — with a link back to the current
+year. Nothing can be saved while viewing a past year: buttons that would
+change data are blocked, and the server refuses changes to records that
+belong to a closed year. Lessons Learned from closed years are locked the
+same way.
+
+#### SharePoint folder per year
+
+Published files (schedules, sign maps, Lessons Learned) go to a folder named
+for the active year — **<year> Convention Parking/Documents for
+Distribution**. The Maps page reads from the same folder. Until the new
+year's folder has files, Maps keeps showing the last maps it synced.
 
 ### Permission Matrix
 
@@ -2127,6 +2262,10 @@ must be set directly in the database.
 ---
 
 ## Tips and Gotchas
+
+**Starting a convention year can't be undone from the app.** Check the date
+summary before clicking **Start <year>**. Dates can be fixed afterward in
+Timelines, but the old year is closed and every volunteer is set inactive.
 
 **RSVP links are unique to each volunteer.** Don't forward someone else's
 invite link — the response will be recorded against the wrong person.
