@@ -1,0 +1,134 @@
+<%#
+  "Has the next convention year begun?" prompt for ADMIN / ASSISTANT_ADMIN.
+  Shown on or after September 1 of the active year until the next year is
+  started, unless the admin chose "Not yet" this session. State comes from
+  middleware/conventionYearState.js (res.locals.yearState); behaviour lives
+  in public/js/rolloverPrompt.js.
+%>
+<% const _rp = typeof yearState !== 'undefined' ? yearState : null; %>
+<% if (_rp && _rp.showAdminPrompt) { %>
+<div class="modal fade" id="rolloverModal" tabindex="-1"
+     data-bs-backdrop="static" data-bs-keyboard="false"
+     aria-labelledby="rolloverModalLabel" aria-hidden="true"
+     data-active-year="<%= _rp.activeYear %>"
+     data-next-year="<%= _rp.nextYear %>">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h2 class="modal-title h5 mb-0" id="rolloverModalLabel">
+          <i class="fa-solid fa-calendar-plus me-2" aria-hidden="true"></i>
+          Has the <%= _rp.nextYear %> convention year begun?
+        </h2>
+      </div>
+
+      <%# Step 1 — pick dates and options %>
+      <div class="modal-body" id="rolloverPickPanel">
+        <div id="rolloverError" class="alert alert-danger d-none" role="alert"></div>
+
+        <p class="mb-2">
+          Select the <%= _rp.nextYear %> convention dates. Each date becomes a
+          convention day in Timelines; set the program times there afterward.
+        </p>
+        <p class="text-muted small mb-3" id="rolloverCurrentDates"></p>
+
+        <div class="row g-3">
+          <div class="col-12 col-md-7">
+            <div class="rollover-cal" id="rolloverCalendar">
+              <div class="rollover-cal-head">
+                <button type="button" class="btn btn-sm btn-outline-secondary"
+                        id="rolloverPrevMonth" aria-label="Previous month">
+                  <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+                </button>
+                <span class="rollover-cal-title" id="rolloverMonthTitle" aria-live="polite"></span>
+                <button type="button" class="btn btn-sm btn-outline-secondary"
+                        id="rolloverNextMonth" aria-label="Next month">
+                  <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+                </button>
+              </div>
+              <div class="rollover-cal-grid" id="rolloverDayGrid" role="group"
+                   aria-label="Convention dates"></div>
+            </div>
+          </div>
+
+          <div class="col-12 col-md-5">
+            <h3 class="h6 fw-semibold mb-2">Selected dates</h3>
+            <ul class="rollover-selected list-unstyled mb-3" id="rolloverSelected">
+              <li class="text-muted small" id="rolloverNoneSelected">None yet — click dates on the calendar.</li>
+            </ul>
+
+            <h3 class="h6 fw-semibold mb-2">Bring forward from <%= _rp.activeYear %></h3>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="rolloverCarryLocations" checked>
+              <label class="form-check-label" for="rolloverCarryLocations">
+                Locations &amp; Tasks <span class="text-muted small">(with sub-locations and capacity alert rules)</span>
+              </label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="rolloverCarryStructure" checked>
+              <label class="form-check-label" for="rolloverCarryStructure">
+                Session &amp; shift structure <span class="text-muted small">(matched to the new dates)</span>
+              </label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="rolloverResetSigns" checked>
+              <label class="form-check-label" for="rolloverResetSigns">
+                Reset sign attachments to "planned"
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <%# Step 2 — confirm %>
+      <div class="modal-body d-none" id="rolloverConfirmPanel">
+        <p class="fw-semibold mb-2">Start <%= _rp.nextYear %>?</p>
+        <ul class="mb-3">
+          <li><%= _rp.activeYear %> will be closed and become read-only.</li>
+          <li>All volunteers will be marked inactive for <%= _rp.nextYear %>. Their
+              <%= _rp.activeYear %> status and recruitment responses are kept.</li>
+          <li id="rolloverConfirmCarry"></li>
+        </ul>
+        <h3 class="h6 fw-semibold mb-2">New convention days</h3>
+        <ul class="rollover-map list-unstyled mb-3" id="rolloverConfirmDays"></ul>
+        <p class="text-muted small mb-0">
+          Each date is matched to the <%= _rp.activeYear %> day the same number of days
+          before the last convention day. Dates and program times can be changed
+          later in Timelines.
+        </p>
+      </div>
+
+      <%# Step 3 — done %>
+      <div class="modal-body d-none" id="rolloverDonePanel">
+        <div class="text-center py-2">
+          <i class="fa-solid fa-circle-check rollover-done-icon" aria-hidden="true"></i>
+          <p class="h5 mb-3"><%= _rp.nextYear %> has started</p>
+        </div>
+        <ul class="rollover-summary mb-3" id="rolloverSummary"></ul>
+        <div class="d-flex justify-content-end gap-2">
+          <button type="button" class="btn btn-outline-secondary" id="rolloverReloadBtn">Stay on this page</button>
+          <a class="btn btn-primary" href="/oversight/tools/timelines">Open Timelines</a>
+        </div>
+      </div>
+
+      <div class="modal-footer" id="rolloverFooter">
+        <button type="button" class="btn btn-outline-secondary" id="rolloverSnoozeBtn">
+          Not yet
+        </button>
+        <button type="button" class="btn btn-outline-secondary d-none" id="rolloverBackBtn">
+          Back
+        </button>
+        <button type="button" class="btn btn-primary" id="rolloverContinueBtn" disabled>
+          Continue
+        </button>
+        <button type="button" class="btn btn-danger d-none" id="rolloverStartBtn">
+          <i class="fa-solid fa-flag-checkered me-2" aria-hidden="true"></i>Start <%= _rp.nextYear %>
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+<link rel="stylesheet" href="/styles/conventionYear.css" />
+<script src="/js/rolloverPrompt.js" defer></script>
+<% } %>

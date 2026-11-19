@@ -184,6 +184,11 @@
                                         <% } else { %>
                                           <span class="badge bg-success ms-2">Active</span>
                                         <% } %>
+                                        <%
+                                          const _parkYear = (typeof yearState !== 'undefined' && yearState.activeYear) || null;
+                                          const _parkNo = !!_parkYear && targetUser.disapproved_year === _parkYear;
+                                        %>
+                                        <span class="badge bg-danger ms-2 <%= _parkNo ? '' : 'd-none' %>" id="disapprovedHeaderBadge">Not approved for parking</span>
                                       </button>
                                     </h2>
 
@@ -212,6 +217,41 @@
                                           </div>
                                           <span id="activeToggleStatus" class="small"></span>
                                         </div>
+
+                                        <%# ── Parking approval (separate from Decently) ── %>
+                                        <% if (_parkYear) { %>
+                                        <div class="mt-3 pt-3 border-top" id="disapprovalPanel"
+                                             data-active-year="<%= _parkYear %>"
+                                             data-disapproved="<%= _parkNo ? '1' : '0' %>">
+                                          <div id="disapprovedNotice"
+                                               class="alert alert-danger py-2 small mb-2 <%= _parkNo ? '' : 'd-none' %>" role="status">
+                                            <i class="fa-solid fa-ban me-1" aria-hidden="true"></i>
+                                            <strong>Not approved for parking — <%= _parkYear %>.</strong>
+                                            <span id="disapprovedMeta"><% if (_parkNo && targetUser.disapproved_by) { %>Marked by <%= targetUser.disapproved_by %><% if (targetUser.disapproved_at) { %> on <%= new Date(targetUser.disapproved_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %><% } %>.<% } %></span>
+                                            Decently imports and recruitment replies will keep them inactive this year.
+                                          </div>
+                                          <p class="text-muted small mb-2 <%= _parkNo ? 'd-none' : '' %>" id="disapproveHelp">
+                                            Use when Decently approves someone who doesn't meet parking's standard.
+                                            They stay inactive for <%= _parkYear %> even if a later Decently import approves them.
+                                          </p>
+                                          <button type="button" class="btn btn-outline-danger btn-sm <%= _parkNo ? 'd-none' : '' %>" id="disapproveBtn">
+                                            <i class="fa-solid fa-ban me-1" aria-hidden="true"></i>Mark not approved for parking (<%= _parkYear %>)
+                                          </button>
+                                          <button type="button" class="btn btn-outline-secondary btn-sm <%= _parkNo ? '' : 'd-none' %>" id="clearDisapprovalBtn">
+                                            Clear — leave inactive
+                                          </button>
+                                          <span id="disapprovalStatus" class="small ms-2"></span>
+
+                                          <div class="alert alert-warning small mt-2 mb-0 d-none" id="reactivateConfirm" role="alert">
+                                            This volunteer is <strong>not approved for parking in <%= _parkYear %></strong>.
+                                            Reactivating clears that mark.
+                                            <div class="mt-2 d-flex gap-2">
+                                              <button type="button" class="btn btn-warning btn-sm" id="reactivateConfirmBtn">Reactivate anyway</button>
+                                              <button type="button" class="btn btn-outline-secondary btn-sm" id="reactivateCancelBtn">Cancel</button>
+                                            </div>
+                                          </div>
+                                        </div>
+                                        <% } %>
 
                                       </div>
                                     </div>

@@ -892,82 +892,214 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function initActiveToggle() {
+  /**
+   * Update the Active toggle, its label and the Status header badge.
+   *
+   * @param {boolean} active
+   * @returns {void}
+   */
+  function setActiveUi(active) {
     const toggle = /** @type {HTMLInputElement | null} */ (
       document.getElementById("activeToggle")
     );
     const label = document.getElementById("activeToggleLabel");
+    if (toggle) toggle.checked = active;
+    if (label) label.textContent = active ? "Active this year" : "Inactive this year";
+
+    const headerBadge = document.querySelector(
+      "#statusAccordionItem .accordion-button .badge",
+    );
+    if (headerBadge) {
+      headerBadge.textContent = active ? "Active" : "Inactive";
+      headerBadge.className = active
+        ? "badge bg-success ms-2"
+        : "badge bg-secondary ms-2";
+    }
+  }
+
+  /**
+   * Show or hide the "not approved for parking" state in the Status panel.
+   *
+   * @param {boolean} disapproved
+   * @param {string}  [meta] - "Marked by … on …." text when marking.
+   * @returns {void}
+   */
+  function setDisapprovedUi(disapproved, meta) {
+    const panel = document.getElementById("disapprovalPanel");
+    if (!panel) return;
+    panel.dataset.disapproved = disapproved ? "1" : "0";
+    document.getElementById("disapprovedNotice")?.classList.toggle("d-none", !disapproved);
+    document.getElementById("disapprovedHeaderBadge")?.classList.toggle("d-none", !disapproved);
+    document.getElementById("disapproveHelp")?.classList.toggle("d-none", disapproved);
+    document.getElementById("disapproveBtn")?.classList.toggle("d-none", disapproved);
+    document.getElementById("clearDisapprovalBtn")?.classList.toggle("d-none", !disapproved);
+    document.getElementById("reactivateConfirm")?.classList.add("d-none");
+    const metaEl = document.getElementById("disapprovedMeta");
+    if (metaEl && meta !== undefined) metaEl.textContent = meta;
+  }
+
+  /**
+   * Show a short status message next to a control, clearing it after 3s.
+   *
+   * @param {HTMLElement|null} el
+   * @param {string} text
+   * @param {"muted"|"success"|"danger"} tone
+   * @returns {void}
+   */
+  function flashStatus(el, text, tone) {
+    if (!el) return;
+    el.textContent = text;
+    el.className = `small text-${tone}${el.id === "disapprovalStatus" ? " ms-2" : ""}`;
+    if (tone !== "muted") {
+      setTimeout(() => {
+        if (el.textContent === text) el.textContent = "";
+      }, 3000);
+    }
+  }
+
+  /**
+   * POST JSON to an edit-volunteer endpoint with the page's CSRF token.
+   *
+   * @param {string} url
+   * @param {object} body
+   * @returns {Promise<{ ok: boolean, status: number, data: any }>}
+   */
+  async function postVolunteerJson(url, body) {
+    const csrf = document.querySelector('input[name="_csrf"]')?.value || "";
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    return { ok: res.ok && !!data.success, status: res.status, data };
+  }
+
+  function initActiveToggle() {
+    const toggle = /** @type {HTMLInputElement | null} */ (
+      document.getElementById("activeToggle")
+    );
     const status = document.getElementById("activeToggleStatus");
+    const confirmBox = document.getElementById("reactivateConfirm");
 
     if (!toggle) return;
 
-    toggle.addEventListener("change", async () => {
-      const active = toggle.checked;
+    /**
+     * Save the Active state; `confirmReactivate` clears a parking
+     * "not approved" mark when turning Active on.
+     *
+     * @param {boolean} active
+     * @param {boolean} confirmReactivate
+     * @returns {Promise<void>}
+     */
+    async function saveActive(active, confirmReactivate) {
       const targetUserId = getTargetUserId();
-      const csrf = document.querySelector('input[name="_csrf"]')?.value || "";
-
       if (!targetUserId) {
-        toggle.checked = !active;
+        setActiveUi(!active);
         return;
       }
 
-      if (status) {
-        status.textContent = "Saving…";
-        status.className = "small text-muted";
-      }
+      flashStatus(status, "Saving…", "muted");
 
       try {
-        const res = await fetch("/edit-volunteer/active", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-Token": csrf,
-          },
-          body: JSON.stringify({ targetUserId, active }),
-        });
+        const { ok, status: code, data } = await postVolunteerJson(
+          "/edit-volunteer/active",
+          { targetUserId, active, confirmReactivate },
+        );
 
-        const data = await res.json().catch(() => ({}));
-
-        if (!res.ok || !data.success) {
-          toggle.checked = !active;
-          if (status) {
-            status.textContent = data.message || "Failed to save.";
-            status.className = "small text-danger";
-          }
+        if (code === 409 && data.needsConfirm) {
+          // Not approved for parking this year — ask before reactivating.
+          setActiveUi(false);
+          if (status) status.textContent = "";
+          confirmBox?.classList.remove("d-none");
           return;
         }
 
-        if (label)
-          label.textContent = active
-            ? "Active this year"
-            : "Inactive this year";
-        if (status) {
-          status.textContent = active ? "Marked active." : "Marked inactive.";
-          status.className = "small text-success";
+        if (!ok) {
+          setActiveUi(!active);
+          flashStatus(status, data.message || "Failed to save.", "danger");
+          return;
         }
 
-        const headerBadge = document.querySelector(
-          "#statusAccordionItem .accordion-button .badge",
-        );
-        if (headerBadge) {
-          headerBadge.textContent = active ? "Active" : "Inactive";
-          headerBadge.className = active
-            ? "badge bg-success ms-2"
-            : "badge bg-secondary ms-2";
-        }
-
-        setTimeout(() => {
-          if (status) status.textContent = "";
-        }, 3000);
+        setActiveUi(active);
+        if (active) setDisapprovedUi(false, "");
+        flashStatus(status, active ? "Marked active." : "Marked inactive.", "success");
       } catch (err) {
         console.error("[oversight] activeToggle error:", err);
-        toggle.checked = !active;
-        if (status) {
-          status.textContent = "Server error.";
-          status.className = "small text-danger";
-        }
+        setActiveUi(!active);
+        flashStatus(status, "Server error.", "danger");
       }
+    }
+
+    toggle.addEventListener("change", () => {
+      const active = toggle.checked;
+      const panel = document.getElementById("disapprovalPanel");
+      if (active && panel?.dataset.disapproved === "1") {
+        // Ask first; the server would refuse without confirmation anyway.
+        setActiveUi(false);
+        confirmBox?.classList.remove("d-none");
+        return;
+      }
+      saveActive(active, false);
     });
+
+    document.getElementById("reactivateConfirmBtn")?.addEventListener("click", () => {
+      confirmBox?.classList.add("d-none");
+      saveActive(true, true);
+    });
+
+    document.getElementById("reactivateCancelBtn")?.addEventListener("click", () => {
+      confirmBox?.classList.add("d-none");
+    });
+  }
+
+  /**
+   * "Not approved for parking" mark / clear buttons in the Status panel.
+   *
+   * @returns {void}
+   */
+  function initDisapproval() {
+    const panel = document.getElementById("disapprovalPanel");
+    if (!panel) return;
+    const status = document.getElementById("disapprovalStatus");
+    const year = panel.dataset.activeYear;
+
+    /**
+     * @param {boolean} disapproved
+     * @returns {Promise<void>}
+     */
+    async function save(disapproved) {
+      const targetUserId = getTargetUserId();
+      if (!targetUserId) return;
+      flashStatus(status, "Saving…", "muted");
+      try {
+        const { ok, data } = await postVolunteerJson("/edit-volunteer/disapprove", {
+          targetUserId,
+          disapproved,
+        });
+        if (!ok) {
+          flashStatus(status, data.message || "Failed to save.", "danger");
+          return;
+        }
+        if (disapproved) {
+          const when = new Date(data.at).toLocaleDateString("en-US", {
+            month: "short", day: "numeric", year: "numeric",
+          });
+          setDisapprovedUi(true, `Marked by ${data.by} on ${when}.`);
+          setActiveUi(false);
+          flashStatus(status, `Marked not approved for ${year}.`, "success");
+        } else {
+          setDisapprovedUi(false, "");
+          flashStatus(status, "Cleared — still inactive.", "success");
+        }
+      } catch (err) {
+        console.error("[oversight] disapproval error:", err);
+        flashStatus(status, "Server error.", "danger");
+      }
+    }
+
+    document.getElementById("disapproveBtn")?.addEventListener("click", () => save(true));
+    document.getElementById("clearDisapprovalBtn")?.addEventListener("click", () => save(false));
   }
   // ---------------------------------------------------------------------
   // RSVP panel — immediate AJAX toggle
@@ -1318,6 +1450,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   initDeleteReinstateActions();
   initActiveToggle();
+  initDisapproval();
   initRsvpPanel();
   initBlackoutsPanel();
   initCollapseGuard();

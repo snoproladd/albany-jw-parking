@@ -29,6 +29,7 @@ import {
   reanalyzeViolation,
 } from "../lib/scheduleAnalyzer.js";
 import * as db from "../lib/dbSync.js";
+import { getActiveYear } from "../lib/conventionYear.js";
 
 /**
  * @param {{ logError: Function }} opts
@@ -58,7 +59,7 @@ export function scheduleAnalysisRouter({ csrfProtection, logError }) {
     requirePermission("createAssignments"),
     async (req, res) => {
       try {
-        const year = new Date().getFullYear();
+        const year = await getActiveYear();
         const force = req.body?.force === true;
         const [result, rules] = await Promise.all([
           analyzeSchedule({ year, triggeredBy: req.session.userId, force }),
@@ -84,7 +85,7 @@ export function scheduleAnalysisRouter({ csrfProtection, logError }) {
     requirePermission("createAssignments"),
     async (req, res) => {
       try {
-        const year = new Date().getFullYear();
+        const year = await getActiveYear();
         const [result, rules] = await Promise.all([
           db.getLatestScheduleViolationRun(year),
           db.getScheduleAnalysisRules({ activeOnly: true }),

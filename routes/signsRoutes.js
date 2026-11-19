@@ -80,6 +80,7 @@ import {
 import { getMapOverlays } from "../src/config/mapOverlays.js";
 import { PDF_SECRET } from "../lib/publishSchedule.js";
 import { publishSignMap } from "../lib/publishSignMap.js";
+import { distributionFolderPath } from "../lib/conventionYear.js";
 
 /** Multer config: in-memory upload limited to 12 MB. */
 const photoUpload = multer({
@@ -404,9 +405,7 @@ export function signsRouter({
           driveUser:
             process.env.GRAPH_DRIVE_USER ||
             "jladd@jakeofalltradespropertyserv.onmicrosoft.com",
-          folderPath:
-            process.env.GRAPH_FOLDER_PATH ||
-            "2026 Convention Parking/Documents for Distribution",
+          folderPath: distributionFolderPath(process.env.GRAPH_FOLDER_PATH),
         };
 
         const result = await publishSignMap({

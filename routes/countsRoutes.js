@@ -29,6 +29,7 @@ import {
   getLocationTaskById,
 } from "../lib/dbSync.js";
 import { evaluateCapacityAlerts } from "../lib/capacityAlerter.js";
+import { getActiveYear } from "../lib/conventionYear.js";
 
 /**
  * Factory: build the counts router.
@@ -108,7 +109,7 @@ export function countsRouter({ csrfProtection, logError, twilioAccountSid, twili
     requirePermission("logParkingCount"),
     async (req, res) => {
       try {
-        const year = new Date().getFullYear();
+        const year = await getActiveYear();
         const locations = await getActiveLocationsForYear(year);
         res.json({ locations });
       } catch (err) {
@@ -130,7 +131,7 @@ export function countsRouter({ csrfProtection, logError, twilioAccountSid, twili
     requirePermission("logParkingCount"),
     async (req, res) => {
       try {
-        const year = new Date().getFullYear();
+        const year = await getActiveYear();
         const days = await getConventionDays(year);
         res.json({ days });
       } catch (err) {
@@ -156,7 +157,7 @@ export function countsRouter({ csrfProtection, logError, twilioAccountSid, twili
     requirePermission("logParkingCount"),
     async (req, res) => {
       try {
-        const year = new Date().getFullYear();
+        const year = await getActiveYear();
         const todayIso = new Date().toISOString().slice(0, 10);
         const day = await getTodayConventionDay(year, todayIso);
         res.json({ day });

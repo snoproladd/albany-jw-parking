@@ -866,6 +866,11 @@
     if (subjectEl) subjectEl.value = batch.message_subject || "";
     if (bodyEl) bodyEl.value = batch.message_body || "";
     if (respEl) respEl.checked = batch.response_needed !== false;
+    const recruitEl = document.getElementById("itEditRecruitment");
+    if (recruitEl) {
+      recruitEl.checked = !!batch.is_recruitment;
+      recruitEl.disabled = !(respEl?.checked ?? true);
+    }
     if (activeEl) activeEl.checked = batch.active !== false;
     const msgTypeEl = document.getElementById("itEditMessageType");
     if (msgTypeEl) msgTypeEl.value = batch.message_type || "invitation";
@@ -913,6 +918,17 @@
    * otherwise closes the modal.
    * @returns {Promise<void>}
    */
+  // A recruitment campaign must ask for a response: keep the Recruitment
+  // checkbox disabled (and cleared) while "Response needed" is off.
+  document
+    .getElementById("itEditResponseNeeded")
+    ?.addEventListener("change", (e) => {
+      const recruitEl = document.getElementById("itEditRecruitment");
+      if (!recruitEl) return;
+      recruitEl.disabled = !e.target.checked;
+      if (!e.target.checked) recruitEl.checked = false;
+    });
+
   document
     .getElementById("itEditSaveBtn")
     ?.addEventListener("click", async () => {
@@ -932,6 +948,9 @@
       const messageBody = bodyEl?.value.trim() || "";
       const parentBatchId = Number(parentEl?.value) || null;
       const responseNeeded = respEl?.checked ?? true;
+      const isRecruitment =
+        responseNeeded &&
+        (document.getElementById("itEditRecruitment")?.checked ?? false);
       const active = activeEl?.checked ?? true;
 
       if (!name) {
@@ -974,6 +993,7 @@
               responseNeeded,
               active,
               messageType,
+              isRecruitment,
             }),
           },
         );
@@ -1006,7 +1026,8 @@
           opt.dataset.responseNeeded = responseNeeded ? "1" : "0";
           opt.dataset.parentId = parentBatchId ? String(parentBatchId) : "";
           const prefix = parentBatchId ? "↳ " : "";
-          opt.textContent = `${prefix}${name}`;
+          const suffix = isRecruitment ? " (recruitment)" : "";
+          opt.textContent = `${prefix}${name}${suffix}`;
         }
 
         // Sync the in-memory batches array so re-opening the edit modal
@@ -1024,6 +1045,7 @@
                 message_body: messageBody,
                 parent_batch_id: parentBatchId,
                 response_needed: responseNeeded,
+                is_recruitment: isRecruitment,
                 active,
               };
               batchesEl.textContent = JSON.stringify(batches);
@@ -1031,6 +1053,13 @@
           } catch {
             // Non-fatal — worst case the modal pre-fills with stale data
           }
+        }
+
+        // Reset the Save button — otherwise it stays disabled ("Saving…")
+        // and a second edit without a page reload silently does nothing.
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = `<i class="fa-solid fa-floppy-disk me-1"></i>Save changes`;
         }
 
         // Close modal

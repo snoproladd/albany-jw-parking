@@ -44,6 +44,7 @@ import {
 import { analyzeSms } from "../lib/smsInboundAnalyzer.js";
 import { sendResetSms, sendResetEmail } from "../lib/messaging.js";
 import { ROLE_HIERARCHY } from "../src/config/roles.js";
+import { getActiveYear } from "../lib/conventionYear.js";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -314,7 +315,7 @@ export function smsWebhookRouter({
       // SMS codes are max 8 characters (NVarChar(8) in DB). Any longer
       // normalized string cannot match a shift code — skip the DB call.
       if (code && code.length <= 8) {
-        const year = new Date().getFullYear();
+        const year = await getActiveYear();
         const shift = await findShiftBySmsCode(code, year);
 
         if (shift) {
@@ -449,7 +450,7 @@ export function smsWebhookRouter({
             Array.isArray(analysis.suggestedBlackouts) &&
             analysis.suggestedBlackouts.length > 0
           ) {
-            const year = new Date().getFullYear();
+            const year = await getActiveYear();
             for (const b of analysis.suggestedBlackouts) {
               try {
                 const resolved = await resolveBlackoutHints(

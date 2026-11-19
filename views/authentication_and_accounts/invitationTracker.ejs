@@ -116,7 +116,7 @@
                                         data-response-needed="<%= b.response_needed ? '1' : '0' %>"
                                         data-parent-id="<%= b.parent_batch_id || '' %>"
                                         <%= activeBatch === b.id ? 'selected' : '' %>>
-                                        <%= b.parent_batch_id ? '↳ ' : '' %><%= b.name %><% if (b.day_label) { %> — <%= b.day_label %><% } %>
+                                        <%= b.parent_batch_id ? '↳ ' : '' %><%= b.name %><% if (b.day_label) { %> — <%= b.day_label %><% } %><%= b.is_recruitment ? ' (recruitment)' : '' %>
                                     </option>
                                 <% }); %>
                             </select>
@@ -340,6 +340,13 @@
                             <label class="form-check-label" for="itEditResponseNeeded">
                                 Response needed
                                 <span class="text-muted fw-normal small ms-1">— uncheck for info-only sends</span>
+                            </label>
+                        </div>
+                        <div class="form-check mt-1">
+                            <input class="form-check-input" type="checkbox" id="itEditRecruitment" />
+                            <label class="form-check-label" for="itEditRecruitment">
+                                Recruitment campaign
+                                <span class="text-muted fw-normal small ms-1">— Yes and Maybe replies go to the Decently export</span>
                             </label>
                         </div>
                     </div>

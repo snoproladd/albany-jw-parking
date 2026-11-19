@@ -6,8 +6,9 @@
  *  1. Upload    — user selects a CSV; client parses it.
  *  2. Review    — parsed rows sent to /process; results rendered into four tables.
  *                 Fuzzy rows expose per-row dropdowns for manual mapping.
- *  3. Apply     — confirmed mapping sent to /apply; matched IDs activated,
- *                 unmatched DB volunteers deactivated.
+ *  3. Apply     — confirmed mapping sent to /apply; matched IDs activated
+ *                 (Maybes are approved but held inactive until they reply
+ *                 Yes), unmatched DB volunteers deactivated.
  *  4. Create    — unmatched CSV rows validated (email + phone) then auto-created
  *                 via /oversight/tools/create-volunteer. Invalid rows flagged inline.
  *  5. Send links — newly created volunteers offered email/SMS welcome links
@@ -287,6 +288,11 @@ document.addEventListener("DOMContentLoaded", () => {
                     <td class="text-muted small">${esc(csvRow.email)}</td>
                     <td class="text-muted small">${esc(csvRow.phone)}</td>
                     <td><strong>${esc(dbName(dbMatch))}</strong>
+                        ${dbMatch.parking_disapproved
+                          ? '<span class="badge bg-danger ms-1" title="Marked not approved for parking this year — stays inactive">Not approved for parking — stays inactive</span>'
+                          : dbMatch.recruitment_reply === "maybe"
+                            ? '<span class="badge bg-warning text-dark ms-1" title="Replied Maybe — will be approved but stay inactive until they reply Yes">Approved — waiting on Yes</span>'
+                            : ""}
                         <div class="text-muted small">${esc(dbMatch.email || "")} · ${esc(dbMatch.phone || "")}</div>
                     </td>
                     <td><span class="badge ${
@@ -313,7 +319,13 @@ document.addEventListener("DOMContentLoaded", () => {
         const opts = candidates
           .map(
             (c) =>
-              `<option value="${c.id}">${esc(dbName(c))} — ${esc(c.email || "")} · ${esc(c.phone || "")}</option>`,
+              `<option value="${c.id}">${esc(dbName(c))} — ${esc(c.email || "")} · ${esc(c.phone || "")}${
+                c.parking_disapproved
+                  ? " (not approved for parking — stays inactive)"
+                  : c.recruitment_reply === "maybe"
+                    ? " (Maybe — held until Yes)"
+                    : ""
+              }</option>`,
           )
           .join("");
         tr.innerHTML = `
@@ -440,7 +452,15 @@ document.addEventListener("DOMContentLoaded", () => {
       applyStatus.innerHTML = `
                 <span class="text-success fw-semibold">
                     <i class="fa-solid fa-circle-check me-1"></i>
-                    ${data.activated} activated, ${data.deactivated} deactivated.
+                    ${data.activated} activated, ${data.deactivated} deactivated${
+                      data.heldMaybe
+                        ? `, ${data.heldMaybe} approved but held (replied Maybe — they activate when they reply Yes)`
+                        : ""
+                    }${
+                      data.heldDisapproved
+                        ? `, ${data.heldDisapproved} kept inactive (not approved for parking)`
+                        : ""
+                    }.
                 </span>`;
       applyBtn.textContent = "Applied";
 
@@ -692,6 +712,30 @@ document.addEventListener("DOMContentLoaded", () => {
       parts.push(
         `<span class="text-danger">${failCount} failed or skipped</span>`,
       );
+    // People created here joined through Decently, so they are already
+    // approved: mark them active (and exported, so they are not sent back).
+    if (stateCreated.length > 0) {
+      try {
+        const resp = await fetch("/oversight/tools/decently-import/activate-created", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-Token": csrfToken,
+          },
+          body: JSON.stringify({ ids: stateCreated.map((c) => c.id) }),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (resp.ok && data.success) {
+          parts.push(`<span class="text-success">${data.activated} marked approved &amp; active</span>`);
+        } else {
+          parts.push(`<span class="text-danger">could not mark the new volunteers active — set them Active on their records</span>`);
+        }
+      } catch (err) {
+        console.error("[decentlyImport] activate-created error:", err);
+        parts.push(`<span class="text-danger">could not mark the new volunteers active — set them Active on their records</span>`);
+      }
+    }
+
     createAllStatus.innerHTML = `<div class="mt-3 small fw-semibold">${parts.join(" · ")}</div>`;
     createAllBtn.textContent = "Done";
 

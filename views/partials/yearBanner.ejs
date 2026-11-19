@@ -1,0 +1,32 @@
+<%#
+  Convention-year banners (state from middleware/conventionYearState.js):
+
+  - Past-year view: the page was opened with ?year= for a closed year.
+    Shown to everyone; loads pastYearLock.js, which stops saves in the
+    browser. The server refuses them anyway (closedYearGuard.js).
+  - Stale-year notice: signed-in users who are not ADMIN / ASSISTANT_ADMIN,
+    on or after September 1 until an admin starts the next year.
+%>
+<% const _ys = typeof yearState !== 'undefined' ? yearState : null; %>
+<% if (_ys && (_ys.isPastYear || _ys.showStaleBanner)) { %>
+<link rel="stylesheet" href="/styles/conventionYear.css" />
+<% } %>
+<% if (_ys && _ys.isPastYear) { %>
+<div class="year-banner year-banner-past" id="pastYearBanner" role="status"
+     data-past-year="<%= _ys.viewYear %>" data-active-year="<%= _ys.activeYear %>">
+  <i class="fa-solid fa-lock me-2" aria-hidden="true"></i>
+  <span>
+    Viewing <strong><%= _ys.viewYear %></strong> — this year is closed and read-only.
+  </span>
+  <a class="year-banner-link ms-2" href="<%= _ys.currentYearUrl %>">Return to <%= _ys.activeYear %></a>
+</div>
+<script src="/js/pastYearLock.js" defer></script>
+<% } else if (_ys && _ys.showStaleBanner) { %>
+<div class="year-banner year-banner-stale" role="status">
+  <i class="fa-solid fa-calendar-xmark me-2" aria-hidden="true"></i>
+  <span>
+    The site may not be set up for the <%= _ys.nextYear %> convention yet.
+    If something looks out of date, contact an administrator.
+  </span>
+</div>
+<% } %>

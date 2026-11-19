@@ -78,6 +78,20 @@ document.addEventListener("DOMContentLoaded", () => {
   const parentBatchSelect = document.getElementById("mcParentBatch");
   const responseNeededWrap    = document.getElementById("mcResponseNeededWrap");
   const responseNeededChk     = document.getElementById("mcResponseNeeded");
+  const recruitmentChk        = document.getElementById("mcIsRecruitment");
+
+  /**
+   * A recruitment campaign must ask for a response: disable (and clear)
+   * the Recruitment checkbox whenever "Response needed" is off.
+   *
+   * @returns {void}
+   */
+  function syncRecruitmentState() {
+    if (!recruitmentChk) return;
+    const allowed = responseNeededChk?.checked ?? true;
+    recruitmentChk.disabled = !allowed;
+    if (!allowed) recruitmentChk.checked = false;
+  }
   const responseConfigWrap    = document.getElementById("mcResponseConfigWrap");
   const responseTypeSelect    = document.getElementById("mcResponseType");
   const responseStandardWrap  = document.getElementById("mcResponseStandardWrap");
@@ -610,6 +624,7 @@ function updateChipAreaVisibility() {
 
     // Response needed default
     if (responseNeededChk) responseNeededChk.checked = defaults.responseNeeded;
+    syncRecruitmentState();
 
     // Show/hide {link} merge chips
     document.querySelectorAll(".mc-link-chip").forEach((chip) => {
@@ -1027,15 +1042,16 @@ function updateSubjectVisibility() {
         "Add response prompt to alert?",
         "Alerts don't usually require a response. Adding an RSVP prompt may confuse recipients. Continue?",
       );
-      if (!ok) { responseNeededChk.checked = false; return; }
+      if (!ok) { responseNeededChk.checked = false; syncRecruitmentState(); return; }
     } else if (!checked && (messageType === "invitation" || messageType === "followup")) {
       const ok = await confirmAction(
         "Remove response prompt?",
         "Invitations typically require a response. Removing it will send this as info-only with no RSVP. Continue?",
       );
-      if (!ok) { responseNeededChk.checked = true; return; }
+      if (!ok) { responseNeededChk.checked = true; syncRecruitmentState(); return; }
     }
 
+    syncRecruitmentState();
     updateSendButton();
   });
 
@@ -1157,6 +1173,7 @@ function updateSubjectVisibility() {
         ? Number(parentBatchSelect?.value) || null
         : null;
     const responseNeeded = responseNeededChk?.checked ?? true;
+    const isRecruitment = responseNeeded && (recruitmentChk?.checked ?? false);
 
     /**
      * Build the response_config object from the UI state.
@@ -1256,6 +1273,7 @@ function updateSubjectVisibility() {
           isReminder,
           messageType,
           responseConfig,
+          isRecruitment,
         }),
       });
       return res.json().catch(() => ({}));

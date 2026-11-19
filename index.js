@@ -55,6 +55,10 @@ import {
   getShiftRendezvousById,
   getShiftRendezvous,
 } from "./lib/dbSync.js";
+import { getActiveYear, distributionFolderPath } from "./lib/conventionYear.js";
+import { conventionYearStateMiddleware } from "./middleware/conventionYearState.js";
+import { closedYearGuard } from "./middleware/closedYearGuard.js";
+import { conventionYearRouter } from "./routes/conventionYearRoutes.js";
 
 
 // Resolve paths
@@ -562,6 +566,13 @@ let mapsSyncHandle = null;
       next();
     });
 
+    // Convention-year prompt / banner state (res.locals.yearState).
+    // Needs the session and res.locals.nav set above.
+    app.use(conventionYearStateMiddleware);
+
+    // Closed convention years are read-only: refuse writes to their records.
+    app.use(closedYearGuard);
+
     const csrfProtection = csurf({ cookie: true });
 
     /**
@@ -615,7 +626,7 @@ let mapsSyncHandle = null;
       }
 
       try {
-        const year = new Date().getFullYear();
+        const year = await getActiveYear();
         const [volunteer, conventionDay, rawOversightStructure, allDays] =
           await Promise.all([
             db.getVolunteerById(req.session.userId),
@@ -763,9 +774,10 @@ let mapsSyncHandle = null;
           driveUser:
             config.GRAPH_DRIVE_USER ||
             "jladd@jakeofalltradespropertyserv.onmicrosoft.com",
-          folderPath:
-            config.GRAPH_FOLDER_PATH ||
-            "2026 Convention Parking/Documents for Distribution",
+          // Read at publish time: "{year}" follows the active convention year.
+          get folderPath() {
+            return distributionFolderPath(config.GRAPH_FOLDER_PATH);
+          },
         },
       }),
     );
@@ -781,9 +793,10 @@ let mapsSyncHandle = null;
           driveUser:
             config.GRAPH_DRIVE_USER ||
             "jladd@jakeofalltradespropertyserv.onmicrosoft.com",
-          folderPath:
-            config.GRAPH_FOLDER_PATH ||
-            "2026 Convention Parking/Documents for Distribution",
+          // Read at publish time: "{year}" follows the active convention year.
+          get folderPath() {
+            return distributionFolderPath(config.GRAPH_FOLDER_PATH);
+          },
         },
       }),
     );
@@ -799,9 +812,10 @@ let mapsSyncHandle = null;
           driveUser:
             config.GRAPH_DRIVE_USER ||
             "jladd@jakeofalltradespropertyserv.onmicrosoft.com",
-          folderPath:
-            config.GRAPH_FOLDER_PATH ||
-            "2026 Convention Parking/Documents for Distribution",
+          // Read at publish time: "{year}" follows the active convention year.
+          get folderPath() {
+            return distributionFolderPath(config.GRAPH_FOLDER_PATH);
+          },
         },
       }),
     );
@@ -834,6 +848,7 @@ app.use("/", countsRouter({
 }));
 app.use("/", systemVariablesRouter({ csrfProtection, logError }));
 app.use("/", capacityAlertRouter({ csrfProtection, logError }));
+app.use("/", conventionYearRouter({ csrfProtection, logError }));
 app.use(
     "/",
     lessonsLearnedRouter({
@@ -847,10 +862,10 @@ app.use(
             driveUser:
                 config.GRAPH_DRIVE_USER ||
                 "jladd@jakeofalltradespropertyserv.onmicrosoft.com",
-            folderPath:
-                (config.GRAPH_FOLDER_PATH ||
-                "2026 Convention Parking/Documents for Distribution") +
-                "/reports/lessons-learned",
+            // Read at publish time: "{year}" follows the active convention year.
+            get folderPath() {
+                return distributionFolderPath(config.GRAPH_FOLDER_PATH) + "/reports/lessons-learned";
+            },
         },
     }),
 );
@@ -877,9 +892,10 @@ app.use(
       driveUser:
         config.GRAPH_DRIVE_USER ||
         "jladd@jakeofalltradespropertyserv.onmicrosoft.com",
-      folderPath:
-        config.GRAPH_FOLDER_PATH ||
-        "2026 Convention Parking/Documents for Distribution",
+      // Read at publish time: "{year}" follows the active convention year.
+      get folderPath() {
+        return distributionFolderPath(config.GRAPH_FOLDER_PATH);
+      },
     },
   }),
 );
@@ -1573,8 +1589,12 @@ app.use(
 
     await initTwilio();
     startExternalServiceWatchdog();
+
+    // Load the active convention year now so the SharePoint folder getters
+    // (distributionFolderPath) and the Maps sync use it from the first run.
+    log(`Active convention year: ${await getActiveYear()}.`);
+
     alertScheduler = startAlertScheduler({
-      year: new Date().getFullYear(),
       accountSid: config.TWILIO_ACCOUNT_SID,
       authToken: config.TWILIO_AUTH_TOKEN,
       messagingSid: config.TWILIO_MSG_SID,
@@ -1590,9 +1610,10 @@ app.use(
         driveUser:
           config.GRAPH_DRIVE_USER ||
           "jladd@jakeofalltradespropertyserv.onmicrosoft.com",
-        folderPath:
-          config.GRAPH_FOLDER_PATH ||
-          "2026 Convention Parking/Documents for Distribution",
+        // Read at publish time: "{year}" follows the active convention year.
+        get folderPath() {
+          return distributionFolderPath(config.GRAPH_FOLDER_PATH);
+        },
       },
       intervalMs: 30 * 60 * 1000,
     });

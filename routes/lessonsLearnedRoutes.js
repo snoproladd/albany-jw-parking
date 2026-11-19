@@ -64,6 +64,7 @@ import {
     publishLessonsLearnedPdf,
     generateLessonsLearnedPDF,
 } from '../lib/publishLessonsLearned.js';
+import { getActiveYear } from "../lib/conventionYear.js";
 
 /** Minimum role index that can view and submit lessons. */
 const KEYMAN_LEVEL = ROLE_HIERARCHY.indexOf('KEYMAN');
@@ -896,7 +897,7 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
         async (req, res) => {
             try {
                 const years  = await getLessonsLearnedYears();
-                const year   = Number(req.query.year) || (years[0]?.year ?? new Date().getFullYear());
+                const year   = Number(req.query.year) || await getActiveYear();
                 const report = await getLessonsLearnedReport(year);
                 return res.render('lessonsLearnedResources', {
                     csrfToken:  req.csrfToken(),
@@ -990,7 +991,7 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
         requirePermission('editVolunteerInfo'),
         async (req, res) => {
             try {
-                const year    = Number(req.body.year) || new Date().getFullYear();
+                const year    = Number(req.body.year) || await getActiveYear();
                 const lessons = await getLessonsLearned({ year, status: 'published' });
 
                 if (!lessons.length) {

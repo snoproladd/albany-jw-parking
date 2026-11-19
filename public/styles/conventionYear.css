@@ -1,0 +1,171 @@
+/*
+ * conventionYear.css
+ * Convention-year banner (views/partials/yearBanner.ejs) and the
+ * "Has the next convention year begun?" prompt
+ * (views/partials/rolloverPrompt.ejs, public/js/rolloverPrompt.js).
+ */
+
+/* ── Banner ───────────────────────────────────────────────── */
+
+.year-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    margin: 0.5rem 0.75rem 0;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-align: center;
+}
+
+.year-banner-past {
+    position: sticky;
+    top: 0;
+    z-index: 1020;
+    background: #e5e7eb;
+    border: 1px solid #6b7280;
+    color: #111827;
+}
+
+.year-banner-past.is-flashing {
+    animation: year-banner-flash 0.6s ease-in-out 2;
+}
+
+@keyframes year-banner-flash {
+    50% { background: #fde68a; border-color: var(--Accent); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .year-banner-past.is-flashing {
+        animation: none;
+        outline: 3px solid var(--Accent);
+    }
+}
+
+.year-banner-link {
+    color: var(--Primary);
+    font-weight: 700;
+    text-decoration: underline;
+}
+
+.year-banner-stale {
+    background: #fef3c7;
+    border: 1px solid var(--Accent);
+    color: var(--TextDark);
+}
+
+/* ── Calendar ─────────────────────────────────────────────── */
+
+.rollover-cal {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 0.75rem;
+}
+
+.rollover-cal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.rollover-cal-title {
+    font-weight: 700;
+    color: var(--Primary);
+}
+
+.rollover-cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+}
+
+.rollover-cal-wd {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #4b5563;
+    text-align: center;
+    padding-bottom: 2px;
+}
+
+.rollover-cal-day {
+    aspect-ratio: 1 / 1;
+    min-height: 2.25rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background: #ffffff;
+    color: var(--TextDark);
+    font-size: 0.9rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.rollover-cal-day:hover {
+    border-color: var(--Secondary);
+    background: #eff6ff;
+}
+
+.rollover-cal-day:focus-visible {
+    outline: 3px solid var(--Secondary);
+    outline-offset: 1px;
+}
+
+.rollover-cal-day.is-selected {
+    background: var(--Primary);
+    border-color: var(--Primary);
+    color: var(--TextLight);
+    font-weight: 700;
+}
+
+/* ── Selected-date chips ──────────────────────────────────── */
+
+.rollover-selected {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.rollover-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.4rem 0.25rem 0.65rem;
+    border-radius: 999px;
+    background: #e0e7ff;
+    color: var(--Primary);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.rollover-chip-remove {
+    font-size: 0.6rem;
+}
+
+/* ── Done state ───────────────────────────────────────────── */
+
+.rollover-done-icon {
+    font-size: 2.5rem;
+    color: #15803d;
+    margin-bottom: 0.5rem;
+}
+
+/* ── Confirmation day list and done summary ──────────────── */
+
+.rollover-map li {
+    padding: 0.2rem 0;
+}
+
+.rollover-map-match {
+    color: #374151;
+}
+
+.rollover-map-empty {
+    color: #92400e;
+}
+
+.rollover-summary li {
+    padding: 0.15rem 0;
+}

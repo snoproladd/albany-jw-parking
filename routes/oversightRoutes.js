@@ -29,12 +29,15 @@ import {
   upsertRolePermission,
   deleteRolePermission,
   getDecentlyExportRows,
+  countRecruitmentBatches,
   markDecentlyExported,
   setVolunteerActive,
+  setVolunteerDisapproved,
   softDeleteVolunteer,
   reinstateVolunteer,
   getVolunteersForImportMatch,
   applyDecentlyImport,
+  markCreatedFromDecently,
   getLocationsTasks,
   createLocationTask,
   updateLocationTask,
@@ -69,6 +72,7 @@ import {
   getAssignmentsAtLocationForYear,
   getVolunteersForRendezvousAlert,
   copyConventionDay,
+  countRendezvousPhotoRefs,
   getVolunteersForMessaging,
   createInvitation,
   remindInvitation,
@@ -171,6 +175,7 @@ import {
   getSchedulerColumnPrefs,
   updateSchedulerColumnPrefs,
 } from "../lib/dbSync.js";
+import { getActiveYear, distributionFolderPath } from "../lib/conventionYear.js";
 
 import { verifyPassword, hashPassword } from "../lib/passwordVer.js";
 
@@ -358,8 +363,8 @@ export function oversightRouter({
           getActiveVolunteers({}),
           getVolunteerById(req.session.userId),
           getCongregations(),
-          getVolunteerRsvpHistory(targetUserId, new Date().getFullYear()),
-          getConventionDays(new Date().getFullYear()),
+          getVolunteerRsvpHistory(targetUserId, await getActiveYear()),
+          getConventionDays(await getActiveYear()),
         ]);
 
         if (!targetUser) return res.redirect("/editVolunteer");
@@ -464,9 +469,9 @@ export function oversightRouter({
             getCongregations(),
             getVolunteerRsvpHistory(
               Number(targetUserId),
-              new Date().getFullYear(),
+              await getActiveYear(),
             ),
-            getConventionDays(new Date().getFullYear()),
+            getConventionDays(await getActiveYear()),
           ]);
 
         return res.render("volunteerAccountOversight", {
@@ -552,7 +557,7 @@ export function oversightRouter({
     requirePermission("editVolunteerInfo"),
     csrfProtection,
     async (req, res) => {
-      const { targetUserId, active } = req.body || {};
+      const { targetUserId, active, confirmReactivate } = req.body || {};
       const id = Number(targetUserId);
 
       if (!id) {
@@ -575,6 +580,22 @@ export function oversightRouter({
       }
 
       try {
+        // Re-activating someone parking marked "not approved" for this year
+        // clears that mark, so it needs an explicit confirmation.
+        if (active && confirmReactivate !== true) {
+          const [target, activeYear] = await Promise.all([
+            getVolunteerById(id),
+            getActiveYear(),
+          ]);
+          if (target?.disapproved_year === activeYear) {
+            return res.status(409).json({
+              success: false,
+              needsConfirm: true,
+              message: `Not approved for parking in ${activeYear}. Confirm to reactivate.`,
+            });
+          }
+        }
+
         const ok = await setVolunteerActive(
           id,
           active,
@@ -595,6 +616,66 @@ export function oversightRouter({
       }
     },
   );
+  /**
+   * POST /edit-volunteer/disapprove
+   * Mark or clear "not approved for parking" for the active year. Marking
+   * also makes the volunteer inactive; while marked, Decently imports and
+   * recruitment replies cannot activate them. Clearing leaves them inactive.
+   * Requires editVolunteerInfo (same as the Active toggle).
+   *
+   * Body (JSON): { targetUserId: number, disapproved: boolean }
+   * Response: { success, year, disapproved, by?, at?, message? }
+   */
+  router.post(
+    "/edit-volunteer/disapprove",
+    requireAuth,
+    requirePermission("editVolunteerInfo"),
+    csrfProtection,
+    async (req, res) => {
+      const { targetUserId, disapproved } = req.body || {};
+      const id = Number(targetUserId);
+      if (!id) {
+        return res
+          .status(400)
+          .json({ success: false, message: "No volunteer selected." });
+      }
+      if (typeof disapproved !== "boolean") {
+        return res
+          .status(400)
+          .json({ success: false, message: "disapproved must be a boolean." });
+      }
+      if (id === req.session.userId) {
+        return res.status(400).json({
+          success: false,
+          message: "You cannot change your own approval status.",
+        });
+      }
+      try {
+        const year = await getActiveYear();
+        const by = req.session.userEmail || "admin";
+        const ok = await setVolunteerDisapproved(id, year, disapproved, by);
+        if (!ok) {
+          return res.status(404).json({
+            success: false,
+            message: "Volunteer not found or archived.",
+          });
+        }
+        return res.json({
+          success: true,
+          year,
+          disapproved,
+          by: disapproved ? by : null,
+          at: disapproved ? new Date().toISOString() : null,
+        });
+      } catch (err) {
+        (logError || console.error)("edit-volunteer/disapprove POST error:", err);
+        return res
+          .status(500)
+          .json({ success: false, message: "Server error." });
+      }
+    },
+  );
+
   /**
    * POST /edit-volunteer/delete
    * Soft-delete a volunteer (sets registration_status = 'deleted').
@@ -1811,12 +1892,19 @@ export function oversightRouter({
     csrfProtection,
     async (req, res) => {
       try {
-        const rows = await getDecentlyExportRows();
+        const exportYear = await getActiveYear();
+        const rows = await getDecentlyExportRows(exportYear);
 
         if (rows.length === 0) {
+          const flagged = await countRecruitmentBatches(exportYear);
+          const msg = flagged === 0
+            ? `No new volunteers to export. No ${exportYear} campaign is marked as a ` +
+              "recruitment campaign yet — mark one in Campaign Center or the " +
+              "Campaign Tracker's Edit Campaign."
+            : `No new volunteers to export — nobody else has answered Yes or Maybe ` +
+              `to a ${exportYear} recruitment campaign or joined since ${exportYear} started.`;
           return res.redirect(
-            "/oversight/tools/decently-export?error=" +
-              encodeURIComponent("No new volunteers to export."),
+            "/oversight/tools/decently-export?error=" + encodeURIComponent(msg),
           );
         }
 
@@ -2080,7 +2168,9 @@ export function oversightRouter({
    *   matchedIds:  number[]   — DB IDs to activate + mark imported
    *   inactiveIds: number[]   — DB IDs to mark inactive
    * }
-   * Response: { success, activated, deactivated }
+   * Response: { success, activated, deactivated, heldMaybe }
+   *   heldMaybe       — approved but left inactive: latest recruitment reply is Maybe
+   *   heldDisapproved — approved by Decently but marked not approved for parking
    */
   router.post(
     "/oversight/tools/decently-import/apply",
@@ -2097,18 +2187,59 @@ export function oversightRouter({
       }
 
       try {
-        const { activated, deactivated } = await applyDecentlyImport(
-          matchedIds.map(Number).filter(Boolean),
-          inactiveIds.map(Number).filter(Boolean),
-          req.session.userEmail || "admin",
-        );
-        return res.json({ success: true, activated, deactivated });
+        const { activated, deactivated, heldMaybe, heldDisapproved } =
+          await applyDecentlyImport(
+            matchedIds.map(Number).filter(Boolean),
+            inactiveIds.map(Number).filter(Boolean),
+            req.session.userEmail || "admin",
+          );
+        return res.json({
+          success: true,
+          activated,
+          deactivated,
+          heldMaybe,
+          heldDisapproved,
+        });
       } catch (err) {
         (logError || console.error)("decently-import/apply error:", err);
         return res.status(500).json({ success: false, error: "Server error." });
       }
     },
   );
+  /**
+   * POST /oversight/tools/decently-import/activate-created
+   * Volunteers created from the import's "unrecognised" rows joined through
+   * Decently, so they are already approved: mark them active, imported,
+   * and exported (so the Decently export does not send them back).
+   *
+   * Body: { ids: number[] }  — ids returned by create-volunteer
+   * Response: { success, activated }
+   */
+  router.post(
+    "/oversight/tools/decently-import/activate-created",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    csrfProtection,
+    async (req, res) => {
+      const ids = Array.isArray(req.body?.ids)
+        ? req.body.ids.map(Number).filter((n) => Number.isInteger(n) && n > 0)
+        : [];
+      if (ids.length === 0) {
+        return res.status(400).json({ success: false, error: "No ids." });
+      }
+      try {
+        const activated = await markCreatedFromDecently(
+          ids,
+          req.session.userEmail || "admin",
+        );
+        return res.json({ success: true, activated });
+      } catch (err) {
+        (logError || console.error)("decently-import/activate-created error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
   /**
    * POST /oversight/tools/decently-import/send-welcome
    * Send a password reset link to a newly created volunteer using standard copy.
@@ -2208,14 +2339,14 @@ export function oversightRouter({
     requirePermission("manageShifts"),
     csrfProtection,
     async (req, res) => {
-      const year = parseInt(req.query.year) || new Date().getFullYear();
+      const year = parseInt(req.query.year) || await getActiveYear();
       try {
         const rows = await getLocationsTasks(year);
         return res.render("authentication_and_accounts/locationsAndTasks", {
           csrfToken: req.csrfToken(),
           year,
           rows,
-          currentYear: new Date().getFullYear(),
+          currentYear: await getActiveYear(),
         });
       } catch (err) {
         (logError || console.error)("locationsAndTasks GET error:", err);
@@ -2452,8 +2583,8 @@ export function oversightRouter({
           eventTypes: schedulerCategories,
           conventionDays: [],
           timeline: [],
-          year: new Date().getFullYear(),
-          currentYear: new Date().getFullYear(),
+          year: await getActiveYear(),
+          currentYear: await getActiveYear(),
           selectedDay: null,
           locationsTasks: [],
         });
@@ -2685,7 +2816,7 @@ export function oversightRouter({
     requirePermission("manageShifts"),
     csrfProtection,
     async (req, res) => {
-      const year = parseInt(req.query.year) || new Date().getFullYear();
+      const year = parseInt(req.query.year) || await getActiveYear();
       const dayId = req.query.dayId ? Number(req.query.dayId) : null;
       try {
         const [schedulerCategories, conventionDays, locationsTasks] =
@@ -2707,7 +2838,7 @@ export function oversightRouter({
           csrfToken: req.csrfToken(),
           view: "timelines",
           year,
-          currentYear: new Date().getFullYear(),
+          currentYear: await getActiveYear(),
           eventTypes: schedulerCategories,
           schedulerCategories,
           conventionDays,
@@ -3427,7 +3558,7 @@ export function oversightRouter({
     requirePermission("viewSchedules"),
     async (req, res) => {
       const id = Number(req.params.id);
-      const year = Number(req.query.year) || new Date().getFullYear();
+      const year = Number(req.query.year) || await getActiveYear();
       if (!id) {
         return res.status(400).json({ success: false, error: "Invalid id." });
       }
@@ -3707,8 +3838,12 @@ export function oversightRouter({
           return res.status(404).json({ success: false, error: "Not found." });
         }
 
-        // Best-effort blob cleanup
-        if (existing.photo_blob_name) {
+        // Best-effort blob cleanup — skipped while another rendezvous
+        // point (e.g. a copy carried into a later year) still uses it.
+        if (
+          existing.photo_blob_name &&
+          (await countRendezvousPhotoRefs(existing.photo_blob_name)) === 0
+        ) {
           try {
             await deleteSignPhoto(existing.photo_blob_name);
           } catch (bErr) {
@@ -3773,10 +3908,12 @@ export function oversightRouter({
           updated_by: req.session.userId,
         });
 
-        // Best-effort delete of previous blob
+        // Best-effort delete of previous blob — skipped while another
+        // rendezvous point (e.g. a copy carried into a later year) still uses it.
         if (
           existing.photo_blob_name &&
-          existing.photo_blob_name !== newBlobName
+          existing.photo_blob_name !== newBlobName &&
+          (await countRendezvousPhotoRefs(existing.photo_blob_name)) === 0
         ) {
           try {
             await deleteSignPhoto(existing.photo_blob_name);
@@ -3839,7 +3976,10 @@ export function oversightRouter({
           });
 
           try {
-            await deleteSignPhoto(existing.photo_blob_name);
+            // Skipped while another rendezvous point still uses the blob.
+            if ((await countRendezvousPhotoRefs(existing.photo_blob_name)) === 0) {
+              await deleteSignPhoto(existing.photo_blob_name);
+            }
           } catch (bErr) {
             (logError || console.error)(
               "Warning: failed to delete RV photo blob:",
@@ -3868,14 +4008,14 @@ export function oversightRouter({
     requirePermission("editRendezvous"),
     csrfProtection,
     async (req, res) => {
-      const year = parseInt(req.query.year) || new Date().getFullYear();
+      const year = parseInt(req.query.year) || await getActiveYear();
       try {
         const days = await getConventionDaysWithShifts(year);
         return res.render("authentication_and_accounts/rendezvous", {
           csrfToken: req.csrfToken(),
           year,
           days,
-          currentYear: new Date().getFullYear(),
+          currentYear: await getActiveYear(),
           userPermissions: req.session.permissions || {},
           userRole: req.session.userRole || "NON_REGISTERED",
         });
@@ -3907,7 +4047,7 @@ export function oversightRouter({
     csrfProtection,
     async (req, res) => {
       try {
-        const year = new Date().getFullYear();
+        const year = await getActiveYear();
         const batchId = req.query.batchId ? Number(req.query.batchId) : null;
         const selectPending = req.query.selectPending === "1";
 
@@ -4055,10 +4195,11 @@ export function oversightRouter({
         isReminder = false,
         messageType = "invitation",
         responseConfig = null,
+        isRecruitment = false,
       } = req.body || {};
 
       const sentBy = req.session.userEmail || "admin";
-      const year = new Date().getFullYear();
+      const year = await getActiveYear();
       let dayId = conventionDayId ? Number(conventionDayId) : null;
       let resolvedSess = sessionId ? Number(sessionId) : null;
       let resolvedShift = shiftId ? Number(shiftId) : null;
@@ -4226,6 +4367,7 @@ export function oversightRouter({
               ? messageType
               : "invitation",
             responseConfig: responseConfig || null,
+            isRecruitment: isRecruitment === true,
           });
         }
       } catch (err) {
@@ -4660,7 +4802,7 @@ export function oversightRouter({
       try {
         const year = req.query.year
           ? Number(req.query.year)
-          : new Date().getFullYear();
+          : await getActiveYear();
         const batches = await getInvitationBatches(year);
         return res.json({ success: true, batches });
       } catch (err) {
@@ -4818,7 +4960,8 @@ export function oversightRouter({
    *   parentBatchId:  number|null,
    *   responseNeeded: boolean,
    *   active:         boolean,
-   *   responseConfig: object|null
+   *   responseConfig?: object|null,   omitted = keep current
+   *   isRecruitment?:  boolean        omitted = keep current
    * }
    * Response: { success: boolean, error?: string }
    *
@@ -4842,8 +4985,13 @@ export function oversightRouter({
         responseNeeded,
         active,
         messageType,
-        responseConfig = null,
+        responseConfig,
+        isRecruitment,
       } = req.body || {};
+      const hasResponseConfig = Object.prototype.hasOwnProperty.call(
+        req.body || {},
+        "responseConfig",
+      );
 
       if (!name?.trim())
         return res
@@ -4875,7 +5023,11 @@ export function oversightRouter({
           messageType: ["invitation", "alert", "followup"].includes(messageType)
             ? messageType
             : "invitation",
-          responseConfig: responseConfig || null,
+          // Omitted fields keep their stored values (the tracker's edit
+          // form does not send responseConfig).
+          responseConfig: hasResponseConfig ? responseConfig || null : undefined,
+          isRecruitment:
+            typeof isRecruitment === "boolean" ? isRecruitment : undefined,
         });
 
         if (!ok)
@@ -4910,7 +5062,7 @@ export function oversightRouter({
     requirePermission("accessAdminConsole"),
     csrfProtection,
     async (req, res) => {
-      const year = new Date().getFullYear();
+      const year = await getActiveYear();
       const dayId = req.query.dayId ? Number(req.query.dayId) : null;
       const batchId = req.query.batchId ? Number(req.query.batchId) : null;
       const includeRevoked = req.query.includeRevoked !== "0";
@@ -5068,7 +5220,7 @@ export function oversightRouter({
     requirePermission("viewAttendance"),
     async (req, res) => {
       try {
-        const year = parseInt(req.query.year, 10) || new Date().getFullYear();
+        const year = parseInt(req.query.year, 10) || await getActiveYear();
         const days = await getSchedulingCoverageSummary(year);
         res.json({ year, days });
       } catch (err) {
@@ -5096,7 +5248,7 @@ export function oversightRouter({
     requirePermission("viewAttendance"),
     async (req, res) => {
       try {
-        const year = parseInt(req.query.year, 10) || new Date().getFullYear();
+        const year = parseInt(req.query.year, 10) || await getActiveYear();
         const days = await getAttendanceSummary(year);
         res.json({ year, days });
       } catch (err) {
@@ -5125,7 +5277,7 @@ export function oversightRouter({
     requirePermission("viewAttendance"),
     async (req, res) => {
       try {
-        const year = parseInt(req.query.year, 10) || new Date().getFullYear();
+        const year = parseInt(req.query.year, 10) || await getActiveYear();
         const volunteers = await getVolunteerDemographics(year);
         res.json({ year, volunteers });
       } catch (err) {
@@ -5151,7 +5303,7 @@ export function oversightRouter({
     requirePermission("viewAttendance"),
     async (req, res) => {
       try {
-        const year = parseInt(req.query.year, 10) || new Date().getFullYear();
+        const year = parseInt(req.query.year, 10) || await getActiveYear();
         const crews = await getCrewStaffingSummary(year);
         res.json({ year, crews });
       } catch (err) {
@@ -5247,7 +5399,7 @@ export function oversightRouter({
     csrfProtection,
     async (req, res) => {
       try {
-        const year = new Date().getFullYear();
+        const year = await getActiveYear();
         const [days, volunteers] = await Promise.all([
           getConventionDaysWithShifts(year),
           getVolunteersForMessaging(),
@@ -5276,7 +5428,7 @@ export function oversightRouter({
     csrfProtection,
     async (req, res) => {
       try {
-        const year = new Date().getFullYear();
+        const year = await getActiveYear();
         const conventionDays = await getConventionDays(year);
         return res.render("authentication_and_accounts/attendanceReport", {
           csrfToken: req.csrfToken(),
@@ -5719,7 +5871,7 @@ export function oversightRouter({
     async (req, res) => {
       let dayId = Number(req.query.dayId) || null;
       try {
-          const allDays = await getConventionDays(new Date().getFullYear());
+          const allDays = await getConventionDays(await getActiveYear());
           const conventionDays = allDays.filter(
               (d) => d.schedulable !== false && d.schedulable !== 0,
           );
@@ -5789,7 +5941,7 @@ export function oversightRouter({
     requirePermission("createAssignments"),
     async (req, res) => {
       try {
-        const year = new Date().getFullYear();
+        const year = await getActiveYear();
         const data = await getConflictGridData(year);
         return res.json(data);
       } catch (err) {
@@ -5843,7 +5995,7 @@ export function oversightRouter({
     csrfProtection,
     async (req, res) => {
       try {
-        const year = new Date().getFullYear();
+        const year = await getActiveYear();
         const allDays = await getConventionDays(year);
         const conventionDays = allDays.filter(
           (d) => d.schedulable !== false && d.schedulable !== 0,
@@ -5958,7 +6110,7 @@ export function oversightRouter({
     requirePermission("createAssignments"),
     async (req, res) => {
       try {
-        const year = new Date().getFullYear();
+        const year = await getActiveYear();
         const days = await getBlackoutPickerData(year);
         return res.json({ days });
       } catch (err) {
@@ -6100,7 +6252,7 @@ export function oversightRouter({
       try {
         const [attendance, days] = await Promise.all([
           getAttendanceByDay(dayId),
-          getConventionDays(new Date().getFullYear()),
+          getConventionDays(await getActiveYear()),
         ]);
         const day = days.find((d) => d.id === dayId);
         const conventionDate = day?.convention_date
@@ -6393,7 +6545,7 @@ export function oversightRouter({
 
       const dayMeta = {};
       try {
-        const allDays = await getConventionDays(new Date().getFullYear());
+        const allDays = await getConventionDays(await getActiveYear());
         const lookup = Object.fromEntries(allDays.map((d) => [d.id, d]));
         for (const dayId of dayIds) {
           const d = lookup[dayId];
@@ -6493,7 +6645,7 @@ export function oversightRouter({
     try {
       const [reportData, conventionDays] = await Promise.all([
         getSchedulerReportData(dayId),
-        getConventionDays(new Date().getFullYear()),
+        getConventionDays(await getActiveYear()),
       ]);
       return res.render("authentication_and_accounts/schedulerReport", {
         csrfToken: "", // Puppeteer render — no CSRF needed
@@ -6551,7 +6703,7 @@ export function oversightRouter({
       /** @type {Record<number, { label: string, conventionDate: string|null }>} */
       const dayMeta = {};
       try {
-        const allDays = await getConventionDays(new Date().getFullYear());
+        const allDays = await getConventionDays(await getActiveYear());
         const lookup = Object.fromEntries(allDays.map((d) => [d.id, d]));
         for (const dayId of dayIds) {
           const d = lookup[dayId];
@@ -6575,9 +6727,7 @@ export function oversightRouter({
         driveUser:
           process.env.GRAPH_DRIVE_USER ||
           "jladd@jakeofalltradespropertyserv.onmicrosoft.com",
-        folderPath:
-          process.env.GRAPH_FOLDER_PATH ||
-          "2026 Convention Parking/Documents for Distribution",
+        folderPath: distributionFolderPath(process.env.GRAPH_FOLDER_PATH),
       };
       const resolvedGraphConfig = {
         ...baseConfig,
@@ -6631,7 +6781,7 @@ export function oversightRouter({
     requirePermission("accessAdminConsole"),
     csrfProtection,
     async (req, res) => {
-      const year = new Date().getFullYear();
+      const year = await getActiveYear();
       try {
         const schedules = await getAlertSchedules(year);
         return res.render("authentication_and_accounts/shiftAlerts", {
@@ -6753,7 +6903,7 @@ export function oversightRouter({
     async (req, res) => {
       const year = req.query.year
         ? Number(req.query.year)
-        : new Date().getFullYear();
+        : await getActiveYear();
       try {
         const meetings = await getCampaignMeetings(year);
         return res.json({ success: true, meetings });
@@ -6850,7 +7000,7 @@ export function oversightRouter({
     async (req, res) => {
       const year = req.query.year
         ? Number(req.query.year)
-        : new Date().getFullYear();
+        : await getActiveYear();
       try {
         const schedules = await getAlertSchedules(year);
         return res.json({ success: true, schedules });
@@ -7550,7 +7700,7 @@ export function oversightRouter({
     async (req, res) => {
       try {
         const volunteerId = req.session.userId;
-        const year = new Date().getFullYear();
+        const year = await getActiveYear();
         const [scheduleData, allDays, volunteer] = await Promise.all([
           getVolunteerScheduleReport(volunteerId, year),
           getConventionDays(year),
@@ -7589,7 +7739,7 @@ export function oversightRouter({
     csrfProtection,
     async (req, res) => {
       try {
-        const year = new Date().getFullYear();
+        const year = await getActiveYear();
         const volunteerId = Number(req.query.volunteerId) || null;
 
         let scheduleData = { days: [] };
@@ -7697,7 +7847,7 @@ export function oversightRouter({
           });
         }
 
-        const year = new Date().getFullYear();
+        const year = await getActiveYear();
         const [volunteer, scheduleData] = await Promise.all([
           getVolunteerById(targetId),
           getVolunteerScheduleReport(targetId, year),
@@ -7818,7 +7968,7 @@ export function oversightRouter({
     requirePermission("viewAttendance"),
     async (req, res) => {
       try {
-        const year = parseInt(req.query.year, 10) || new Date().getFullYear();
+        const year = parseInt(req.query.year, 10) || await getActiveYear();
         const days = await getSchedulingCoverageSummary(year);
         return res.json({ year, days });
       } catch (err) {
@@ -7845,7 +7995,7 @@ export function oversightRouter({
     requirePermission("viewAttendance"),
     async (req, res) => {
       try {
-        const year = parseInt(req.query.year, 10) || new Date().getFullYear();
+        const year = parseInt(req.query.year, 10) || await getActiveYear();
         const days = await getAttendanceSummary(year);
         return res.json({ year, days });
       } catch (err) {
@@ -7873,7 +8023,7 @@ export function oversightRouter({
     requirePermission("viewAttendance"),
     async (req, res) => {
       try {
-        const year = parseInt(req.query.year, 10) || new Date().getFullYear();
+        const year = parseInt(req.query.year, 10) || await getActiveYear();
         const volunteers = await getVolunteerDemographics(year);
         return res.json({ year, volunteers });
       } catch (err) {
@@ -7900,7 +8050,7 @@ export function oversightRouter({
     requirePermission("viewAttendance"),
     async (req, res) => {
       try {
-        const year = parseInt(req.query.year, 10) || new Date().getFullYear();
+        const year = parseInt(req.query.year, 10) || await getActiveYear();
         const crews = await getCrewStaffingSummary(year);
         return res.json({ year, crews });
       } catch (err) {

@@ -34,6 +34,7 @@ import {
   getCapacityAlertKillSwitch,
   setCapacityAlertKillSwitch,
 } from "../lib/dbSync.js";
+import { getActiveYear } from "../lib/conventionYear.js";
 
 /**
  * Factory: build the capacity alerts router.
@@ -61,7 +62,7 @@ export function capacityAlertRouter({ csrfProtection, logError }) {
     csrfProtection,
     async (req, res) => {
       try {
-        const year = new Date().getFullYear();
+        const year = await getActiveYear();
         const locations = await getActiveLocationsForYear(year);
         res.render("capacityAlerts", {
           nav: res.locals.nav,

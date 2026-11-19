@@ -107,7 +107,20 @@ function initMapsSync() {
                 throw new Error(data.message || `HTTP ${res.status}`);
             }
 
-            const { added, updated, removed, simulated } = data.summary;
+            const { added, updated, removed, simulated, skipped } = data.summary;
+            if (skipped) {
+                // This year's SharePoint Maps folder is missing or empty —
+                // the server kept the current maps instead of clearing them.
+                if (statusEl) {
+                    statusEl.className = "small mt-1 text-warning";
+                    statusEl.textContent = skipped === "folder-not-found"
+                        ? "This year's Maps folder doesn't exist in SharePoint yet \u2014 current maps kept."
+                        : "This year's Maps folder is empty \u2014 current maps kept.";
+                }
+                btn.disabled = false;
+                btn.innerHTML = origLabel;
+                return;
+            }
             if (simulated) {
                 // Demo site: sync is simulated server-side; nothing to reload.
                 if (statusEl) {

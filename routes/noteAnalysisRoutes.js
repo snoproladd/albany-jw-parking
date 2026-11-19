@@ -19,6 +19,7 @@ import express from "express";
 import * as db from "../lib/dbSync.js";
 import { analyzeNote, computeNoteHash } from "../lib/noteAnalyzer.js";
 import { requirePermission } from "../src/config/roles.js";
+import { getActiveYear } from "../lib/conventionYear.js";
 
 /** Milliseconds a cached analysis is considered fresh (note hash unchanged). */
 const ANALYSIS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
@@ -165,7 +166,7 @@ export function noteAnalysisRouter({ csrfProtection, logError }) {
 
             // Persist AI-suggested blackouts as pending scheduling constraints.
             if (Array.isArray(result.suggestedBlackouts) && result.suggestedBlackouts.length > 0) {
-              const year = new Date().getFullYear();
+              const year = await getActiveYear();
               await db.clearUnappliedIntakeNoteSuggestions(volunteerId);
               for (const b of result.suggestedBlackouts) {
                 try {
@@ -290,7 +291,7 @@ export function noteAnalysisRouter({ csrfProtection, logError }) {
 
         // Persist AI-suggested blackouts as pending scheduling constraints.
         if (analysisId && Array.isArray(result.suggestedBlackouts) && result.suggestedBlackouts.length > 0) {
-          const year = new Date().getFullYear();
+          const year = await getActiveYear();
           await db.clearUnappliedIntakeNoteSuggestions(volunteerId);
           for (const b of result.suggestedBlackouts) {
             try {

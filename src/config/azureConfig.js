@@ -167,7 +167,9 @@ export async function getConfig() {
     GRAPH_CLIENT_ID:     secrets.GRAPH_CLIENT_ID     || process.env.GRAPH_CLIENT_ID,
     GRAPH_CLIENT_SECRET: secrets.GRAPH_CLIENT_SECRET || process.env.GRAPH_CLIENT_SECRET,
     GRAPH_DRIVE_USER:    process.env.GRAPH_DRIVE_USER    || 'jladd@jakeofalltradespropertyserv.onmicrosoft.com',
-    GRAPH_FOLDER_PATH:   process.env.GRAPH_FOLDER_PATH   || '2026 Convention Parking/Documents for Distribution',
+    // Pattern — `{year}` is replaced with the active convention year at
+    // publish time (see distributionFolderPath in lib/conventionYear.js).
+    GRAPH_FOLDER_PATH:   process.env.GRAPH_FOLDER_PATH   || '{year} Convention Parking/Documents for Distribution',
 
     // Google Maps Platform (Maps JavaScript API)
     GOOGLE_MAPS_API_KEY: secrets.GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY,

@@ -31,6 +31,7 @@ import { verifyPassword, hashPassword } from "../lib/passwordVer.js";
 import { hashMagicLinkToken } from "../lib/magicLinkToken.js";
 
 import { INCOMPATIBILITIES } from "../src/config/privilegeRules.js";
+import { getActiveYear } from "../lib/conventionYear.js";
 
 /**
  * Factory: build router that handles login + my-account.
@@ -876,8 +877,8 @@ export function loginRouter({ csrfProtection, logError }) {
 
       const [congregations, rawRsvpHistory, conventionDays] = await Promise.all([
         getCongregations(),
-        getVolunteerRsvpHistory(id, new Date().getFullYear()),
-        getConventionDays(new Date().getFullYear()),
+        getVolunteerRsvpHistory(id, await getActiveYear()),
+        getConventionDays(await getActiveYear()),
       ]);
       const gender = user.gender || "";
       const rsvpHistory = formatRsvpHistory(rawRsvpHistory);
