@@ -32,6 +32,7 @@ import { hashMagicLinkToken } from "../lib/magicLinkToken.js";
 
 import { INCOMPATIBILITIES } from "../src/config/privilegeRules.js";
 import { getActiveYear } from "../lib/conventionYear.js";
+import { isRoleAtLeast } from "../src/config/roles.js";
 
 /**
  * Factory: build router that handles login + my-account.
@@ -127,8 +128,7 @@ export function loginRouter({ csrfProtection, logError }) {
     // Populate sensitive scheduler category access.
     // OVERSEER+ receives null as a sentinel meaning "no filter — see all."
     // All other roles receive the explicit list of category_ids they may view.
-    const OVERSEER_PLUS = new Set(["OVERSEER", "ASSISTANT_ADMIN", "ADMIN"]);
-    req.session.sensitiveCategories = OVERSEER_PLUS.has(req.session.userRole)
+    req.session.sensitiveCategories = isRoleAtLeast(req.session.userRole, "OVERSEER")
       ? null
       : await getSchedulerCategoryAccessForVolunteer(user.id);
 

@@ -19,9 +19,9 @@
     <%- include('../partials/header') %>
 
     <%
-        // Role helpers must be inlined per template — variables inside
-        // include() partials are not in scope here.
-        const _ROLE_ORDER = ['NON_REGISTERED','REGISTERED','DESK','KEYMAN','OVERSEER','ASSISTANT_ADMIN','ADMIN'];
+        // Permission helper must be inlined per template — variables inside
+        // include() partials are not in scope here. Role ordering comes from
+        // the isRoleAtLeast() / roleLevelOf() app locals.
         const _role       = typeof userRole        !== 'undefined' ? userRole        : 'NON_REGISTERED';
         const _perms      = typeof userPermissions !== 'undefined' ? userPermissions : {};
         const can         = (permission) => !!(_perms[_role] && _perms[_role][permission]);

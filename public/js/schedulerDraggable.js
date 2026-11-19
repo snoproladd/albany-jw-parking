@@ -12,6 +12,7 @@
 const { Draggable, Droppable } = window.agnosticDraggable;
 
 import { getConflicts } from './schedulerConflicts.js';
+import { roleLevel } from './roles.js';
 
 
 
@@ -33,28 +34,28 @@ const boundDroppables = new WeakSet();
 let volunteers = [];
 
 // ─────────────────────────────────────────────
-//  Role oversight structure(mirrors src/config/roles.js)
+//  Slot role rules (ordering comes from /js/roles.js)
 // ─────────────────────────────────────────────
 
-/** @type {Record<string, number>} */
-const ROLE_LEVEL = {
-  NON_REGISTERED: 0,
-  REGISTERED: 1,
-  KEYMAN: 2,
-  OVERSEER: 3,
-  ASSISTANT_ADMIN: 4,
-  ADMIN: 5,
+/**
+ * Minimum role required to occupy each named slot type.
+ * keyman slots require KEYMAN+; keyman_asst slots accept any role.
+ * @type {Record<string, string>}
+ */
+const MIN_ROLE_FOR_SLOT = {
+  keyman: "KEYMAN",
+  keyman_asst: "NON_REGISTERED",
 };
 
 /**
- * Minimum role level required to occupy each named slot type.
- * keyman slots require KEYMAN+; keyman_asst slots accept any role.
- * @type {Record<string, number>}
+ * Role level of a volunteer pill, treating a missing or unknown role as
+ * the lowest level (matches the previous `?? 0` behaviour).
+ * @param {HTMLElement} pill
+ * @returns {number}
  */
-const MIN_ROLE_FOR_SLOT = {
-  keyman: ROLE_LEVEL.KEYMAN,
-  keyman_asst: ROLE_LEVEL.NON_REGISTERED,
-};
+function _pillRoleLevel(pill) {
+  return Math.max(roleLevel(String(pill.dataset.role || "").toUpperCase()), 0);
+}
 
 /**
  * Maps department keys to the crew flag property on a volunteer's
@@ -352,10 +353,8 @@ function canDrop(pill, dz) {
   // ── Role check ──────────────────────────────────────────────────────
   const slotRole = targetDz.dataset.role;
   if (slotRole) {
-    const minLevel = MIN_ROLE_FOR_SLOT[slotRole] ?? 0;
-    const volLevel =
-      ROLE_LEVEL[String(pill.dataset.role || "").toUpperCase()] ?? 0;
-    if (volLevel < minLevel) return false;
+    const minLevel = roleLevel(MIN_ROLE_FOR_SLOT[slotRole] ?? "NON_REGISTERED");
+    if (_pillRoleLevel(pill) < minLevel) return false;
   }
 
   // ── Department check ─────────────────────────────────────────────────
@@ -419,10 +418,8 @@ function _resolveDropTarget(pill, dz) {
   if (!isOccupied) {
     const slotRole = dz.dataset.role;
     if (slotRole) {
-      const minLevel = MIN_ROLE_FOR_SLOT[slotRole] ?? 0;
-      const volLevel =
-        ROLE_LEVEL[String(pill.dataset.role || "").toUpperCase()] ?? 0;
-      roleBlocked = volLevel < minLevel;
+      const minLevel = roleLevel(MIN_ROLE_FOR_SLOT[slotRole] ?? "NON_REGISTERED");
+      roleBlocked = _pillRoleLevel(pill) < minLevel;
     }
   }
 

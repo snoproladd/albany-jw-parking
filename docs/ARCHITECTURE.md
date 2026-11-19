@@ -64,7 +64,7 @@ parking/
 │   ├── azureConfig.js         # Key Vault + SQL connection bootstrap
 │   ├── privilegeRules.js      # Registration field incompatibility rules
 │   ├── prodedures.js          # Stored procedure definitions
-│   ├── roles.js               # RBAC permission matrix + middleware
+│   ├── roles.js               # RBAC permission matrix + middleware; ROLE_HIERARCHY, roleLevel(), isRoleAtLeast()
 │   ├── sitemap.json           # Page metadata for the role-filtered sitemap
 │   ├── buildings.kml          # Building polygon outlines (Google My Maps KML export)
 │   └── mapOverlays.js         # KML parser — returns overlay data for sign map bootstrap
@@ -82,7 +82,8 @@ parking/
 │   ├── partials/
 │   │   ├── header.ejs         # Shared navigation header
 │   │   ├── footer.ejs         # Shared footer + session keepalive
-│   │   └── roleGuard.ejs      # Access-denied partial for role checks
+│   │   ├── brandData.ejs      # JSON data island: brand labels for /js/brand.js
+│   │   └── roleData.ejs       # JSON data island: ROLE_HIERARCHY for /js/roles.js
 │   ├── errors/
 │   │   ├── 403.ejs            # Forbidden
 │   │   └── 404.ejs            # Not found
@@ -150,6 +151,7 @@ parking/
 │   │   ├── cookieConsent.js           # Cookie consent banner
 │   │   ├── mobileDropdownSafety.js    # Mobile nav dropdown touch fixes
 │   │   ├── navDropdown.js             # Header navigation dropdown behaviour
+│   │   ├── roles.js                   # roleLevel() / isRoleAtLeast() from the #app-roles-json island
 │   │   ├── scrollToTop.js             # Scroll-to-top button
 │   │   ├── sessionKeepAlive.js        # GET /api/session/touch heartbeat
 │   │   ├── timeUtils.js               # Shared date/time formatting helpers
@@ -368,6 +370,10 @@ parking/
 - **4-space indentation** throughout
 - **ES Modules** (`import`/`export`) — no CommonJS
 - **JSDoc** on all functions
+- **Role ordering has one source:** `ROLE_HIERARCHY` in `src/config/roles.js`. Server code
+  imports `roleLevel()` / `isRoleAtLeast()`; views use the `roleLevelOf()` / `isRoleAtLeast()`
+  app locals; client modules import them from `public/js/roles.js`, which reads the
+  `#app-roles-json` data island (`partials/roleData.ejs`). Never copy the role list into a file.
 - **No inline scripts or styles** — all JS in `public/js/`, all CSS in `public/styles/`
 - **No EJS logic** — formatting and data shaping done in routes before render
 - **CSP compliant** — `style-src` carries `'unsafe-inline'` (required for Google Maps

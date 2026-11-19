@@ -3,6 +3,50 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.88.1] — 2026-11-19
+
+Security fix. No schema, route-list or dependency changes.
+
+### Security
+- **`POST /upgrade/test-sms` could send a text to any number.** The "dev-only"
+  test endpoint had no environment or role check, so any visitor with a CSRF
+  token from a public page could make the server send SMS through the Twilio
+  account. It now returns 404 unless `NODE_ENV` is exactly `development`, and
+  403 unless the caller is a signed-in ADMIN.
+
+## [2.88.0] — 2026-11-19
+
+One source for role ordering. Groundwork for multi-department support; no
+schema, route or dependency changes, and no change in who can see or do what
+(one scheduler sort fix below).
+
+### Changed
+- **Role ordering comes only from `ROLE_HIERARCHY`** in `src/config/roles.js`,
+  through two new helpers, `roleLevel()` and `isRoleAtLeast()`.
+  - Views use the `roleLevelOf()` / `isRoleAtLeast()` app locals. The 14
+    per-page copies of the role list are gone (12 of them were missing
+    COUNTER).
+  - Hard-coded tier checks such as `role === "ADMIN" || role ===
+    "ASSISTANT_ADMIN"` call the helper instead: extra-permission grants in
+    Volunteer Account Oversight, the rollover prompt and route, sensitive
+    category access at login, the publish recipient filters, Lessons Learned
+    resources, Notes Report "Analyze All" and Timelines.
+  - Capacity alert recipients are built from `ROLE_HIERARCHY`; COUNTER
+    accounts are never recipients.
+  - Client modules import the same helpers from the new `public/js/roles.js`,
+    which reads a `#app-roles-json` data island
+    (`views/partials/roleData.ejs`, included by the header; CSP-safe). The
+    scheduler and the Rendezvous page no longer keep their own role tables.
+
+### Fixed
+- **Scheduler "Sort: Rank" put DESK volunteers at the bottom.** The
+  scheduler's own role table left DESK out; it now sorts between KEYMAN and
+  REGISTERED.
+
+### Removed
+- `views/partials/roleGuard.ejs` — never included anywhere; its helpers could
+  not reach the including template anyway.
+
 ## [2.87.1] — 2026-11-19
 
 Mailer pooling and missing scheduler styles. No schema, route or dependency

@@ -19,11 +19,10 @@
     <%- include('../partials/header') %>
 
     <%
-        const _ROLE_ORDER = ['NON_REGISTERED','REGISTERED','DESK','KEYMAN','OVERSEER','ASSISTANT_ADMIN','ADMIN'];
         const _role       = typeof userRole        !== 'undefined' ? userRole        : 'NON_REGISTERED';
         const _perms      = typeof userPermissions !== 'undefined' ? userPermissions : {};
-        const roleLevel   = _ROLE_ORDER.indexOf(_role);
-        const isAtLeast   = (r) => roleLevel >= _ROLE_ORDER.indexOf(r);
+        const roleLevel   = roleLevelOf(_role);
+        const isAtLeast   = (r) => isRoleAtLeast(_role, r);
         const can         = (permission) => !!(_perms[_role] && _perms[_role][permission]);
     %>
 

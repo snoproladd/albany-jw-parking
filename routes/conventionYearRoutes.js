@@ -19,9 +19,10 @@
 import express from "express";
 import { getActiveYear, invalidateYearCache } from "../lib/conventionYear.js";
 import { getConventionDays, startConventionYear } from "../lib/dbSync.js";
+import { isRoleAtLeast } from "../src/config/roles.js";
 
 /** Roles allowed to see and act on the rollover prompt. */
-const ROLLOVER_ROLES = new Set(["ADMIN", "ASSISTANT_ADMIN"]);
+const ROLLOVER_MIN_ROLE = "ASSISTANT_ADMIN";
 
 /** Most convention days that can be created in one rollover. */
 const MAX_ROLLOVER_DATES = 14;
@@ -86,7 +87,7 @@ export function conventionYearRouter({ csrfProtection, logError }) {
             res.status(401).json({ success: false, error: "Not signed in." });
             return;
         }
-        if (!ROLLOVER_ROLES.has(req.session.userRole) || req.isDemo) {
+        if (!isRoleAtLeast(req.session.userRole, ROLLOVER_MIN_ROLE) || req.isDemo) {
             res.status(403).json({ success: false, error: "Not allowed." });
             return;
         }

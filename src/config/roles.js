@@ -25,6 +25,33 @@ export const ROLE_HIERARCHY = [
 ];
 
 /**
+ * Numeric privilege level of a role — its index in ROLE_HIERARCHY.
+ * This is the single source of role ordering: views, routes, lib code and
+ * client JS all go through this or isRoleAtLeast() instead of keeping their
+ * own copy of the list.
+ *
+ * @param {string|null|undefined} role
+ * @returns {number} Level, or -1 for a missing or unknown role.
+ */
+export function roleLevel(role) {
+    return ROLE_HIERARCHY.indexOf(role ?? "");
+}
+
+/**
+ * True when `role` is at or above `minRole` in ROLE_HIERARCHY.
+ * A missing or unknown role is never "at least" anything, and an unknown
+ * `minRole` matches nobody, so typos fail closed.
+ *
+ * @param {string|null|undefined} role
+ * @param {string} minRole
+ * @returns {boolean}
+ */
+export function isRoleAtLeast(role, minRole) {
+    const min = roleLevel(minRole);
+    return min !== -1 && roleLevel(role) >= min;
+}
+
+/**
  * Factory-default permission matrix.
  * Each key is a permission string checked via can().
  * DB overrides are merged on top at login — do not read this

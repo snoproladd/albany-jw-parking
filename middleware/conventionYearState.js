@@ -28,9 +28,10 @@ import {
     needsRolloverPrompt,
     resolveViewYear,
 } from "../lib/conventionYear.js";
+import { isRoleAtLeast } from "../src/config/roles.js";
 
-/** Roles that are asked to start the next convention year. */
-const ROLLOVER_ROLES = new Set(["ADMIN", "ASSISTANT_ADMIN"]);
+/** Lowest role that is asked to start the next convention year. */
+const ROLLOVER_MIN_ROLE = "ASSISTANT_ADMIN";
 
 /** Path prefixes that never render a page, so they skip the lookup. */
 const SKIP_PREFIXES = ["/api/", "/webhook/", "/internal/", "/js/", "/styles/", "/vendor/", "/images/", "/fonts/"];
@@ -105,7 +106,7 @@ export async function conventionYearStateMiddleware(req, res, next) {
 
         if (!req.isDemo && needsRolloverPrompt(activeYear)) {
             const role = req.session.userRole || "REGISTERED";
-            if (ROLLOVER_ROLES.has(role)) {
+            if (isRoleAtLeast(role, ROLLOVER_MIN_ROLE)) {
                 state.showAdminPrompt =
                     req.session.rolloverSnoozedFor !== activeYear;
             } else if (role !== "COUNTER") {

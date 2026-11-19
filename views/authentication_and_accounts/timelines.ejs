@@ -171,7 +171,7 @@
                             </span>
                           </td>
                           <td>
-                            <% if (['OVERSEER', 'ASSISTANT_ADMIN', 'ADMIN'].includes(userRole)) { %>
+                            <% if (isRoleAtLeast(userRole, 'OVERSEER')) { %>
                               <div class="d-flex align-items-center gap-1">
                                 <button type="button"
                                         class="btn btn-sm <%= et.is_sensitive ? 'btn-danger' : 'btn-outline-secondary' %> et-sensitivity-btn"

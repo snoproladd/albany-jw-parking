@@ -1,6 +1,7 @@
 // routes/upgradeRoutes.js
 import crypto from "crypto";
 import { hashPassword } from "../lib/passwordVer.js";
+import { isRoleAtLeast } from "../src/config/roles.js";
 import {
   sendResetEmail,
   sendResetSms,
@@ -27,7 +28,7 @@ const RESET_RESEND_COOLDOWN_MS = 60 * 1000 * 2; // 2 minutes
  * - GET  /upgrade/sent           → confirmation page
  * - GET  /reset-password/:hash   → show reset form
  * - POST /reset-password/:hash   → set new password + clear pending flag
- * - POST /upgrade/test-sms       → dev-only SMS test endpoint
+ * - POST /upgrade/test-sms       → dev-only SMS test endpoint (NODE_ENV=development + ADMIN)
  *
  * @param {object} deps
  * @param {import("express")} deps.express
@@ -393,8 +394,18 @@ export default function upgradeRoutes({
     }
   });
 
-  // POST /upgrade/test-sms → dev-only SMS test endpoint
+  // POST /upgrade/test-sms → dev-only SMS test endpoint.
+  // Sends a real SMS to any number, so it is refused unless the server is
+  // explicitly running in development (an unset NODE_ENV counts as not dev)
+  // and the caller is a signed-in ADMIN.
   router.post("/upgrade/test-sms", csrfProtection, async (req, res) => {
+    if (process.env.NODE_ENV !== "development") {
+      return res.status(404).json({ success: false, error: "Not found." });
+    }
+    if (!req.session?.userId || !isRoleAtLeast(req.session.userRole, "ADMIN")) {
+      return res.status(403).json({ success: false, error: "Not allowed." });
+    }
+
     try {
       const { phone } = req.body || {};
 

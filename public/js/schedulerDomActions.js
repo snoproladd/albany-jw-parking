@@ -41,6 +41,7 @@ import {
 } from "./schedulerConflicts.js";
 
 import { initContextMenu } from "./schedulerContextMenu.js";
+import { roleLevel, isRoleAtLeast } from "./roles.js";
 import { createPublishButton, setPublishCurrentDayId } from "./schedulerPublish.js";
 
 import {
@@ -61,16 +62,6 @@ import {
  * @type {Array<object>}
  */
 let _volunteers = [];
-
-/** @type {Record<string, number>} */
-const ROLE_LEVEL = {
-  NON_REGISTERED: 0,
-  REGISTERED: 1,
-  KEYMAN: 2,
-  OVERSEER: 3,
-  ASSISTANT_ADMIN: 4,
-  ADMIN: 5,
-};
 
 /**
  * Short display labels for each crew key, used on volunteer pool pill badges.
@@ -884,7 +875,8 @@ export async function initDomActions() {
       if (!va || !vb) return 0;
 
       if (sortOrder === "rank") {
-        const diff = (ROLE_LEVEL[vb.role] ?? 0) - (ROLE_LEVEL[va.role] ?? 0);
+        const diff =
+          Math.max(roleLevel(vb.role), 0) - Math.max(roleLevel(va.role), 0);
         if (diff !== 0) return diff;
       }
 
@@ -924,15 +916,12 @@ export async function initDomActions() {
    */
   function _matchesRank(v, rankValue) {
     if (!rankValue) return true;
-    const level =
-      ROLE_LEVEL[
-        String(v.role || "")
-          .trim()
-          .toUpperCase()
-      ] ?? -1;
-    if (rankValue === "1") return level === ROLE_LEVEL.REGISTERED;
-    if (rankValue === "2") return level === ROLE_LEVEL.KEYMAN;
-    if (rankValue === "3") return level >= ROLE_LEVEL.OVERSEER;
+    const role = String(v.role || "")
+      .trim()
+      .toUpperCase();
+    if (rankValue === "1") return role === "REGISTERED";
+    if (rankValue === "2") return role === "KEYMAN";
+    if (rankValue === "3") return isRoleAtLeast(role, "OVERSEER");
     return true;
   }
 

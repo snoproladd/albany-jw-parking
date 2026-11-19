@@ -134,7 +134,7 @@
                                 <button class="btn btn-sm nr-pill" data-filter="unread">Unread by me</button>
                                 <button class="btn btn-sm nr-pill" data-filter="no-action">No action yet</button>
                             </div>
-                            <% if (actorRole === 'ADMIN' || actorRole === 'ASSISTANT_ADMIN') { %>
+                            <% if (isRoleAtLeast(actorRole, 'ASSISTANT_ADMIN')) { %>
                             <button type="button" class="btn btn-sm nr-ai-batch-btn ms-auto" id="analyzeAllBtn">
                                 <i class="fa-solid fa-wand-magic-sparkles me-1"></i>Analyze All
                             </button>

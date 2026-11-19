@@ -13,6 +13,7 @@ import {
   openRendezvousPanel,
   dismissRendezvousPanel,
 } from "./rendezvous.js";
+import { isRoleAtLeast } from "./roles.js";
 
 // ─────────────────────────────────────────────
 //  State
@@ -32,22 +33,14 @@ let _eventFilter = "";
 // ─────────────────────────────────────────────
 
 const _role = document.querySelector('meta[name="user-role"]')?.content || "";
-const ROLE_ORDER = [
-  "NON_REGISTERED",
-  "REGISTERED",
-  "DESK",
-  "KEYMAN",
-  "OVERSEER",
-  "ASSISTANT_ADMIN",
-  "ADMIN",
-];
 
 /**
+ * True when the signed-in user's role is at or above `minRole`.
  * @param {string} minRole
  * @returns {boolean}
  */
 function _isAtLeast(minRole) {
-  return ROLE_ORDER.indexOf(_role) >= ROLE_ORDER.indexOf(minRole);
+    return isRoleAtLeast(_role, minRole);
 }
 
 // ─────────────────────────────────────────────

@@ -32,6 +32,7 @@ import multer  from 'multer';
 import {
     requirePermission,
     ROLE_HIERARCHY,
+    isRoleAtLeast,
 } from '../src/config/roles.js';
 import {
     getLessonsLearnedYears,
@@ -902,7 +903,7 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
                 return res.render('lessonsLearnedResources', {
                     csrfToken:  req.csrfToken(),
                     userRole:   req.session.userRole || '',
-                    isAdmin:    isOverseer(req) && req.session.userRole !== 'OVERSEER',
+                    isAdmin:    isRoleAtLeast(req.session.userRole, 'ASSISTANT_ADMIN'),
                     year,
                     years:      years.map((r) => r.year),
                     report:     report || null,

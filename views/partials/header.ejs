@@ -1,5 +1,6 @@
 <header class="py-2 mb-4">
   <%- include('brandData') %>
+  <%- include('roleData') %>
   <nav class="navbar navbar-expand-lg navbar-light site-navbar shadow-sm">
     <div class="container-fluid">
 
@@ -36,10 +37,9 @@
           const showMyAccount       = navState.isLoggedIn && navState.userRole !== 'COUNTER';
           const showAccountDropdown = showUpgrade || showContinueReg || showMyAccount;
 
-          const _ROLE_ORDER_NAV = ['NON_REGISTERED', 'COUNTER', 'REGISTERED', 'DESK', 'KEYMAN','OVERSEER','ASSISTANT_ADMIN','ADMIN'];
           const _navRole        = navState.userRole || 'NON_REGISTERED';
-          const _navRoleLevel   = _ROLE_ORDER_NAV.indexOf(_navRole);
-          const isAtLeast       = (r) => _navRoleLevel >= _ROLE_ORDER_NAV.indexOf(r);
+          const _navRoleLevel   = roleLevelOf(_navRole);
+          const isAtLeast       = (r) => isRoleAtLeast(_navRole, r);
           const can             = (permission) => !!(userPermissions && userPermissions[_navRole] && userPermissions[_navRole][permission]);
         %>
 

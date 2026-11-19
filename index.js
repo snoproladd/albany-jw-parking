@@ -19,7 +19,7 @@ import { getConfig, getSqlPool } from "./src/config/azureConfig.js";
 import { touchSqlActivity } from "./lib/sql.js";
 import { demoContextMiddleware } from "./middleware/demoContext.js";
 import { INCOMPATIBILITIES } from "./src/config/privilegeRules.js";
-import { can, PERMISSIONS }  from "./src/config/roles.js";
+import { can, PERMISSIONS, ROLE_HIERARCHY, roleLevel, isRoleAtLeast } from "./src/config/roles.js";
 
 const require = createRequire(import.meta.url);
 const { version: APP_VERSION } = require("./package.json");
@@ -67,6 +67,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
+
+// Role helpers for every view (source: src/config/roles.js). Templates call
+// roleLevelOf(role) / isRoleAtLeast(role, minRole) instead of keeping their
+// own copy of the role order; partials/roleData.ejs hands the order to
+// client JS (public/js/roles.js).
+app.locals.ROLE_HIERARCHY = ROLE_HIERARCHY;
+app.locals.roleLevelOf = roleLevel;
+app.locals.isRoleAtLeast = isRoleAtLeast;
 const isProd = config.NODE_ENV === "production";
 const PORT = process.env.PORT || config.PORT || (isProd ? 80 : 3000);
 const HOST = "0.0.0.0";

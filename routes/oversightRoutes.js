@@ -186,6 +186,7 @@ import {
   canAssignRole,
   ROLE_HIERARCHY,
   PERMISSIONS,
+  isRoleAtLeast,
 } from "../src/config/roles.js";
 
 import { sendResetEmail, sendResetSms, getBaseUrl } from "../lib/messaging.js";
@@ -380,8 +381,7 @@ export function oversightRouter({
           includeDeleted: false,
           rsvpHistory,
           conventionDays,
-          canGrantExtraPerms:
-            actorRole === "ADMIN" || actorRole === "ASSISTANT_ADMIN",
+          canGrantExtraPerms: isRoleAtLeast(actorRole, "ASSISTANT_ADMIN"),
         });
       } catch (err) {
         (logError || console.error)("GET /editVolunteer/:id error:", err);
@@ -428,8 +428,7 @@ export function oversightRouter({
           pwSuccess,
           canDelete,
           includeDeleted,
-          canGrantExtraPerms:
-            actorRole === "ADMIN" || actorRole === "ASSISTANT_ADMIN",
+          canGrantExtraPerms: isRoleAtLeast(actorRole, "ASSISTANT_ADMIN"),
         });
       } catch (err) {
         (logError || console.error)("editVolunteer GET error:", err);
@@ -485,8 +484,7 @@ export function oversightRouter({
           includeDeleted,
           rsvpHistory,
           conventionDays,
-          canGrantExtraPerms:
-            actorRole === "ADMIN" || actorRole === "ASSISTANT_ADMIN",
+          canGrantExtraPerms: isRoleAtLeast(actorRole, "ASSISTANT_ADMIN"),
         });
 
         return res.render("volunteerAccountOversight", {
@@ -1143,8 +1141,7 @@ export function oversightRouter({
       } = req.body || {};
 
       const actorRole = req.session.userRole || "NON_REGISTERED";
-      const canGrantExtraPerms =
-        actorRole === "ADMIN" || actorRole === "ASSISTANT_ADMIN";
+      const canGrantExtraPerms = isRoleAtLeast(actorRole, "ASSISTANT_ADMIN");
 
       const id = Number(targetUserId);
 
