@@ -69,7 +69,7 @@ create a `.env` file at the repo root with the following:
 ```env
 # SQL (Azure SQL)
 AZSQLServer=your-server.database.windows.net
-AZSQLDb=your-database-name
+AZSQLDB=your-database-name
 AZSQLPort=1433
 
 # SQL login instead of Azure auth — for a server outside Azure, such as a
@@ -80,6 +80,7 @@ AZSQLPort=1433
 # SQL_PASSWORD=your-local-password
 # SQL_INSTANCE=SQLEXPRESS        # only if not listening on a fixed port
 # SQL_TRUST_SERVER_CERT=1        # accept a local server's self-signed certificate
+# SQL_ENCRYPT=0                  # only if the server can't do TLS at all (not needed for Express)
 
 # Session
 SESSION_SECRET=a-long-random-string
@@ -132,51 +133,123 @@ AzureOpenAIDeployment=gpt-4o
 
 The `multi-department` branch must never run migrations against the Azure
 database, so it uses a local SQL Server 2025 Express copy — the same edition
-planned for the personal server.
+planned for the personal server. Run the PowerShell below in PowerShell 7 as
+administrator.
 
-1. **Install SQL Server 2025 Express.** Choose *Mixed Mode* authentication (SQL
-   logins plus Windows), or turn it on afterwards in SSMS → Server Properties →
-   Security and restart the service.
-2. **Turn on TCP/IP.** In SQL Server Configuration Manager, enable TCP/IP and set
-   *IPAll → TCP Port* to `1433`, then restart the service. (Or skip the fixed
-   port, run the SQL Server Browser service and set `SQL_INSTANCE=SQLEXPRESS`.)
+1. **Install SQL Server 2025 Express.** Choose *Custom*, not *Basic* (Basic is
+   Windows authentication only). Pick *Database Engine Services*, keep the
+   `SQLEXPRESS` instance name, choose *Mixed Mode* and *Add Current User*.
+   Install the tools too:
+
+   ```powershell
+   winget install Microsoft.Sqlcmd
+   dotnet tool install -g microsoft.sqlpackage
+   ```
+
+   If `SqlPackage /Version` says to install or update .NET, set
+   `DOTNET_ROLL_FORWARD=Major` as a user environment variable and reopen
+   PowerShell.
+
+2. **Turn on TCP/IP on port 1433.** In SQL Server Configuration Manager
+   (`SQLServerManager17.msc`) enable TCP/IP, then on *IP Addresses → IPAll*
+   **clear *TCP Dynamic Ports*** and set *TCP Port* to `1433`. Express leaves
+   dynamic ports on, and the server then listens on a random port (connections
+   to 1433 are "actively refused"). The same change from PowerShell:
+
+   ```powershell
+   $inst = Get-ChildItem 'HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server' | Where-Object PSChildName -like 'MSSQL*.SQLEXPRESS'
+   $ipAll = Join-Path $inst.PSPath 'MSSQLServer\SuperSocketNetLib\Tcp\IPAll'
+   Set-ItemProperty $ipAll -Name TcpDynamicPorts -Value ''
+   Set-ItemProperty $ipAll -Name TcpPort -Value '1433'
+   Restart-Service 'MSSQL$SQLEXPRESS' -Force
+   ```
+
+   `-Force` is needed because the PolyBase and Launchpad services depend on SQL
+   Server. The app uses neither; setting them to *Manual* startup is fine.
+   Check the port with
+   `Get-ChildItem 'C:\Program Files\Microsoft SQL Server\MSSQL*.SQLEXPRESS\MSSQL\Log\ERRORLOG' | Get-Content | Select-String 'listening'`.
+
 3. **Allow contained users** — the demo login is a contained database user:
 
+   ```powershell
+   sqlcmd -S localhost,1433 -E -C -Q "EXEC sp_configure 'contained database authentication', 1; RECONFIGURE;"
+   ```
+
+4. **Export the Azure database** to a `.bacpac`. This only reads from Azure.
+   Keep the file **outside the repo** (it holds real volunteer data). Pass a
+   connection string — `/SourceServerName` with `/UniversalAuthentication`
+   fails with "Cannot set the AccessToken property if 'Integrated Security'…":
+
+   ```powershell
+   SqlPackage /Action:Export `
+       /SourceConnectionString:"Server=tcp:<server>.database.windows.net,1433;Initial Catalog=<database>;Authentication=Active Directory Interactive;Encrypt=True;" `
+       /TargetFile:C:\SqlBackups\<database>.bacpac
+   ```
+
+   Use `Authentication=Active Directory Default` instead to sign in with the
+   Azure CLI login.
+
+5. **Import it locally** under a name that can't be mistaken for production
+   (Windows authentication):
+
+   ```powershell
+   SqlPackage /Action:Import `
+       /SourceFile:C:\SqlBackups\<database>.bacpac `
+       /TargetConnectionString:"Server=localhost,1433;Database=<database>_local;Integrated Security=True;TrustServerCertificate=True"
+   ```
+
+   This brings both the `dbo` and `demo` schemas, with containment `PARTIAL`.
+   Users created `FROM EXTERNAL PROVIDER` (Entra and managed-identity users)
+   are imported as users without logins; they can't sign in locally and need
+   no cleanup.
+
+6. **Set the demo user's password.** A bacpac doesn't carry passwords, so set
+   the contained demo user's password to the `DEMO_DB_PASSWORD` in `.env`:
+
    ```sql
-   EXEC sp_configure 'contained database authentication', 1;
-   RECONFIGURE;
+   USE [<database>_local];
+   ALTER USER [<demo-db-user>] WITH PASSWORD = 'value-of-DEMO_DB_PASSWORD';
    ```
 
-4. **Export the Azure database** to a `.bacpac` (Azure portal → database →
-   Export, or SqlPackage):
-
-   ```bash
-   SqlPackage /Action:Export /SourceServerName:<server>.database.windows.net /SourceDatabaseName:<database> /UniversalAuthentication:True /TargetFile:parking.bacpac
-   ```
-
-5. **Import it locally** (Windows authentication):
-
-   ```bash
-   SqlPackage /Action:Import /SourceFile:parking.bacpac /TargetServerName:localhost /TargetDatabaseName:<database> /TargetTrustServerCertificate:True
-   ```
-
-   This brings both the `dbo` and `demo` schemas. If the import stops on a user
-   created `FROM EXTERNAL PROVIDER` (Entra / managed-identity users exist only in
-   Azure), those users have to be removed from the bacpac before importing.
-
-6. **Create a login for the app** (development only; `db_owner` lets migrations run):
+7. **Create a login for the app** (development only; `db_owner` lets migrations run):
 
    ```sql
-   CREATE LOGIN parking_dev WITH PASSWORD = 'your-local-password';
-   USE [<database>];
+   CREATE LOGIN parking_dev WITH PASSWORD = 'your-local-password', DEFAULT_DATABASE = [<database>_local];
+   USE [<database>_local];
    CREATE USER parking_dev FOR LOGIN parking_dev;
    ALTER ROLE db_owner ADD MEMBER parking_dev;
    ```
 
-7. **Point `.env` at it:** `AZSQLServer=localhost`, the local database name,
-   `SQL_AUTH=sql`, `SQL_USER`, `SQL_PASSWORD` and `SQL_TRUST_SERVER_CERT=1`.
-   Remove those lines (or switch branches with a separate `.env`) to go back to
-   Azure.
+   If the app later fails with "Login failed for user 'parking_dev'", the
+   ERRORLOG gives the reason; for a password mismatch, run `ALTER LOGIN
+   parking_dev WITH PASSWORD = '…'` with the value from `.env`.
+
+8. **Point `.env` at it.** Back up the Azure `.env` **outside the repo** first
+   (only `.env` itself is git-ignored), e.g.
+   `Copy-Item .env C:\SqlBackups\.env.azure`. Then set:
+
+   ```env
+   AZSQLServer=localhost
+   AZSQLDB=<database>_local
+   AZSQLPort=1433
+   SQL_AUTH=sql
+   SQL_USER=parking_dev
+   SQL_PASSWORD=your-local-password
+   SQL_TRUST_SERVER_CERT=1
+   ```
+
+   To go back to Azure: `Copy-Item C:\SqlBackups\.env.azure .env -Force`.
+
+9. **Demo site locally.** The demo pool connects on the first request to
+   `DEMO_HOSTNAME`, so that name must resolve to this machine (admin PowerShell):
+
+   ```powershell
+   Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "`r`n127.0.0.1  parking-demo.local"
+   ipconfig /flushdns
+   ```
+
+   Then open `http://parking-demo.local:3000`; the console logs
+   `[DEMO] Pool connected.`
 
 ---
 
