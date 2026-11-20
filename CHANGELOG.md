@@ -3,6 +3,26 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.89.1] — 2026-11-20
+
+Bug fixes. No schema, route or dependency changes.
+
+### Fixed
+- **Decently import failed** (`applyDecentlyImport` in `lib/dbSync.js`).
+  Since 2.87.0 the matched step's `UPDATE … OUTPUT` contained subqueries for
+  the active convention year, which SQL Server refuses ("Subqueries are not
+  allowed in the OUTPUT clause", Msg 10705). Any import with matched
+  volunteers stopped with an error before changing anything, so no one was
+  marked imported, activated or deactivated. The active year is now read into
+  `@activeYear` once at the top of the batch, and the `OUTPUT` clause reads
+  the disapproval year from `deleted.` instead of the updated table's alias
+  (also refused by SQL Server). Re-run any import attempted since 2.87.0.
+- **Intake notes gained whitespace on every save** in Volunteer Account
+  Oversight. The edit textarea spanned three lines in the template, so the
+  indentation became part of the note each time it was saved. The textarea
+  is now on one line, and `updateUserNotes` trims the note (an all-blank note
+  is stored as empty).
+
 ## [2.89.0] — 2026-11-19
 
 The app can connect to a SQL Server outside Azure — a local SQL Server 2025
