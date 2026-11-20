@@ -15,8 +15,12 @@
 //   - Signed in  → scope "department"; department = req.session.departmentId,
 //                  or DEFAULT_DEPARTMENT_ID until login sets it (2b-2).
 //   - Signed out → scope "system", no department (registration, login
-//                  lookups, invite links, webhooks). Revisited in the 2c
-//                  row-level security prototype.
+//                  lookups, invite links, webhooks). The SMS webhook picks a
+//                  department itself (routes/smsWebhookRoute.js).
+//   - Internal PDF render (Puppeteer over loopback, /internal/pdf/*, already
+//                  protected by the PDF secret) → the department passed as
+//                  ?dept=N by the publisher that started it, so the PDF
+//                  shows only that department's data.
 //
 // Mount: right after the session middleware, before any route.
 // Requires: demoContextMiddleware earlier in the chain (it opens the context).
@@ -39,6 +43,27 @@ let warnedMissingContext = false;
  */
 function logError(...args) {
     console.error(`[${new Date().toISOString()}] [middleware/resolveDepartment:ERROR]`, ...args);
+}
+
+/**
+ * Socket addresses treated as loopback (IPv4, IPv6, IPv4-mapped IPv6).
+ * @type {ReadonlySet<string>}
+ */
+const LOOPBACK_ADDRESSES = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
+
+/**
+ * The department requested by an internal Puppeteer PDF render, or null.
+ * Only honoured for /internal/pdf/* paths from a loopback socket (the raw
+ * socket address, not req.ip, which trusts X-Forwarded-For).
+ *
+ * @param {import("express").Request} req
+ * @returns {number|null}
+ */
+function internalRenderDepartmentId(req) {
+    if (!req.path.startsWith("/internal/pdf/")) return null;
+    if (!LOOPBACK_ADDRESSES.has(req.socket?.remoteAddress ?? "")) return null;
+    const id = Number(req.query.dept);
+    return Number.isInteger(id) && id > 0 ? id : null;
 }
 
 /**
@@ -76,7 +101,12 @@ export function resolveDepartmentMiddleware(req, res, next) {
         return;
     }
 
-    if (req.session?.userId) {
+    const renderDepartmentId = internalRenderDepartmentId(req);
+
+    if (renderDepartmentId) {
+        context.departmentId = renderDepartmentId;
+        context.scope = "department";
+    } else if (req.session?.userId) {
         context.departmentId = sessionDepartmentId(req.session);
         context.scope = "department";
     } else {

@@ -40,11 +40,53 @@ import {
   createVolunteerAction,
   resolveBlackoutHints,
   createAiBlackoutSuggestion,
+  resolveSmsDepartment,
 } from "../lib/dbSync.js";
 import { analyzeSms } from "../lib/smsInboundAnalyzer.js";
 import { sendResetSms, sendResetEmail } from "../lib/messaging.js";
 import { ROLE_HIERARCHY } from "../src/config/roles.js";
 import { getActiveYear } from "../lib/conventionYear.js";
+
+/**
+ * Convention-local date and time (America/New_York), used to find a
+ * volunteer's shift today when routing an inbound SMS.
+ *
+ * @returns {{ today: string, nowTime: string }}  YYYY-MM-DD and HH:MM:SS
+ */
+function easternNow() {
+  const now = new Date();
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+  const nowTime = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "America/New_York",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(now);
+  return { today, nowTime };
+}
+
+/**
+ * Point this request's context at one department, so everything the webhook
+ * does next (logging the message, notes, actions, overseer alerts) belongs to
+ * that department. The webhook starts in "system" scope (no session).
+ *
+ * @param {import("express").Request & { requestContext?: { departmentId: number|null, scope: string|null } }} req
+ * @param {number} departmentId
+ * @returns {void}
+ */
+function routeToDepartment(req, departmentId) {
+  if (req.requestContext) {
+    req.requestContext.departmentId = departmentId;
+    req.requestContext.scope = "department";
+  }
+  console.log(`[${new Date().toISOString()}] [smsWebhook] Routed to department ${departmentId}`);
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -241,6 +283,12 @@ export function smsWebhookRouter({
         // ── Unknown caller path ────────────────────────────────────
         log("[smsWebhook] Unknown phone %s — alerting overseers", phoneDigits);
 
+        // Unknown callers go to Volunteer Services (routing rule 4).
+        routeToDepartment(
+          req,
+          await resolveSmsDepartment({ volunteerId: null, ...easternNow() }),
+        );
+
         reply(
           "Albany JW Parking: We received your message but couldn't find you " +
             "in our records. Could you share your full name so we can assist you?",
@@ -311,6 +359,9 @@ export function smsWebhookRouter({
         return;
       }
 
+      /** Whether a department has been chosen for this message yet. */
+      let routed = false;
+
       // ── 6. Try shift code lookup (check-in path) ───────────────────
       // SMS codes are max 8 characters (NVarChar(8) in DB). Any longer
       // normalized string cannot match a shift code — skip the DB call.
@@ -319,6 +370,17 @@ export function smsWebhookRouter({
         const shift = await findShiftBySmsCode(code, year);
 
         if (shift) {
+          // A shift code belongs to that shift's department (routing rule 1).
+          routeToDepartment(
+            req,
+            await resolveSmsDepartment({
+              volunteerId: volunteer.id,
+              shiftId: shift.shift_id,
+              ...easternNow(),
+            }),
+          );
+          routed = true;
+
           const t15Sent = await hasT15AlertBeenSent(
             volunteer.id,
             shift.shift_id,
@@ -379,13 +441,26 @@ export function smsWebhookRouter({
       // every other ADMIN about what an overseer just said.
       // The shift-code check-in path (step 6) runs before this guard and is
       // unaffected — oversight staff can still check in via SMS code normally.
+      //
+      // First choose the department (routing rules 2–4) unless a shift code
+      // already did; the role that matters is the one in that department.
+      if (!routed) {
+        routeToDepartment(
+          req,
+          await resolveSmsDepartment({ volunteerId: volunteer.id, ...easternNow() }),
+        );
+        routed = true;
+      }
+      const routedVolunteer = await findVolunteerByPhoneOrEmail(phoneDigits, null);
+      const routedRole = routedVolunteer?.role || "";
+
       const OVERSEER_ROLE_INDEX = ROLE_HIERARCHY.indexOf("OVERSEER");
-      const volunteerRoleIndex  = ROLE_HIERARCHY.indexOf(volunteer.role || "");
+      const volunteerRoleIndex  = ROLE_HIERARCHY.indexOf(routedRole);
 
       if (OVERSEER_ROLE_INDEX !== -1 && volunteerRoleIndex >= OVERSEER_ROLE_INDEX) {
         log(
           "[smsWebhook] Inbound from oversight role %s (vol %d) — suppressed to prevent notification loop",
-          volunteer.role,
+          routedRole,
           volunteer.id,
         );
         return reply();

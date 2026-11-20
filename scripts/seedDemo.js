@@ -99,6 +99,10 @@ const poolConfig = {
     connectTimeout: 30_000,
     requestTimeout: 30_000,
   },
+  // One connection, so the "system" session context set right after
+  // connecting applies to every statement (row-level security filters
+  // anything without a context).
+  pool: { max: 1, min: 1 },
 };
 
 // ---------------------------------------------------------------------------
@@ -3303,6 +3307,7 @@ async function planClearOrder(pool, baseTables) {
 async function seed() {
   log("Connecting as", DEMO_USER, "...");
   const pool = await new sql.ConnectionPool(poolConfig).connect();
+  await pool.request().query("EXEC sys.sp_set_session_context @key = N'scope', @value = N'system';");
   log("Connected. Beginning seed...");
 
   try {

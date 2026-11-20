@@ -19,6 +19,7 @@
 import express from "express";
 import { getActiveYear, invalidateYearCache } from "../lib/conventionYear.js";
 import { getConventionDays, startConventionYear } from "../lib/dbSync.js";
+import { withScope } from "../lib/sql.js";
 import { isRoleAtLeast } from "../src/config/roles.js";
 
 /** Roles allowed to see and act on the rollover prompt. */
@@ -184,7 +185,10 @@ export function conventionYearRouter({ csrfProtection, logError }) {
                 }
 
                 const s = req.session;
-                const summary = await startConventionYear({
+                // Convention years are shared by every department, so the
+                // rollover snapshots and copies all of them ("convention"
+                // scope sees every department under row-level security).
+                const summary = await withScope("convention", () => startConventionYear({
                     fromYear,
                     toYear,
                     dates: checked.dates,
@@ -193,7 +197,7 @@ export function conventionYearRouter({ csrfProtection, logError }) {
                     resetSigns: body.resetSigns === true,
                     startedBy: s.userId,
                     editedBy: s.userEmail || "admin",
-                });
+                }));
 
                 invalidateYearCache();
                 await getActiveYear(); // re-prime so SharePoint paths switch immediately
