@@ -16,8 +16,14 @@ import { createClient } from "redis";
 
 import { createRequire } from "module";
 import { getConfig, getSqlPool } from "./src/config/azureConfig.js";
-import { touchSqlActivity } from "./lib/sql.js";
+import {
+    touchSqlActivity,
+    runAsSystem,
+    runAsDepartment,
+    DEFAULT_DEPARTMENT_ID,
+} from "./lib/sql.js";
 import { demoContextMiddleware } from "./middleware/demoContext.js";
+import { resolveDepartmentMiddleware } from "./middleware/resolveDepartment.js";
 import { INCOMPATIBILITIES } from "./src/config/privilegeRules.js";
 import { can, PERMISSIONS, ROLE_HIERARCHY, roleLevel, isRoleAtLeast } from "./src/config/roles.js";
 
@@ -286,18 +292,24 @@ let dbUpdateInterval = null;
 
 /**
  * Start periodic volunteer cache refresh.
+ *
+ * Called from registration requests, so the timer is created inside its own
+ * production "system" context: otherwise it would inherit the context of the
+ * request that started it (a demo request would make every later refresh
+ * read the demo schema).
+ *
  * @param {() => Promise<any>} loadFn
  * @param {import("express").Express} appInstance
  */
 function startDbUpdate(loadFn, appInstance) {
   if (!dbUpdateInterval) {
-    dbUpdateInterval = setInterval(async () => {
+    dbUpdateInterval = runAsSystem(() => setInterval(async () => {
       try {
         appInstance.locals.volunteerCache = await loadFn();
       } catch (err) {
         logError("Cache refresh failed:", err);
       }
-    }, 30_000);
+    }, 30_000));
   }
 }
 
@@ -500,6 +512,10 @@ let mapsSyncHandle = null;
     }
 
     app.use(session(sessionOptions));
+
+    // Current department → request context (SESSION_CONTEXT on every query).
+    // Must come right after the session and before any route.
+    app.use(resolveDepartmentMiddleware);
     // Store the intended destination for post-login redirect.
     // Only captures GET requests to non-auth, non-static paths.
     app.use((req, res, next) => {
@@ -1606,15 +1622,19 @@ app.use(
     // (distributionFolderPath) and the Maps sync use it from the first run.
     log(`Active convention year: ${await getActiveYear()}.`);
 
-    alertScheduler = startAlertScheduler({
+    // Background jobs run in a fixed production context for department 1
+    // (Parking); their timers keep it. They move to one run per active
+    // department together with row-level security (phase 2c) — looping now,
+    // while queries aren't filtered by department, would repeat every send.
+    alertScheduler = runAsDepartment(DEFAULT_DEPARTMENT_ID, () => startAlertScheduler({
       accountSid: config.TWILIO_ACCOUNT_SID,
       authToken: config.TWILIO_AUTH_TOKEN,
       messagingSid: config.TWILIO_MSG_SID,
       logError,
-    });
+    }));
     log("Shift alert scheduler started.");
 
-    mapsSyncHandle = startMapsSyncInterval({
+    mapsSyncHandle = runAsDepartment(DEFAULT_DEPARTMENT_ID, () => startMapsSyncInterval({
       graphConfig: {
         tenantId: config.GRAPH_TENANT_ID,
         clientId: config.GRAPH_CLIENT_ID,
@@ -1628,7 +1648,7 @@ app.use(
         },
       },
       intervalMs: 30 * 60 * 1000,
-    });
+    }));
     log("Maps sync interval started.");
   } catch (err) {
     logError("Failed to start server:", err);

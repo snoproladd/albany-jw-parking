@@ -1,10 +1,12 @@
 // middleware/demoContext.js
 // -----------------------------------------------------------------------------
 // Purpose:
-//   Detects demo hostname and wraps each request in an AsyncLocalStorage
-//   context so that lib/sql.js automatically routes all queries to the demo
-
-//   pool — without threading req through dbSync.js or route handlers.
+//   Detects demo hostname and wraps every request in an AsyncLocalStorage
+//   request context (lib/sql.js) so that queries are routed to the demo pool
+//   automatically — without threading req through dbSync.js or route
+//   handlers. The context starts with no department and the "system" scope;
+//   middleware/resolveDepartment.js fills in the department once the session
+//   is loaded (multi-department phase 2b).
 //
 //   Also exposes the resolved brand (lib/branding.js) to every view as
 //   res.locals.brand, plus res.locals.bt (brand.text) for wrapping
@@ -21,6 +23,8 @@
 // -----------------------------------------------------------------------------
 
 import { demoStorage } from "../lib/sql.js";
+
+/** @typedef {import("../lib/sql.js").RequestContext} RequestContext */
 import { getBrand } from "../lib/branding.js";
 
 /**
@@ -56,11 +60,14 @@ function isDemoInternalRender(req) {
 /**
  * Express middleware that detects demo hostname, exposes the matching
  * brand to views, and wraps the request pipeline in an AsyncLocalStorage
- * context.
+ * request context — for every request, demo or not.
  *
  * When isDemo is true, getSqlPool() in lib/sql.js returns the demo pool
  * and getBrand() in lib/branding.js returns the demo brand automatically
  * for all downstream calls in this request.
+ *
+ * The context object is also attached as req.requestContext so later
+ * middleware (resolveDepartment) can fill it in directly.
  *
  * @param {import("express").Request} req
  * @param {import("express").Response} res
@@ -73,9 +80,8 @@ export function demoContextMiddleware(req, res, next) {
     res.locals.brand = getBrand(isDemo);
     res.locals.bt = res.locals.brand.text;
 
-    if (isDemo) {
-        demoStorage.run({ isDemo: true }, next);
-    } else {
-        next();
-    }
+    /** @type {RequestContext} */
+    const context = { isDemo, departmentId: null, scope: "system" };
+    req.requestContext = context;
+    demoStorage.run(context, next);
 }
