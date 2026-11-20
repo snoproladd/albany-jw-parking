@@ -3645,7 +3645,7 @@ async function seed() {
       const result = await req.query(`
                 INSERT INTO volunteer_in (
                     email, firstName, lastName, suffix, gender, dobirth, stamina,
-                    role, accountType, congregation, assignedToConv, attendExtra,
+                    accountType, congregation, assignedToConv, attendExtra,
                     elder, regPioneer, auxPioneer, specPioneer, minServ, sfs,
                     sms_opted_in, sms_shift_alerts_opt_in,
                     crew_lots_garages, crew_signs, crew_security,
@@ -3656,7 +3656,7 @@ async function seed() {
                 OUTPUT INSERTED.id
                 VALUES (
                     @email, @firstName, @lastName, @suffix, @gender, @dobirth, @stamina,
-                    @role, @accountType, @congregation, @assignedToConv, @attendExtra,
+                    @accountType, @congregation, @assignedToConv, @attendExtra,
                     @elder, @regPioneer, @auxPioneer, @specPioneer, @minServ, @sfs,
                     @smsOptIn, @smsAlerts,
                     @lotsGarages, @signs, @security, @mobile, @dropoff,
@@ -3664,8 +3664,8 @@ async function seed() {
                     'completed', 'ok', 1
                 );
 
-                -- Department 1 (Parking) membership, mirroring the role and
-                -- active flag (multi-department phase 2). Clearing
+                -- Department 1 (Parking) membership: the role lives here, not
+                -- on volunteer_in (multi-department phase 2). Clearing
                 -- volunteer_in removes old memberships through the cascade.
                 INSERT INTO department_members (volunteer_id, department_id, role, active_current_year)
                 VALUES (SCOPE_IDENTITY(), 1, @role, 1);

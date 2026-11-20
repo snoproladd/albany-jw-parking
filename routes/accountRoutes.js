@@ -110,13 +110,13 @@ export function loginRouter({ csrfProtection, logError }) {
    *
    * Multi-department (phase 2b-2): the role comes from the person's
    * membership in the current department (convention admins are ADMIN).
-   * Someone with no membership falls back to volunteer_in.role and
-   * department 1 so they are never locked out; that is logged.
+   * Someone with no membership is signed in as REGISTERED in department 1
+   * so they are never locked out; that is logged.
    *
    * @param {import("express").Request} req
    * @param {{
    *   id: number, email: string, firstName: string, lastName: string,
-   *   role: string, registration_status: string|null,
+   *   registration_status: string|null,
    *   extra_signs_placement: boolean, extra_parking_count: boolean,
    * }} user
    * @returns {Promise<void>}
@@ -144,7 +144,7 @@ export function loginRouter({ csrfProtection, logError }) {
 
     if (!current) {
       (logError || console.error)(
-        `[accountRoutes] volunteer ${user.id} has no department membership — using volunteer_in.role and department ${DEFAULT_DEPARTMENT_ID}.`,
+        `[accountRoutes] volunteer ${user.id} has no department membership — signing in as REGISTERED in department ${DEFAULT_DEPARTMENT_ID}.`,
       );
     }
 
@@ -158,7 +158,7 @@ export function loginRouter({ csrfProtection, logError }) {
     }));
     req.session.userRole = isConventionAdmin
       ? "ADMIN"
-      : (current ? current.role : user.role) || "REGISTERED";
+      : current?.role || "REGISTERED";
 
     // This request started signed out (system scope); switch its context
     // now so the rest of the login runs in the person's department.
@@ -775,7 +775,6 @@ export function loginRouter({ csrfProtection, logError }) {
         registration_status,
         last_step,
         account_status, 
-        role,
         extra_signs_placement,
         extra_parking_count
       FROM dbo.volunteer_in
