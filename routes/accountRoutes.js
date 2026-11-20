@@ -26,7 +26,9 @@ import {
   getSchedulerCategoryAccessForVolunteer,
   getActiveMagicLoginTokenByHash,
   touchMagicLoginToken,
+  getDepartmentMemberships,
 } from "../lib/dbSync.js";
+import { DEFAULT_DEPARTMENT_ID } from "../lib/sql.js";
 import { verifyPassword, hashPassword } from "../lib/passwordVer.js";
 import { hashMagicLinkToken } from "../lib/magicLinkToken.js";
 
@@ -86,9 +88,30 @@ export function loginRouter({ csrfProtection, logError }) {
   }
 
   /**
+   * Pick the department a signed-in person starts in: their last department
+   * when they are still a member of it, otherwise their first membership.
+   *
+   * @param {import("../lib/dbSync.js").DepartmentMembership[]} memberships
+   * @param {number|null} lastDepartmentId
+   * @returns {import("../lib/dbSync.js").DepartmentMembership|null}
+   */
+  function _pickCurrentMembership(memberships, lastDepartmentId) {
+    if (!memberships.length) return null;
+    return (
+      memberships.find((m) => m.departmentId === lastDepartmentId) ||
+      memberships[0]
+    );
+  }
+
+  /**
    * Establish an authenticated session for a volunteer record, shared
    * by both password login and magic-link login so the two paths
    * can never drift out of sync.
+   *
+   * Multi-department (phase 2b-2): the role comes from the person's
+   * membership in the current department (convention admins are ADMIN).
+   * Someone with no membership falls back to volunteer_in.role and
+   * department 1 so they are never locked out; that is logged.
    *
    * @param {import("express").Request} req
    * @param {{
@@ -114,7 +137,36 @@ export function loginRouter({ csrfProtection, logError }) {
     req.session.userInitials = initials;
     req.session.firstName = user.firstName || "";
     req.session.lastName = user.lastName || "";
-    req.session.userRole = user.role || "REGISTERED";
+    // ── Department membership → current department and role ──────────
+    const { isConventionAdmin, lastDepartmentId, memberships } =
+      await getDepartmentMemberships(user.id);
+    const current = _pickCurrentMembership(memberships, lastDepartmentId);
+
+    if (!current) {
+      (logError || console.error)(
+        `[accountRoutes] volunteer ${user.id} has no department membership — using volunteer_in.role and department ${DEFAULT_DEPARTMENT_ID}.`,
+      );
+    }
+
+    req.session.isConventionAdmin = isConventionAdmin;
+    req.session.departmentId = current?.departmentId ?? DEFAULT_DEPARTMENT_ID;
+    req.session.departmentName = current?.departmentName ?? null;
+    req.session.memberships = memberships.map((m) => ({
+      id: m.departmentId,
+      name: m.departmentName,
+      slug: m.departmentSlug,
+    }));
+    req.session.userRole = isConventionAdmin
+      ? "ADMIN"
+      : (current ? current.role : user.role) || "REGISTERED";
+
+    // This request started signed out (system scope); switch its context
+    // now so the rest of the login runs in the person's department.
+    if (req.requestContext) {
+      req.requestContext.departmentId = req.session.departmentId;
+      req.requestContext.scope = "department";
+    }
+
     req.session.permissions = await loadMergedPermissions();
     req.session.registrationStatus = user.registration_status || null;
 

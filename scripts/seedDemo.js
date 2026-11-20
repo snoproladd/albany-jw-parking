@@ -3663,6 +3663,12 @@ async function seed() {
                     @pwHash, @pwSalt, @pwIter, @pwAlgo,
                     'completed', 'ok', 1
                 );
+
+                -- Department 1 (Parking) membership, mirroring the role and
+                -- active flag (multi-department phase 2). Clearing
+                -- volunteer_in removes old memberships through the cascade.
+                INSERT INTO department_members (volunteer_id, department_id, role, active_current_year)
+                VALUES (SCOPE_IDENTITY(), 1, @role, 1);
             `);
       oldIdToNewId[v.oldId] = result.recordset[0].id;
     }
