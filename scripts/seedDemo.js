@@ -3651,7 +3651,7 @@ async function seed() {
                     crew_lots_garages, crew_signs, crew_security,
                     crew_mobile_support, crew_dropoff_pickup,
                     passwordHash, passwordSalt, passwordIter, passwordAlgo,
-                    registration_status, account_status, active_current_year
+                    registration_status, account_status
                 )
                 OUTPUT INSERTED.id
                 VALUES (
@@ -3661,11 +3661,12 @@ async function seed() {
                     @smsOptIn, @smsAlerts,
                     @lotsGarages, @signs, @security, @mobile, @dropoff,
                     @pwHash, @pwSalt, @pwIter, @pwAlgo,
-                    'completed', 'ok', 1
+                    'completed', 'ok'
                 );
 
-                -- Department 1 (Parking) membership: the role lives here, not
-                -- on volunteer_in (multi-department phase 2). Clearing
+                -- Department 1 (Parking) membership: the role and the active
+                -- flag live here, not on volunteer_in (multi-department
+                -- phase 2). Clearing
                 -- volunteer_in removes old memberships through the cascade.
                 INSERT INTO department_members (volunteer_id, department_id, role, active_current_year)
                 VALUES (SCOPE_IDENTITY(), 1, @role, 1);
