@@ -1,0 +1,31 @@
+/**
+ * @file departmentSwitcher.css
+ * Navbar department switcher (multi-department phase 2c-3).
+ * Markup: views/partials/departmentSwitcher.ejs.
+ */
+
+.dept-switcher .dept-switcher-label {
+    display: inline-block;
+    max-width: 12rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+}
+
+.dept-switcher-menu {
+    min-width: 14rem;
+}
+
+.dept-switcher-menu .dept-switcher-status {
+    font-size: 0.875rem;
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+.dept-switcher-menu .dept-switcher-current {
+    font-weight: 600;
+}
+
+.dept-switcher-menu .dept-switcher-current {
+    cursor: default;
+}

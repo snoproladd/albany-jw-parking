@@ -1,0 +1,21 @@
+<%#
+  Department switcher (multi-department phase 2c-3).
+  Shown in the navbar to people in more than one department and to
+  convention admins (nav.showDepartmentSwitcher, set in index.js).
+  The menu is filled in by public/js/departmentSwitcher.js when it opens;
+  its CSS and JS are loaded from partials/footer.ejs.
+%>
+<% if (typeof nav !== 'undefined' && nav && nav.showDepartmentSwitcher) { %>
+<li class="nav-item dropdown dept-switcher" id="deptSwitcher">
+  <a class="nav-link dropdown-toggle" href="#" id="deptSwitcherToggle"
+     role="button" data-bs-toggle="dropdown" aria-expanded="false"
+     title="Switch department">
+    <i class="fa-solid fa-building-user me-1" aria-hidden="true"></i>
+    <span class="dept-switcher-label"><%= nav.departmentName || 'Department' %></span>
+  </a>
+  <ul class="dropdown-menu dropdown-menu-end dept-switcher-menu"
+      aria-labelledby="deptSwitcherToggle" id="deptSwitcherMenu">
+    <li><span class="dropdown-item-text dept-switcher-status">Loading&hellip;</span></li>
+  </ul>
+</li>
+<% } %>

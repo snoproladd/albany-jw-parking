@@ -562,6 +562,12 @@ let mapsSyncHandle = null;
 
       const userInitials = s.userInitials || null;
       const userRole = s.userRole || "REGISTERED";
+
+      // Department switcher: shown to people in more than one department
+      // and to convention admins (who can work in any department).
+      const memberships = Array.isArray(s.memberships) ? s.memberships : [];
+      const showDepartmentSwitcher =
+        isLoggedIn && (s.isConventionAdmin === true || memberships.length > 1);
       const registrationStatus = s.registrationStatus || null;
       const showDraftBanner = isLoggedIn && registrationStatus === "draft";
 
@@ -589,6 +595,8 @@ let mapsSyncHandle = null;
         userRole,
         showDraftBanner,
         canLogParkingCount,
+        showDepartmentSwitcher,
+        departmentName: s.departmentName || null,
       };
 
       next();

@@ -526,6 +526,8 @@
 
           <% if (navState.isLoggedIn) { %>
 
+            <%- include('departmentSwitcher') %>
+
             <% if (showAccountDropdown) { %>
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" id="accountDropdownRight"

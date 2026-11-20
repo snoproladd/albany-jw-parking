@@ -27,8 +27,10 @@ import {
   getActiveMagicLoginTokenByHash,
   touchMagicLoginToken,
   getDepartmentMemberships,
+  getActiveDepartments,
+  setLastDepartment,
 } from "../lib/dbSync.js";
-import { DEFAULT_DEPARTMENT_ID } from "../lib/sql.js";
+import { DEFAULT_DEPARTMENT_ID, withScope } from "../lib/sql.js";
 import { verifyPassword, hashPassword } from "../lib/passwordVer.js";
 import { hashMagicLinkToken } from "../lib/magicLinkToken.js";
 
@@ -905,6 +907,133 @@ export function loginRouter({ csrfProtection, logError }) {
 
   router.get("/logout", (req, res) => {
     res.status(405).send("Logout must be POST");
+  });
+
+  // ===========================
+  // DEPARTMENT SWITCHER (multi-department phase 2c-3)
+  // ===========================
+
+  /**
+   * The departments the signed-in person may switch to: their memberships,
+   * or every active department for a convention admin. Membership is read
+   * in system scope because, with row-level security on, a convention admin
+   * working in a department they don't belong to can't see their own
+   * volunteer_in row.
+   *
+   * @param {number} volunteerId
+   * @returns {Promise<{
+   *   isConventionAdmin: boolean,
+   *   memberships: import("../lib/dbSync.js").DepartmentMembership[],
+   *   options: Array<{ id: number, name: string, role: string|null }>,
+   * }>}
+   */
+  async function _departmentOptions(volunteerId) {
+    const { isConventionAdmin, memberships } = await withScope("system", () =>
+      getDepartmentMemberships(volunteerId),
+    );
+
+    let options;
+    if (isConventionAdmin) {
+      const all = await getActiveDepartments();
+      options = all.map((d) => ({
+        id: d.id,
+        name: d.name,
+        role:
+          memberships.find((m) => m.departmentId === d.id)?.role ?? null,
+      }));
+    } else {
+      options = memberships.map((m) => ({
+        id: m.departmentId,
+        name: m.departmentName,
+        role: m.role,
+      }));
+    }
+    return { isConventionAdmin, memberships, options };
+  }
+
+  /**
+   * GET /account/departments
+   * Departments the person can switch to, plus a CSRF token for the switch.
+   * Loaded by public/js/departmentSwitcher.js when the menu opens.
+   *
+   * @returns {{ success: boolean, currentId: number,
+   *   departments: Array<{ id: number, name: string }>, csrfToken: string }}
+   */
+  router.get("/account/departments", requireAuth, csrfProtection, async (req, res) => {
+    try {
+      const { options } = await _departmentOptions(req.session.userId);
+      return res.json({
+        success: true,
+        currentId: req.session.departmentId,
+        departments: options.map((o) => ({ id: o.id, name: o.name })),
+        csrfToken: req.csrfToken(),
+      });
+    } catch (err) {
+      (logError || console.error)("[GET /account/departments]", err);
+      return res.status(500).json({ success: false, message: "Could not load departments." });
+    }
+  });
+
+  /**
+   * POST /account/department
+   * Switch the session to another department. Allowed for the person's own
+   * memberships, or any active department for a convention admin. Updates
+   * the session's department, role and scheduler category access, and
+   * remembers the choice for the next sign-in.
+   *
+   * @param {{ departmentId: number }} req.body
+   * @returns {{ success: boolean, departmentId?: number, departmentName?: string, message?: string }}
+   */
+  router.post("/account/department", requireAuth, csrfProtection, async (req, res) => {
+    try {
+      const departmentId = Number(req.body?.departmentId);
+      if (!Number.isInteger(departmentId) || departmentId <= 0) {
+        return res.status(400).json({ success: false, message: "Invalid department." });
+      }
+
+      const userId = req.session.userId;
+      const { isConventionAdmin, memberships, options } =
+        await _departmentOptions(userId);
+      const target = options.find((o) => o.id === departmentId);
+      if (!target) {
+        return res.status(403).json({ success: false, message: "You are not a member of that department." });
+      }
+
+      req.session.isConventionAdmin = isConventionAdmin;
+      req.session.departmentId = target.id;
+      req.session.departmentName = target.name;
+      req.session.memberships = memberships.map((m) => ({
+        id: m.departmentId,
+        name: m.departmentName,
+        slug: m.departmentSlug,
+      }));
+      req.session.userRole = isConventionAdmin
+        ? "ADMIN"
+        : target.role || "REGISTERED";
+
+      // The rest of this request runs in the new department
+      if (req.requestContext) {
+        req.requestContext.departmentId = target.id;
+        req.requestContext.scope = "department";
+      }
+
+      req.session.sensitiveCategories = isRoleAtLeast(req.session.userRole, "OVERSEER")
+        ? null
+        : await getSchedulerCategoryAccessForVolunteer(userId);
+
+      await withScope("system", () => setLastDepartment(userId, target.id));
+
+      req.session.save((err) => {
+        if (err) {
+          (logError || console.error)("[POST /account/department] session save", err);
+          return res.status(500).json({ success: false, message: "Could not switch department." });
+        }
+        return res.json({ success: true, departmentId: target.id, departmentName: target.name });
+      });
+    } catch (err) {
+      (logError || console.error)("[POST /account/department]", err);
+      return res.status(500).json({ success: false, message: "Could not switch department." });
+    }
   });
 
   // ===========================
