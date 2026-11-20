@@ -3307,7 +3307,13 @@ async function planClearOrder(pool, baseTables) {
 async function seed() {
   log("Connecting as", DEMO_USER, "...");
   const pool = await new sql.ConnectionPool(poolConfig).connect();
-  await pool.request().query("EXEC sys.sp_set_session_context @key = N'scope', @value = N'system';");
+  // System scope (row-level security sees every row) and department 1, so
+  // every department_id default resolves: the defaults have no fallback
+  // since phase 2c-4.
+  await pool.request().query(
+    "EXEC sys.sp_set_session_context @key = N'scope', @value = N'system'; "
+    + "EXEC sys.sp_set_session_context @key = N'department_id', @value = 1;",
+  );
   log("Connected. Beginning seed...");
 
   try {

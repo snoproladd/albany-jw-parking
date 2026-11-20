@@ -14,9 +14,14 @@
 // Rules (2b-1):
 //   - Signed in  → scope "department"; department = req.session.departmentId,
 //                  or DEFAULT_DEPARTMENT_ID until login sets it (2b-2).
-//   - Signed out → scope "system", no department (registration, login
-//                  lookups, invite links, webhooks). The SMS webhook picks a
-//                  department itself (routes/smsWebhookRoute.js).
+//   - Signed out → scope "system" with department DEFAULT_DEPARTMENT_ID
+//                  (2c-4). System scope, because login, magic links, password
+//                  reset and invite links must find people in any department;
+//                  a department, because reads and inserts use the session
+//                  department and the SQL defaults have no fallback any more.
+//                  Later this becomes "department from the URL or invitation".
+//                  The SMS webhook picks a department itself
+//                  (routes/smsWebhookRoute.js).
 //   - Internal PDF render (Puppeteer over loopback, /internal/pdf/*, already
 //                  protected by the PDF secret) → the department passed as
 //                  ?dept=N by the publisher that started it, so the PDF
@@ -110,7 +115,7 @@ export function resolveDepartmentMiddleware(req, res, next) {
         context.departmentId = sessionDepartmentId(req.session);
         context.scope = "department";
     } else {
-        context.departmentId = null;
+        context.departmentId = DEFAULT_DEPARTMENT_ID;
         context.scope = "system";
     }
 
