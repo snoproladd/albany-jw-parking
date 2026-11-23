@@ -258,14 +258,21 @@
                   <%# Plain GET form: works without JavaScript. %>
                   <form class="row g-2 align-items-end mb-3" method="get" action="/oversight/tools/positions">
                     <% if (canPickDepartment) { %><input type="hidden" name="department" value="<%= department.slug %>" /><% } %>
-                    <div class="col-12 col-md-8">
+                    <div class="col-12 col-md-4">
+                      <label for="posPersonSearch" class="form-label small fw-semibold mb-1">Find</label>
+                      <input type="search" class="form-control form-control-sm" id="posPersonSearch"
+                             placeholder="Type a name or email" autocomplete="off" aria-controls="posPerson" />
+                    </div>
+                    <div class="col-12 col-md-6">
                       <label for="posPerson" class="form-label small fw-semibold mb-1">Volunteer</label>
                       <select class="form-select form-select-sm" id="posPerson" name="person">
                         <option value="">Choose someone in <%= department.name %>…</option>
                         <% members.forEach(function (m) { %>
-                          <option value="<%= m.id %>" <%= m.id === selectedPersonId ? 'selected' : '' %>><%= m.name %><%= m.positions ? ' — ' + m.positions : '' %></option>
+                          <option value="<%= m.id %>" data-search="<%= (m.name + ' ' + (m.email || '')).toLowerCase() %>"
+                                  <%= m.id === selectedPersonId ? 'selected' : '' %>><%= m.name %><%= m.positions ? ' — ' + m.positions : '' %></option>
                         <% }) %>
                       </select>
+                      <span class="visually-hidden" id="posPersonCount" aria-live="polite"></span>
                     </div>
                     <div class="col-auto">
                       <button type="submit" class="btn btn-primary btn-sm">Open</button>

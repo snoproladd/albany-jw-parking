@@ -402,6 +402,18 @@ function memberName(m) {
 }
 
 /**
+ * A member's name as "Last, First" for the People picker (sorted the same
+ * way by getDepartmentMembers()).
+ *
+ * @param {{ firstName: string|null, lastName: string|null, email: string|null, id: number }} m
+ * @returns {string}
+ */
+function sortName(m) {
+    const name = [m.lastName, m.firstName].filter(Boolean).join(", ").trim();
+    return name || m.email || `Volunteer ${m.id}`;
+}
+
+/**
  * Everything the People tab's script needs for one person.
  *
  * @param {Object} args
@@ -539,7 +551,7 @@ export function positionsRouter({ csrfProtection, logError }) {
                     canEdit,
                     editorData,
                     canAssign,
-                    members: members.map((m) => ({ id: m.id, name: memberName(m), email: m.email, positions: m.positions })),
+                    members: members.map((m) => ({ id: m.id, name: sortName(m), email: m.email, positions: m.positions })),
                     peopleData,
                     selectedPersonId,
                     personNotFound,

@@ -56,12 +56,14 @@
              data-bs-toggle="tooltip" data-bs-placement="bottom">
             <i class="fa-solid fa-print"></i>
           </a>
-          <a href="/oversight/roles"
+          <% if (can('positions.view')) { %>
+          <a href="/oversight/tools/positions"
              class="scheduler-quick-link"
-             title="Role Management"
+             title="Positions"
              data-bs-toggle="tooltip" data-bs-placement="bottom">
             <i class="fa-solid fa-user-shield"></i>
           </a>
+          <% } %>
         </div>
       </div>
 

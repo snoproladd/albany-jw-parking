@@ -5,7 +5,7 @@ import { publicRoute, signedInRoute } from "../middleware/publicRoute.js";
 import crypto from "crypto";
 import sql from "mssql";
 import { withScope } from "../lib/sql.js";
-import { syncLegacyPositions } from "../lib/positions.js";
+import { getEffectivePermissions } from "../lib/positions.js";
 
 import {
   exec,
@@ -18,19 +18,12 @@ import {
   getCongregations,
   getVolunteerById,
   getActiveVolunteers,
-  getAllVolunteersWithRoles,
-  updateVolunteerRole,
-  getUnapprovedVolunteers,
-  assignDeskRole,
-  updateVolunteerAssignment,
+  updateVolunteerCrews,
   getIncompleteDraftVolunteers,
   getRegisteredVolunteers,
   setPendingReset,
   createVolunteerAccount,
   findPotentialDuplicates,
-  getRolePermissions,
-  upsertRolePermission,
-  deleteRolePermission,
   getDecentlyExportRows,
   countRecruitmentBatches,
   markDecentlyExported,
@@ -187,12 +180,6 @@ import { verifyPassword, hashPassword } from "../lib/passwordVer.js";
 import { INCOMPATIBILITIES } from "../src/config/privilegeRules.js";
 
 import { requirePermission } from "../middleware/requirePermission.js";
-import {
-  canAssignRole,
-  ROLE_HIERARCHY,
-  PERMISSIONS,
-  isRoleAtLeast,
-} from "../src/config/roles.js";
 
 import { sendResetEmail, sendResetSms, getBaseUrl } from "../lib/messaging.js";
 
@@ -300,6 +287,28 @@ export function oversightRouter({
 }) {
   const router = express.Router();
 
+  /**
+   * Names of the positions a volunteer holds in a department, for the
+   * Edit Volunteer page (phase 3d-7e: positions are changed on the
+   * Positions page's People tab). Never throws: a failure is logged and
+   * shows as no positions.
+   *
+   * @param {number} volunteerId
+   * @param {number} departmentId
+   * @returns {Promise<string[]>}
+   */
+  async function targetPositionNames(volunteerId, departmentId) {
+    try {
+      const { positions } = await withScope("system", () =>
+        getEffectivePermissions(volunteerId, departmentId, false, { includeGrants: false }),
+      );
+      return positions.map((p) => p.name);
+    } catch (err) {
+      (logError || console.error)("edit volunteer: positions lookup failed:", err);
+      return [];
+    }
+  }
+
   /** Multer config for rendezvous photo uploads: in-memory, 12 MB cap. */
   const rvPhotoUpload = multer({
     storage: multer.memoryStorage(),
@@ -358,7 +367,6 @@ export function oversightRouter({
       const targetUserId = parseInt(req.params.id, 10);
       if (!targetUserId) return res.redirect("/editVolunteer");
 
-      const actorRole = req.session.userRole || "NON_REGISTERED";
       const canDelete = res.locals.can("volunteers.archive");
 
       try {
@@ -391,7 +399,8 @@ export function oversightRouter({
           includeDeleted: false,
           rsvpHistory,
           conventionDays,
-          canGrantExtraPerms: isRoleAtLeast(actorRole, "ASSISTANT_ADMIN"),
+          targetPositions: await targetPositionNames(targetUser.id, req.session.departmentId),
+          canManageAccess: res.locals.can("positions.assign") || res.locals.can("departments.assignPositions"),
         });
       } catch (err) {
         (logError || console.error)("GET /editVolunteer/:id error:", err);
@@ -411,7 +420,6 @@ export function oversightRouter({
       const pwError = req.query.pwError === "1";
       const pwSuccess = req.query.pwSuccess === "1";
       const includeDeleted = req.query.includeDeleted === "1";
-      const actorRole = req.session.userRole || "NON_REGISTERED";
       const canDelete = res.locals.can("volunteers.archive");
 
       try {
@@ -437,7 +445,8 @@ export function oversightRouter({
           pwSuccess,
           canDelete,
           includeDeleted,
-          canGrantExtraPerms: isRoleAtLeast(actorRole, "ASSISTANT_ADMIN"),
+          targetPositions: [],
+          canManageAccess: res.locals.can("positions.assign") || res.locals.can("departments.assignPositions"),
         });
       } catch (err) {
         (logError || console.error)("editVolunteer GET error:", err);
@@ -464,7 +473,6 @@ export function oversightRouter({
 
       const includeDeleted =
         req.body.includeDeleted === "1" || req.query.includeDeleted === "1";
-      const actorRole = req.session.userRole || "NON_REGISTERED";
       const canDelete = res.locals.can("volunteers.archive");
 
       try {
@@ -492,7 +500,10 @@ export function oversightRouter({
           includeDeleted,
           rsvpHistory,
           conventionDays,
-          canGrantExtraPerms: isRoleAtLeast(actorRole, "ASSISTANT_ADMIN"),
+          targetPositions: targetUser
+            ? await targetPositionNames(targetUser.id, req.session.departmentId)
+            : [],
+          canManageAccess: res.locals.can("positions.assign") || res.locals.can("departments.assignPositions"),
         });
 
         return res.render("volunteerAccountOversight", {
@@ -910,32 +921,19 @@ export function oversightRouter({
     },
   );
 
-  /**
-   * After an old role tool changes someone's role or extra_* flags, bring
-   * their positions in line (phase 3d-7d: the page-load sync is gone). The
-   * People tab on the Positions page replaces these tools in 3d-7e. A
-   * failure is logged, not shown: the role change itself has been saved.
-   *
-   * @param {number} volunteerId
-   * @param {string} reason  Recorded as granted_by on added rows.
-   * @returns {Promise<void>}
-   */
-  async function syncAfterRoleChange(volunteerId, reason) {
-    try {
-      await withScope("system", () => syncLegacyPositions(volunteerId, reason));
-    } catch (err) {
-      (logError || console.error)("position sync after role change failed:", err);
-    }
-  }
-
   // ===========================
-  // VOLUNTEER ASSIGNMENT (role + crew)
+  // VOLUNTEER ASSIGNMENT (crews)
   // ===========================
 
   /**
    * POST /edit-volunteer/assignment
-   * Update role (REGISTERED or KEYMAN only) and crew assignments for a volunteer.
-   * Requires OVERSEER+ via createAssignments permission.
+   * Update a volunteer's crew assignments. Positions and permissions are
+   * changed on the Positions page's People tab (phase 3d-7e); the role and
+   * extra_signs_placement are no longer set here.
+   * Requires crews.assign.
+   *
+   * Body: { targetUserId, crew_lots_garages, crew_signs, crew_security,
+   *         crew_mobile_support, crew_dropoff_pickup }
    */
   router.post(
     "/edit-volunteer/assignment",
@@ -945,32 +943,18 @@ export function oversightRouter({
     async (req, res) => {
       const {
         targetUserId,
-        newRole,
         crew_lots_garages,
         crew_signs,
         crew_security,
         crew_mobile_support,
         crew_dropoff_pickup,
-        extra_signs_placement,
       } = req.body || {};
 
-      const actorRole = req.session.userRole || "NON_REGISTERED";
-      const canGrantExtraPerms = isRoleAtLeast(actorRole, "ASSISTANT_ADMIN");
-
       const id = Number(targetUserId);
-
       if (!id) {
         return res
           .status(400)
           .json({ success: false, message: "No volunteer selected." });
-      }
-
-      // Overseer can only assign REGISTERED or KEYMAN
-      const allowedRoles = ["REGISTERED", "KEYMAN"];
-      if (!allowedRoles.includes(newRole)) {
-        return res
-          .status(400)
-          .json({ success: false, message: "Invalid role for this action." });
       }
 
       // Prevent self-assignment
@@ -981,28 +965,18 @@ export function oversightRouter({
         });
       }
 
+      /** @param {unknown} v @returns {boolean} */
+      const yes = (v) => v === "true" || v === true;
+
       try {
-        const ok = await updateVolunteerAssignment(
+        const ok = await updateVolunteerCrews(
           id,
-          newRole,
           {
-            crew_lots_garages:
-              crew_lots_garages === "true" || crew_lots_garages === true,
-            crew_signs: crew_signs === "true" || crew_signs === true,
-            crew_security: crew_security === "true" || crew_security === true,
-            crew_mobile_support:
-              crew_mobile_support === "true" || crew_mobile_support === true,
-            crew_dropoff_pickup:
-              crew_dropoff_pickup === "true" || crew_dropoff_pickup === true,
-          },
-          {
-            // Only ADMIN/ASSISTANT_ADMIN can set extra permissions; strip the
-            // value entirely if the actor doesn't have the authority, so a
-            // crafted POST body can't elevate a volunteer's permissions.
-            extraSignsPlacement: canGrantExtraPerms
-              ? extra_signs_placement === "true" ||
-                extra_signs_placement === true
-              : undefined,
+            crew_lots_garages: yes(crew_lots_garages),
+            crew_signs: yes(crew_signs),
+            crew_security: yes(crew_security),
+            crew_mobile_support: yes(crew_mobile_support),
+            crew_dropoff_pickup: yes(crew_dropoff_pickup),
           },
           req.session.userEmail || "admin",
         );
@@ -1013,8 +987,6 @@ export function oversightRouter({
             message: "Volunteer not found or not eligible.",
           });
         }
-
-        await syncAfterRoleChange(id, "edit-volunteer assignment");
         return res.json({ success: true });
       } catch (err) {
         (logError || console.error)(
@@ -1024,139 +996,6 @@ export function oversightRouter({
         return res
           .status(500)
           .json({ success: false, message: "Server error." });
-      }
-    },
-  );
-  // ===========================
-  // ADMIN ROLES CONSOLE
-  // ===========================
-
-  /**
-   * GET /oversight/roles
-   * Show all volunteers and their current roles.
-   * Accessible to ASSISTANT_ADMIN and ADMIN only.
-   */
-  router.get(
-    "/oversight/roles",
-    requireAuth,
-    requirePermission("positions.assign"),
-    csrfProtection,
-    async (req, res) => {
-      try {
-        const [volunteers, unapprovedVolunteers] = await Promise.all([
-          getAllVolunteersWithRoles(),
-          getUnapprovedVolunteers(),
-        ]);
-        const actorRole = req.session.userRole || "NON_REGISTERED";
-
-        return res.render("authentication_and_accounts/adminRoles", {
-          csrfToken: req.csrfToken(),
-          volunteers,
-          unapprovedVolunteers,
-          actorRole,
-          roleHierarchy: ROLE_HIERARCHY,
-          success: req.query.success === "1",
-          error: req.query.error || null,
-        });
-      } catch (err) {
-        (logError || console.error)("admin/roles GET error:", err);
-        return res.status(500).send("Server error");
-      }
-    },
-  );
-
-  /**
-   * POST /oversight/roles/desk
-   * Assign DESK role to a single unapproved (draft) volunteer,
-   * simultaneously promoting their registration_status to 'completed'
-   * so they can log in and use the app.
-   * This is the only role assignable to draft volunteers from the
-   * roles console.
-   *
-   * Body (form): { targetId: number }
-   */
-  router.post(
-    "/oversight/roles/desk",
-    requireAuth,
-    requirePermission("positions.assign"),
-    csrfProtection,
-    async (req, res) => {
-      const editedBy = req.session.userEmail || "admin";
-      const targetId = Number(req.body.targetId);
-
-      if (!targetId) {
-        return res.redirect("/oversight/roles?error=Invalid+request");
-      }
-
-      if (targetId === req.session.userId) {
-        return res.redirect(
-          "/oversight/roles?error=You+cannot+change+your+own+role",
-        );
-      }
-
-      try {
-        const ok = await assignDeskRole(targetId, editedBy);
-        if (!ok) {
-          return res.redirect(
-            "/oversight/roles?error=Volunteer+not+found+or+already+approved",
-          );
-        }
-        await syncAfterRoleChange(targetId, "role management");
-        return res.redirect("/oversight/roles?success=1");
-      } catch (err) {
-        (logError || console.error)("oversight/roles/desk POST error:", err);
-        return res.redirect("/oversight/roles?error=Server+error");
-      }
-    },
-  );
-
-  /**
-   * POST /oversight/roles
-   * Update a single volunteer's role.
-   * Server-side canAssignRole check — actor cannot assign equal or higher roles.
-   */
-  router.post(
-    "/oversight/roles",
-    requireAuth,
-    requirePermission("positions.assign"),
-    csrfProtection,
-    async (req, res) => {
-      const actorRole = req.session.userRole || "NON_REGISTERED";
-      const editedBy = req.session.userEmail || "admin";
-      const targetId = Number(req.body.targetId);
-      const newRole = (req.body.newRole || "").trim();
-
-      // Validate inputs
-      if (!targetId || !newRole || !ROLE_HIERARCHY.includes(newRole)) {
-        return res.redirect("/oversight/roles?error=Invalid+request");
-      }
-
-      // Enforce hierarchy — actor cannot assign their own level or above
-      if (!canAssignRole(actorRole, newRole)) {
-        return res.redirect(
-          "/oversight/roles?error=You+do+not+have+permission+to+assign+that+role",
-        );
-      }
-
-      // Prevent self-role change
-      if (targetId === req.session.userId) {
-        return res.redirect(
-          "/oversight/roles?error=You+cannot+change+your+own+role",
-        );
-      }
-
-      try {
-        const ok = await updateVolunteerRole(targetId, newRole, editedBy);
-        if (!ok) {
-          return res.redirect(
-            "/oversight/roles?error=Volunteer+not+found+or+already+archived",
-          );
-        }
-        await syncAfterRoleChange(targetId, "role management");
-        return res.redirect("/oversight/roles?success=1");
-      } catch (err) {
-        (logError || console.error)("admin/roles POST error:", err);
-        return res.redirect("/oversight/roles?error=Server+error");
       }
     },
   );
@@ -1561,110 +1400,6 @@ export function oversightRouter({
           success: false,
           error: "Server error — please try again.",
         });
-      }
-    },
-  );
-
-  // ===========================
-  // PERMISSION MATRIX (ADMIN only)
-  // ===========================
-
-  /**
-   * GET /oversight/tools/permissions
-   * Display the full role × permission matrix with current DB overrides merged in.
-   * Restricted to ADMIN only.
-   */
-  router.get(
-    "/oversight/tools/permissions",
-    requireAuth,
-    requirePermission("positions.manage"),
-    csrfProtection,
-    async (req, res) => {
-      try {
-        const dbOverrides = await getRolePermissions();
-
-        // Build override lookup: { 'OVERSEER.sendMessages': true/false }
-        /** @type {Record<string, boolean>} */
-        const overrideLookup = {};
-        for (const row of dbOverrides) {
-          overrideLookup[`${row.role_name}.${row.permission}`] =
-            !!row.is_granted;
-        }
-
-        return res.render("authentication_and_accounts/oversightPermissions", {
-          csrfToken: req.csrfToken(),
-          PERMISSIONS,
-          ROLE_HIERARCHY,
-          overrideLookup,
-          success: req.query.success
-            ? decodeURIComponent(req.query.success)
-            : null,
-          error: req.query.error ? decodeURIComponent(req.query.error) : null,
-        });
-      } catch (err) {
-        (logError || console.error)(
-          "oversight/tools/permissions GET error:",
-          err,
-        );
-        return res.status(500).send("Server error");
-      }
-    },
-  );
-
-  /**
-   * POST /oversight/tools/permissions
-   * AJAX endpoint — upsert a single role/permission cell.
-   * Body: { roleName, permission, isGranted }
-   * Returns: { success: true } or { success: false, error: string }
-   */
-  router.post(
-    "/oversight/tools/permissions",
-    requireAuth,
-    requirePermission("positions.manage"),
-    csrfProtection,
-    async (req, res) => {
-      const { roleName, permission, isGranted } = req.body || {};
-
-      if (!roleName || !permission || typeof isGranted === "undefined") {
-        return res
-          .status(400)
-          .json({ success: false, error: "Missing required fields." });
-      }
-
-      if (!ROLE_HIERARCHY.includes(roleName)) {
-        return res.status(400).json({ success: false, error: "Invalid role." });
-      }
-
-      // Prevent removing manageRoles from ADMIN — that would lock everyone out
-      if (roleName === "ADMIN" && permission === "manageRoles" && !isGranted) {
-        return res.status(400).json({
-          success: false,
-          error: "Cannot remove manageRoles from ADMIN.",
-        });
-      }
-
-      try {
-        const defaultVal = PERMISSIONS[roleName]?.[permission];
-        const isDefault = !!isGranted === !!defaultVal;
-
-        if (isDefault) {
-          await deleteRolePermission(roleName, permission);
-          return res.json({ success: true, removedOverride: true });
-        }
-
-        await upsertRolePermission(
-          roleName,
-          permission,
-          !!isGranted,
-          req.session.userId || null,
-        );
-        return res.json({ success: true, removedOverride: false });
-      } catch (err) {
-        (logError || console.error)(
-          "oversight/tools/permissions POST error:",
-          err,
-        );
-        return res.status(500).json({ success: false, error: "Server error." });
       }
     },
   );

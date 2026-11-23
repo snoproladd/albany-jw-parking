@@ -47,7 +47,7 @@
           // One flag per Operations group; the Operations menu shows when any group does.
           const navDocs         = hasAny('maps.view', 'schedules.view', 'lessons.viewAll');
           const navComms        = hasAny('campaigns.send', 'volunteers.sendSignInLinks');
-          const navVolunteers   = hasAny('volunteers.edit', 'volunteers.create', 'positions.assign', 'notes.view');
+          const navVolunteers   = hasAny('volunteers.edit', 'volunteers.create', 'notes.view');
           const navConvention   = has('lessons.submit');
           const navReports      = has('volunteers.viewReports');
           const navSigns        = hasAny('signs.view', 'signs.manage');
@@ -60,7 +60,7 @@
           const navSystemVars   = has('systemVariables.manage');
           const navPositions    = hasAny('positions.view', 'positions.assign', 'positions.manage',
                                          'departments.assignPositions');
-          const navAdmin        = hasAny('positions.manage', 'structure.manage') || navSystemVars || navPositions;
+          const navAdmin        = has('structure.manage') || navSystemVars || navPositions;
           const navOperations   = navDocs || navComms || navVolunteers || navConvention || navReports || navSigns
                                   || navScheduling || navAttendance || navCounts || navDecently || navAdmin;
         %>
@@ -242,11 +242,6 @@
                       <% if (has('volunteers.create')) { %>
                         <li><a class="ot-nav-item" href="/oversight/tools/create-volunteer">
                           <i class="fa-solid fa-user-plus"></i>Create Volunteer
-                        </a></li>
-                      <% } %>
-                      <% if (has('positions.assign')) { %>
-                        <li><a class="ot-nav-item" href="/oversight/roles">
-                          <i class="fa-solid fa-user-shield"></i>Role Management
                         </a></li>
                       <% } %>
                       <% if (has('notes.view')) { %>
@@ -510,11 +505,6 @@
                       <% if (navPositions) { %>
                       <li><a class="ot-nav-item" href="/oversight/tools/positions">
                         <i class="fa-solid fa-user-shield"></i>Positions
-                      </a></li>
-                      <% } %>
-                      <% if (has('positions.manage')) { %>
-                      <li><a class="ot-nav-item" href="/oversight/tools/permissions">
-                        <i class="fa-solid fa-sliders"></i>Permission Matrix
                       </a></li>
                       <% } %>
                       <% if (has('structure.manage')) { %>

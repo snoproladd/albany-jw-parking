@@ -24,7 +24,7 @@
     // One flag per section, shared by the jump menu, the sidebar and the section.
     const showCommunications = any('campaigns.send', 'volunteers.sendSignInLinks', 'bugReports.manage');
     const showVolunteers     = any('volunteers.view', 'volunteers.edit', 'volunteers.create',
-                                   'positions.assign', 'notes.view', 'sms.manageOptOuts');
+                                   'notes.view', 'sms.manageOptOuts');
     const showReports        = can('volunteers.viewReports');
     const showSigns          = any('signs.view', 'signs.manage');
     const showScheduling     = any('shifts.manage', 'locations.manage', 'rendezvous.manage', 'eventTypes.manage',
@@ -35,7 +35,7 @@
     const showDecently       = any('decently.run', 'departments.viewAllPeople');
     const showPositions      = any('positions.view', 'positions.assign', 'positions.manage',
                                    'departments.assignPositions');
-    const showAdministration = any('positions.manage', 'structure.manage') || showPositions;
+    const showAdministration = can('structure.manage') || showPositions;
     const showDocs           = any('maps.view', 'schedules.view');
   %>
 
@@ -273,20 +273,7 @@
                   </div>
                 <% } %>
 
-               <% if (can('positions.assign')) { %>
-                  <div class="col-12 col-sm-6 col-lg-4">
-                    <div class="admin-tool-card h-100">
-                      <div class="admin-tool-icon text-primary">
-                        <i class="fa-solid fa-user-shield"></i>
-                      </div>
-                      <h3 class="admin-tool-title">Role Management</h3>
-                      <p class="admin-tool-desc">Assign and update volunteer roles. Roles control what each user can see and do across the site.</p>
-                      <a href="/oversight/roles" class="btn btn-primary admin-tool-btn">
-                        Open <i class="fa-solid fa-arrow-right ms-1"></i>
-                      </a>
-                    </div>
-                  </div>
-                <% } %>
+               
 
                 <% if (can('notes.view')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
@@ -832,20 +819,7 @@
                 </div>
                 <% } %>
 
-                <% if (can('positions.manage')) { %>
-                <div class="col-12 col-sm-6 col-lg-4">
-                  <div class="admin-tool-card h-100">
-                    <div class="admin-tool-icon text-danger">
-                      <i class="fa-solid fa-sliders"></i>
-                    </div>
-                    <h3 class="admin-tool-title">Permission Matrix</h3>
-                    <p class="admin-tool-desc">Override default role permissions at runtime. Changes take effect on next login.</p>
-                    <a href="/oversight/tools/permissions" class="btn btn-danger admin-tool-btn">
-                      Open <i class="fa-solid fa-arrow-right ms-1"></i>
-                    </a>
-                  </div>
-                </div>
-                <% } %>
+                
 
                 <% if (can('structure.manage')) { %>
                 <div class="col-12 col-sm-6 col-lg-4">
