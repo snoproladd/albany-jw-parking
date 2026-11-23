@@ -127,6 +127,7 @@ import {
   getBlackoutPickerData,
   getConflictGridData,
   getOversightStructure,
+  copyOversightNamesFromLastYear,
   addOversightStructureNode,
   saveOversightStructureOrder,
   deleteOversightStructureNode,
@@ -7006,14 +7007,44 @@ export function oversightRouter({
           getActiveVolunteers({}),
         ]);
 
+        const copied = Number(req.query.copied);
+        const skipped = Number(req.query.skipped);
         return res.render("authentication_and_accounts/oversightStructure", {
           csrfToken: req.csrfToken(),
           rawOversightStructure,
           volunteers,
+          copyResult: Number.isInteger(copied)
+            ? { filled: copied, skipped: Number.isInteger(skipped) ? skipped : 0 }
+            : null,
+          copyError: req.query.copyError === "1",
         });
       } catch (err) {
         (logError || console.error)("oversight structureGET error:", err);
         return res.status(500).send("Server error");
+      }
+    },
+  );
+
+  /**
+   * POST /oversight/tools/oversightstructure/copy-last-year
+   * Fill empty boxes with last year's names (phase 3d-7f), for people who
+   * still hold Overseer or above in this department. Plain form post;
+   * redirects back with the counts.
+   */
+  router.post(
+    "/oversight/tools/oversightstructure/copy-last-year",
+    requireAuth,
+    requirePermission("structure.manage"),
+    csrfProtection,
+    async (req, res) => {
+      try {
+        const { filled, skipped } = await copyOversightNamesFromLastYear();
+        return res.redirect(
+          `/oversight/tools/oversightstructure?copied=${filled}&skipped=${skipped}`,
+        );
+      } catch (err) {
+        (logError || console.error)("oversightstructure/copy-last-year POST error:", err);
+        return res.redirect("/oversight/tools/oversightstructure?copyError=1");
       }
     },
   );

@@ -80,7 +80,22 @@
         </div>
       </div>
 
-      <%# Step 2 — confirm %>
+      <%# Step 2 — who keeps their access (phase 3d-7f) %>
+      <div class="modal-body d-none" id="rolloverAccessPanel">
+        <div id="rolloverAccessError" class="alert alert-danger d-none" role="alert"></div>
+        <p class="mb-1 fw-semibold">Who keeps their access in <%= _rp.nextYear %>?</p>
+        <p class="text-muted small mb-3">
+          Everyone goes back to their department's Volunteer position and loses individual
+          permissions, except what you tick here. Only Overseer and above are listed;
+          department admins start ticked. Untick anyone who is no longer serving.
+          <span id="rolloverCountingNote"></span>
+        </p>
+        <div id="rolloverAccessList" class="rollover-access" aria-live="polite">
+          <p class="text-muted small mb-0">Loading…</p>
+        </div>
+      </div>
+
+      <%# Step 3 — confirm %>
       <div class="modal-body d-none" id="rolloverConfirmPanel">
         <p class="fw-semibold mb-2">Start <%= _rp.nextYear %>?</p>
         <ul class="mb-3">
@@ -88,6 +103,7 @@
           <li>All volunteers will be marked inactive for <%= _rp.nextYear %>. Their
               <%= _rp.activeYear %> status and recruitment responses are kept.</li>
           <li id="rolloverConfirmCarry"></li>
+          <li id="rolloverConfirmAccess"></li>
         </ul>
         <h3 class="h6 fw-semibold mb-2">New convention days</h3>
         <ul class="rollover-map list-unstyled mb-3" id="rolloverConfirmDays"></ul>
@@ -98,7 +114,7 @@
         </p>
       </div>
 
-      <%# Step 3 — done %>
+      <%# Step 4 — done %>
       <div class="modal-body d-none" id="rolloverDonePanel">
         <div class="text-center py-2">
           <i class="fa-solid fa-circle-check rollover-done-icon" aria-hidden="true"></i>

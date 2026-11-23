@@ -9,10 +9,14 @@
  *      GET /api/convention-year/rollover-context and open the modal.
  *   2. The admin clicks dates on a multi-select month calendar limited to
  *      the next year, and chooses what to bring forward.
- *   3. Continue → confirmation step, which lists each new date with the
+ *   3. Continue → "Who keeps their access?" (phase 3d-7f): loaded from
+ *      GET /api/convention-year/rollover-access; per department, people in
+ *      Overseer-or-above positions with a checkbox for each position and
+ *      individual grant (department admins ticked). Everything else resets.
+ *   4. Continue → confirmation step, which lists each new date with the
  *      current-year day it will copy from (matched by days before the last
  *      convention day, the same rule the server uses).
- *   4. Start → POST /oversight/tools/start-year → summary of what was copied.
+ *   5. Start → POST /oversight/tools/start-year → summary of what was copied.
  *   "Not yet" → POST /api/convention-year/snooze and close.
  *
  * Loaded with `defer`, so Bootstrap's bundle has already run.
@@ -40,6 +44,11 @@
         carryStructure: document.getElementById("rolloverCarryStructure"),
         resetSigns: document.getElementById("rolloverResetSigns"),
         pickPanel: document.getElementById("rolloverPickPanel"),
+        accessPanel: document.getElementById("rolloverAccessPanel"),
+        accessList: document.getElementById("rolloverAccessList"),
+        accessError: document.getElementById("rolloverAccessError"),
+        countingNote: document.getElementById("rolloverCountingNote"),
+        confirmAccess: document.getElementById("rolloverConfirmAccess"),
         confirmPanel: document.getElementById("rolloverConfirmPanel"),
         confirmDays: document.getElementById("rolloverConfirmDays"),
         confirmCarry: document.getElementById("rolloverConfirmCarry"),
@@ -64,6 +73,18 @@
 
     /** Month (0-11) currently shown in the calendar. */
     let viewMonth = 5;
+
+    /** The step on screen. @type {"pick"|"access"|"confirm"|"done"} */
+    let currentStep = "pick";
+
+    /**
+     * Carry-over candidates, loaded once on reaching the access step.
+     * @type {{ departments: Array<{ id: number, name: string, people: Array<{ volunteerId: number,
+     *          name: string, isDepartmentAdmin: boolean, items: Array<{ type: "position"|"grant",
+     *          positionId?: number, key?: string, label: string, tier: number|null,
+     *          keepByDefault: boolean }> }> }>, countingAccounts: number } | null}
+     */
+    let access = null;
 
     /** CSRF token returned by the context endpoint. */
     let csrfToken = "";
@@ -167,20 +188,160 @@
     }
 
     /**
-     * Switch between the pick, confirm and done steps.
+     * Switch between the pick, access, confirm and done steps.
      *
-     * @param {"pick"|"confirm"|"done"} step
+     * @param {"pick"|"access"|"confirm"|"done"} step
      * @returns {void}
      */
     function showStep(step) {
+        currentStep = step;
         els.pickPanel.classList.toggle("d-none", step !== "pick");
+        els.accessPanel.classList.toggle("d-none", step !== "access");
         els.confirmPanel.classList.toggle("d-none", step !== "confirm");
         els.donePanel.classList.toggle("d-none", step !== "done");
         els.footer.classList.toggle("d-none", step === "done");
         els.snoozeBtn.classList.toggle("d-none", step !== "pick");
-        els.continueBtn.classList.toggle("d-none", step !== "pick");
-        els.backBtn.classList.toggle("d-none", step !== "confirm");
+        els.continueBtn.classList.toggle("d-none", step !== "pick" && step !== "access");
+        els.backBtn.classList.toggle("d-none", step !== "access" && step !== "confirm");
         els.startBtn.classList.toggle("d-none", step !== "confirm");
+    }
+
+    // ============================================================
+    // Who keeps their access (phase 3d-7f)
+    // ============================================================
+
+    /**
+     * Build the access step from `access`: one block per department with
+     * Select all / Clear, one row per person, one checkbox per item.
+     *
+     * @returns {void}
+     */
+    function renderAccess() {
+        const frag = document.createDocumentFragment();
+        const n = access?.countingAccounts || 0;
+        els.countingNote.textContent = n
+            ? `${n} shared counting account${n === 1 ? "" : "s"} will be archived.`
+            : "";
+
+        if (!access || access.departments.length === 0) {
+            const p = document.createElement("p");
+            p.className = "text-muted small mb-0";
+            p.textContent = "Nobody holds Overseer or above, so everyone resets.";
+            els.accessList.replaceChildren(p);
+            return;
+        }
+
+        let uid = 0;
+        for (const dept of access.departments) {
+            const block = document.createElement("section");
+            block.className = "rollover-access-dept";
+
+            const head = document.createElement("div");
+            head.className = "rollover-access-dept-head";
+            const title = document.createElement("h3");
+            title.className = "h6 fw-semibold mb-0";
+            title.textContent = dept.name;
+            const tools = document.createElement("div");
+            tools.className = "d-flex gap-2";
+            for (const [label, value] of [["Select all", true], ["Clear", false]]) {
+                const btn = document.createElement("button");
+                btn.type = "button";
+                btn.className = "btn btn-link btn-sm p-0";
+                btn.textContent = label;
+                btn.setAttribute("aria-label", `${label} in ${dept.name}`);
+                btn.addEventListener("click", () => {
+                    block.querySelectorAll("input[type=checkbox]").forEach((box) => { box.checked = value; });
+                });
+                tools.appendChild(btn);
+            }
+            head.append(title, tools);
+            block.appendChild(head);
+
+            for (const person of dept.people) {
+                const row = document.createElement("div");
+                row.className = "rollover-access-person";
+                const name = document.createElement("div");
+                name.className = "small fw-semibold";
+                name.textContent = person.name + (person.isDepartmentAdmin ? " · department admin" : "");
+                row.appendChild(name);
+
+                const items = document.createElement("div");
+                items.className = "rollover-access-items";
+                for (const item of person.items) {
+                    const id = `rolloverKeep${++uid}`;
+                    const wrap = document.createElement("div");
+                    wrap.className = "form-check form-check-inline m-0";
+                    const box = document.createElement("input");
+                    box.type = "checkbox";
+                    box.className = "form-check-input";
+                    box.id = id;
+                    box.checked = item.keepByDefault;
+                    box.dataset.type = item.type;
+                    box.dataset.volunteerId = String(person.volunteerId);
+                    box.dataset.departmentId = String(dept.id);
+                    if (item.type === "position") box.dataset.positionId = String(item.positionId);
+                    else box.dataset.key = item.key || "";
+                    const label = document.createElement("label");
+                    label.className = "form-check-label small";
+                    label.htmlFor = id;
+                    label.textContent = item.type === "grant" ? `${item.label} (grant)` : item.label;
+                    wrap.append(box, label);
+                    items.appendChild(wrap);
+                }
+                row.appendChild(items);
+                block.appendChild(row);
+            }
+            frag.appendChild(block);
+        }
+        els.accessList.replaceChildren(frag);
+    }
+
+    /**
+     * The ticked items, in the shape POST /oversight/tools/start-year expects.
+     *
+     * @returns {{ keepPositions: Array<{ volunteerId: number, positionId: number }>,
+     *             keepGrants: Array<{ volunteerId: number, departmentId: number, key: string }> }}
+     */
+    function collectKeep() {
+        const keepPositions = [];
+        const keepGrants = [];
+        els.accessList.querySelectorAll("input[type=checkbox]:checked").forEach((box) => {
+            const volunteerId = Number(box.dataset.volunteerId);
+            if (box.dataset.type === "position") {
+                keepPositions.push({ volunteerId, positionId: Number(box.dataset.positionId) });
+            } else {
+                keepGrants.push({ volunteerId, departmentId: Number(box.dataset.departmentId), key: box.dataset.key || "" });
+            }
+        });
+        return { keepPositions, keepGrants };
+    }
+
+    /**
+     * Load the candidates (once) and show the access step.
+     *
+     * @returns {Promise<void>}
+     */
+    async function openAccessStep() {
+        showStep("access");
+        els.accessError.classList.add("d-none");
+        if (access) return;
+        els.continueBtn.disabled = true;
+        try {
+            const res = await fetch("/api/convention-year/rollover-access", {
+                credentials: "same-origin",
+                headers: { Accept: "application/json" },
+            });
+            const data = await res.json();
+            if (!res.ok || !data?.success) throw new Error(data?.error || `Request failed (${res.status}).`);
+            access = { departments: data.departments || [], countingAccounts: data.countingAccounts || 0 };
+            renderAccess();
+        } catch (err) {
+            els.accessError.textContent = `Couldn't load who has access: ${err.message}`;
+            els.accessError.classList.remove("d-none");
+            els.accessList.replaceChildren();
+        } finally {
+            els.continueBtn.disabled = !access;
+        }
     }
 
     /**
@@ -349,6 +510,14 @@
             ? `Brought forward: ${carry.join(", ")}.`
             : "Nothing else is brought forward.";
 
+        const { keepPositions, keepGrants } = collectKeep();
+        const keptPeople = new Set(keepPositions.map((k) => k.volunteerId)).size;
+        els.confirmAccess.textContent =
+            `Positions and individual permissions reset to Volunteer, except ${keepPositions.length} ` +
+            `position(s) for ${keptPeople} ${keptPeople === 1 ? "person" : "people"} and ${keepGrants.length} ` +
+            "individual permission(s) you chose to keep. Oversight structure names are cleared." +
+            (access?.countingAccounts ? ` ${access.countingAccounts} counting account(s) archived.` : "");
+
         const withStructure = els.carryStructure.checked;
         const frag = document.createDocumentFragment();
         for (const { date, source } of matchDays([...selected].sort())) {
@@ -399,6 +568,10 @@
         if (n(s.rendezvousCopied)) lines.push(`${n(s.rendezvousCopied)} rendezvous point(s) copied`);
         if (n(s.alertSchedulesCopied)) lines.push(`${n(s.alertSchedulesCopied)} shift alert schedule(s) copied with dates moved`);
         if (n(s.signsReset)) lines.push(`${n(s.signsReset)} sign attachment(s) reset to planned`);
+        lines.push(`Access: ${n(s.peopleReset)} people reset to Volunteer; ${n(s.positionsKept)} position(s) and ` +
+            `${n(s.grantsKept)} individual permission(s) kept; ${n(s.grantsRemoved)} permission(s) removed`);
+        if (n(s.countingArchived)) lines.push(`${n(s.countingArchived)} counting account(s) archived`);
+        if (n(s.oversightCleared)) lines.push(`${n(s.oversightCleared)} oversight structure name(s) cleared — use "Copy from last year" on that page`);
 
         const frag = document.createDocumentFragment();
         for (const text of lines) {
@@ -411,13 +584,25 @@
 
     els.continueBtn.addEventListener("click", () => {
         showError(null);
+        if (currentStep === "pick") {
+            openAccessStep();
+            return;
+        }
         renderConfirm();
         showStep("confirm");
     });
 
     els.reloadBtn.addEventListener("click", () => window.location.reload());
 
-    els.backBtn.addEventListener("click", () => showStep("pick"));
+    els.backBtn.addEventListener("click", () => {
+        if (currentStep === "confirm") {
+            showStep("access");
+            els.continueBtn.disabled = !access;
+        } else {
+            showStep("pick");
+            els.continueBtn.disabled = selected.size === 0;
+        }
+    });
 
     els.snoozeBtn.addEventListener("click", async () => {
         els.snoozeBtn.disabled = true;
@@ -442,6 +627,7 @@
                 carryLocations: els.carryLocations.checked,
                 carryStructure: els.carryStructure.checked,
                 resetSigns: els.resetSigns.checked,
+                ...collectKeep(),
             });
             renderSummary(data.summary || {});
             showStep("done");

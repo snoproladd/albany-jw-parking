@@ -13,6 +13,12 @@
  *   POST /api/convention-year/snooze
  *        "Not yet" — hide the prompt for the rest of this session.
  *
+ *   GET  /api/convention-year/rollover-access
+ *        Who can carry their access into the next year (phase 3d-7f):
+ *        per department, people in Oversight-tier or higher positions and
+ *        department admins, with those positions and their individual
+ *        grants; plus how many counting accounts will be archived.
+ *
  *   POST /oversight/tools/start-year
  *        Close the active year and start the next one (see
  *        startConventionYear in lib/dbSync.js for exactly what it does).
@@ -24,6 +30,7 @@ import { getConventionDays, startConventionYear } from "../lib/dbSync.js";
 import { withScope } from "../lib/sql.js";
 import { canStartConventionYear } from "../lib/departmentAccess.js";
 import { requirePermission } from "../middleware/requirePermission.js";
+import { getRolloverAccessCandidates } from "../lib/positions.js";
 
 /** Most convention days that can be created in one rollover. */
 const MAX_ROLLOVER_DATES = 14;
@@ -61,6 +68,36 @@ function validateRolloverDates(dates, year) {
         clean.add(d);
     }
     return { ok: true, dates: [...clean].sort() };
+}
+
+/**
+ * Keep only the carry-over picks that are real candidates, so a crafted
+ * request can't keep a Keyman position or someone else's grant.
+ *
+ * @param {unknown} rawPositions  [{ volunteerId, positionId }]
+ * @param {unknown} rawGrants     [{ volunteerId, departmentId, key }]
+ * @param {Awaited<ReturnType<typeof getRolloverAccessCandidates>>} candidates
+ * @returns {{ keepPositions: Array<{ volunteerId: number, positionId: number }>,
+ *             keepGrants: Array<{ volunteerId: number, departmentId: number, key: string }> }}
+ */
+function filterKeepLists(rawPositions, rawGrants, candidates) {
+    const allowedPositions = new Set();
+    const allowedGrants = new Set();
+    for (const d of candidates.departments) {
+        for (const p of d.people) {
+            for (const item of p.items) {
+                if (item.type === "position") allowedPositions.add(`${p.volunteerId}:${item.positionId}`);
+                else allowedGrants.add(`${p.volunteerId}:${d.id}:${item.key}`);
+            }
+        }
+    }
+    const keepPositions = (Array.isArray(rawPositions) ? rawPositions : [])
+        .map((x) => ({ volunteerId: Number(x?.volunteerId), positionId: Number(x?.positionId) }))
+        .filter((x) => allowedPositions.has(`${x.volunteerId}:${x.positionId}`));
+    const keepGrants = (Array.isArray(rawGrants) ? rawGrants : [])
+        .map((x) => ({ volunteerId: Number(x?.volunteerId), departmentId: Number(x?.departmentId), key: String(x?.key ?? "") }))
+        .filter((x) => allowedGrants.has(`${x.volunteerId}:${x.departmentId}:${x.key}`));
+    return { keepPositions, keepGrants };
 }
 
 /**
@@ -141,6 +178,26 @@ export function conventionYearRouter({ csrfProtection, logError }) {
     );
 
     /**
+     * GET /api/convention-year/rollover-access
+     * Carry-over candidates for the rollover prompt's "Who keeps their
+     * access?" step (phase 3d-7f).
+     */
+    router.get(
+        "/api/convention-year/rollover-access",
+        requireRolloverRole,
+        requirePermission("convention.startYear"),
+        async (req, res) => {
+            try {
+                const candidates = await withScope("convention", () => getRolloverAccessCandidates());
+                res.json({ success: true, ...candidates });
+            } catch (err) {
+                (logError || console.error)("rollover-access GET error:", err);
+                res.status(500).json({ success: false, error: "Server error." });
+            }
+        },
+    );
+
+    /**
      * POST /api/convention-year/snooze
      * Hide the prompt for the rest of this session. Stored against the
      * active year so it reappears if the year changes underneath.
@@ -163,7 +220,9 @@ export function conventionYearRouter({ csrfProtection, logError }) {
 
     /**
      * POST /oversight/tools/start-year
-     * Body: { year, dates: string[], carryLocations, carryStructure, resetSigns }
+     * Body: { year, dates: string[], carryLocations, carryStructure, resetSigns,
+     *         keepPositions?: [{ volunteerId, positionId }],
+     *         keepGrants?: [{ volunteerId, departmentId, key }] }
      * `year` must be exactly the active year + 1.
      */
     router.post(
@@ -189,6 +248,10 @@ export function conventionYearRouter({ csrfProtection, logError }) {
                     return res.status(400).json({ success: false, error: checked.error });
                 }
 
+                // Carry-over picks (phase 3d-7f), limited to real candidates.
+                const candidates = await withScope("convention", () => getRolloverAccessCandidates());
+                const { keepPositions, keepGrants } = filterKeepLists(body.keepPositions, body.keepGrants, candidates);
+
                 const s = req.session;
                 // Convention years are shared by every department, so the
                 // rollover snapshots and copies all of them ("convention"
@@ -202,6 +265,8 @@ export function conventionYearRouter({ csrfProtection, logError }) {
                     resetSigns: body.resetSigns === true,
                     startedBy: s.userId,
                     editedBy: s.userEmail || "admin",
+                    keepPositions,
+                    keepGrants,
                 }));
 
                 invalidateYearCache();
