@@ -38,6 +38,8 @@ import {
   getVolunteersForImportMatch,
   applyDecentlyImport,
   markCreatedFromDecently,
+  getPeopleDirectory,
+  getActiveDepartments,
   getLocationsTasks,
   createLocationTask,
   updateLocationTask,
@@ -1369,6 +1371,7 @@ export function oversightRouter({
         csrfToken: req.csrfToken(),
         userRole: req.session.userRole || "NON_REGISTERED",
         userPermissions: req.session.permissions || {},
+        canManageAllDepartments: canManageAllDepartments(req.session),
       });
     },
   );
@@ -1851,6 +1854,42 @@ export function oversightRouter({
           err,
         );
         return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  // ===========================
+  // PEOPLE & DEPARTMENTS (multi-department phase 2d)
+  // ===========================
+
+  /**
+   * GET /oversight/tools/people-departments
+   * Read-only directory of every volunteer and the departments they belong
+   * to, for Volunteer Services staff and convention admins. People join a
+   * department through Decently (the Decently import), not from here.
+   */
+  router.get(
+    "/oversight/tools/people-departments",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    async (req, res) => {
+      if (!canManageAllDepartments(req.session)) {
+        return res
+          .status(403)
+          .send("People & Departments is for Volunteer Services staff and convention admins.");
+      }
+      try {
+        const [people, departments] = await Promise.all([
+          getPeopleDirectory(),
+          getActiveDepartments(),
+        ]);
+        return res.render("authentication_and_accounts/peopleDepartments", {
+          people,
+          departments,
+        });
+      } catch (err) {
+        (logError || console.error)("people-departments GET error:", err);
+        return res.status(500).send("Server error");
       }
     },
   );

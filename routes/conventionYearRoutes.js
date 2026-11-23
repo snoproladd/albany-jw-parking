@@ -1,7 +1,9 @@
 /**
  * @file routes/conventionYearRoutes.js
  * @description Endpoints behind the "Has the next convention year begun?"
- * prompt shown to ADMIN and ASSISTANT_ADMIN on or after September 1.
+ * prompt shown to convention admins on or after September 1 (a department's
+ * ADMIN / ASSISTANT_ADMIN may not close the year for every department —
+ * lib/departmentAccess.js canStartConventionYear, multi-department phase 2d).
  *
  *   GET  /api/convention-year/rollover-context
  *        Data the prompt needs (active/next year, the active year's dates
@@ -20,10 +22,7 @@ import express from "express";
 import { getActiveYear, invalidateYearCache } from "../lib/conventionYear.js";
 import { getConventionDays, startConventionYear } from "../lib/dbSync.js";
 import { withScope } from "../lib/sql.js";
-import { isRoleAtLeast } from "../src/config/roles.js";
-
-/** Roles allowed to see and act on the rollover prompt. */
-const ROLLOVER_MIN_ROLE = "ASSISTANT_ADMIN";
+import { canStartConventionYear } from "../lib/departmentAccess.js";
 
 /** Most convention days that can be created in one rollover. */
 const MAX_ROLLOVER_DATES = 14;
@@ -76,7 +75,7 @@ export function conventionYearRouter({ csrfProtection, logError }) {
     const router = express.Router();
 
     /**
-     * JSON guard: signed in as ADMIN or ASSISTANT_ADMIN, not on the demo site.
+     * JSON guard: signed in as a convention admin, not on the demo site.
      *
      * @param {import("express").Request}      req
      * @param {import("express").Response}     res
@@ -88,7 +87,7 @@ export function conventionYearRouter({ csrfProtection, logError }) {
             res.status(401).json({ success: false, error: "Not signed in." });
             return;
         }
-        if (!isRoleAtLeast(req.session.userRole, ROLLOVER_MIN_ROLE) || req.isDemo) {
+        if (!canStartConventionYear(req.session) || req.isDemo) {
             res.status(403).json({ success: false, error: "Not allowed." });
             return;
         }

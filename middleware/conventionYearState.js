@@ -3,8 +3,9 @@
  * @description Exposes the convention-year state to every rendered page as
  * `res.locals.yearState`, which drives:
  *
- *   - the "Has the next convention year begun?" prompt for ADMIN and
- *     ASSISTANT_ADMIN (views/partials/rolloverPrompt.ejs), and
+ *   - the "Has the next convention year begun?" prompt for convention
+ *     admins (views/partials/rolloverPrompt.ejs; lib/departmentAccess.js,
+ *     multi-department phase 2d), and
  *   - the "site may not be on the current year" banner for every other
  *     signed-in user (views/partials/yearBanner.ejs).
  *
@@ -28,10 +29,7 @@ import {
     needsRolloverPrompt,
     resolveViewYear,
 } from "../lib/conventionYear.js";
-import { isRoleAtLeast } from "../src/config/roles.js";
-
-/** Lowest role that is asked to start the next convention year. */
-const ROLLOVER_MIN_ROLE = "ASSISTANT_ADMIN";
+import { canStartConventionYear } from "../lib/departmentAccess.js";
 
 /** Path prefixes that never render a page, so they skip the lookup. */
 const SKIP_PREFIXES = ["/api/", "/webhook/", "/internal/", "/js/", "/styles/", "/vendor/", "/images/", "/fonts/"];
@@ -106,7 +104,7 @@ export async function conventionYearStateMiddleware(req, res, next) {
 
         if (!req.isDemo && needsRolloverPrompt(activeYear)) {
             const role = req.session.userRole || "REGISTERED";
-            if (isRoleAtLeast(role, ROLLOVER_MIN_ROLE)) {
+            if (canStartConventionYear(req.session)) {
                 state.showAdminPrompt =
                     req.session.rolloverSnoozedFor !== activeYear;
             } else if (role !== "COUNTER") {

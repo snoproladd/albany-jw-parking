@@ -4,8 +4,8 @@
   - Past-year view: the page was opened with ?year= for a closed year.
     Shown to everyone; loads pastYearLock.js, which stops saves in the
     browser. The server refuses them anyway (closedYearGuard.js).
-  - Stale-year notice: signed-in users who are not ADMIN / ASSISTANT_ADMIN,
-    on or after September 1 until an admin starts the next year.
+  - Stale-year notice: signed-in users who are not convention admins,
+    on or after September 1 until a convention admin starts the next year.
 %>
 <% const _ys = typeof yearState !== 'undefined' ? yearState : null; %>
 <% if (_ys && (_ys.isPastYear || _ys.showStaleBanner)) { %>

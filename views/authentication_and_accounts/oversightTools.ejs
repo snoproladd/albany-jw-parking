@@ -756,6 +756,21 @@
                   </div>
                 </div>
 
+                <% if (typeof canManageAllDepartments !== 'undefined' && canManageAllDepartments) { %>
+                  <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="admin-tool-card h-100">
+                      <div class="admin-tool-icon text-primary">
+                        <i class="fa-solid fa-building-user"></i>
+                      </div>
+                      <h3 class="admin-tool-title">People &amp; Departments</h3>
+                      <p class="admin-tool-desc">Every volunteer and the departments they serve in, with role, active and Decently status. Volunteer Services only.</p>
+                      <a href="/oversight/tools/people-departments" class="btn btn-primary admin-tool-btn">
+                        Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                      </a>
+                    </div>
+                  </div>
+                <% } %>
+
               </div>
             <% } %>
 

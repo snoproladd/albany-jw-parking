@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>People &amp; Departments — <%= brand.siteName %></title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <%- include('../partials/metaDescription') %>
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+    <link rel="preload" href="/fonts/archivo-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/georama-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="/styles/fonts.css" />
+    <link rel="stylesheet" href="/styles/peopleDepartments.css" />
+  </head>
+
+  <%#
+    People & Departments (multi-department phase 2d). Read-only directory of
+    every volunteer and their department memberships, for Volunteer Services
+    staff and convention admins. Filtering: public/js/peopleDepartments.js.
+  %>
+  <body class="min-vh-100 bg-body-tertiary" data-authed="true">
+    <%- include('../partials/header') %>
+
+    <main class="container py-4">
+      <div class="row justify-content-center">
+        <div class="col-12 col-xl-11">
+
+          <section class="card shadow-lg admin-console-card">
+            <header class="card-header">
+              <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <h1 class="h4 mb-0">
+                  <i class="fa-solid fa-building-user me-2"></i>People &amp; Departments
+                </h1>
+                <a href="/oversight/tools" class="btn btn-secondary btn-sm">
+                  <i class="fa-solid fa-arrow-left me-1"></i>Oversight Tools
+                </a>
+              </div>
+              <p class="mb-0 mt-1 text-muted small">
+                Everyone with an account and the departments they serve in. People join a
+                department when Volunteer Services imports their Decently approval for it.
+              </p>
+            </header>
+
+            <div class="card-body">
+              <div class="row g-2 align-items-end mb-3">
+                <div class="col-12 col-md-6">
+                  <label for="pdSearch" class="form-label small fw-semibold mb-1">Search</label>
+                  <input type="search" class="form-control form-control-sm" id="pdSearch"
+                         placeholder="Name, email or phone" autocomplete="off" />
+                </div>
+                <div class="col-12 col-md-4">
+                  <label for="pdDepartment" class="form-label small fw-semibold mb-1">Department</label>
+                  <select class="form-select form-select-sm" id="pdDepartment">
+                    <option value="">All people</option>
+                    <option value="none">Unassigned (no department)</option>
+                    <% departments.forEach(function (d) { %>
+                      <option value="<%= d.id %>"><%= d.name %></option>
+                    <% }) %>
+                  </select>
+                </div>
+                <div class="col-12 col-md-2 text-md-end">
+                  <span class="small text-muted" id="pdCount" aria-live="polite"><%= people.length %> people</span>
+                </div>
+              </div>
+
+              <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle pd-table" id="pdTable">
+                  <thead class="table-light">
+                    <tr>
+                      <th scope="col">Name</th>
+                      <th scope="col">Email</th>
+                      <th scope="col">Phone</th>
+                      <th scope="col">Departments</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% people.forEach(function (p) {
+                         const fullName = [p.lastName, p.firstName].filter(Boolean).join(', ') + (p.suffix ? ' ' + p.suffix : '');
+                         const search = [p.firstName, p.lastName, p.suffix, p.email, p.phone, (p.phone || '').replace(/\D/g, '')]
+                           .filter(Boolean).join(' ').toLowerCase();
+                         const deptIds = p.memberships.map(function (m) { return m.departmentId; }).join(',');
+                    %>
+                      <tr class="pd-row" data-search="<%= search %>" data-depts="<%= deptIds %>">
+                        <td>
+                          <strong><%= fullName || '(no name)' %></strong>
+                          <% if (p.isConventionAdmin) { %>
+                            <span class="badge text-bg-dark ms-1" title="Convention admin">Convention admin</span>
+                          <% } %>
+                          <% if (p.registrationStatus && p.registrationStatus !== 'completed') { %>
+                            <span class="badge text-bg-light border ms-1"><%= p.registrationStatus %></span>
+                          <% } %>
+                        </td>
+                        <td class="small text-muted"><%= p.email || '—' %></td>
+                        <td class="small text-muted text-nowrap"><%= p.phone || '—' %></td>
+                        <td>
+                          <% if (p.memberships.length === 0) { %>
+                            <span class="badge text-bg-warning">Unassigned</span>
+                          <% } %>
+                          <% p.memberships.forEach(function (m) { %>
+                            <span class="pd-membership <%= m.active ? 'pd-membership-active' : 'pd-membership-inactive' %>"
+                                  title="<%= m.departmentName %>: <%= m.role || 'no role' %>, <%= m.active ? 'active' : 'inactive' %>, <%= m.approved ? 'Decently approved' : 'not approved by Decently' %><%= m.exported ? ', sent to Decently' : '' %><%= m.disapprovedYear ? ', not approved for ' + m.disapprovedYear : '' %>">
+                              <span class="pd-membership-name"><%= m.departmentName %></span>
+                              <span class="pd-membership-role"><%= m.role || '—' %></span>
+                              <i class="fa-solid <%= m.active ? 'fa-circle-check text-success' : 'fa-circle-minus text-secondary' %>" aria-hidden="true"></i>
+                              <% if (m.approved) { %><i class="fa-solid fa-stamp text-primary" aria-hidden="true"></i><% } %>
+                              <% if (m.disapprovedYear) { %><i class="fa-solid fa-ban text-danger" aria-hidden="true"></i><% } %>
+                            </span>
+                          <% }) %>
+                        </td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+
+              <p class="small text-muted mb-0" id="pdEmpty" hidden>No one matches.</p>
+
+              <p class="small text-muted mt-3 mb-0">
+                <i class="fa-solid fa-circle-check text-success me-1" aria-hidden="true"></i>active this year
+                <span class="mx-2">·</span>
+                <i class="fa-solid fa-circle-minus text-secondary me-1" aria-hidden="true"></i>inactive
+                <span class="mx-2">·</span>
+                <i class="fa-solid fa-stamp text-primary me-1" aria-hidden="true"></i>approved by Decently
+                <span class="mx-2">·</span>
+                <i class="fa-solid fa-ban text-danger me-1" aria-hidden="true"></i>marked not approved this year
+              </p>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <%- include('../partials/footer') %>
+
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/peopleDepartments.js"></script>
+  </body>
+</html>

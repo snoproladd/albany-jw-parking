@@ -1,0 +1,41 @@
+/**
+ * @file peopleDepartments.css
+ * People & Departments directory (multi-department phase 2d).
+ * Markup: views/authentication_and_accounts/peopleDepartments.ejs.
+ */
+
+.pd-table td {
+    vertical-align: middle;
+}
+
+.pd-membership {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0.1rem 0.35rem 0.1rem 0;
+    padding: 0.15rem 0.5rem;
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 999px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+.pd-membership-active {
+    border-color: var(--bs-success-border-subtle, #a3cfbb);
+    background-color: var(--bs-success-bg-subtle, #d1e7dd);
+}
+
+.pd-membership-inactive {
+    background-color: var(--bs-tertiary-bg, #f8f9fa);
+}
+
+.pd-membership-name {
+    font-weight: 600;
+}
+
+.pd-membership-role {
+    color: var(--bs-secondary-color, #6c757d);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
