@@ -6,9 +6,13 @@
  * - Tabs: "By position" / "By permission", following the WAI-ARIA tabs
  *   pattern (arrow keys, Home/End). The open tab is kept in the URL hash
  *   (#by-position / #by-permission) so a link or reload opens the same one.
- * - Expand all / Collapse all for the position accordions (<details>).
+ * - Expand all / Collapse all for the accordions (<details>) of each tab.
  * - Search on the By permission tab: hides permissions that don't match the
- *   typed words, hides empty categories and announces the count.
+ *   typed words and categories with no match, opens the categories that
+ *   match, and announces the count. Clearing the search puts each category
+ *   back the way it was.
+ * - Shows a message left by the editor (positionsEditor.js) before it
+ *   reloaded the page.
  *
  * Everything is rendered on the server; this only shows and hides it.
  */
@@ -66,7 +70,10 @@
     document.querySelectorAll("[data-pos-expand]").forEach((button) => {
         button.addEventListener("click", () => {
             const open = button.getAttribute("data-pos-expand") === "open";
-            document.querySelectorAll("details.pos-position").forEach((d) => {
+            const selector = button.getAttribute("data-pos-scope") === "permissions"
+                ? "details.pos-category:not([hidden])"
+                : "details.pos-position";
+            document.querySelectorAll(selector).forEach((d) => {
                 d.open = open;
             });
         });
@@ -78,16 +85,29 @@
     const count = document.getElementById("posSearchCount");
     const noMatch = document.getElementById("posNoMatch");
     const items = Array.from(document.querySelectorAll("[data-pos-search]"));
-    const groups = Array.from(document.querySelectorAll("[data-pos-group]"));
+    const groups = /** @type {HTMLDetailsElement[]} */ (Array.from(document.querySelectorAll("[data-pos-group]")));
 
     /**
-     * Hide permissions that don't contain every typed word, then hide empty
-     * categories and update the live count.
+     * Which categories were open before the search started, so clearing the
+     * search can put them back. Null while no search is active.
+     * @type {Map<HTMLDetailsElement, boolean>|null}
+     */
+    let openBeforeSearch = null;
+
+    /**
+     * Hide permissions that don't contain every typed word, then hide
+     * categories with no match, open the rest and update the live count.
      *
      * @returns {void}
      */
     function applySearch() {
         const words = (search?.value || "").toLowerCase().split(/\s+/).filter(Boolean);
+        const searching = words.length > 0;
+
+        if (searching && !openBeforeSearch) {
+            openBeforeSearch = new Map(groups.map((g) => [g, g.open]));
+        }
+
         let shown = 0;
         for (const item of items) {
             const text = item.getAttribute("data-pos-search") || "";
@@ -95,11 +115,23 @@
             item.hidden = !match;
             if (match) shown += 1;
         }
+
         for (const group of groups) {
-            group.hidden = !group.querySelector("[data-pos-search]:not([hidden])");
+            const matches = group.querySelectorAll("[data-pos-search]:not([hidden])").length;
+            const total = group.querySelectorAll("[data-pos-search]").length;
+            const label = group.querySelector("[data-pos-group-count]");
+            if (label) label.textContent = searching ? `${matches} of ${total}` : String(total);
+            group.hidden = searching && matches === 0;
+            if (searching) group.open = matches > 0;
         }
+
+        if (!searching && openBeforeSearch) {
+            for (const [group, wasOpen] of openBeforeSearch) group.open = wasOpen;
+            openBeforeSearch = null;
+        }
+
         if (count) {
-            count.textContent = words.length
+            count.textContent = searching
                 ? `${shown} of ${items.length} permissions`
                 : `${items.length} permissions`;
         }
@@ -109,5 +141,20 @@
     if (search) {
         search.addEventListener("input", applySearch);
         if (search.value) applySearch();
+    }
+
+    // ── Message from the editor ─────────────────────────────────────────
+
+    const status = document.getElementById("posStatus");
+    try {
+        const message = sessionStorage.getItem("positions:flash");
+        if (message && status) {
+            sessionStorage.removeItem("positions:flash");
+            status.textContent = message;
+            status.classList.remove("d-none");
+            status.classList.add("alert-success");
+        }
+    } catch {
+        // Storage can be unavailable (private mode, blocked); the message is optional.
     }
 })();

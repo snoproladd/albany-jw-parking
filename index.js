@@ -887,7 +887,7 @@ app.use("/", countsRouter({
   twilioMsgSid:     config.TWILIO_MSG_SID,
 }));
 app.use("/", systemVariablesRouter({ csrfProtection, logError }));
-app.use("/", positionsRouter({ logError }));
+app.use("/", positionsRouter({ csrfProtection, logError }));
 app.use("/", capacityAlertRouter({ csrfProtection, logError }));
 app.use("/", conventionYearRouter({ csrfProtection, logError }));
 app.use(

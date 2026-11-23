@@ -12,7 +12,11 @@
 /* `hidden` must win over the flex/display rules below (search and tabs). */
 .pos-panel[hidden],
 .pos-perm[hidden],
-.pos-perm-group[hidden] {
+.pos-category[hidden],
+.pos-position-view[hidden],
+.pos-position-edit[hidden],
+.pos-position-actions[hidden],
+.pos-new-host[hidden] {
     display: none !important;
 }
 
@@ -48,7 +52,8 @@
 
 /* ── Position accordions ────────────────────────────────────────────────────── */
 
-.pos-position {
+.pos-position,
+.pos-category {
     border: 1px solid var(--bs-border-color);
     border-radius: var(--bs-border-radius-lg);
     margin-bottom: 0.5rem;
@@ -81,7 +86,8 @@
     flex-shrink: 0;
 }
 
-.pos-position[open] > .pos-position-summary::before {
+.pos-position[open] > .pos-position-summary::before,
+.pos-category[open] > .pos-position-summary::before {
     transform: rotate(45deg);
 }
 
@@ -93,6 +99,13 @@
 
 .pos-position-name {
     font-weight: 600;
+}
+
+/* Category names on the By permission tab are headings inside <summary>. */
+.pos-category-name {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
 }
 
 .pos-position-meta {
@@ -162,6 +175,52 @@
     border-color: var(--bs-success);
     background: var(--bs-success-bg-subtle);
     color: var(--bs-success-text-emphasis);
+}
+
+/* ── Editor (phase 3d-7c) ────────────────────────────────────────────────────── */
+
+.pos-new-host {
+    border: 1px solid var(--bs-primary-border-subtle);
+    border-radius: var(--bs-border-radius-lg);
+    background: var(--bs-body-bg);
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.pos-position-edit {
+    padding-top: 0.75rem;
+}
+
+.pos-edit-category {
+    margin-bottom: 0.5rem;
+}
+
+.pos-edit-category legend {
+    float: none;
+    width: auto;
+}
+
+.pos-edit-perm {
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid var(--bs-border-color-translucent);
+}
+
+.pos-edit-perm:last-child {
+    border-bottom: 0;
+}
+
+.pos-edit-summary:empty,
+.pos-edit-form [aria-live]:empty {
+    margin: 0;
+}
+
+.pos-retired {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--bs-border-color-translucent);
 }
 
 @media (prefers-reduced-motion: reduce) {

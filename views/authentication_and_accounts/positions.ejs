@@ -12,13 +12,16 @@
     <link rel="preload" href="/fonts/georama-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="/styles/fonts.css" />
     <link rel="stylesheet" href="/styles/positions.css" />
+    <% if (canEdit) { %><meta name="csrf-token" content="<%= csrfToken %>" /><% } %>
   </head>
 
   <%#
-    Positions (multi-department phase 3d-7b). Read-only: a department's
+    Positions (multi-department phase 3d-7b, editing 3d-7c). A department's
     positions and what each allows, by position and by permission. Data:
     routes/positionsRoutes.js buildPositionsView(). Tabs, search and
-    expand/collapse: public/js/positionsPage.js.
+    expand/collapse: public/js/positionsPage.js. Editing, only for
+    positions.manage holders in their own department:
+    public/js/positionsEditor.js with the positions-editor-data block.
   %>
   <body class="min-vh-100 bg-body-tertiary" data-authed="true">
     <%- include('../partials/header') %>
@@ -40,12 +43,14 @@
               </div>
               <p class="mb-0 mt-1 text-muted small">
                 What each position allows in this department. Everyone signed in can also edit
-                their own profile, and convention admins hold every permission. Editing positions
-                is coming soon.
+                their own profile, and convention admins hold every permission.
+                <% if (canEdit) { %>Changes apply to the people in a position on their next page load.<% } %>
               </p>
             </header>
 
             <div class="card-body">
+
+              <div id="posStatus" class="alert d-none mb-3" role="status"></div>
 
               <% if (canPickDepartment) { %>
                 <%# Plain GET form: works without JavaScript; the button submits. %>
@@ -88,14 +93,26 @@
               <div class="pos-panel" id="posPanelPositions" role="tabpanel" aria-labelledby="posTabPositions" tabindex="0">
                 <% if (positions.length === 0) { %>
                   <p class="text-muted">This department has no positions yet.</p>
+                  <% if (canEdit) { %>
+                    <button type="button" class="btn btn-primary btn-sm" id="posNewButton">
+                      <i class="fa-solid fa-plus me-1" aria-hidden="true"></i>New position
+                    </button>
+                    <div id="posNewHost" class="pos-new-host mt-2" hidden></div>
+                  <% } %>
                 <% } else { %>
-                  <div class="d-flex justify-content-end gap-2 mb-2">
-                    <button type="button" class="btn btn-outline-secondary btn-sm" data-pos-expand="open">Expand all</button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm" data-pos-expand="close">Collapse all</button>
+                  <div class="d-flex justify-content-end flex-wrap gap-2 mb-2">
+                    <% if (canEdit) { %>
+                      <button type="button" class="btn btn-primary btn-sm me-auto" id="posNewButton">
+                        <i class="fa-solid fa-plus me-1" aria-hidden="true"></i>New position
+                      </button>
+                    <% } %>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-pos-expand="open" data-pos-scope="positions">Expand all</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-pos-expand="close" data-pos-scope="positions">Collapse all</button>
                   </div>
+                  <% if (canEdit) { %><div id="posNewHost" class="pos-new-host" hidden></div><% } %>
 
                   <% positions.forEach(function (p) { %>
-                    <details class="pos-position">
+                    <details class="pos-position" data-position-id="<%= p.id %>">
                       <summary class="pos-position-summary">
                         <span class="pos-position-name"><%= p.name %></span>
                         <span class="pos-tier pos-tier-<%= p.tier || 0 %>"><%= p.tierLabel %></span>
@@ -108,6 +125,22 @@
                       </summary>
 
                       <div class="pos-position-body">
+                        <% if (canEdit) { %>
+                          <div class="d-flex flex-wrap gap-2 pt-2 pos-position-actions">
+                            <button type="button" class="btn btn-outline-primary btn-sm" data-pos-edit="<%= p.id %>">
+                              <i class="fa-solid fa-pen me-1" aria-hidden="true"></i>Edit
+                            </button>
+                            <% if (!p.isDefault) { %>
+                              <button type="button" class="btn btn-outline-danger btn-sm" data-pos-retire="<%= p.id %>"
+                                      <%= p.memberCount > 0 ? 'disabled' : '' %>
+                                      title="<%= p.memberCount > 0 ? 'People still hold this position' : 'Retire this position' %>">
+                                <i class="fa-solid fa-box-archive me-1" aria-hidden="true"></i>Retire
+                              </button>
+                            <% } %>
+                          </div>
+                          <div class="pos-position-edit" hidden></div>
+                        <% } %>
+                        <div class="pos-position-view">
                         <% if (p.description) { %><p class="small mb-2"><%= p.description %></p><% } %>
                         <% if (p.groups.length === 0) { %>
                           <p class="small text-muted mb-0">No permissions.</p>
@@ -130,9 +163,25 @@
                             <% }) %>
                           </ul>
                         <% }) %>
+                        </div>
                       </div>
                     </details>
                   <% }) %>
+                <% } %>
+
+                <% if (canEdit && retired.length) { %>
+                  <h2 class="pos-group-heading mt-4">Retired positions</h2>
+                  <ul class="list-unstyled pos-retired-list">
+                    <% retired.forEach(function (r) { %>
+                      <li class="pos-retired">
+                        <span class="fw-semibold"><%= r.name %></span>
+                        <span class="small text-muted"><%= r.permissions.length %> <%= r.permissions.length === 1 ? 'permission' : 'permissions' %></span>
+                        <button type="button" class="btn btn-outline-secondary btn-sm ms-auto" data-pos-reactivate="<%= r.id %>">
+                          <i class="fa-solid fa-rotate-left me-1" aria-hidden="true"></i>Reactivate
+                        </button>
+                      </li>
+                    <% }) %>
+                  </ul>
                 <% } %>
               </div>
 
@@ -152,10 +201,17 @@
                   <span class="pos-holder pos-holder-min">Highlighted</span> = the lowest-tier position that has it.
                 </p>
 
+                <div class="d-flex justify-content-end gap-2 mb-2">
+                  <button type="button" class="btn btn-outline-secondary btn-sm" data-pos-expand="open" data-pos-scope="permissions">Expand all</button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm" data-pos-expand="close" data-pos-scope="permissions">Collapse all</button>
+                </div>
                 <% permissionGroups.forEach(function (g) { %>
-                  <section class="pos-perm-group" data-pos-group>
-                    <h2 class="pos-group-heading"><%= g.label %></h2>
-                    <ul class="pos-perm-list list-unstyled">
+                  <details class="pos-category" data-pos-group>
+                    <summary class="pos-position-summary">
+                      <h2 class="pos-category-name"><%= g.label %></h2>
+                      <span class="pos-position-meta small text-muted" data-pos-group-count><%= g.items.length %></span>
+                    </summary>
+                    <ul class="pos-perm-list list-unstyled pos-position-body">
                       <% g.items.forEach(function (item) { %>
                         <li class="pos-perm" data-pos-search="<%= item.search %>">
                           <span class="pos-tier pos-tier-<%= item.tier %>" title="Tier: <%= item.tierLabel %>"><%= item.tier %></span>
@@ -180,7 +236,7 @@
                         </li>
                       <% }) %>
                     </ul>
-                  </section>
+                  </details>
                 <% }) %>
                 <p class="text-muted d-none" id="posNoMatch">No permissions match.</p>
               </div>
@@ -196,5 +252,10 @@
 
     <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
     <script src="/js/positionsPage.js"></script>
+    <% if (canEdit) { %>
+      <%# JSON data, not script: "<" escaped so it can never close the tag. %>
+      <script type="application/json" id="positions-editor-data"><%- JSON.stringify(editorData).replace(/</g, '\\u003c') %></script>
+      <script src="/js/positionsEditor.js"></script>
+    <% } %>
   </body>
 </html>
