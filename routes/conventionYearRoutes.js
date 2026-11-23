@@ -23,6 +23,7 @@ import { getActiveYear, invalidateYearCache } from "../lib/conventionYear.js";
 import { getConventionDays, startConventionYear } from "../lib/dbSync.js";
 import { withScope } from "../lib/sql.js";
 import { canStartConventionYear } from "../lib/departmentAccess.js";
+import { requirePermission } from "../middleware/requirePermission.js";
 
 /** Most convention days that can be created in one rollover. */
 const MAX_ROLLOVER_DATES = 14;
@@ -75,7 +76,9 @@ export function conventionYearRouter({ csrfProtection, logError }) {
     const router = express.Router();
 
     /**
-     * JSON guard: signed in as a convention admin, not on the demo site.
+     * JSON guard: signed in, holding convention.startYear (convention
+     * admins), not on the demo site. requirePermission() after it marks the
+     * same key for the route audit.
      *
      * @param {import("express").Request}      req
      * @param {import("express").Response}     res
@@ -112,6 +115,7 @@ export function conventionYearRouter({ csrfProtection, logError }) {
     router.get(
         "/api/convention-year/rollover-context",
         requireRolloverRole,
+        requirePermission("convention.startYear"),
         csrfProtection,
         async (req, res) => {
             try {
@@ -144,6 +148,7 @@ export function conventionYearRouter({ csrfProtection, logError }) {
     router.post(
         "/api/convention-year/snooze",
         requireRolloverRole,
+        requirePermission("convention.startYear"),
         csrfProtection,
         async (req, res) => {
             try {
@@ -164,6 +169,7 @@ export function conventionYearRouter({ csrfProtection, logError }) {
     router.post(
         "/oversight/tools/start-year",
         requireRolloverRole,
+        requirePermission("convention.startYear"),
         csrfProtection,
         async (req, res) => {
             const body = req.body || {};

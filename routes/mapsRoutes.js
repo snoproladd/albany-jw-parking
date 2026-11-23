@@ -16,7 +16,7 @@
  */
 
 import express from "express";
-import { requirePermission, can, PERMISSIONS } from "../src/config/roles.js";
+import { requirePermission } from "../middleware/requirePermission.js";
 import { getMapFiles } from "../lib/dbSync.js";
 import { streamMapFileToResponse } from "../lib/blobStorage.js";
 import { syncMapsFromOneDrive } from "../lib/mapsSync.js";
@@ -88,12 +88,11 @@ export function mapsRouter({ csrfProtection, logError, graphConfig }) {
      */
     router.get(
         "/maps",
-        requirePermission("viewMaps"),
+        requirePermission("maps.view"),
         csrfProtection,
         async (req, res) => {
             const role = req.session?.userRole || "NON_REGISTERED";
-            const permissions = req.session?.permissions || PERMISSIONS;
-            const canSync = can(permissions, role, "accessAdminConsole");
+            const canSync = res.locals.can("maps.sync");
 
             let sections = [];
             let loadError = null;
@@ -132,7 +131,7 @@ export function mapsRouter({ csrfProtection, logError, graphConfig }) {
      */
     router.get(
         "/maps/file/:blobName",
-        requirePermission("viewMaps"),
+        requirePermission("maps.view"),
         async (req, res) => {
             const { blobName } = req.params;
             if (req.isDemo) {
@@ -158,7 +157,7 @@ export function mapsRouter({ csrfProtection, logError, graphConfig }) {
      */
     router.post(
         "/api/maps/sync",
-        requirePermission("accessAdminConsole"),
+        requirePermission("maps.sync"),
         csrfProtection,
         async (req, res) => {
             try {

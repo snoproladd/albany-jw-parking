@@ -34,33 +34,30 @@
         <%
           const showUpgrade         = navState.canUpgrade;
           const showContinueReg     = navState.showContinueRegistration;
-          const showMyAccount       = navState.isLoggedIn && navState.userRole !== 'COUNTER';
+          // Shared counting accounts get /counts only (phase 3d-6: by permission, not role).
+          const isCounting          = navState.isCountingAccount === true;
+          const showMyAccount       = navState.isLoggedIn && !isCounting;
           const showAccountDropdown = showUpgrade || showContinueReg || showMyAccount;
 
-          const _navRole        = navState.userRole || 'NON_REGISTERED';
-          const _navRoleLevel   = roleLevelOf(_navRole);
-          const isAtLeast       = (r) => isRoleAtLeast(_navRole, r);
-          // Phase 3d: menu items whose tools have moved to permission keys use has('area.action')
-          // (res.locals.can, the person's positions, fresh on every page load). Items whose tools
-          // are still on old keys use oldCan() / isAtLeast() until their slice converts them.
-          const oldCan          = (permission) => !!(userPermissions && userPermissions[_navRole] && userPermissions[_navRole][permission]);
+          // Every menu item shows when the person holds the permission its page needs
+          // (res.locals.can, the person's positions, fresh on every page load; phase 3d).
           const has             = (key) => typeof can === 'function' && can(key);
           const hasAny          = (...keys) => keys.some((k) => has(k));
 
           // One flag per Operations group; the Operations menu shows when any group does.
-          const navDocs         = oldCan('viewMaps') || has('schedules.view') || oldCan('editVolunteerInfo');
+          const navDocs         = hasAny('maps.view', 'schedules.view', 'lessons.viewAll');
           const navComms        = hasAny('campaigns.send', 'volunteers.sendSignInLinks');
           const navVolunteers   = hasAny('volunteers.edit', 'volunteers.create', 'positions.assign', 'notes.view');
-          const navConvention   = isAtLeast('KEYMAN');
+          const navConvention   = has('lessons.submit');
           const navReports      = has('volunteers.viewReports');
-          const navSigns        = oldCan('viewSigns') || oldCan('manageSigns');
+          const navSigns        = hasAny('signs.view', 'signs.manage');
           const navScheduling   = hasAny('shifts.manage', 'locations.manage', 'eventTypes.manage',
                                          'crews.assign', 'scheduler.use', 'scheduler.manageRules',
                                          'alerts.manageShiftAlerts', 'alerts.manageCapacityAlerts');
           const navAttendance   = hasAny('attendance.checkIn', 'attendance.viewReports');
-          const navCounts       = navState.canLogParkingCount;
-          const navDecently     = oldCan('accessAdminConsole');
-          const navSystemVars   = oldCan('manageRoles') && isAtLeast('ADMIN');   // system variables (3d-6)
+          const navCounts       = has('counts.log');
+          const navDecently     = has('decently.run');
+          const navSystemVars   = has('systemVariables.manage');
           const navAdmin        = hasAny('positions.manage', 'structure.manage') || navSystemVars;
           const navOperations   = navDocs || navComms || navVolunteers || navConvention || navReports || navSigns
                                   || navScheduling || navAttendance || navCounts || navDecently || navAdmin;
@@ -76,7 +73,7 @@
             </a>
           </li>
 
-          <% if (navState.isLoggedIn && isAtLeast('REGISTERED')) { %>
+          <% if (navState.isLoggedIn && !isCounting) { %>
 
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" id="resourcesDropdown"
@@ -94,14 +91,16 @@
                 </li>
                 <li><hr class="dropdown-divider" /></li>
                 <% } %>
+                <% if (has('maps.view')) { %>
                 <li>
                   <a class="dropdown-item" href="/maps">
                     <i class="fa-solid fa-map me-1"></i>
                     Maps
                   </a>
                 </li>
+                <% } %>
 
-                <% if (oldCan('viewSigns')) { %>
+                <% if (has('signs.view')) { %>
                 <li>
                   <a class="dropdown-item" href="/signs">
                     <i class="fa-solid fa-signs-post me-1"></i>
@@ -117,7 +116,7 @@
                   </a>
                 </li>
                 <% } %>
-                <% if (navState.canLogParkingCount) { %>
+                <% if (navCounts) { %>
                 <li>
                   <a class="dropdown-item" href="/counts">
                     <i class="fa-solid fa-hand-pointer me-1"></i>
@@ -125,7 +124,7 @@
                   </a>
                 </li>
                 <% } %>
-                <% if (oldCan('editVolunteerInfo')) { %>
+                <% if (has('lessons.viewAll')) { %>
                 <li><hr class="dropdown-divider" /></li>
                 <li>
                   <a class="dropdown-item" href="/lessons-learned">
@@ -169,7 +168,7 @@
                 <li>
                   <div class="collapse" id="otNavDocs">
                     <ul class="ot-nav-items">
-                      <% if (oldCan('viewMaps')) { %>
+                      <% if (has('maps.view')) { %>
                         <li><a class="ot-nav-item" href="/maps">
                           <i class="fa-solid fa-map"></i>Maps
                         </a></li>
@@ -179,7 +178,7 @@
                           <i class="fa-solid fa-calendar-check"></i>Schedules
                         </a></li>
                       <% } %>
-                      <% if (oldCan('editVolunteerInfo')) { %>
+                      <% if (has('lessons.viewAll')) { %>
                         <li><a class="ot-nav-item" href="/lessons-learned">
                           <i class="fa-solid fa-lightbulb"></i>Lessons Learned
                         </a></li>
@@ -334,17 +333,17 @@
                 <li>
                   <div class="collapse" id="otNavSigns">
                     <ul class="ot-nav-items">
-                      <% if (oldCan('viewSigns')) { %>
+                      <% if (has('signs.view')) { %>
                         <li><a class="ot-nav-item" href="/signs">
                           <i class="fa-solid fa-table-list"></i>Sign Library
                         </a></li>
                       <% } %>
-                      <% if (oldCan('manageSigns')) { %>
+                      <% if (has('signs.manage')) { %>
                         <li><a class="ot-nav-item" href="/signs/builder">
                           <i class="fa-solid fa-pen-to-square"></i>Sign Builder
                         </a></li>
                       <% } %>
-                      <% if (oldCan('viewSigns')) { %>
+                      <% if (has('signs.view')) { %>
                         <li><a class="ot-nav-item" href="/signs/map">
                           <i class="fa-solid fa-map-location-dot"></i>Sign Map
                         </a></li>
@@ -446,7 +445,7 @@
                 </li>
                 <% } %>
 
-                <% if (navState.canLogParkingCount) { %>
+                <% if (navCounts) { %>
                 <%# ── Counts ──────────────────────────────────────── %>
                 <li>
                   <button class="ot-nav-category" type="button"
@@ -459,7 +458,7 @@
                 <li>
                   <div class="collapse" id="otNavCounts">
                     <ul class="ot-nav-items">
-                      <% if (navState.canLogParkingCount) { %>
+                      <% if (navCounts) { %>
                         <li><a class="ot-nav-item" href="/counts">
                           <i class="fa-solid fa-hand-pointer"></i>Parking Counter
                         </a></li>

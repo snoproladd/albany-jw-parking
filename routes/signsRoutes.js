@@ -46,7 +46,7 @@
 import express from "express";
 import { publicRoute } from "../middleware/publicRoute.js";
 import multer from "multer";
-import { requirePermission } from "../src/config/roles.js";
+import { requirePermission } from "../middleware/requirePermission.js";
 import {
   getSigns,
   getSignById,
@@ -230,7 +230,7 @@ export function signsRouter({
   router.get(
     "/signs",
     requireAuth,
-    requirePermission("viewSigns"),
+    requirePermission("signs.view"),
     csrfProtection,
     async (req, res) => {
       try {
@@ -262,7 +262,7 @@ export function signsRouter({
   router.get(
     "/signs/map",
     requireAuth,
-    requirePermission("viewSigns"),
+    requirePermission("signs.view"),
     csrfProtection,
     async (req, res) => {
       try {
@@ -310,7 +310,7 @@ export function signsRouter({
   router.get(
     "/signs/map/print",
     requireAuth,
-    requirePermission("viewSigns"),
+    requirePermission("signs.view"),
     csrfProtection,
     async (req, res) => {
       try {
@@ -395,7 +395,7 @@ export function signsRouter({
   router.post(
     "/signs/map/publish",
     requireAuth,
-    requirePermission("manageSigns"),
+    requirePermission("signs.publishMap"),
     csrfProtection,
     async (req, res) => {
       try {
@@ -443,7 +443,7 @@ export function signsRouter({
   router.get(
     "/signs/builder",
     requireAuth,
-    requirePermission("manageSigns"),
+    requirePermission("signs.manage"),
     csrfProtection,
     (req, res) => {
       return res.render("authentication_and_accounts/signsBuilder", {
@@ -461,7 +461,7 @@ export function signsRouter({
   router.get(
     "/signs/builder/:id",
     requireAuth,
-    requirePermission("manageSigns"),
+    requirePermission("signs.manage"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -499,7 +499,7 @@ export function signsRouter({
   router.post(
     "/signs",
     requireAuth,
-    requirePermission("manageSigns"),
+    requirePermission("signs.manage"),
     csrfProtection,
     async (req, res) => {
       const {
@@ -581,7 +581,7 @@ export function signsRouter({
   router.put(
     "/signs/:id",
     requireAuth,
-    requirePermission("manageSigns"),
+    requirePermission("signs.manage"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -665,7 +665,7 @@ export function signsRouter({
   router.delete(
     "/signs/:id",
     requireAuth,
-    requirePermission("manageSigns"),
+    requirePermission("signs.manage"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -712,7 +712,7 @@ export function signsRouter({
   router.post(
     "/signs/locations",
     requireAuth,
-    requirePermission("manageSigns"),
+    requirePermission("signs.manage"),
     csrfProtection,
     async (req, res) => {
       const {
@@ -780,7 +780,7 @@ export function signsRouter({
   router.put(
     "/signs/locations/:locationId",
     requireAuth,
-    requirePermission("manageSigns"),
+    requirePermission("signs.manage"),
     csrfProtection,
     async (req, res) => {
       const locationId = Number(req.params.locationId);
@@ -851,7 +851,7 @@ export function signsRouter({
   router.delete(
     "/signs/locations/:locationId",
     requireAuth,
-    requirePermission("manageSigns"),
+    requirePermission("signs.manage"),
     csrfProtection,
     async (req, res) => {
       const locationId = Number(req.params.locationId);
@@ -895,7 +895,7 @@ export function signsRouter({
   router.post(
     "/signs/locations/:locationId/attachments",
     requireAuth,
-    requirePermission("manageSigns"),
+    requirePermission("signs.manage"),
     csrfProtection,
     async (req, res) => {
       const locationId = Number(req.params.locationId);
@@ -952,7 +952,7 @@ export function signsRouter({
   router.put(
     "/signs/attachments/:attachmentId",
     requireAuth,
-    requirePermission("manageSigns"),
+    requirePermission("signs.manage"),
     csrfProtection,
     async (req, res) => {
       const attachmentId = Number(req.params.attachmentId);
@@ -1000,7 +1000,7 @@ export function signsRouter({
   router.patch(
     "/signs/attachments/:attachmentId/status",
     requireAuth,
-    requirePermission("manageSigns"),
+    requirePermission("signs.manage"),
     csrfProtection,
     async (req, res) => {
       const attachmentId = Number(req.params.attachmentId);
@@ -1039,7 +1039,7 @@ export function signsRouter({
   router.delete(
     "/signs/attachments/:attachmentId",
     requireAuth,
-    requirePermission("manageSigns"),
+    requirePermission("signs.manage"),
     csrfProtection,
     async (req, res) => {
       const attachmentId = Number(req.params.attachmentId);
@@ -1071,7 +1071,7 @@ export function signsRouter({
   router.put(
     "/signs/locations/:locationId/attachments/reorder",
     requireAuth,
-    requirePermission("manageSigns"),
+    requirePermission("signs.manage"),
     csrfProtection,
     async (req, res) => {
       const locationId = Number(req.params.locationId);
@@ -1113,7 +1113,7 @@ export function signsRouter({
   router.post(
     "/signs/locations/:locationId/photo",
     requireAuth,
-    requirePermission("manageSigns"),
+    requirePermission("signs.manage"),
     csrfProtection,
     photoUpload.single("photo"),
     async (req, res) => {
@@ -1173,7 +1173,7 @@ export function signsRouter({
   router.get(
     "/signs/locations/:locationId/photo",
     requireAuth,
-    requirePermission("viewSigns"),
+    requirePermission("signs.view"),
     async (req, res) => {
       const locationId = Number(req.params.locationId);
       if (!locationId) {
@@ -1208,7 +1208,7 @@ export function signsRouter({
   router.delete(
     "/signs/locations/:locationId/photo",
     requireAuth,
-    requirePermission("manageSigns"),
+    requirePermission("signs.manage"),
     csrfProtection,
     async (req, res) => {
       const locationId = Number(req.params.locationId);
@@ -1255,7 +1255,7 @@ export function signsRouter({
   router.post(
     "/signs/locations/:locationId/street-view-photo",
     requireAuth,
-    requirePermission("manageSigns"),
+    requirePermission("signs.manage"),
     csrfProtection,
     async (req, res) => {
       const locationId = Number(req.params.locationId);
@@ -1351,7 +1351,7 @@ export function signsRouter({
   router.post(
     "/signs/arrows",
     requireAuth,
-    requirePermission("manageSigns"),
+    requirePermission("signs.manage"),
     csrfProtection,
     async (req, res) => {
       try {
@@ -1384,7 +1384,7 @@ export function signsRouter({
   router.put(
     "/signs/arrows/:arrowId",
     requireAuth,
-    requirePermission("manageSigns"),
+    requirePermission("signs.manage"),
     csrfProtection,
     async (req, res) => {
       const arrowId = Number(req.params.arrowId);
@@ -1424,7 +1424,7 @@ export function signsRouter({
   router.delete(
     "/signs/arrows/:arrowId",
     requireAuth,
-    requirePermission("manageSigns"),
+    requirePermission("signs.manage"),
     csrfProtection,
     async (req, res) => {
       const arrowId = Number(req.params.arrowId);
@@ -1452,7 +1452,7 @@ export function signsRouter({
   router.post(
     "/signs/arrows/:arrowId/links",
     requireAuth,
-    requirePermission("manageSigns"),
+    requirePermission("signs.manage"),
     csrfProtection,
     async (req, res) => {
       const arrowId = Number(req.params.arrowId);
@@ -1478,7 +1478,7 @@ export function signsRouter({
   router.delete(
     "/signs/arrows/:arrowId/links/:attachmentId",
     requireAuth,
-    requirePermission("manageSigns"),
+    requirePermission("signs.manage"),
     csrfProtection,
     async (req, res) => {
       const arrowId = Number(req.params.arrowId);
@@ -1516,7 +1516,7 @@ export function signsRouter({
   router.patch(
     "/signs/arrows/:arrowId/street-view-state",
     requireAuth,
-    requirePermission("manageSigns"),
+    requirePermission("signs.manage"),
     csrfProtection,
     async (req, res) => {
       const arrowId = Number(req.params.arrowId);

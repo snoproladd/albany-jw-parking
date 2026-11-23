@@ -17,13 +17,8 @@
   <%- include('../partials/header') %>
 
   <%
-    // Phase 3d: cards whose tools have moved to permission keys use can('area.action')
-    // (res.locals.can, the person's positions). Cards whose tools are still on old
-    // keys use oldCan() / isAtLeast() until their slice converts them; 3d-8 removes both.
-    const _role     = typeof userRole        !== 'undefined' ? userRole        : 'NON_REGISTERED';
-    const _perms    = typeof userPermissions !== 'undefined' ? userPermissions : {};
-    const isAtLeast = (r) => isRoleAtLeast(_role, r);
-    const oldCan    = (permission) => !!(_perms[_role] && _perms[_role][permission]);
+    // Every card shows when the person holds the permission its tool needs
+    // (res.locals.can, the person's positions; phase 3d).
     const any       = (...keys) => keys.some((k) => can(k));
 
     // One flag per section, shared by the jump menu, the sidebar and the section.
@@ -31,15 +26,15 @@
     const showVolunteers     = any('volunteers.view', 'volunteers.edit', 'volunteers.create',
                                    'positions.assign', 'notes.view', 'sms.manageOptOuts');
     const showReports        = can('volunteers.viewReports');
-    const showSigns          = oldCan('viewSigns') || oldCan('manageSigns');
+    const showSigns          = any('signs.view', 'signs.manage');
     const showScheduling     = any('shifts.manage', 'locations.manage', 'rendezvous.manage', 'eventTypes.manage',
                                    'crews.assign', 'scheduler.use', 'scheduler.manageRules',
                                    'alerts.manageShiftAlerts', 'alerts.manageCapacityAlerts');
     const showAttendance     = any('attendance.checkIn', 'attendance.viewReports');
-    const showLessons        = isAtLeast('KEYMAN');
-    const showDecently       = oldCan('accessAdminConsole');
+    const showLessons        = any('lessons.submit', 'lessons.viewAll');
+    const showDecently       = any('decently.run', 'departments.viewAllPeople');
     const showAdministration = any('positions.manage', 'structure.manage');
-    const showDocs           = oldCan('viewMaps') || can('schedules.view');
+    const showDocs           = any('maps.view', 'schedules.view');
   %>
 
   <main class="container-fluid py-4 px-4">
@@ -443,7 +438,7 @@
               </h2>
               <div class="row g-4 mb-5">
 
-                <% if (oldCan('viewSigns')) { %>
+                <% if (can('signs.view')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-primary">
@@ -458,7 +453,7 @@
                   </div>
                 <% } %>
 
-                <% if (oldCan('manageSigns')) { %>
+                <% if (can('signs.manage')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-success">
@@ -473,7 +468,7 @@
                   </div>
                 <% } %>
 
-                <% if (oldCan('viewSigns')) { %>
+                <% if (can('signs.view')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-warning">
@@ -720,6 +715,7 @@
               <div class="row g-4 mb-5">
 
                 <%# Management page — KEYMAN+ can submit; OVERSEER+ can approve/publish %>
+                <% if (can('lessons.submit')) { %>
                 <div class="col-12 col-sm-6 col-lg-4">
                   <div class="admin-tool-card h-100">
                     <div class="admin-tool-icon text-warning">
@@ -732,9 +728,10 @@
                     </a>
                   </div>
                 </div>
+                <% } %>
 
                 <%# Published report — OVERSEER+ only %>
-                <% if (oldCan('editVolunteerInfo')) { %>
+                <% if (can('lessons.viewAll')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-success">
@@ -761,6 +758,7 @@
               </h2>
               <div class="row g-4 mb-5">
 
+                <% if (can('decently.run')) { %>
                 <div class="col-12 col-sm-6 col-lg-4">
                   <div class="admin-tool-card h-100">
                     <div class="admin-tool-icon text-secondary">
@@ -773,7 +771,9 @@
                     </a>
                   </div>
                 </div>
+                <% } %>
 
+                <% if (can('decently.run')) { %>
                 <div class="col-12 col-sm-6 col-lg-4">
                   <div class="admin-tool-card h-100">
                     <div class="admin-tool-icon text-success">
@@ -786,6 +786,7 @@
                     </a>
                   </div>
                 </div>
+                <% } %>
 
                 <% if (typeof canManageAllDepartments !== 'undefined' && canManageAllDepartments) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
@@ -856,7 +857,7 @@
               </h2>
               <div class="row g-4 mb-5">
 
-                <% if (oldCan('viewMaps')) { %>
+                <% if (can('maps.view')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-primary">

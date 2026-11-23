@@ -30,11 +30,8 @@
 import express from 'express';
 import { publicRoute } from "../middleware/publicRoute.js";
 import multer  from 'multer';
-import {
-    requirePermission,
-    ROLE_HIERARCHY,
-    isRoleAtLeast,
-} from '../src/config/roles.js';
+import { requirePermission } from "../middleware/requirePermission.js";
+import { sessionHasPermission } from "../lib/positions.js";
 import {
     getLessonsLearnedYears,
     getLessonsLearnedDepartments,
@@ -67,12 +64,6 @@ import {
     generateLessonsLearnedPDF,
 } from '../lib/publishLessonsLearned.js';
 import { getActiveYear } from "../lib/conventionYear.js";
-
-/** Minimum role index that can view and submit lessons. */
-const KEYMAN_LEVEL = ROLE_HIERARCHY.indexOf('KEYMAN');
-
-/** Minimum role index that can approve and publish lessons. */
-const OVERSEER_LEVEL = ROLE_HIERARCHY.indexOf('OVERSEER');
 
 /**
  * Multer config for lesson photo uploads: in-memory, 20 MB cap, images only.
@@ -126,29 +117,20 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
     }
 
     /**
-     * Return true if the session user is at least OVERSEER level.
+     * True when the person reviews lessons (lessons.review, phase 3d-6; was
+     * OVERSEER and up): edits anyone's lesson and adds overseer comments.
      *
      * @param {import('express').Request} req
      * @returns {boolean}
      */
     function isOverseer(req) {
-        return ROLE_HIERARCHY.indexOf(req.session.userRole || '') >= OVERSEER_LEVEL;
-    }
-
-    /**
-     * Return true if the session user is at least KEYMAN level.
-     *
-     * @param {import('express').Request} req
-     * @returns {boolean}
-     */
-    function isKeyman(req) {
-        return ROLE_HIERARCHY.indexOf(req.session.userRole || '') >= KEYMAN_LEVEL;
+        return sessionHasPermission(req.session, 'lessons.review');
     }
 
     /**
      * Return true if the user can edit the given lesson:
      *   – The submitting volunteer (any status)
-     *   – Any OVERSEER+ volunteer
+     *   – Anyone with lessons.review
      *
      * @param {import('express').Request} req
      * @param {{ submitted_by: number }} lesson
@@ -164,20 +146,12 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
 
     /**
      * GET /oversight/tools/lessons-learned
-     * Renders the lessons-learned management page for KEYMAN+ users.
+     * Renders the lessons-learned management page (lessons.submit; was KEYMAN+).
      */
     router.get(
         '/oversight/tools/lessons-learned',
         requireAuth,
-        (req, res, next) => {
-            if (!isKeyman(req)) {
-                return res.status(403).render('errors/403', {
-                    nav: res.locals.nav,
-                    userRole: req.session.userRole,
-                });
-            }
-            next();
-        },
+        requirePermission('lessons.submit'),
         csrfProtection,
         (req, res) => {
             return res.render('lessonsLearned', {
@@ -253,10 +227,7 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
     router.get(
         '/api/lessons-learned',
         requireAuth,
-        (req, res, next) => {
-            if (!isKeyman(req)) return res.status(403).json({ success: false });
-            next();
-        },
+        requirePermission('lessons.submit'),
         async (req, res) => {
             try {
                 const tab  = req.query.tab;
@@ -299,6 +270,7 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
     router.get(
         '/api/lessons-learned/years',
         requireAuth,
+        requirePermission('lessons.submit', 'lessons.viewAll'),
         async (req, res) => {
             try {
                 const years = await getLessonsLearnedYears();
@@ -317,6 +289,7 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
     router.get(
         '/api/lessons-learned/departments',
         requireAuth,
+        requirePermission('lessons.submit', 'lessons.viewAll'),
         async (req, res) => {
             try {
                 const departments = await getLessonsLearnedDepartments();
@@ -339,6 +312,7 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
     router.get(
         '/api/lessons-learned/report/:year',
         requireAuth,
+        requirePermission('lessons.submit', 'lessons.viewAll'),
         async (req, res) => {
             try {
                 const year   = Number(req.params.year);
@@ -363,6 +337,7 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
     router.get(
         '/api/lessons-learned/photos/:blobName',
         requireAuth,
+        requirePermission('lessons.submit', 'lessons.viewAll'),
         async (req, res) => {
             try {
                 await streamLessonPhotoToResponse(req.params.blobName, res);
@@ -380,6 +355,7 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
     router.get(
         '/api/lessons-learned/:id/photos',
         requireAuth,
+        requirePermission('lessons.submit', 'lessons.viewAll'),
         async (req, res) => {
             try {
                 const photos = await getLessonPhotos(Number(req.params.id));
@@ -402,11 +378,8 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
     router.post(
         '/api/lessons-learned',
         requireAuth,
+        requirePermission('lessons.submit'),
         csrfProtection,
-        (req, res, next) => {
-            if (!isKeyman(req)) return res.status(403).json({ success: false });
-            next();
-        },
         async (req, res) => {
             try {
                 const { year, departmentId, departmentOther, notes } = req.body;
@@ -441,6 +414,7 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
     router.put(
         '/api/lessons-learned/:id',
         requireAuth,
+        requirePermission('lessons.submit'),
         csrfProtection,
         async (req, res) => {
             try {
@@ -482,7 +456,7 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
         '/api/lessons-learned/:id/approve',
         requireAuth,
         csrfProtection,
-        requirePermission('editVolunteerInfo'),
+        requirePermission('lessons.review'),
         async (req, res) => {
             try {
                 const id     = Number(req.params.id);
@@ -514,7 +488,7 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
         '/api/lessons-learned/:id/publish',
         requireAuth,
         csrfProtection,
-        requirePermission('editVolunteerInfo'),
+        requirePermission('lessons.publish'),
         async (req, res) => {
             try {
                 const id     = Number(req.params.id);
@@ -562,6 +536,7 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
     router.post(
         '/api/lessons-learned/:id/photos',
         requireAuth,
+        requirePermission('lessons.submit'),
         lessonPhotoUpload.single('photo'),
         async (req, res) => {
             try {
@@ -597,6 +572,7 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
     router.delete(
         '/api/lessons-learned/:id/photos/:pid',
         requireAuth,
+        requirePermission('lessons.submit'),
         csrfProtection,
         async (req, res) => {
             try {
@@ -634,7 +610,7 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
         '/api/lessons-learned/:id/archive',
         requireAuth,
         csrfProtection,
-        requirePermission('editVolunteerInfo'),
+        requirePermission('lessons.review'),
         async (req, res) => {
             try {
                 const id     = Number(req.params.id);
@@ -660,7 +636,7 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
         '/api/lessons-learned/:id/unarchive',
         requireAuth,
         csrfProtection,
-        requirePermission('editVolunteerInfo'),
+        requirePermission('lessons.review'),
         async (req, res) => {
             try {
                 const id     = Number(req.params.id);
@@ -694,7 +670,7 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
         '/api/lessons-learned/:id/flags',
         requireAuth,
         csrfProtection,
-        requirePermission('editVolunteerInfo'),
+        requirePermission('lessons.review'),
         async (req, res) => {
             try {
                 const id = Number(req.params.id);
@@ -736,7 +712,7 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
         '/api/lessons-learned/:id/unpublish',
         requireAuth,
         csrfProtection,
-        requirePermission('editVolunteerInfo'),
+        requirePermission('lessons.publish'),
         async (req, res) => {
             try {
                 const id     = Number(req.params.id);
@@ -780,7 +756,7 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
         '/api/lessons-learned/:id/unapprove',
         requireAuth,
         csrfProtection,
-        requirePermission('editVolunteerInfo'),
+        requirePermission('lessons.review'),
         async (req, res) => {
             try {
                 const id     = Number(req.params.id);
@@ -822,7 +798,7 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
         '/api/lessons-learned/:id',
         requireAuth,
         csrfProtection,
-        requirePermission('editVolunteerInfo'),
+        requirePermission('lessons.review'),
         async (req, res) => {
             try {
                 const id = Number(req.params.id);
@@ -894,7 +870,7 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
     router.get(
         '/lessons-learned',
         requireAuth,
-        requirePermission('editVolunteerInfo'),
+        requirePermission('lessons.viewAll'),
         csrfProtection,
         async (req, res) => {
             try {
@@ -904,7 +880,9 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
                 return res.render('lessonsLearnedResources', {
                     csrfToken:  req.csrfToken(),
                     userRole:   req.session.userRole || '',
-                    isAdmin:    isRoleAtLeast(req.session.userRole, 'ASSISTANT_ADMIN'),
+                    // "Generate report" follows its route (lessons.publish,
+                    // Overseer and up; phase 3d-6, decided).
+                    isAdmin:    res.locals.can('lessons.publish'),
                     year,
                     years:      years.map((r) => r.year),
                     report:     report || null,
@@ -938,7 +916,7 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
     router.get(
         '/lessons-learned/pdf/:year',
         requireAuth,
-        requirePermission('editVolunteerInfo'),
+        requirePermission('lessons.viewAll'),
         async (req, res) => {
             try {
                 const year = Number(req.params.year);
@@ -990,7 +968,7 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
         '/api/lessons-learned/batch-publish',
         requireAuth,
         csrfProtection,
-        requirePermission('editVolunteerInfo'),
+        requirePermission('lessons.publish'),
         async (req, res) => {
             try {
                 const year    = Number(req.body.year) || await getActiveYear();
@@ -1041,7 +1019,7 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
         '/api/lessons-learned/publish-selected',
         requireAuth,
         csrfProtection,
-        requirePermission('editVolunteerInfo'),
+        requirePermission('lessons.publish'),
         async (req, res) => {
             try {
                 const year = Number(req.body.year);

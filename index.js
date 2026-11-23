@@ -25,6 +25,7 @@ import {
 import { demoContextMiddleware } from "./middleware/demoContext.js";
 import { resolveDepartmentMiddleware } from "./middleware/resolveDepartment.js";
 import { permissionStampMiddleware } from "./middleware/permissionStamp.js";
+import { isCountingAccount as isCountingAccountSession } from "./lib/positions.js";
 import { requirePermission } from "./middleware/requirePermission.js";
 import { publicRoute, signedInRoute } from "./middleware/publicRoute.js";
 import { INCOMPATIBILITIES } from "./src/config/privilegeRules.js";
@@ -581,15 +582,11 @@ let mapsSyncHandle = null;
       res.locals.userPermissions = s.permissions || {};
       res.locals.appVersion = APP_VERSION;
 
-      // Combine role-level logParkingCount with any per-volunteer delegation
-      // so the header can show the Counts nav section for delegates whose
-      // role matrix entry is false but have extra_parking_count set.
-      const _perms    = s.permissions || {};
-      const _extraP   = s.extraPermissions || [];
-      const canLogParkingCount = !!(
-        _perms[userRole]?.logParkingCount ||
-        _extraP.includes('logParkingCount')
-      );
+      // Counting: anyone holding counts.log (a position such as Parking
+      // Counter, or an individual grant). A shared counting account holds
+      // counts.log and nothing else (phase 3d-6).
+      const canLogParkingCount = isLoggedIn && res.locals.can("counts.log");
+      const isCountingAccount = isLoggedIn && isCountingAccountSession(s);
 
       res.locals.nav = {
         isLoggedIn,
@@ -601,6 +598,7 @@ let mapsSyncHandle = null;
         userRole,
         showDraftBanner,
         canLogParkingCount,
+        isCountingAccount,
         showDepartmentSwitcher,
         departmentName: s.departmentName || null,
       };
@@ -642,9 +640,9 @@ let mapsSyncHandle = null;
     app.use("/api", apiRoutes);
     // ── Home page — dashboard for authenticated users ──────────────
     app.get("/", publicRoute("home: landing page, dashboard when signed in"), csrfProtection, async (req, res) => {
-      // COUNTER is a narrow shared-account role scoped to /counts only.
-      // Short-circuit before any dashboard queries run.
-      if (req.session.userRole === "COUNTER") {
+      // Shared counting accounts are scoped to /counts only (phase 3d-6:
+      // by permission). Short-circuit before any dashboard queries run.
+      if (req.session?.userId && isCountingAccountSession(req.session)) {
         return res.redirect("/counts");
       }
 

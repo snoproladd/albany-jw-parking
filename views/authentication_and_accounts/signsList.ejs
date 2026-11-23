@@ -19,13 +19,9 @@
     <%- include('../partials/header') %>
 
     <%
-        // Permission helper must be inlined per template — variables inside
-        // include() partials are not in scope here. Role ordering comes from
-        // the isRoleAtLeast() / roleLevelOf() app locals.
-        const _role       = typeof userRole        !== 'undefined' ? userRole        : 'NON_REGISTERED';
-        const _perms      = typeof userPermissions !== 'undefined' ? userPermissions : {};
-        const can         = (permission) => !!(_perms[_role] && _perms[_role][permission]);
-        const canManage   = can('manageSigns');
+        // Sign editing follows signs.manage (res.locals.can, the person's
+        // positions; phase 3d-6).
+        const canManage = can('signs.manage');
     %>
 
     <main class="container py-4">
@@ -180,4 +176,4 @@
     <script src="/js/signsList.js"></script>
     <script type="module" src="/js/tours/signsListTour.js"></script>
 </body>
-</html>
+</html>

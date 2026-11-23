@@ -20,10 +20,9 @@
     <%- include('../partials/header') %>
 
     <%
-        const _role     = typeof userRole        !== 'undefined' ? userRole        : 'NON_REGISTERED';
-        const _perms    = typeof userPermissions !== 'undefined' ? userPermissions : {};
-        const can       = (permission) => !!(_perms[_role] && _perms[_role][permission]);
-        const canManage = can('manageSigns');
+        // Sign editing follows signs.manage (res.locals.can, the person's
+        // positions; phase 3d-6).
+        const canManage = can('signs.manage');
     %>
 
     <%# ── Toolbar (hidden in print) ────────────────────────────── %>
@@ -130,7 +129,7 @@
                     title="Fit map to visible markers">
                 <i class="fa-solid fa-expand"></i>
             </button>
-            <% if (canManage) { %>
+            <% if (can('signs.publishMap')) { %>
             <button type="button" class="btn btn-sm btn-outline-success me-1" id="publishBtn" disabled
                     title="Publish PDF to SharePoint and Downloads">
                 <i class="fa-solid fa-cloud-arrow-up me-1"></i>Publish

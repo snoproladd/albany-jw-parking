@@ -22,7 +22,7 @@
  */
 
 import express from 'express';
-import { requirePermission } from '../src/config/roles.js';
+import { requirePermission } from "../middleware/requirePermission.js";
 import {
     getAllSystemVariables,
     getSystemVariableList,
@@ -60,7 +60,7 @@ export function systemVariablesRouter({ csrfProtection, logError }) {
      */
     router.get(
         '/oversight/tools/system-variables',
-        requirePermission('accessAdminConsole'),
+        requirePermission("systemVariables.manage"),
         csrfProtection,
         (req, res) => {
             res.render('systemVariables', {
@@ -86,7 +86,7 @@ export function systemVariablesRouter({ csrfProtection, logError }) {
      */
     router.get(
         '/api/system-variables',
-        requirePermission('accessAdminConsole'),
+        requirePermission("systemVariables.manage"),
         async (req, res) => {
             try {
                 const variables = await getAllSystemVariables();
@@ -107,7 +107,7 @@ export function systemVariablesRouter({ csrfProtection, logError }) {
      */
     router.get(
         '/api/system-variables/:category',
-        requirePermission('manageShifts'),
+        requirePermission("systemVariables.manage", "shifts.manage", "locations.manage", "eventTypes.manage"),
         async (req, res) => {
             try {
                 const variables = await getSystemVariableList(req.params.category);
@@ -128,7 +128,7 @@ export function systemVariablesRouter({ csrfProtection, logError }) {
      */
     router.post(
         '/api/system-variables',
-        requirePermission('accessAdminConsole'),
+        requirePermission("systemVariables.manage"),
         async (req, res) => {
             try {
                 const { category, displayName, parentId, displayOrder } = req.body;
@@ -165,7 +165,7 @@ export function systemVariablesRouter({ csrfProtection, logError }) {
      */
     router.put(
         '/api/system-variables/:id',
-        requirePermission('accessAdminConsole'),
+        requirePermission("systemVariables.manage"),
         async (req, res) => {
             try {
                 const id = Number(req.params.id);
@@ -200,7 +200,7 @@ export function systemVariablesRouter({ csrfProtection, logError }) {
      */
     router.delete(
         '/api/system-variables/:id',
-        requirePermission('accessAdminConsole'),
+        requirePermission("systemVariables.manage"),
         async (req, res) => {
             try {
                 const id = Number(req.params.id);
@@ -241,7 +241,7 @@ export function systemVariablesRouter({ csrfProtection, logError }) {
      */
     router.put(
         '/api/locations/:locationTaskId/classification',
-        requirePermission('manageShifts'),
+        requirePermission("locations.manage"),
         async (req, res) => {
             try {
                 const locationTaskId   = Number(req.params.locationTaskId);
@@ -276,7 +276,7 @@ export function systemVariablesRouter({ csrfProtection, logError }) {
      */
     router.get(
         '/api/locations/:locationTaskId/sub-locations',
-        requirePermission('manageShifts'),
+        requirePermission("locations.manage"),
         async (req, res) => {
             try {
                 const locationTaskId = Number(req.params.locationTaskId);
@@ -301,7 +301,7 @@ export function systemVariablesRouter({ csrfProtection, logError }) {
      */
     router.post(
         '/api/locations/:locationTaskId/sub-locations',
-        requirePermission('manageShifts'),
+        requirePermission("locations.manage"),
         async (req, res) => {
             try {
                 const locationTaskId = Number(req.params.locationTaskId);
@@ -338,7 +338,7 @@ export function systemVariablesRouter({ csrfProtection, logError }) {
      */
     router.put(
         '/api/locations/sub-locations/:id',
-        requirePermission('manageShifts'),
+        requirePermission("locations.manage"),
         async (req, res) => {
             try {
                 const id = Number(req.params.id);
@@ -372,7 +372,7 @@ export function systemVariablesRouter({ csrfProtection, logError }) {
      */
     router.delete(
         '/api/locations/sub-locations/:id',
-        requirePermission('manageShifts'),
+        requirePermission("locations.manage"),
         async (req, res) => {
             try {
                 const id = Number(req.params.id);
@@ -396,7 +396,7 @@ export function systemVariablesRouter({ csrfProtection, logError }) {
      */
     router.put(
         '/api/locations/:locationTaskId/sub-locations/reorder',
-        requirePermission('manageShifts'),
+        requirePermission("locations.manage"),
         async (req, res) => {
             try {
                 const locationTaskId = Number(req.params.locationTaskId);

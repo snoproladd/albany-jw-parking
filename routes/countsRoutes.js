@@ -17,7 +17,7 @@
  */
 
 import express from "express";
-import { requirePermission, can, PERMISSIONS } from "../src/config/roles.js";
+import { requirePermission } from "../middleware/requirePermission.js";
 import {
   getActiveLocationsForYear,
   getConventionDays,
@@ -58,13 +58,13 @@ export function countsRouter({ csrfProtection, logError, twilioAccountSid, twili
    * passed to the view — the client-side counts.js will clear its
    * localStorage session on init so the setup panel is shown even if a
    * prior user left an active session behind. Guards against shared
-   * COUNTER-role handoffs.
+   * counting-account handoffs.
    *
    * @returns {void}
    */
   router.get(
     "/counts",
-    requirePermission("logParkingCount"),
+    requirePermission("counts.log"),
     (req, res) => {
       const forceSelection = !!req.session.forceCountsSelection;
       if (forceSelection) {
@@ -87,7 +87,7 @@ export function countsRouter({ csrfProtection, logError, twilioAccountSid, twili
    */
   router.get(
     "/counts/report",
-    requirePermission("viewAttendance"),
+    requirePermission("counts.viewReport"),
     (req, res) => {
       res.redirect(301, "/oversight/tools/reports?tab=garage-capacity");
     },
@@ -106,7 +106,7 @@ export function countsRouter({ csrfProtection, logError, twilioAccountSid, twili
    */
   router.get(
     "/api/counts/locations",
-    requirePermission("logParkingCount"),
+    requirePermission("counts.log"),
     async (req, res) => {
       try {
         const year = await getActiveYear();
@@ -128,7 +128,7 @@ export function countsRouter({ csrfProtection, logError, twilioAccountSid, twili
    */
   router.get(
     "/api/counts/days",
-    requirePermission("logParkingCount"),
+    requirePermission("counts.log"),
     async (req, res) => {
       try {
         const year = await getActiveYear();
@@ -154,7 +154,7 @@ export function countsRouter({ csrfProtection, logError, twilioAccountSid, twili
    */
   router.get(
     "/api/counts/today",
-    requirePermission("logParkingCount"),
+    requirePermission("counts.log"),
     async (req, res) => {
       try {
         const year = await getActiveYear();
@@ -178,7 +178,7 @@ export function countsRouter({ csrfProtection, logError, twilioAccountSid, twili
    */
   router.post(
     "/api/counts/heartbeat",
-    requirePermission("logParkingCount"),
+    requirePermission("counts.log"),
     async (req, res) => {
       try {
         const { locationTaskId, conventionDayId, count, subLocationId } = req.body;
@@ -227,7 +227,7 @@ export function countsRouter({ csrfProtection, logError, twilioAccountSid, twili
    */
   router.post(
     "/api/counts/submit",
-    requirePermission("logParkingCount"),
+    requirePermission("counts.log"),
     async (req, res) => {
       try {
         const { locationTaskId, conventionDayId, count, subLocationId } = req.body;
@@ -275,7 +275,7 @@ export function countsRouter({ csrfProtection, logError, twilioAccountSid, twili
    */
   router.post(
     "/api/counts/manual-submit",
-    requirePermission("logParkingCount"),
+    requirePermission("counts.log"),
     async (req, res) => {
       try {
         const { locationTaskId, conventionDayId, count } = req.body;
@@ -330,7 +330,7 @@ export function countsRouter({ csrfProtection, logError, twilioAccountSid, twili
    */
   router.get(
     "/api/counts/report-data",
-    requirePermission("viewAttendance"),
+    requirePermission("counts.viewReport"),
     async (req, res) => {
       try {
         const dayId = Number(req.query.dayId);
@@ -361,7 +361,7 @@ export function countsRouter({ csrfProtection, logError, twilioAccountSid, twili
    */
   router.delete(
     "/api/counts/location/:locationTaskId",
-    requirePermission("accessAdminConsole"),
+    requirePermission("counts.manageLocations"),
     async (req, res) => {
       try {
         const locationTaskId  = Number(req.params.locationTaskId);
@@ -393,7 +393,7 @@ export function countsRouter({ csrfProtection, logError, twilioAccountSid, twili
    */
   router.get(
     "/api/counts/sub-locations",
-    requirePermission("logParkingCount"),
+    requirePermission("counts.log"),
     async (req, res) => {
       try {
         const locationTaskId = Number(req.query.locationTaskId);

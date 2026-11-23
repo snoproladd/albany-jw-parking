@@ -211,7 +211,7 @@ import {
   decentlyDepartmentIfImport,
   decentlyDepartmentOptions,
 } from "../middleware/decentlyDepartment.js";
-import { canManageAllDepartments } from "../lib/departmentAccess.js";
+import { canViewAllPeople } from "../lib/departmentAccess.js";
 import multer from "multer";
 
 /**
@@ -1159,7 +1159,7 @@ export function oversightRouter({
         csrfToken: req.csrfToken(),
         userRole: req.session.userRole || "NON_REGISTERED",
         userPermissions: req.session.permissions || {},
-        canManageAllDepartments: canManageAllDepartments(req.session),
+        canManageAllDepartments: canViewAllPeople(req.session),
       });
     },
   );
@@ -1659,13 +1659,8 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/people-departments",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("departments.viewAllPeople"),
     async (req, res) => {
-      if (!canManageAllDepartments(req.session)) {
-        return res
-          .status(403)
-          .send("People & Departments is for Volunteer Services staff and convention admins.");
-      }
       try {
         const [people, departments] = await Promise.all([
           getPeopleDirectory(),
@@ -1697,17 +1692,13 @@ export function oversightRouter({
   router.post(
     "/oversight/tools/decently/department",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("departments.runDecentlyForAll"),
     csrfProtection,
     async (req, res) => {
       const back = ["/oversight/tools/decently-import", "/oversight/tools/decently-export"]
         .includes(req.body?.returnTo)
         ? req.body.returnTo
         : "/oversight/tools/decently-import";
-
-      if (!canManageAllDepartments(req.session)) {
-        return res.status(403).send("Only Volunteer Services staff can choose the department.");
-      }
 
       try {
         const departmentId = Number(req.body?.departmentId);
@@ -1746,7 +1737,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/decently-export",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("decently.run"),
     csrfProtection,
     decentlyDepartmentContext,
     (req, res) => {
@@ -1776,7 +1767,7 @@ export function oversightRouter({
   router.post(
     "/oversight/tools/decently-export",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("decently.run"),
     csrfProtection,
     decentlyDepartmentContext,
     async (req, res) => {
@@ -1863,7 +1854,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/decently-export/download",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("decently.run"),
     decentlyDepartmentContext,
     async (req, res) => {
       const cached = req.session.decentlyCache;
@@ -1913,7 +1904,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/decently-import",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("decently.run"),
     csrfProtection,
     decentlyDepartmentContext,
     (req, res) => {
@@ -1940,7 +1931,7 @@ export function oversightRouter({
   router.post(
     "/oversight/tools/decently-import/process",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("decently.run"),
     csrfProtection,
     decentlyDepartmentContext,
     async (req, res) => {
@@ -2093,7 +2084,7 @@ export function oversightRouter({
   router.post(
     "/oversight/tools/decently-import/apply",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("decently.run"),
     csrfProtection,
     decentlyDepartmentContext,
     async (req, res) => {
@@ -2139,7 +2130,7 @@ export function oversightRouter({
   router.post(
     "/oversight/tools/decently-import/activate-created",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("decently.run"),
     csrfProtection,
     decentlyDepartmentContext,
     async (req, res) => {
@@ -2172,7 +2163,7 @@ export function oversightRouter({
   router.post(
     "/oversight/tools/decently-import/send-welcome",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("decently.run"),
     csrfProtection,
     decentlyDepartmentContext,
     async (req, res) => {

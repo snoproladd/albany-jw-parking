@@ -16,12 +16,12 @@
 
 import { DEFAULT_DEPARTMENT_ID, getRequestContext } from "../lib/sql.js";
 import { getActiveDepartments } from "../lib/dbSync.js";
-import { canManageAllDepartments, VOLUNTEER_SERVICES_SLUG } from "../lib/departmentAccess.js";
+import { canRunDecentlyForAll, VOLUNTEER_SERVICES_SLUG } from "../lib/departmentAccess.js";
 
 /**
  * Picker state for the views.
  * @typedef {Object} DecentlyDepartmentState
- * @property {boolean} canPick        True for VS staff / convention admins.
+ * @property {boolean} canPick        True with departments.runDecentlyForAll (VS staff, convention admins).
  * @property {number}  departmentId   Department the Decently tools act on.
  * @property {string}  departmentName Its display name.
  * @property {Array<{ id: number, name: string }>} options  Departments to pick from (canPick only).
@@ -69,7 +69,7 @@ export async function decentlyDepartmentContext(req, res, next) {
     };
     res.locals.decently = state;
 
-    if (!canManageAllDepartments(req.session)) {
+    if (!canRunDecentlyForAll(req.session)) {
         next();
         return;
     }

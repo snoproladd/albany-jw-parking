@@ -30,6 +30,7 @@ import {
     resolveViewYear,
 } from "../lib/conventionYear.js";
 import { canStartConventionYear } from "../lib/departmentAccess.js";
+import { isCountingAccount } from "../lib/positions.js";
 
 /** Path prefixes that never render a page, so they skip the lookup. */
 const SKIP_PREFIXES = ["/api/", "/webhook/", "/internal/", "/js/", "/styles/", "/vendor/", "/images/", "/fonts/"];
@@ -103,11 +104,10 @@ export async function conventionYearStateMiddleware(req, res, next) {
         }
 
         if (!req.isDemo && needsRolloverPrompt(activeYear)) {
-            const role = req.session.userRole || "REGISTERED";
             if (canStartConventionYear(req.session)) {
                 state.showAdminPrompt =
                     req.session.rolloverSnoozedFor !== activeYear;
-            } else if (role !== "COUNTER") {
+            } else if (!isCountingAccount(req.session)) {
                 state.showStaleBanner = true;
             }
         }
