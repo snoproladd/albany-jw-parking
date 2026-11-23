@@ -23,7 +23,8 @@
     "webhook:dev": "node scripts/twilioWebhook.js dev",
     "dev:sms": "node scripts/devSms.js",
     "dev:full": "concurrently --kill-others -n server,sms -c blue,green \"npm:dev\" \"npm:dev:sms\"",
-    "dev": "nodemon --require ./set-local-env.js index.js"
+    "dev": "nodemon --require ./set-local-env.js index.js",
+    "audit:routes": "node scripts/auditRoutes.js"
   },
   "overrides": {},
   "dependencies": {
