@@ -22,7 +22,8 @@
  */
 
 import express from "express";
-import { requirePermission } from "../src/config/roles.js";
+import { requirePermission } from "../middleware/requirePermission.js";
+import { listDepartmentPositions } from "../lib/positions.js";
 import {
   getActiveLocationsForYear,
   getAllCapacityAlertRules,
@@ -48,22 +49,39 @@ import { getActiveYear } from "../lib/conventionYear.js";
 export function capacityAlertRouter({ csrfProtection, logError }) {
   const router = express.Router();
 
+  /**
+   * Clean the "positions to notify" list from a request body: positive
+   * whole numbers only, no repeats. The database also checks that each id
+   * is an active position in the rule's department.
+   *
+   * @param {unknown} value
+   * @returns {number[]}
+   */
+  function parsePositionIds(value) {
+    if (!Array.isArray(value)) return [];
+    return [...new Set(value.map(Number).filter((n) => Number.isInteger(n) && n > 0))];
+  }
+
   // ============================================================
   // Page route
   // ============================================================
 
   /**
    * GET /oversight/tools/capacity-alerts
-   * Capacity Alerts management page. Requires ASSISTANT_ADMIN+ (accessAdminConsole).
+   * Capacity Alerts management page. Requires alerts.manageCapacityAlerts.
+   * Passes the department's positions for the "Notify" checkboxes (phase 3d-5).
    */
   router.get(
     "/oversight/tools/capacity-alerts",
-    requirePermission("accessAdminConsole"),
+    requirePermission("alerts.manageCapacityAlerts"),
     csrfProtection,
     async (req, res) => {
       try {
         const year = await getActiveYear();
-        const locations = await getActiveLocationsForYear(year);
+        const [locations, positions] = await Promise.all([
+          getActiveLocationsForYear(year),
+          listDepartmentPositions(),
+        ]);
         res.render("capacityAlerts", {
           nav: res.locals.nav,
           userRole: req.session.userRole,
@@ -71,6 +89,7 @@ export function capacityAlertRouter({ csrfProtection, logError }) {
           appVersion: res.locals.appVersion,
           csrfToken: req.csrfToken(),
           locations,
+          positions,
         });
       } catch (err) {
         logError("[GET /oversight/tools/capacity-alerts]", err);
@@ -91,7 +110,7 @@ export function capacityAlertRouter({ csrfProtection, logError }) {
    */
   router.get(
     "/api/capacity-alerts",
-    requirePermission("accessAdminConsole"),
+    requirePermission("alerts.manageCapacityAlerts"),
     async (req, res) => {
       try {
         const rules = await getAllCapacityAlertRules();
@@ -113,14 +132,14 @@ export function capacityAlertRouter({ csrfProtection, logError }) {
    *   thresholdType:    'percent'|'count',
    *   thresholdValue:   number,
    *   direction:        'above'|'below',
-   *   recipientRole:    string,
+   *   positionIds:      number[],   positions to notify (at least one)
    *   messageOverride?: string|null,
    * }} req.body
    * @returns {{ id: number }}
    */
   router.post(
     "/api/capacity-alerts",
-    requirePermission("accessAdminConsole"),
+    requirePermission("alerts.manageCapacityAlerts"),
     async (req, res) => {
       try {
         const {
@@ -129,18 +148,19 @@ export function capacityAlertRouter({ csrfProtection, logError }) {
           thresholdType,
           thresholdValue,
           direction,
-          recipientRole,
+          positionIds,
           messageOverride,
         } = req.body;
+        const ids = parsePositionIds(positionIds);
 
         if (
           !locationTaskId ||
           !thresholdType ||
           thresholdValue == null ||
           !direction ||
-          !recipientRole
+          ids.length === 0
         ) {
-          return res.status(400).json({ error: "Missing required fields." });
+          return res.status(400).json({ error: "Missing required fields (pick at least one position to notify)." });
         }
 
         const { id } = await createCapacityAlertRule({
@@ -149,7 +169,7 @@ export function capacityAlertRouter({ csrfProtection, logError }) {
           thresholdType,
           thresholdValue: Number(thresholdValue),
           direction,
-          recipientRole,
+          positionIds: ids,
           messageOverride: messageOverride || null,
           createdBy: req.session.userId,
         });
@@ -177,7 +197,7 @@ export function capacityAlertRouter({ csrfProtection, logError }) {
    */
   router.put(
     "/api/capacity-alerts/bulk-active",
-    requirePermission("accessAdminConsole"),
+    requirePermission("alerts.manageCapacityAlerts"),
     async (req, res) => {
       try {
         const { ids, active } = req.body;
@@ -201,7 +221,7 @@ export function capacityAlertRouter({ csrfProtection, logError }) {
    */
   router.get(
     "/api/capacity-alerts/kill-switch",
-    requirePermission("accessAdminConsole"),
+    requirePermission("alerts.manageCapacityAlerts"),
     async (req, res) => {
       try {
         const state = await getCapacityAlertKillSwitch();
@@ -226,7 +246,7 @@ export function capacityAlertRouter({ csrfProtection, logError }) {
    */
   router.put(
     "/api/capacity-alerts/kill-switch",
-    requirePermission("accessAdminConsole"),
+    requirePermission("alerts.manageCapacityAlerts"),
     async (req, res) => {
       try {
         const { enabled } = req.body;
@@ -251,7 +271,7 @@ export function capacityAlertRouter({ csrfProtection, logError }) {
    */
   router.put(
     "/api/capacity-alerts/:id",
-    requirePermission("accessAdminConsole"),
+    requirePermission("alerts.manageCapacityAlerts"),
     async (req, res) => {
       try {
         const id = Number(req.params.id);
@@ -261,10 +281,11 @@ export function capacityAlertRouter({ csrfProtection, logError }) {
           thresholdType,
           thresholdValue,
           direction,
-          recipientRole,
+          positionIds,
           messageOverride,
           active,
         } = req.body;
+        const ids = parsePositionIds(positionIds);
 
         if (
           !id ||
@@ -272,9 +293,9 @@ export function capacityAlertRouter({ csrfProtection, logError }) {
           !thresholdType ||
           thresholdValue == null ||
           !direction ||
-          !recipientRole
+          ids.length === 0
         ) {
-          return res.status(400).json({ error: "Missing required fields." });
+          return res.status(400).json({ error: "Missing required fields (pick at least one position to notify)." });
         }
 
         await updateCapacityAlertRule(id, {
@@ -283,7 +304,7 @@ export function capacityAlertRouter({ csrfProtection, logError }) {
           thresholdType,
           thresholdValue: Number(thresholdValue),
           direction,
-          recipientRole,
+          positionIds: ids,
           messageOverride: messageOverride || null,
           active: !!active,
         });
@@ -305,7 +326,7 @@ export function capacityAlertRouter({ csrfProtection, logError }) {
    */
   router.delete(
     "/api/capacity-alerts/:id",
-    requirePermission("accessAdminConsole"),
+    requirePermission("alerts.manageCapacityAlerts"),
     async (req, res) => {
       try {
         const id = Number(req.params.id);
@@ -329,7 +350,7 @@ export function capacityAlertRouter({ csrfProtection, logError }) {
    */
   router.get(
     "/api/capacity-alerts/log",
-    requirePermission("accessAdminConsole"),
+    requirePermission("alerts.manageCapacityAlerts"),
     async (req, res) => {
       try {
         const log = await getCapacityAlertLog(100);

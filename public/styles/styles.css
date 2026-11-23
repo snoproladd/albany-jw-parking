@@ -2410,3 +2410,18 @@ body.page-fill > main {
     cursor: default;
     list-style: none;
 }
+
+/* -------------------- 403: the missing permission's name -------------------- */
+/* Phase 3d-5: the permission a person should ask for stands out as a tag. */
+.error-permission {
+    display: inline-block;
+    margin: 0.15em 0.1em;
+    padding: 0.1em 0.55em;
+    border: 1px solid rgba(30, 58, 138, 0.35);
+    border-radius: 0.4rem;
+    background-color: rgba(30, 58, 138, 0.08);
+    color: var(--Primary);
+    font-size: 1.1em;
+    font-weight: 800;
+    line-height: 1.4;
+}

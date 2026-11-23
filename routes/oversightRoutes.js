@@ -3966,7 +3966,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/campaigns",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("campaigns.send"),
     csrfProtection,
     async (req, res) => {
       try {
@@ -4097,7 +4097,7 @@ export function oversightRouter({
   router.post(
     "/oversight/tools/campaigns/send",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("campaigns.send"),
     csrfProtection,
     async (req, res) => {
       const {
@@ -4185,17 +4185,8 @@ export function oversightRouter({
           .status(400)
           .json({ success: false, error: "Select an existing campaign." });
 
-      // Creating a new campaign (new or followup) requires createCampaign permission
-      if (campaignMode !== "add_to") {
-        const perms = req.session.permissions ?? {};
-        const role = req.session.userRole ?? "NON_REGISTERED";
-        if (!perms[role]?.createCampaign) {
-          return res.status(403).json({
-            success: false,
-            error: "You do not have permission to create campaigns.",
-          });
-        }
-      }
+      // (Phase 3d-5: the separate createCampaign check is gone — everyone who
+      // can send campaigns could already create them.)
 
       // ── Fetch volunteers ────────────────────────────────────────────────
       let volunteers;
@@ -4563,7 +4554,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/campaigns/templates",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("campaigns.send"),
     async (req, res) => {
       try {
         const templates = await getMessageTemplates();
@@ -4587,7 +4578,7 @@ export function oversightRouter({
   router.post(
     "/oversight/tools/campaigns/templates",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("campaigns.send"),
     csrfProtection,
     async (req, res) => {
       const { name, subject, body } = req.body || {};
@@ -4630,7 +4621,7 @@ export function oversightRouter({
   router.put(
     "/oversight/tools/campaigns/templates/:id",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("campaigns.send"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -4682,7 +4673,7 @@ export function oversightRouter({
   router.delete(
     "/oversight/tools/campaigns/templates/:id",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("campaigns.send"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -4720,7 +4711,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/campaigns/batches",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("campaigns.send"),
     async (req, res) => {
       try {
         const year = req.query.year
@@ -4749,7 +4740,7 @@ export function oversightRouter({
   router.post(
     "/oversight/tools/campaigns/batches/suggest-name",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("campaigns.send"),
     async (req, res) => {
       const { dayLabel, conventionDate, shiftLabel, eventTypeName } =
         req.body || {};
@@ -4773,7 +4764,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/campaigns/batches/:id",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("campaigns.send"),
     async (req, res) => {
       const id = Number(req.params.id);
       if (!id)
@@ -4807,7 +4798,7 @@ export function oversightRouter({
   router.post(
     "/oversight/tools/campaigns/invitations/:id/revoke",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("campaigns.send"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -4845,7 +4836,7 @@ export function oversightRouter({
   router.post(
     "/oversight/tools/campaigns/invitations/:id/reinstate",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("campaigns.send"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -4893,7 +4884,7 @@ export function oversightRouter({
   router.put(
     "/oversight/tools/campaigns/batches/:id",
     requireAuth,
-    requirePermission("manageCampaigns"),
+    requirePermission("campaigns.edit"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -4982,7 +4973,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/campaigns/tracker",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("campaigns.send"),
     csrfProtection,
     async (req, res) => {
       const year = await getActiveYear();
@@ -5021,9 +5012,7 @@ export function oversightRouter({
           activeBatch: batchId,
           activeResponse: responseFilter,
           includeRevoked,
-          canManageCampaigns: !!(req.session.permissions ?? {})[
-            req.session.userRole ?? ""
-          ]?.manageCampaigns,
+          canManageCampaigns: res.locals.can("campaigns.edit"),
         });
       } catch (err) {
         (logError || console.error)("campaigns/tracker GET error:", err);
@@ -5091,7 +5080,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/campaigns/batches/:id/invited",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("campaigns.send"),
     async (req, res) => {
       const id = Number(req.params.id);
       if (!id)
@@ -6197,7 +6186,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/shift-alerts/schedules/:id/preview",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("alerts.manageShiftAlerts"),
     async (req, res) => {
       const id = Number(req.params.id);
       if (!id)
@@ -6697,7 +6686,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/shift-alerts",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("alerts.manageShiftAlerts"),
     csrfProtection,
     async (req, res) => {
       const year = await getActiveYear();
@@ -6915,7 +6904,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/shift-alerts/schedules",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("alerts.manageShiftAlerts"),
     async (req, res) => {
       const year = req.query.year
         ? Number(req.query.year)
@@ -6943,7 +6932,7 @@ export function oversightRouter({
   router.post(
     "/oversight/tools/shift-alerts/schedules",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("alerts.manageShiftAlerts"),
     csrfProtection,
     async (req, res) => {
       const {
@@ -7015,7 +7004,7 @@ export function oversightRouter({
   router.put(
     "/oversight/tools/shift-alerts/schedules/:id",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("alerts.manageShiftAlerts"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -7079,7 +7068,7 @@ export function oversightRouter({
   router.delete(
     "/oversight/tools/shift-alerts/schedules/:id",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("alerts.manageShiftAlerts"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -7113,7 +7102,7 @@ export function oversightRouter({
   router.delete(
     "/oversight/tools/shift-alerts/schedules/:id/permanent",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("alerts.manageShiftAlerts"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -7159,7 +7148,7 @@ export function oversightRouter({
   router.post(
     "/oversight/tools/shift-alerts/schedules/:id/send",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("alerts.manageShiftAlerts"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -7403,7 +7392,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/shift-alerts/log",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("alerts.manageShiftAlerts"),
     async (req, res) => {
       try {
         const log = await getAlertLog({

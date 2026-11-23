@@ -23,16 +23,38 @@
 
                 <h1 class="error-code mb-0">403</h1>
                 <h2 class="display-6 error-message mb-3">Access Denied</h2>
+                <%
+                    // Phase 3d-5: requirePermission() passes the missing permission(s)
+                    // and the person's positions in the current department.
+                    const _missing   = typeof missingPermissions !== 'undefined' && Array.isArray(missingPermissions) ? missingPermissions : [];
+                    const _positions = typeof positionNames !== 'undefined' && Array.isArray(positionNames) ? positionNames : [];
+                    const _dept      = typeof departmentName !== 'undefined' && departmentName ? departmentName : null;
+                %>
                 <p class="lead error-message mb-2">
                     You don't have permission to view this page.
                 </p>
+                <% if (_missing.length === 1) { %>
                 <p class="error-message mb-5">
-                    If you think this is a mistake, contact your parking overseer or admin.
+                    Ask your department's oversight for the <strong class="error-permission"><%= _missing[0] %></strong> permission on the site.
                 </p>
+                <% } else if (_missing.length > 1) { %>
+                <p class="error-message mb-5">
+                    Ask your department's oversight for any one of these permissions on the site:
+                    <% _missing.forEach((label, i) => { %><strong class="error-permission"><%= label %></strong><%= i < _missing.length - 1 ? ', ' : '' %><% }) %>.
+                </p>
+                <% } else { %>
+                <p class="error-message mb-5">
+                    If you think this is a mistake, contact your department's oversight.
+                </p>
+                <% } %>
 
-                <% if (typeof userRole !== 'undefined' && userRole) { %>
+                <% if (typeof nav !== 'undefined' && nav && nav.isLoggedIn) { %>
                 <p class="text-muted small mb-4">
-                    Signed in as <strong><%= userRole %></strong>
+                    <% if (_positions.length) { %>
+                        Your positions<%= _dept ? ` in ${_dept}` : '' %>: <strong><%= _positions.join(', ') %></strong>
+                    <% } else { %>
+                        You hold no positions<%= _dept ? ` in ${_dept}` : '' %> yet.
+                    <% } %>
                 </p>
                 <% } %>
 

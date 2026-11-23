@@ -42,10 +42,10 @@ import {
   resolveBlackoutHints,
   createAiBlackoutSuggestion,
   resolveSmsDepartment,
+  volunteerHasPermission,
 } from "../lib/dbSync.js";
 import { analyzeSms } from "../lib/smsInboundAnalyzer.js";
 import { sendResetSms, sendResetEmail } from "../lib/messaging.js";
-import { ROLE_HIERARCHY } from "../src/config/roles.js";
 import { getActiveYear } from "../lib/conventionYear.js";
 
 /**
@@ -452,16 +452,12 @@ export function smsWebhookRouter({
         );
         routed = true;
       }
-      const routedVolunteer = await findVolunteerByPhoneOrEmail(phoneDigits, null);
-      const routedRole = routedVolunteer?.role || "";
-
-      const OVERSEER_ROLE_INDEX = ROLE_HIERARCHY.indexOf("OVERSEER");
-      const volunteerRoleIndex  = ROLE_HIERARCHY.indexOf(routedRole);
-
-      if (OVERSEER_ROLE_INDEX !== -1 && volunteerRoleIndex >= OVERSEER_ROLE_INDEX) {
+      // Texts from people who themselves receive these alerts
+      // (alerts.receiveVolunteerTexts in the routed department) are not
+      // forwarded — that would loop (phase 3d-5; was Overseer and up).
+      if (await volunteerHasPermission(volunteer.id, "alerts.receiveVolunteerTexts")) {
         log(
-          "[smsWebhook] Inbound from oversight role %s (vol %d) — suppressed to prevent notification loop",
-          routedRole,
+          "[smsWebhook] Inbound from an alert recipient (vol %d) — suppressed to prevent notification loop",
           volunteer.id,
         );
         return reply();

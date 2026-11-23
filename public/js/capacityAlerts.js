@@ -99,7 +99,7 @@
                 <td>${rule.sub_location_name || '<span class="text-muted">Whole location</span>'}</td>
                 <td>${formatThreshold(rule)}</td>
                 <td>${rule.direction === "above" ? "Rising to/above" : "Dropping to/below"}</td>
-                <td>${rule.recipient_role.replace("_", " ")}+</td>
+                <td>${escapeHtml(rule.position_names) || '<span class="text-danger">Nobody</span>'}</td>
                 <td><span class="badge ${statusBadgeClass}">${statusLabel}</span></td>
                 <td class="text-end">
                     <button type="button" class="btn btn-sm btn-outline-primary ca-edit-btn" data-id="${rule.id}">Edit</button>
@@ -247,6 +247,45 @@
   }
 
   /**
+   * Escape text for use inside HTML built with innerHTML.
+   *
+   * @param {unknown} value
+   * @returns {string}
+   */
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  /**
+   * The ids of the ticked "Notify" positions (phase 3d-5).
+   *
+   * @returns {number[]}
+   */
+  function getCheckedPositions() {
+    return [...document.querySelectorAll(".ca-position-checkbox:checked")]
+      .map((el) => Number(el.value))
+      .filter((n) => Number.isInteger(n) && n > 0);
+  }
+
+  /**
+   * Tick exactly the given "Notify" positions.
+   *
+   * @param {number[]} ids
+   * @returns {void}
+   */
+  function setCheckedPositions(ids) {
+    const wanted = new Set(ids.map(Number));
+    document.querySelectorAll(".ca-position-checkbox").forEach((el) => {
+      el.checked = wanted.has(Number(el.value));
+    });
+  }
+
+  /**
    * Reset the modal form to its "new rule" state.
    *
    * @returns {void}
@@ -276,7 +315,7 @@
     document.getElementById("ca-threshold-type").value = rule.threshold_type;
     document.getElementById("ca-threshold-value").value = rule.threshold_value;
     document.getElementById("ca-direction").value = rule.direction;
-    document.getElementById("ca-recipient-role").value = rule.recipient_role;
+    setCheckedPositions(rule.position_ids || []);
     document.getElementById("ca-message-override").value =
       rule.message_override || "";
     document.getElementById("ca-active").checked = rule.active;
@@ -383,7 +422,7 @@
         document.getElementById("ca-threshold-value").value,
       ),
       direction: document.getElementById("ca-direction").value,
-      recipientRole: document.getElementById("ca-recipient-role").value,
+      positionIds: getCheckedPositions(),
       messageOverride:
         document.getElementById("ca-message-override").value || null,
       active: document.getElementById("ca-active").checked,
@@ -391,6 +430,10 @@
 
     if (!payload.locationTaskId || !payload.thresholdValue) {
       alert("Location and threshold value are required.");
+      return;
+    }
+    if (payload.positionIds.length === 0) {
+      alert("Tick at least one position to notify.");
       return;
     }
 

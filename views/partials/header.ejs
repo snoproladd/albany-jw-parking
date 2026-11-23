@@ -49,14 +49,14 @@
 
           // One flag per Operations group; the Operations menu shows when any group does.
           const navDocs         = oldCan('viewMaps') || has('schedules.view') || oldCan('editVolunteerInfo');
-          const navComms        = oldCan('accessAdminConsole') || has('volunteers.sendSignInLinks');
+          const navComms        = hasAny('campaigns.send', 'volunteers.sendSignInLinks');
           const navVolunteers   = hasAny('volunteers.edit', 'volunteers.create', 'positions.assign', 'notes.view');
           const navConvention   = isAtLeast('KEYMAN');
           const navReports      = has('volunteers.viewReports');
           const navSigns        = oldCan('viewSigns') || oldCan('manageSigns');
           const navScheduling   = hasAny('shifts.manage', 'locations.manage', 'eventTypes.manage',
-                                         'crews.assign', 'scheduler.use', 'scheduler.manageRules')
-                                  || oldCan('accessAdminConsole');   // shift / capacity alerts (3d-5)
+                                         'crews.assign', 'scheduler.use', 'scheduler.manageRules',
+                                         'alerts.manageShiftAlerts', 'alerts.manageCapacityAlerts');
           const navAttendance   = hasAny('attendance.checkIn', 'attendance.viewReports');
           const navCounts       = navState.canLogParkingCount;
           const navDecently     = oldCan('accessAdminConsole');
@@ -202,7 +202,7 @@
                 <li>
                   <div class="collapse" id="otNavComms">
                     <ul class="ot-nav-items">
-                      <% if (oldCan('accessAdminConsole')) { %>
+                      <% if (has('campaigns.send')) { %>
                       <li><a class="ot-nav-item" href="/oversight/tools/campaigns">
                         <i class="fa-solid fa-envelope-open-text"></i>Campaign Center
                       </a></li>
@@ -403,10 +403,12 @@
                           <i class="fa-solid fa-list-check"></i>Schedule Analysis Rules
                         </a></li>
                       <% } %>
-                      <% if (oldCan('accessAdminConsole')) { %>
+                      <% if (has('alerts.manageShiftAlerts')) { %>
                         <li><a class="ot-nav-item" href="/oversight/tools/shift-alerts">
                           <i class="fa-solid fa-bell"></i>Shift Alerts
                         </a></li>
+                      <% } %>
+                      <% if (has('alerts.manageCapacityAlerts')) { %>
                         <li><a class="ot-nav-item" href="/oversight/tools/capacity-alerts">
                           <i class="fa-solid fa-warehouse"></i>Capacity Alerts
                         </a></li>

@@ -20,10 +20,14 @@
  * Keys are checked when the route is declared, so a typo stops the app at
  * startup instead of quietly refusing everyone. scripts/auditRoutes.js reads
  * these calls to build docs/ROUTE_AUDIT.md.
+ *
+ * A refusal (phase 3d-5) names what was missing: the 403 page asks the person
+ * to request that permission from their department's oversight, and API
+ * callers get JSON { success: false, error, missing } instead of the page.
  */
 
 import { PERMISSIONS, can } from "../src/config/roles.js";
-import { isKnownPermission } from "../src/config/permissions.js";
+import { isKnownPermission, getPermission } from "../src/config/permissions.js";
 import { sessionHasPermission } from "../lib/positions.js";
 
 /**
@@ -66,12 +70,44 @@ export function requirePermission(...keys) {
         }
     }
 
+    // Labels for the refusal message. Old keys have no catalogue label, so a
+    // route still on old keys gets the generic message until it is converted.
+    const missing = [...new Set(keys.map((key) => getPermission(key)?.label).filter(Boolean))];
+
     return (req, res, next) => {
         if (keys.some((key) => sessionCan(req.session, key))) return next();
-
-        return res.status(403).render("errors/403", {
-            nav: res.locals.nav,
-            userRole: req.session?.userRole || "NON_REGISTERED",
-        });
+        return sendForbidden(req, res, missing);
     };
+}
+
+/**
+ * Answer a refused request: JSON for API callers, otherwise the 403 page
+ * naming the missing permission(s) and the person's current positions.
+ *
+ * @param {import("express").Request} req
+ * @param {import("express").Response} res
+ * @param {string[]} missing  Labels of the permissions that would have let the person in.
+ * @returns {void}
+ */
+export function sendForbidden(req, res, missing = []) {
+    const wantsJson =
+        req.originalUrl.startsWith("/api/") || req.accepts(["html", "json"]) === "json";
+    const error = missing.length
+        ? `You need the "${missing.join('" or "')}" permission. Ask your department's oversight for it.`
+        : "Access denied.";
+
+    if (wantsJson) {
+        res.status(403).json({ success: false, error, missing });
+        return;
+    }
+
+    const positions = Array.isArray(req.session?.positions)
+        ? req.session.positions.map((p) => p.name)
+        : [];
+    res.status(403).render("errors/403", {
+        nav: res.locals.nav,
+        missingPermissions: missing,
+        positionNames: positions,
+        departmentName: req.session?.departmentName || null,
+    });
 }

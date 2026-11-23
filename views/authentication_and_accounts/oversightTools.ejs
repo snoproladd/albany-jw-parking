@@ -27,14 +27,14 @@
     const any       = (...keys) => keys.some((k) => can(k));
 
     // One flag per section, shared by the jump menu, the sidebar and the section.
-    const showCommunications = oldCan('accessAdminConsole') || any('volunteers.sendSignInLinks', 'bugReports.manage');
+    const showCommunications = any('campaigns.send', 'volunteers.sendSignInLinks', 'bugReports.manage');
     const showVolunteers     = any('volunteers.view', 'volunteers.edit', 'volunteers.create',
                                    'positions.assign', 'notes.view', 'sms.manageOptOuts');
     const showReports        = can('volunteers.viewReports');
     const showSigns          = oldCan('viewSigns') || oldCan('manageSigns');
     const showScheduling     = any('shifts.manage', 'locations.manage', 'rendezvous.manage', 'eventTypes.manage',
-                                   'crews.assign', 'scheduler.use', 'scheduler.manageRules')
-                               || oldCan('accessAdminConsole');   // shift / capacity alert cards (3d-5)
+                                   'crews.assign', 'scheduler.use', 'scheduler.manageRules',
+                                   'alerts.manageShiftAlerts', 'alerts.manageCapacityAlerts');
     const showAttendance     = any('attendance.checkIn', 'attendance.viewReports');
     const showLessons        = isAtLeast('KEYMAN');
     const showDecently       = oldCan('accessAdminConsole');
@@ -159,7 +159,7 @@
               </h2>
               <div class="row g-4 mb-5">
 
-                <% if (oldCan('accessAdminConsole')) { %>
+                <% if (can('campaigns.send')) { %>
                 <div class="col-12 col-sm-6 col-lg-4">
                   <div class="admin-tool-card h-100">
                     <div class="admin-tool-icon text-primary">
@@ -174,7 +174,7 @@
                 </div>
                 <% } %>
 
-                <% if (oldCan('accessAdminConsole')) { %>
+                <% if (can('campaigns.send')) { %>
                 <div class="col-12 col-sm-6 col-lg-4">
                   <div class="admin-tool-card h-100">
                     <div class="admin-tool-icon text-success">
@@ -635,7 +635,7 @@
                   </div>
                 <% } %>
 
-                <% if (oldCan('accessAdminConsole')) { %>
+                <% if (can('alerts.manageShiftAlerts')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-danger">
@@ -650,7 +650,7 @@
                   </div>
                 <% } %>
 
-                <% if (oldCan('accessAdminConsole')) { %>
+                <% if (can('alerts.manageCapacityAlerts')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-warning">
