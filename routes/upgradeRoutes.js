@@ -29,7 +29,7 @@ const RESET_RESEND_COOLDOWN_MS = 60 * 1000 * 2; // 2 minutes
  * - GET  /upgrade/sent           → confirmation page
  * - GET  /reset-password/:hash   → show reset form
  * - POST /reset-password/:hash   → set new password + clear pending flag
- * - POST /upgrade/test-sms       → dev-only SMS test endpoint (NODE_ENV=development + systemVariables.manage)
+ * - POST /upgrade/test-sms       → dev-only SMS test endpoint (NODE_ENV=development + convention.testSms)
  *
  * @param {object} deps
  * @param {import("express")} deps.express
@@ -398,8 +398,8 @@ export default function upgradeRoutes({
   // POST /upgrade/test-sms → dev-only SMS test endpoint.
   // Sends a real SMS to any number, so it is refused unless the server is
   // explicitly running in development (an unset NODE_ENV counts as not dev)
-  // and the caller holds systemVariables.manage.
-  router.post("/upgrade/test-sms", requirePermission("systemVariables.manage"), csrfProtection, async (req, res) => {
+  // and the caller holds convention.testSms (convention admins).
+  router.post("/upgrade/test-sms", requirePermission("convention.testSms"), csrfProtection, async (req, res) => {
     if (process.env.NODE_ENV !== "development") {
       return res.status(404).json({ success: false, error: "Not found." });
     }

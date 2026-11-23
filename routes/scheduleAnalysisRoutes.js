@@ -23,7 +23,7 @@
  */
 
 import express from "express";
-import { requirePermission } from "../src/config/roles.js";
+import { requirePermission } from "../middleware/requirePermission.js";
 import {
   analyzeSchedule,
   reanalyzeViolation,
@@ -56,7 +56,7 @@ export function scheduleAnalysisRouter({ csrfProtection, logError }) {
   router.post(
     "/api/schedule/analyze",
     requireAuth,
-    requirePermission("createAssignments"),
+    requirePermission("scheduler.analyze"),
     async (req, res) => {
       try {
         const year = await getActiveYear();
@@ -82,7 +82,7 @@ export function scheduleAnalysisRouter({ csrfProtection, logError }) {
   router.get(
     "/api/schedule/violations",
     requireAuth,
-    requirePermission("createAssignments"),
+    requirePermission("scheduler.analyze"),
     async (req, res) => {
       try {
         const year = await getActiveYear();
@@ -108,7 +108,7 @@ export function scheduleAnalysisRouter({ csrfProtection, logError }) {
   router.patch(
     "/api/schedule/violations/:id/acknowledge",
     requireAuth,
-    requirePermission("createAssignments"),
+    requirePermission("scheduler.analyze"),
     async (req, res) => {
       const id = parseInt(req.params.id, 10);
       if (!id) return res.status(400).json({ error: "Invalid ID." });
@@ -134,7 +134,7 @@ export function scheduleAnalysisRouter({ csrfProtection, logError }) {
   router.patch(
     "/api/schedule/violations/:id/response",
     requireAuth,
-    requirePermission("createAssignments"),
+    requirePermission("scheduler.analyze"),
     async (req, res) => {
       const id = parseInt(req.params.id, 10);
       const response = String(req.body?.response || "").trim();
@@ -168,7 +168,7 @@ export function scheduleAnalysisRouter({ csrfProtection, logError }) {
   router.post(
     "/api/schedule/violations/reanalyze-by-question",
     requireAuth,
-    requirePermission("createAssignments"),
+    requirePermission("scheduler.analyze"),
     async (req, res) => {
       const runId = parseInt(req.body?.runId, 10);
       const aiQuestion = String(req.body?.aiQuestion || "").trim();
@@ -215,7 +215,7 @@ export function scheduleAnalysisRouter({ csrfProtection, logError }) {
   router.post(
     "/api/schedule/violations/:id/reanalyze",
     requireAuth,
-    requirePermission("createAssignments"),
+    requirePermission("scheduler.analyze"),
     async (req, res) => {
       const id = parseInt(req.params.id, 10);
       if (!id) return res.status(400).json({ error: "Invalid ID." });
@@ -256,7 +256,7 @@ export function scheduleAnalysisRouter({ csrfProtection, logError }) {
   router.get(
     "/oversight/tools/schedule-rules",
     requireAuth,
-    requirePermission("deleteVolunteer"), // ADMIN only
+    requirePermission("scheduler.manageRules"),
     csrfProtection,
     async (req, res) => {
       try {
@@ -278,7 +278,7 @@ export function scheduleAnalysisRouter({ csrfProtection, logError }) {
   router.get(
     "/api/schedule/rules",
     requireAuth,
-    requirePermission("deleteVolunteer"),
+    requirePermission("scheduler.manageRules"),
     async (req, res) => {
       try {
         const rules = await db.getScheduleAnalysisRules();
@@ -295,7 +295,7 @@ export function scheduleAnalysisRouter({ csrfProtection, logError }) {
   router.post(
     "/api/schedule/rules",
     requireAuth,
-    requirePermission("deleteVolunteer"),
+    requirePermission("scheduler.manageRules"),
     async (req, res) => {
       const ruleText = String(req.body?.ruleText || "").trim();
       const sortOrder = parseInt(req.body?.sortOrder, 10) || 0;
@@ -320,7 +320,7 @@ export function scheduleAnalysisRouter({ csrfProtection, logError }) {
   router.patch(
     "/api/schedule/rules/:id",
     requireAuth,
-    requirePermission("deleteVolunteer"),
+    requirePermission("scheduler.manageRules"),
     async (req, res) => {
       const id = parseInt(req.params.id, 10);
       const ruleText =
@@ -355,7 +355,7 @@ export function scheduleAnalysisRouter({ csrfProtection, logError }) {
   router.patch(
     "/api/schedule/rules/:id/toggle",
     requireAuth,
-    requirePermission("deleteVolunteer"),
+    requirePermission("scheduler.manageRules"),
     async (req, res) => {
       const id = parseInt(req.params.id, 10);
       if (!id) return res.status(400).json({ error: "Invalid ID." });
@@ -377,7 +377,7 @@ export function scheduleAnalysisRouter({ csrfProtection, logError }) {
   router.delete(
     "/api/schedule/rules/:id",
     requireAuth,
-    requirePermission("deleteVolunteer"),
+    requirePermission("scheduler.manageRules"),
     async (req, res) => {
       const id = parseInt(req.params.id, 10);
       if (!id) return res.status(400).json({ error: "Invalid ID." });

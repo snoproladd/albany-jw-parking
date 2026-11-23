@@ -25,7 +25,6 @@ import {
   getBlackoutsForVolunteer,
   createBlackout,
   deleteBlackoutForVolunteer,
-  getSchedulerCategoryAccessForVolunteer,
   getActiveMagicLoginTokenByHash,
   touchMagicLoginToken,
   getDepartmentMemberships,
@@ -39,7 +38,6 @@ import { hashMagicLinkToken } from "../lib/magicLinkToken.js";
 
 import { INCOMPATIBILITIES } from "../src/config/privilegeRules.js";
 import { getActiveYear } from "../lib/conventionYear.js";
-import { isRoleAtLeast } from "../src/config/roles.js";
 
 /**
  * Factory: build router that handles login + my-account.
@@ -203,12 +201,8 @@ export function loginRouter({ csrfProtection, logError }) {
     if (user.extra_parking_count) extraPermissions.push("logParkingCount");
     req.session.extraPermissions = extraPermissions;
 
-    // Populate sensitive scheduler category access.
-    // OVERSEER+ receives null as a sentinel meaning "no filter — see all."
-    // All other roles receive the explicit list of category_ids they may view.
-    req.session.sensitiveCategories = isRoleAtLeast(req.session.userRole, "OVERSEER")
-      ? null
-      : await getSchedulerCategoryAccessForVolunteer(user.id);
+    // Restricted scheduler category access (session.sensitiveCategories) is
+    // set with the permissions below, from crews.viewRestricted (phase 3d-4).
 
     // Positions and effective permissions (phase 3c; enforced from 3d)
     await _loadPositions(req);
@@ -1043,10 +1037,6 @@ export function loginRouter({ csrfProtection, logError }) {
         req.requestContext.departmentId = target.id;
         req.requestContext.scope = "department";
       }
-
-      req.session.sensitiveCategories = isRoleAtLeast(req.session.userRole, "OVERSEER")
-        ? null
-        : await getSchedulerCategoryAccessForVolunteer(userId);
 
       // Positions and effective permissions for the new department (phase 3c)
       await _loadPositions(req);

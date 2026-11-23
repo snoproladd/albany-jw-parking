@@ -13,7 +13,6 @@
     <link rel="preload" href="/fonts/georama-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="/styles/fonts.css" />
     <meta name="csrf-token" content="<%= csrfToken %>" />
-    <meta name="user-role" content="<%= userRole %>" />
   </head>
 
   <body class="min-vh-100 bg-body-tertiary" data-authed="true">
@@ -69,6 +68,8 @@
     <%- include('../partials/footer') %>
 
     <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <%- include('../partials/permissionsData') %>
+    <script src="/js/permissions.js" defer></script>
     <script type="module" src="/js/rendezvousLanding.js"></script>
     <script type="module" src="/js/tours/rendezvousTour.js"></script>
   </body>

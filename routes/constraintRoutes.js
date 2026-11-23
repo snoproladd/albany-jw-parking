@@ -20,7 +20,7 @@
 
 import express from "express";
 import * as db from "../lib/dbSync.js";
-import { requirePermission } from "../src/config/roles.js";
+import { requirePermission } from "../middleware/requirePermission.js";
 
 /**
  * Creates and returns the constraint Express router.
@@ -65,7 +65,7 @@ export function constraintRouter({ csrfProtection, logError }) {
   router.get(
     "/api/constraints/:volunteerId",
     requireAuth,
-    requirePermission("editVolunteerInfo"),
+    requirePermission("constraints.review"),
     async (req, res) => {
       const volunteerId = parseInt(req.params.volunteerId, 10);
       if (!volunteerId)
@@ -100,7 +100,7 @@ export function constraintRouter({ csrfProtection, logError }) {
   router.post(
     "/api/constraints/:volunteerId/suggestions/:id/apply",
     requireAuth,
-    requirePermission("editVolunteerInfo"),
+    requirePermission("constraints.review"),
     csrfProtection,
     async (req, res) => {
       const volunteerId = parseInt(req.params.volunteerId, 10);
@@ -154,7 +154,7 @@ export function constraintRouter({ csrfProtection, logError }) {
     router.delete(
         "/api/constraints/:volunteerId/suggestions/:id",
         requireAuth,
-        requirePermission("editVolunteerInfo"),
+        requirePermission("constraints.review"),
         async (req, res) => {
             const id = parseInt(req.params.id, 10);
             if (!id) return res.status(400).json({ error: "Invalid suggestion ID." });

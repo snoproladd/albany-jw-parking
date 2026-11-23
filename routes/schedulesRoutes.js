@@ -15,7 +15,7 @@
 
 import express from "express";
 import { publicRoute } from "../middleware/publicRoute.js";
-import { requirePermission } from "../src/config/roles.js";
+import { requirePermission } from "../middleware/requirePermission.js";
 import { getPublishedSchedules } from "../lib/dbSync.js";
 import { streamPublishedFileToResponse } from "../lib/blobStorage.js";
 import { generateReportPDF } from "../lib/publishSchedule.js";
@@ -48,7 +48,7 @@ export function schedulesRouter({ csrfProtection, logError, graphConfig }) {
    */
   router.get(
     "/schedules",
-    requirePermission("viewSchedules"),
+    requirePermission("schedules.view"),
     csrfProtection,
     async (req, res) => {
       const role = req.session?.userRole || "NON_REGISTERED";
@@ -134,7 +134,7 @@ export function schedulesRouter({ csrfProtection, logError, graphConfig }) {
    */
   router.get(
     "/schedule/demo-pdf/:dayId",
-    requirePermission("viewSchedules"),
+    requirePermission("schedules.view"),
     async (req, res) => {
       if (!req.isDemo) return res.status(404).send("File not found.");
       const dayId = Number(req.params.dayId);

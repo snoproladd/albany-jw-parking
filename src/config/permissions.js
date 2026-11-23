@@ -176,6 +176,9 @@ export const PERMISSION_CATALOG = Object.freeze([
     def("rendezvous.manage", "Manage rendezvous points",
         "Create and edit rendezvous points and their photos, and apply them to shifts.",
         "shifts", { replaces: ["editRendezvous", "manageShifts"] }),
+    def("eventTypes.manage", "Manage event types",
+        "Create and edit this department's event types (the kinds of shift on the timeline), their colours and order.",
+        "shifts", { replaces: ["accessAdminConsole"] }),
     def("events.manage", "Manage department events",
         "Create and edit this department's own events, such as training and meetings.",
         "shifts", { replaces: ["manageShifts"] }),
@@ -315,7 +318,7 @@ export const PERMISSION_CATALOG = Object.freeze([
 
     // ── Convention-wide (convention admins only) ────────────────────────
     def("convention.manageDays", "Manage convention days",
-        "Create and edit the convention days, their program sessions and event types, which every department shares.",
+        "Create and edit the convention days and their program sessions, which every department shares.",
         "convention", { scope: "convention", replaces: ["manageShifts", "accessAdminConsole"] }),
     def("convention.manageEvents", "Manage convention events",
         "Create and edit convention-wide events, such as all-department training.",
@@ -364,7 +367,7 @@ export const LEGACY_PERMISSION_MAP = Object.freeze({
     accessAdminConsole: ["alerts.manageCapacityAlerts", "maps.sync", "positions.assign", "volunteers.sendSignInLinks",
         "convention.manageDays", "campaigns.send", "alerts.manageShiftAlerts", "scheduler.publish",
         "bugReports.manage", "systemVariables.manage", "decently.run", "departments.viewAllPeople",
-        "departments.runDecentlyForAll", "counts.manageLocations"],
+        "departments.runDecentlyForAll", "counts.manageLocations", "eventTypes.manage"],
     manageShifts: ["shifts.manage", "locations.manage", "convention.manageDays", "rendezvous.manage",
         "events.manage", "systemVariables.manage"],
     createAssignments: ["scheduler.use", "scheduler.analyze", "crews.assign", "volunteers.viewReports"],

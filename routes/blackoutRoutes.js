@@ -20,7 +20,8 @@
 
 import express from "express";
 import * as db from "../lib/dbSync.js";
-import { PERMISSIONS } from "../src/config/roles.js";
+import { requirePermission } from "../middleware/requirePermission.js";
+import { sessionHasPermission } from "../lib/positions.js";
 
 /**
  * Creates and returns the blackout Express router.
@@ -52,28 +53,28 @@ export function blackoutRouter({ csrfProtection, logError }) {
   }
 
   /**
-   * Require either editVolunteerInfo permission or self-access.
-   * Parses the volunteerId from req.params and compares to session.userId.
+   * Blackout access (phase 3d-4): your own blackouts need
+   * self.manageBlackouts; anyone else's need volunteers.edit or
+   * scheduler.use. requirePermission() on each route lets in anyone holding
+   * one of the three; this check then refuses someone who only holds
+   * self.manageBlackouts but asked for another volunteer.
    * Returns 403 JSON on failure.
    *
-   * @type {import('express').RequestHandler}
+   * @param {import('express').Request} req
+   * @param {import('express').Response} res
+   * @param {import('express').NextFunction} next
+   * @returns {void}
    */
-  function requireBlackoutAccess(req, res, next) {
+  function requireBlackoutTarget(req, res, next) {
     const targetId = parseInt(req.params.volunteerId, 10);
-    const role = req.session.userRole || "NON_REGISTERED";
-    const perms = req.session.permissions || PERMISSIONS;
-    const extra = Array.isArray(req.session.extraPermissions)
-      ? req.session.extraPermissions
-      : [];
-
-    const hasOverseer =
-      perms[role]?.editVolunteerInfo  ||
-      perms[role]?.createAssignments  ||
-      extra.includes("editVolunteerInfo");
     const isSelf = req.session.userId === targetId;
+    const canOthers =
+      sessionHasPermission(req.session, "volunteers.edit") ||
+      sessionHasPermission(req.session, "scheduler.use");
 
-    if (hasOverseer || isSelf) return next();
-
+    if (isSelf ? sessionHasPermission(req.session, "self.manageBlackouts") || canOthers : canOthers) {
+      return next();
+    }
     return res.status(403).json({ success: false, error: "Access denied." });
   }
 
@@ -93,7 +94,8 @@ export function blackoutRouter({ csrfProtection, logError }) {
   router.get(
     "/api/blackouts/:volunteerId",
     requireAuth,
-    requireBlackoutAccess,
+    requirePermission("self.manageBlackouts", "volunteers.edit", "scheduler.use"),
+    requireBlackoutTarget,
     async (req, res) => {
       const targetId = parseInt(req.params.volunteerId, 10);
       try {
@@ -135,7 +137,8 @@ export function blackoutRouter({ csrfProtection, logError }) {
   router.post(
     "/api/blackouts/:volunteerId",
     requireAuth,
-    requireBlackoutAccess,
+    requirePermission("self.manageBlackouts", "volunteers.edit", "scheduler.use"),
+    requireBlackoutTarget,
     csrfProtection,
     async (req, res) => {
       const targetId = parseInt(req.params.volunteerId, 10);

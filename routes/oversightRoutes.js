@@ -2259,7 +2259,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/locationsAndTasks",
     requireAuth,
-    requirePermission("manageShifts"),
+    requirePermission("locations.manage"),
     csrfProtection,
     async (req, res) => {
       const year = parseInt(req.query.year) || await getActiveYear();
@@ -2287,7 +2287,7 @@ export function oversightRouter({
   router.post(
     "/oversight/tools/locationsAndTasks",
     requireAuth,
-    requirePermission("manageShifts"),
+    requirePermission("locations.manage"),
     csrfProtection,
     async (req, res) => {
       const {
@@ -2345,7 +2345,7 @@ export function oversightRouter({
   router.put(
     "/oversight/tools/locationsAndTasks/:id",
     requireAuth,
-    requirePermission("manageShifts"),
+    requirePermission("locations.manage"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -2403,7 +2403,7 @@ export function oversightRouter({
   router.patch(
     "/oversight/tools/locationsAndTasks/:id/active",
     requireAuth,
-    requirePermission("manageShifts"),
+    requirePermission("locations.manage"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -2495,7 +2495,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/timelines/event-types",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("eventTypes.manage"),
     csrfProtection,
     async (req, res) => {
       try {
@@ -2529,7 +2529,7 @@ export function oversightRouter({
   router.post(
     "/oversight/tools/timelines/event-types",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("eventTypes.manage"),
     csrfProtection,
     async (req, res) => {
       const { dept_key, name, color, sort_order } = req.body || {};
@@ -2563,7 +2563,7 @@ export function oversightRouter({
   router.put(
     "/oversight/tools/timelines/event-types/:id",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("eventTypes.manage"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -2604,7 +2604,7 @@ export function oversightRouter({
   router.patch(
     "/api/scheduler-categories/:id/sensitivity",
     requireAuth,
-    requirePermission("manageScheduleSensitivity"),
+    requirePermission("crews.manageRestricted"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -2637,7 +2637,7 @@ export function oversightRouter({
   router.get(
     "/api/scheduler-categories/:id/sensitivity",
     requireAuth,
-    requirePermission("manageScheduleSensitivity"),
+    requirePermission("crews.manageRestricted"),
     async (req, res) => {
       const id = Number(req.params.id);
       if (!id)
@@ -2665,7 +2665,7 @@ export function oversightRouter({
   router.post(
     "/api/scheduler-categories/:id/sensitivity",
     requireAuth,
-    requirePermission("manageScheduleSensitivity"),
+    requirePermission("crews.manageRestricted"),
     csrfProtection,
     async (req, res) => {
       const categoryId = Number(req.params.id);
@@ -2698,7 +2698,7 @@ export function oversightRouter({
   router.delete(
     "/api/scheduler-categories/:id/sensitivity/:volunteerId",
     requireAuth,
-    requirePermission("manageScheduleSensitivity"),
+    requirePermission("crews.manageRestricted"),
     csrfProtection,
     async (req, res) => {
       const categoryId = Number(req.params.id);
@@ -2736,7 +2736,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/timelines",
     requireAuth,
-    requirePermission("manageShifts"),
+    requirePermission("shifts.manage"),
     csrfProtection,
     async (req, res) => {
       const year = parseInt(req.query.year) || await getActiveYear();
@@ -2779,7 +2779,7 @@ export function oversightRouter({
   router.post(
     "/oversight/tools/timelines/days",
     requireAuth,
-    requirePermission("manageShifts"),
+    requirePermission("convention.manageDays"),
     csrfProtection,
     async (req, res) => {
       const {
@@ -2844,7 +2844,7 @@ export function oversightRouter({
   router.put(
     "/oversight/tools/timelines/days/:id",
     requireAuth,
-    requirePermission("manageShifts"),
+    requirePermission("convention.manageDays"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -2907,7 +2907,7 @@ export function oversightRouter({
   router.delete(
     "/oversight/tools/timelines/days/:id",
     requireAuth,
-    requirePermission("manageShifts"),
+    requirePermission("convention.manageDays"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -2934,7 +2934,7 @@ export function oversightRouter({
   router.post(
     "/oversight/tools/timelines/days/:id/copy",
     requireAuth,
-    requirePermission("manageShifts"),
+    requirePermission("convention.manageDays"),
     csrfProtection,
     async (req, res) => {
       const sourceDayId = Number(req.params.id);
@@ -2995,7 +2995,7 @@ export function oversightRouter({
   router.post(
     "/oversight/tools/timelines/sessions",
     requireAuth,
-    requirePermission("manageShifts"),
+    requirePermission("convention.manageDays"),
     csrfProtection,
     async (req, res) => {
       const {
@@ -3038,7 +3038,7 @@ export function oversightRouter({
   router.put(
     "/oversight/tools/timelines/sessions/:id",
     requireAuth,
-    requirePermission("manageShifts"),
+    requirePermission("convention.manageDays"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -3077,7 +3077,7 @@ export function oversightRouter({
   router.delete(
     "/oversight/tools/timelines/sessions/:id",
     requireAuth,
-    requirePermission("manageShifts"),
+    requirePermission("convention.manageDays"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -3102,7 +3102,7 @@ export function oversightRouter({
   router.post(
     "/oversight/tools/timelines/shifts",
     requireAuth,
-    requirePermission("manageShifts"),
+    requirePermission("shifts.manage"),
     csrfProtection,
     async (req, res) => {
       const {
@@ -3178,7 +3178,7 @@ export function oversightRouter({
   router.put(
     "/oversight/tools/timelines/shifts/:id",
     requireAuth,
-    requirePermission("manageShifts"),
+    requirePermission("shifts.manage"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -3268,7 +3268,7 @@ export function oversightRouter({
   router.delete(
     "/oversight/tools/timelines/shifts/:id",
     requireAuth,
-    requirePermission("manageShifts"),
+    requirePermission("shifts.manage"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -3293,7 +3293,7 @@ export function oversightRouter({
   router.post(
     "/oversight/tools/timelines/assignments",
     requireAuth,
-    requirePermission("manageShifts"),
+    requirePermission("shifts.manage"),
     csrfProtection,
     async (req, res) => {
       const {
@@ -3333,7 +3333,7 @@ export function oversightRouter({
   router.put(
     "/oversight/tools/timelines/assignments/:id",
     requireAuth,
-    requirePermission("manageShifts"),
+    requirePermission("shifts.manage"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -3363,7 +3363,7 @@ export function oversightRouter({
   router.delete(
     "/oversight/tools/timelines/assignments/:id",
     requireAuth,
-    requirePermission("manageShifts"),
+    requirePermission("shifts.manage"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -3395,7 +3395,7 @@ export function oversightRouter({
   router.get(
     "/api/rendezvous/day/:dayId",
     requireAuth,
-    requirePermission("viewSchedules"),
+    requirePermission("schedules.view"),
     async (req, res) => {
       const dayId = Number(req.params.dayId);
       if (!dayId) {
@@ -3422,7 +3422,7 @@ export function oversightRouter({
   router.get(
     "/api/rendezvous/photo/:blobName",
     requireAuth,
-    requirePermission("viewSchedules"),
+    requirePermission("schedules.view"),
     async (req, res) => {
       const blobName = req.params.blobName;
       if (!blobName || !blobName.startsWith("rv-")) {
@@ -3448,7 +3448,7 @@ export function oversightRouter({
   router.get(
     "/api/rendezvous/:scheduleAssignmentId",
     requireAuth,
-    requirePermission("viewSchedules"),
+    requirePermission("schedules.view"),
     async (req, res) => {
       const saId = Number(req.params.scheduleAssignmentId);
       if (!saId) {
@@ -3478,7 +3478,7 @@ export function oversightRouter({
   router.get(
     "/api/rendezvous/:id/apply-candidates",
     requireAuth,
-    requirePermission("viewSchedules"),
+    requirePermission("schedules.view"),
     async (req, res) => {
       const id = Number(req.params.id);
       const year = Number(req.query.year) || await getActiveYear();
@@ -3517,7 +3517,7 @@ export function oversightRouter({
   router.post(
     "/api/rendezvous/:id/apply-to",
     requireAuth,
-    requirePermission("manageShifts"),
+    requirePermission("rendezvous.manage"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -3592,7 +3592,7 @@ export function oversightRouter({
   router.post(
     "/api/rendezvous",
     requireAuth,
-    requirePermission("editRendezvous"),
+    requirePermission("rendezvous.manage"),
     csrfProtection,
     async (req, res) => {
       const {
@@ -3650,7 +3650,7 @@ export function oversightRouter({
   router.put(
     "/api/rendezvous/:id",
     requireAuth,
-    requirePermission("editRendezvous"),
+    requirePermission("rendezvous.manage"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -3743,7 +3743,7 @@ export function oversightRouter({
   router.delete(
     "/api/rendezvous/:id",
     requireAuth,
-    requirePermission("manageShifts"),
+    requirePermission("rendezvous.manage"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -3796,7 +3796,7 @@ export function oversightRouter({
   router.post(
     "/api/rendezvous/:id/photo",
     requireAuth,
-    requirePermission("editRendezvous"),
+    requirePermission("rendezvous.manage"),
     csrfProtection,
     rvPhotoUpload.single("photo"),
     async (req, res) => {
@@ -3873,7 +3873,7 @@ export function oversightRouter({
   router.delete(
     "/api/rendezvous/:id/photo",
     requireAuth,
-    requirePermission("editRendezvous"),
+    requirePermission("rendezvous.manage"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -3928,7 +3928,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/rendezvous",
     requireAuth,
-    requirePermission("editRendezvous"),
+    requirePermission("rendezvous.manage"),
     csrfProtection,
     async (req, res) => {
       const year = parseInt(req.query.year) || await getActiveYear();
@@ -5046,7 +5046,7 @@ export function oversightRouter({
   router.patch(
     "/oversight/tools/timelines/shifts/:id/invitable",
     requireAuth,
-    requirePermission("manageShifts"),
+    requirePermission("shifts.manage"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -5660,7 +5660,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/crew-assignments",
     requireAuth,
-    requirePermission("createAssignments"),
+    requirePermission("crews.assign"),
     csrfProtection,
     async (req, res) => {
       try {
@@ -5789,7 +5789,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/scheduler/report",
     requireAuth,
-    requirePermission("createAssignments"),
+    requirePermission("scheduler.use"),
     csrfProtection,
     async (req, res) => {
       let dayId = Number(req.query.dayId) || null;
@@ -5814,9 +5814,7 @@ export function oversightRouter({
           reportData,
           conventionDays,
           selectedDayId: dayId,
-          canPublish:
-            !!req.session.permissions?.[req.session.userRole]
-              ?.accessAdminConsole,
+          canPublish: res.locals.can("scheduler.publish"),
         });
       } catch (err) {
         (logError || console.error)("scheduler/report GET error:", err);
@@ -5836,7 +5834,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/conflict-grid",
     requireAuth,
-    requirePermission("createAssignments"),
+    requirePermission("scheduler.use"),
     csrfProtection,
     async (req, res) => {
       try {
@@ -5861,7 +5859,7 @@ export function oversightRouter({
   router.get(
     "/api/conflict-grid",
     requireAuth,
-    requirePermission("createAssignments"),
+    requirePermission("scheduler.use"),
     async (req, res) => {
       try {
         const year = await getActiveYear();
@@ -5881,7 +5879,7 @@ export function oversightRouter({
   router.delete(
     "/api/conflict-grid/assignment",
     requireAuth,
-    requirePermission("createAssignments"),
+    requirePermission("scheduler.use"),
     async (req, res) => {
       const volunteerId = parseInt(req.body?.volunteerId, 10);
       const shiftId = parseInt(req.body?.shiftId, 10);
@@ -5914,7 +5912,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/scheduler",
     requireAuth,
-    requirePermission("createAssignments"),
+    requirePermission("scheduler.use"),
     csrfProtection,
     async (req, res) => {
       try {
@@ -5928,9 +5926,7 @@ export function oversightRouter({
           conventionDays,
           year,
           actorId: req.session.userId || 0,
-          canPublish:
-            !!req.session.permissions?.[req.session.userRole]
-              ?.accessAdminConsole,
+          canPublish: res.locals.can("scheduler.publish"),
         });
       } catch (err) {
         (logError || console.error)("scheduler GET error:", err);
@@ -5953,7 +5949,7 @@ export function oversightRouter({
   router.get(
     "/api/scheduler/volunteers",
     requireAuth,
-    requirePermission("createAssignments"),
+    requirePermission("scheduler.use"),
     async (req, res) => {
       try {
         const volunteers = await getSchedulerVolunteers();
@@ -5977,7 +5973,7 @@ export function oversightRouter({
   router.get(
       "/api/scheduler/column-prefs",
       requireAuth,
-      requirePermission("createAssignments"),
+      requirePermission("scheduler.use"),
       async (req, res) => {
           try {
               const prefs = await getSchedulerColumnPrefs(req.session.userId);
@@ -6000,7 +5996,7 @@ export function oversightRouter({
   router.put(
       "/api/scheduler/column-prefs",
       requireAuth,
-      requirePermission("createAssignments"),
+      requirePermission("scheduler.use"),
       async (req, res) => {
           try {
               const prefs = {
@@ -6030,7 +6026,7 @@ export function oversightRouter({
   router.get(
     "/api/scheduler/blackout-picker",
     requireAuth,
-    requirePermission("createAssignments"),
+    requirePermission("scheduler.use"),
     async (req, res) => {
       try {
         const year = await getActiveYear();
@@ -6059,7 +6055,7 @@ export function oversightRouter({
   router.get(
     "/api/scheduler/slots/:dayId",
     requireAuth,
-    requirePermission("createAssignments"),
+    requirePermission("scheduler.use"),
     async (req, res) => {
       const dayId = Number(req.params.dayId);
       if (!dayId)
@@ -6088,7 +6084,7 @@ export function oversightRouter({
   router.post(
     "/api/scheduler/slots",
     requireAuth,
-    requirePermission("createAssignments"),
+    requirePermission("scheduler.use"),
     csrfProtection,
     async (req, res) => {
       const {
@@ -6137,7 +6133,7 @@ export function oversightRouter({
   router.delete(
     "/api/scheduler/slots/:id",
     requireAuth,
-    requirePermission("createAssignments"),
+    requirePermission("scheduler.use"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -6165,7 +6161,7 @@ export function oversightRouter({
   router.get(
     "/api/scheduler/attendance/:dayId",
     requireAuth,
-    requirePermission("createAssignments"),
+    requirePermission("scheduler.use"),
     async (req, res) => {
       const dayId = Number(req.params.dayId);
       if (!dayId)
@@ -6293,7 +6289,7 @@ export function oversightRouter({
   router.get(
     "/api/scheduler/blackouts/:dayId",
     requireAuth,
-    requirePermission("createAssignments"),
+    requirePermission("scheduler.use"),
     async (req, res) => {
       const dayId = Number(req.params.dayId);
       const volunteerId = req.query.volunteerId
@@ -6327,7 +6323,7 @@ export function oversightRouter({
   router.post(
     "/api/scheduler/blackouts",
     requireAuth,
-    requirePermission("createAssignments"),
+    requirePermission("scheduler.use"),
     csrfProtection,
     async (req, res) => {
       const { volunteerId, conventionDayId, startMins, endMins, reason } =
@@ -6371,7 +6367,7 @@ export function oversightRouter({
   router.delete(
     "/api/scheduler/blackouts/:id",
     requireAuth,
-    requirePermission("createAssignments"),
+    requirePermission("scheduler.use"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -6406,7 +6402,7 @@ export function oversightRouter({
   router.get(
     "/api/scheduler/publish-history",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("scheduler.publish"),
     async (req, res) => {
       try {
         const rows = await getPublishHistory();
@@ -6449,7 +6445,7 @@ export function oversightRouter({
   router.get(
     "/api/scheduler/publish-recipients",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("scheduler.publish"),
     async (req, res) => {
       const dayIds = String(req.query.dayIds || "")
         .split(",")
@@ -6524,7 +6520,7 @@ export function oversightRouter({
   router.get(
     "/api/scheduler/:dayId",
     requireAuth,
-    requirePermission("createAssignments"),
+    requirePermission("scheduler.use"),
     async (req, res) => {
       const dayId = Number(req.params.dayId);
       if (!dayId)
@@ -6603,7 +6599,7 @@ export function oversightRouter({
   router.post(
     "/oversight/tools/scheduler/publish",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("scheduler.publish"),
     csrfProtection,
     async (req, res) => {
       // Accept dayIds[] (new) or dayId (legacy single-day)
@@ -6745,7 +6741,7 @@ export function oversightRouter({
   router.get(
     "/api/shifts/suggest-code",
     requireAuth,
-    requirePermission("manageShifts"),
+    requirePermission("shifts.manage"),
     async (req, res) => {
       const { conventionDate, category_id: categoryId, is_meeting } = req.query;
       const isMeeting = is_meeting === "true" || is_meeting === "1";
@@ -6822,7 +6818,7 @@ export function oversightRouter({
   router.get(
     "/api/campaign-meetings",
     requireAuth,
-    requirePermission("manageShifts"),
+    requirePermission("events.manage"),
     async (req, res) => {
       const year = req.query.year
         ? Number(req.query.year)
@@ -6845,7 +6841,7 @@ export function oversightRouter({
   router.put(
     "/api/campaign-meetings/:id",
     requireAuth,
-    requirePermission("manageShifts"),
+    requirePermission("events.manage"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -6887,7 +6883,7 @@ export function oversightRouter({
   router.delete(
     "/api/campaign-meetings/:id",
     requireAuth,
-    requirePermission("manageShifts"),
+    requirePermission("events.manage"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -7618,7 +7614,7 @@ export function oversightRouter({
   router.get(
     "/my-schedule",
     requireAuth,
-    requirePermission("viewSchedules"),
+    requirePermission("self.viewSchedule"),
     csrfProtection,
     async (req, res) => {
       try {
@@ -7658,7 +7654,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/volunteer-schedule",
     requireAuth,
-    requirePermission("createAssignments"),
+    requirePermission("scheduler.use"),
     csrfProtection,
     async (req, res) => {
       try {
@@ -7745,7 +7741,7 @@ export function oversightRouter({
   router.post(
     "/api/volunteer-schedule/:volunteerId/send",
     requireAuth,
-    requirePermission("viewSchedules"),
+    requirePermission("schedules.sendToVolunteer"),
     csrfProtection,
     express.json(),
     async (req, res) => {

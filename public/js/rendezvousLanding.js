@@ -13,7 +13,6 @@ import {
   openRendezvousPanel,
   dismissRendezvousPanel,
 } from "./rendezvous.js";
-import { isRoleAtLeast } from "./roles.js";
 
 // ─────────────────────────────────────────────
 //  State
@@ -32,15 +31,15 @@ let _eventFilter = "";
 //  Permission helpers
 // ─────────────────────────────────────────────
 
-const _role = document.querySelector('meta[name="user-role"]')?.content || "";
-
 /**
- * True when the signed-in user's role is at or above `minRole`.
- * @param {string} minRole
+ * True when the signed-in person may create, edit and delete rendezvous
+ * points (rendezvous.manage, phase 3d-4). Read from public/js/permissions.js,
+ * which loads before this module. The server checks every change anyway.
+ *
  * @returns {boolean}
  */
-function _isAtLeast(minRole) {
-    return isRoleAtLeast(_role, minRole);
+function _canManageRendezvous() {
+    return window.AppPermissions?.can("rendezvous.manage") === true;
 }
 
 // ─────────────────────────────────────────────
@@ -183,9 +182,9 @@ function _renderDay(dayId) {
         locationName: rv.location_name,
         startTime: startHHMM,
         conventionDate: convDate,
-        canCreate: _isAtLeast("OVERSEER"),
-        canEdit: _isAtLeast("KEYMAN"),
-        canDelete: _isAtLeast("OVERSEER"),
+        canCreate: _canManageRendezvous(),
+        canEdit: _canManageRendezvous(),
+        canDelete: _canManageRendezvous(),
         anchorX: e.clientX,
         anchorY: e.clientY,
         onUpdate: () => {

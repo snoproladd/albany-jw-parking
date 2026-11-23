@@ -40,7 +40,30 @@
           const _navRole        = navState.userRole || 'NON_REGISTERED';
           const _navRoleLevel   = roleLevelOf(_navRole);
           const isAtLeast       = (r) => isRoleAtLeast(_navRole, r);
-          const can             = (permission) => !!(userPermissions && userPermissions[_navRole] && userPermissions[_navRole][permission]);
+          // Phase 3d: menu items whose tools have moved to permission keys use has('area.action')
+          // (res.locals.can, the person's positions, fresh on every page load). Items whose tools
+          // are still on old keys use oldCan() / isAtLeast() until their slice converts them.
+          const oldCan          = (permission) => !!(userPermissions && userPermissions[_navRole] && userPermissions[_navRole][permission]);
+          const has             = (key) => typeof can === 'function' && can(key);
+          const hasAny          = (...keys) => keys.some((k) => has(k));
+
+          // One flag per Operations group; the Operations menu shows when any group does.
+          const navDocs         = oldCan('viewMaps') || has('schedules.view') || oldCan('editVolunteerInfo');
+          const navComms        = oldCan('accessAdminConsole') || has('volunteers.sendSignInLinks');
+          const navVolunteers   = hasAny('volunteers.edit', 'volunteers.create', 'positions.assign', 'notes.view');
+          const navConvention   = isAtLeast('KEYMAN');
+          const navReports      = has('volunteers.viewReports');
+          const navSigns        = oldCan('viewSigns') || oldCan('manageSigns');
+          const navScheduling   = hasAny('shifts.manage', 'locations.manage', 'eventTypes.manage',
+                                         'crews.assign', 'scheduler.use', 'scheduler.manageRules')
+                                  || oldCan('accessAdminConsole');   // shift / capacity alerts (3d-5)
+          const navAttendance   = hasAny('attendance.checkIn', 'attendance.viewReports');
+          const navCounts       = navState.canLogParkingCount;
+          const navDecently     = oldCan('accessAdminConsole');
+          const navSystemVars   = oldCan('manageRoles') && isAtLeast('ADMIN');   // system variables (3d-6)
+          const navAdmin        = hasAny('positions.manage', 'structure.manage') || navSystemVars;
+          const navOperations   = navDocs || navComms || navVolunteers || navConvention || navReports || navSigns
+                                  || navScheduling || navAttendance || navCounts || navDecently || navAdmin;
         %>
 
         <!-- Nav items — left side, spread with auto margins -->
@@ -62,6 +85,7 @@
                 Resources
               </a>
               <ul class="dropdown-menu" aria-labelledby="resourcesDropdown">
+                <% if (has('self.viewSchedule')) { %>
                 <li>
                   <a class="dropdown-item" href="/my-schedule">
                     <i class="fa-solid fa-calendar-check me-1"></i>
@@ -69,6 +93,7 @@
                   </a>
                 </li>
                 <li><hr class="dropdown-divider" /></li>
+                <% } %>
                 <li>
                   <a class="dropdown-item" href="/maps">
                     <i class="fa-solid fa-map me-1"></i>
@@ -76,7 +101,7 @@
                   </a>
                 </li>
 
-                <% if (can('viewSigns')) { %>
+                <% if (oldCan('viewSigns')) { %>
                 <li>
                   <a class="dropdown-item" href="/signs">
                     <i class="fa-solid fa-signs-post me-1"></i>
@@ -84,12 +109,14 @@
                   </a>
                 </li>
                 <% } %>
+                <% if (has('schedules.view')) { %>
                 <li>
                   <a class="dropdown-item" href="/schedules">
                     <i class="fa-regular fa-calendar-days me-1"></i>
                     Schedules
                   </a>
                 </li>
+                <% } %>
                 <% if (navState.canLogParkingCount) { %>
                 <li>
                   <a class="dropdown-item" href="/counts">
@@ -98,7 +125,7 @@
                   </a>
                 </li>
                 <% } %>
-                <% if (can('editVolunteerInfo')) { %>
+                <% if (oldCan('editVolunteerInfo')) { %>
                 <li><hr class="dropdown-divider" /></li>
                 <li>
                   <a class="dropdown-item" href="/lessons-learned">
@@ -112,7 +139,7 @@
 
             
 
-            <% if (can('viewSigns') || isAtLeast('KEYMAN') || _navRole === 'DESK'){ %>
+            <% if (navOperations) { %>
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" id="oversightDropdown"
                  role="button" data-bs-toggle="dropdown" aria-expanded="false"
@@ -129,7 +156,7 @@
                   </a>
                 </li>
 
-                <% if (can('viewMaps') || can('viewSchedules') || can('editVolunteerInfo')) { %>
+                <% if (navDocs) { %>
                 <%# ── Docs ────────────────────────────────────────── %>
                 <li>
                   <button class="ot-nav-category" type="button"
@@ -142,17 +169,17 @@
                 <li>
                   <div class="collapse" id="otNavDocs">
                     <ul class="ot-nav-items">
-                      <% if (can('viewMaps')) { %>
+                      <% if (oldCan('viewMaps')) { %>
                         <li><a class="ot-nav-item" href="/maps">
                           <i class="fa-solid fa-map"></i>Maps
                         </a></li>
                       <% } %>
-                      <% if (can('viewSchedules')) { %>
+                      <% if (has('schedules.view')) { %>
                         <li><a class="ot-nav-item" href="/schedules">
                           <i class="fa-solid fa-calendar-check"></i>Schedules
                         </a></li>
                       <% } %>
-                      <% if (can('editVolunteerInfo')) { %>
+                      <% if (oldCan('editVolunteerInfo')) { %>
                         <li><a class="ot-nav-item" href="/lessons-learned">
                           <i class="fa-solid fa-lightbulb"></i>Lessons Learned
                         </a></li>
@@ -162,7 +189,7 @@
                 </li>
                 <% } %>
 
-                <% if (can('accessAdminConsole')) { %>
+                <% if (navComms) { %>
                 <%# ── Communications ─────────────────────────────── %>
                 <li>
                   <button class="ot-nav-category" type="button"
@@ -175,21 +202,25 @@
                 <li>
                   <div class="collapse" id="otNavComms">
                     <ul class="ot-nav-items">
+                      <% if (oldCan('accessAdminConsole')) { %>
                       <li><a class="ot-nav-item" href="/oversight/tools/campaigns">
                         <i class="fa-solid fa-envelope-open-text"></i>Campaign Center
                       </a></li>
                       <li><a class="ot-nav-item" href="/oversight/tools/campaigns/tracker">
                         <i class="fa-solid fa-chart-gantt"></i>Invitation Tracker
                       </a></li>
+                      <% } %>
+                      <% if (has('volunteers.sendSignInLinks')) { %>
                       <li><a class="ot-nav-item" href="/oversight/tools/send-reset">
                         <i class="fa-solid fa-link"></i>Send Reset Link
                       </a></li>
+                      <% } %>
                     </ul>
                   </div>
                 </li>
                 <% } %>
 
-                <% if (can('manageRoles') || can('editVolunteerInfo') || can('createVolunteerAccounts') || isAtLeast('OVERSEER')) { %>
+                <% if (navVolunteers) { %>
                 <%# ── Volunteer Management ────────────────────────── %>
                 <li>
                   <button class="ot-nav-category" type="button"
@@ -202,22 +233,22 @@
                 <li>
                   <div class="collapse" id="otNavVolunteers">
                     <ul class="ot-nav-items">
-                      <% if (can('editVolunteerInfo')) { %>
+                      <% if (has('volunteers.edit')) { %>
                         <li><a class="ot-nav-item" href="/editVolunteer">
                           <i class="fa-solid fa-id-card"></i>Edit Volunteer
                         </a></li>
                       <% } %>
-                      <% if (can('createVolunteerAccounts')) { %>
+                      <% if (has('volunteers.create')) { %>
                         <li><a class="ot-nav-item" href="/oversight/tools/create-volunteer">
                           <i class="fa-solid fa-user-plus"></i>Create Volunteer
                         </a></li>
                       <% } %>
-                      <% if (can('manageRoles') || isAtLeast('OVERSEER')) { %>
+                      <% if (has('positions.assign')) { %>
                         <li><a class="ot-nav-item" href="/oversight/roles">
                           <i class="fa-solid fa-user-shield"></i>Role Management
                         </a></li>
                       <% } %>
-                      <% if (isAtLeast('OVERSEER')) { %>
+                      <% if (has('notes.view')) { %>
                         <li><a class="ot-nav-item" href="/oversight/tools/notes-report">
                           <i class="fa-solid fa-note-sticky"></i>Notes Report
                         </a></li>
@@ -227,7 +258,7 @@
                 </li>
                 <% } %>
 
-<% if (isAtLeast('KEYMAN')) { %>
+<% if (navConvention) { %>
                 <%# ── Convention ─────────────────────────────────────────── %>
                 <li>
                   <button class="ot-nav-category" type="button"
@@ -248,7 +279,7 @@
                 </li>
                 <% } %>
 
-<% if (isAtLeast('OVERSEER')) { %>
+<% if (navReports) { %>
                 <%# ── Reports ─────────────────────────────────────────── %>
                 <li>
                   <button class="ot-nav-category" type="button"
@@ -290,7 +321,7 @@
                 </li>
                 <% } %>
 
-                <% if (can('viewSigns') || can('manageSigns')) { %>
+                <% if (navSigns) { %>
                 <%# ── Signs %>
                 <li>
                   <button class="ot-nav-category" type="button"
@@ -303,17 +334,17 @@
                 <li>
                   <div class="collapse" id="otNavSigns">
                     <ul class="ot-nav-items">
-                      <% if (can('viewSigns')) { %>
+                      <% if (oldCan('viewSigns')) { %>
                         <li><a class="ot-nav-item" href="/signs">
                           <i class="fa-solid fa-table-list"></i>Sign Library
                         </a></li>
                       <% } %>
-                      <% if (can('manageSigns')) { %>
+                      <% if (oldCan('manageSigns')) { %>
                         <li><a class="ot-nav-item" href="/signs/builder">
                           <i class="fa-solid fa-pen-to-square"></i>Sign Builder
                         </a></li>
                       <% } %>
-                      <% if (can('viewSigns')) { %>
+                      <% if (oldCan('viewSigns')) { %>
                         <li><a class="ot-nav-item" href="/signs/map">
                           <i class="fa-solid fa-map-location-dot"></i>Sign Map
                         </a></li>
@@ -323,7 +354,7 @@
                 </li>
                 <% } %>
 
-                <% if (can('manageShifts') || can('accessAdminConsole')) { %>
+                <% if (navScheduling) { %>
                 <%# ── Scheduling ──────────────────────────────────── %>
                 <li>
                   <button class="ot-nav-category" type="button"
@@ -336,23 +367,27 @@
                 <li>
                   <div class="collapse" id="otNavScheduling">
                     <ul class="ot-nav-items">
-                      <% if (can('manageShifts')) { %>
+                      <% if (has('shifts.manage')) { %>
                         <li><a class="ot-nav-item" href="/oversight/tools/timelines">
                           <i class="fa-regular fa-clock"></i>Timelines
                         </a></li>
+                      <% } %>
+                      <% if (has('locations.manage')) { %>
                         <li><a class="ot-nav-item" href="/oversight/tools/locationsAndTasks">
                           <i class="fa-solid fa-map-pin"></i>Locations
                         </a></li>
                       <% } %>
-                      <% if (can('accessAdminConsole')) { %>
+                      <% if (has('eventTypes.manage')) { %>
                         <li><a class="ot-nav-item" href="/oversight/tools/timelines/event-types">
                           <i class="fa-solid fa-tags"></i>Event Types
                         </a></li>
                       <% } %>
-                      <% if (can('createAssignments')) { %>
+                      <% if (has('crews.assign')) { %>
                         <li><a class="ot-nav-item" href="/oversight/tools/crew-assignments">
                           <i class="fa-solid fa-people-group"></i>Crew Assignments
                         </a></li>
+                      <% } %>
+                      <% if (has('scheduler.use')) { %>
                        <li><a class="ot-nav-item" href="/oversight/tools/scheduler">
                         <i class="fa-solid fa-calendar-days"></i>Scheduler
                       </a></li>
@@ -363,12 +398,12 @@
                         <i class="fa-solid fa-calendar-check"></i>Volunteer Schedule
                       </a></li>
                       <% } %>
-                      <% if (can('deleteVolunteer') && isAtLeast('ADMIN')) { %>
+                      <% if (has('scheduler.manageRules')) { %>
                         <li><a class="ot-nav-item" href="/oversight/tools/schedule-rules">
                           <i class="fa-solid fa-list-check"></i>Schedule Analysis Rules
                         </a></li>
                       <% } %>
-                      <% if (can('accessAdminConsole')) { %>
+                      <% if (oldCan('accessAdminConsole')) { %>
                         <li><a class="ot-nav-item" href="/oversight/tools/shift-alerts">
                           <i class="fa-solid fa-bell"></i>Shift Alerts
                         </a></li>
@@ -381,7 +416,7 @@
                 </li>
                 <% } %>
 
-                <% if (can('logAttendance') || can('viewAttendance')) { %>
+                <% if (navAttendance) { %>
                 <%# ── Attendance ───────────────────────────────────── %>
                 <li>
                   <button class="ot-nav-category" type="button"
@@ -394,12 +429,12 @@
                 <li>
                   <div class="collapse" id="otNavAttendance">
                     <ul class="ot-nav-items">
-                      <% if (can('logAttendance')) { %>
+                      <% if (has('attendance.checkIn')) { %>
                         <li><a class="ot-nav-item" href="/oversight/tools/attendance/checkin">
                           <i class="fa-solid fa-clipboard-check"></i>Check-In Tool
                         </a></li>
                       <% } %>
-                      <% if (can('viewAttendance')) { %>
+                      <% if (has('attendance.viewReports')) { %>
                         <li><a class="ot-nav-item" href="/oversight/tools/attendance/report">
                           <i class="fa-solid fa-chart-bar"></i>Attendance Report
                         </a></li>
@@ -432,7 +467,7 @@
                 </li>
                 <% } %>
 
-                <% if (can('accessAdminConsole')) { %>
+                <% if (navDecently) { %>
                 <%# ── Decently Sync ───────────────────────────────── %>
                 <li>
                   <button class="ot-nav-category" type="button"
@@ -456,7 +491,7 @@
                 </li>
                 <% } %>
 
-                <% if (can('manageRoles') && isAtLeast('ADMIN')) { %>
+                <% if (navAdmin) { %>
                 <%# ── Administration ─────────────────────────────── %>
                 <li>
                   <button class="ot-nav-category" type="button"
@@ -469,15 +504,21 @@
                 <li>
                   <div class="collapse" id="otNavAdmin">
                     <ul class="ot-nav-items">
+                      <% if (has('positions.manage')) { %>
                       <li><a class="ot-nav-item" href="/oversight/tools/permissions">
                         <i class="fa-solid fa-sliders"></i>Permission Matrix
                       </a></li>
+                      <% } %>
+                      <% if (has('structure.manage')) { %>
                       <li><a class="ot-nav-item" href="/oversight/tools/oversightstructure">
                         <i class="fa-solid fa-sitemap"></i>Oversight Structure
                       </a></li>
+                      <% } %>
+                      <% if (navSystemVars) { %>
                       <li><a class="ot-nav-item" href="/oversight/tools/system-variables">
                         <i class="fa-solid fa-database"></i>System Variables
                       </a></li>
+                      <% } %>
                     </ul>
                   </div>
                 </li>
@@ -551,7 +592,7 @@
                       My Account
                     </a>
                   </li>
-                  <% if (isAtLeast('REGISTERED')) { %>
+                  <% if (has('self.viewSchedule')) { %>
                   <li>
                     <a class="dropdown-item" href="/my-schedule">
                       <i class="fa-solid fa-calendar-check me-1"></i>

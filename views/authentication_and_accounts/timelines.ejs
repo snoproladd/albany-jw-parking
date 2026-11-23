@@ -171,7 +171,7 @@
                             </span>
                           </td>
                           <td>
-                            <% if (isRoleAtLeast(userRole, 'OVERSEER')) { %>
+                            <% if (can('crews.manageRestricted')) { %>
                               <div class="d-flex align-items-center gap-1">
                                 <button type="button"
                                         class="btn btn-sm <%= et.is_sensitive ? 'btn-danger' : 'btn-outline-secondary' %> et-sensitivity-btn"
@@ -244,7 +244,7 @@
                     <% } %>
                   </select>
                 </form>
-                <button type="button" class="btn btn-warning btn-sm" id="addDayBtn">
+                <button type="button" class="btn btn-warning btn-sm<%= can('convention.manageDays') ? '' : ' d-none' %>" id="addDayBtn">
                   <i class="fa-solid fa-plus me-1"></i>Add Convention Day
                 </button>
               </div>
@@ -386,7 +386,7 @@
                               <% } %>
                             </div>
                             <div class="d-flex gap-1">
-                              <button type="button" class="btn btn-outline-secondary btn-sm day-edit-btn"
+                              <button type="button" class="btn btn-outline-secondary btn-sm day-edit-btn<%= can('convention.manageDays') ? '' : ' d-none' %>"
                                 aria-label="Edit <%= day.label %>"
                                 data-id="<%= day.id %>"
                                 data-label="<%= day.label %>"
@@ -397,7 +397,7 @@
                                 data-schedulable="<%= day.schedulable ? 'true' : 'false' %>">
                                 <i class="fa-solid fa-pen"></i>
                               </button>
-                              <button type="button" class="btn btn-outline-secondary btn-sm day-copy-btn"
+                              <button type="button" class="btn btn-outline-secondary btn-sm day-copy-btn<%= can('convention.manageDays') ? '' : ' d-none' %>"
                                 data-id="<%= day.id %>"
                                 data-label="<%= day.label %>"
                                 data-start="<%= day.program_start instanceof Date ? day.program_start.toISOString() : day.program_start %>"
@@ -427,7 +427,7 @@
                     <i class="fa-regular fa-calendar-days me-2 text-warning"></i>
                     <%= selectedDay.label %> — Sessions &amp; Shifts
                   </h2>
-                  <button type="button" class="btn btn-outline-warning btn-sm" id="addSessionBtn"
+                  <button type="button" class="btn btn-outline-warning btn-sm<%= can('convention.manageDays') ? '' : ' d-none' %>" id="addSessionBtn"
                     data-day-id="<%= selectedDay.id %>">
                     <i class="fa-solid fa-plus me-1"></i>Add Session
                   </button>
@@ -682,7 +682,7 @@
 
                             <%# Session action bar %>
                             <div class="d-flex gap-2 mb-3 flex-wrap">
-                              <button type="button" class="btn btn-outline-secondary btn-sm session-edit-btn"
+                              <button type="button" class="btn btn-outline-secondary btn-sm session-edit-btn<%= can('convention.manageDays') ? '' : ' d-none' %>"
                                 data-id="<%= block.session.id %>"
                                 data-label="<%= block.session.label %>"
                                 data-order="<%= block.session.session_order %>"
@@ -858,7 +858,9 @@
     <%- include('../partials/footer') %>
 
     <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <%- include('../partials/permissionsData') %>
+    <script src="/js/permissions.js" defer></script>
     <script type="module" src="/js/timelines.js"></script>
     <script type="module" src="/js/tours/timelinesTour.js"></script>
   </body>
-</html>
+</html>

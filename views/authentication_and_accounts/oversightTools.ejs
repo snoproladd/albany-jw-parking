@@ -32,12 +32,14 @@
                                    'positions.assign', 'notes.view', 'sms.manageOptOuts');
     const showReports        = can('volunteers.viewReports');
     const showSigns          = oldCan('viewSigns') || oldCan('manageSigns');
-    const showScheduling     = oldCan('manageShifts') || oldCan('createAssignments') || oldCan('accessAdminConsole');
+    const showScheduling     = any('shifts.manage', 'locations.manage', 'rendezvous.manage', 'eventTypes.manage',
+                                   'crews.assign', 'scheduler.use', 'scheduler.manageRules')
+                               || oldCan('accessAdminConsole');   // shift / capacity alert cards (3d-5)
     const showAttendance     = any('attendance.checkIn', 'attendance.viewReports');
     const showLessons        = isAtLeast('KEYMAN');
     const showDecently       = oldCan('accessAdminConsole');
     const showAdministration = any('positions.manage', 'structure.manage');
-    const showDocs           = oldCan('viewMaps') || oldCan('viewSchedules');
+    const showDocs           = oldCan('viewMaps') || can('schedules.view');
   %>
 
   <main class="container-fluid py-4 px-4">
@@ -498,7 +500,7 @@
               </h2>
               <div class="row g-4 mb-5">
 
-                <% if (oldCan('manageShifts')) { %>
+                <% if (can('shifts.manage')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-warning">
@@ -513,7 +515,7 @@
                   </div>
                 <% } %>
 
-                <% if (oldCan('manageShifts')) { %>
+                <% if (can('locations.manage')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-primary">
@@ -528,7 +530,7 @@
                   </div>
                 <% } %>
 
-                <% if (oldCan('editRendezvous')) { %>
+                <% if (can('rendezvous.manage')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-info">
@@ -543,7 +545,7 @@
                   </div>
                 <% } %>
 
-                <% if (oldCan('accessAdminConsole')) { %>
+                <% if (can('eventTypes.manage')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-secondary">
@@ -558,7 +560,7 @@
                   </div>
                 <% } %>
 
-                <% if (oldCan('createAssignments')) { %>
+                <% if (can('crews.assign')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-warning">
@@ -573,7 +575,7 @@
                   </div>
                 <% } %>
 
-                <% if (oldCan('createAssignments')) { %>
+                <% if (can('scheduler.use')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-success">
@@ -588,7 +590,7 @@
                   </div>
                 <% } %>
 
-                <% if (oldCan('createAssignments')) { %>
+                <% if (can('scheduler.use')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-warning">
@@ -603,7 +605,7 @@
                   </div>
                 <% } %>
 
-                <% if (oldCan('deleteVolunteer')) { %>
+                <% if (can('scheduler.manageRules')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-primary">
@@ -618,7 +620,7 @@
                   </div>
                 <% } %>
 
-                <% if (oldCan('createAssignments')) { %>
+                <% if (can('scheduler.use')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-info">
@@ -869,7 +871,7 @@
                   </div>
                 <% } %>
 
-                <% if (oldCan('viewSchedules')) { %>
+                <% if (can('schedules.view')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-success">

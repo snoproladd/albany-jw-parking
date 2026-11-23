@@ -18,7 +18,7 @@
 import express from "express";
 import * as db from "../lib/dbSync.js";
 import { analyzeNote, computeNoteHash } from "../lib/noteAnalyzer.js";
-import { requirePermission } from "../src/config/roles.js";
+import { requirePermission } from "../middleware/requirePermission.js";
 import { getActiveYear } from "../lib/conventionYear.js";
 
 /** Milliseconds a cached analysis is considered fresh (note hash unchanged). */
@@ -76,7 +76,7 @@ export function noteAnalysisRouter({ csrfProtection, logError }) {
   router.get(
     "/api/notes/analysis/:volunteerId",
     requireAuth,
-    requirePermission("viewVolunteerInfo"),
+    requirePermission("notes.analyze"),
     async (req, res) => {
       const volunteerId = Number(req.params.volunteerId);
       if (!Number.isInteger(volunteerId) || volunteerId <= 0) {
@@ -121,7 +121,7 @@ export function noteAnalysisRouter({ csrfProtection, logError }) {
   router.post(
     "/api/notes/analyze/batch",
     requireAuth,
-    requirePermission("deleteVolunteer"),
+    requirePermission("notes.analyzeAll"),
     async (req, res) => {
       const analyzedBy = req.session.userId;
 
@@ -221,7 +221,7 @@ export function noteAnalysisRouter({ csrfProtection, logError }) {
   router.post(
     "/api/notes/analyze/:volunteerId",
     requireAuth,
-    requirePermission("viewVolunteerInfo"),
+    requirePermission("notes.analyze"),
     async (req, res) => {
       const volunteerId = Number(req.params.volunteerId);
       const analyzedBy = req.session.userId;
@@ -337,7 +337,7 @@ export function noteAnalysisRouter({ csrfProtection, logError }) {
   router.post(
     "/api/notes/analysis/:analysisId/accept-action",
     requireAuth,
-    requirePermission("editVolunteerInfo"),
+    requirePermission("volunteers.edit"),
     async (req, res) => {
       const analysisId = Number(req.params.analysisId);
       const createdBy = req.session.userId;

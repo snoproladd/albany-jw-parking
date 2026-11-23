@@ -1397,15 +1397,17 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
 
+      const canManageRendezvous = window.AppPermissions?.can("rendezvous.manage") === true;
       openRendezvousPanel({
         assignmentId,
         shiftLabel,
         locationName,
         startTime,
         conventionDate: convDate,
-        canCreate: true,
-        canEdit: true,
-        canDelete: true,
+        // Rendezvous editing is its own permission (phase 3d-4).
+        canCreate: canManageRendezvous,
+        canEdit: canManageRendezvous,
+        canDelete: canManageRendezvous,
         anchorX: e.clientX,
         anchorY: e.clientY,
         onUpdate: () => syncRvPinState(btn),
