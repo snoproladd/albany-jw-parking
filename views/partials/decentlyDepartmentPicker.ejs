@@ -1,0 +1,38 @@
+<%#
+  Decently department picker (multi-department phase 2d).
+  Volunteer Services staff choose which department the Decently export and
+  import act on; everyone else sees which department they are working in.
+  State comes from middleware/decentlyDepartment.js (res.locals.decently).
+  Include with: include('../partials/decentlyDepartmentPicker', { decentlyReturnTo: '<page path>' })
+%>
+<% const dd = (typeof decently !== 'undefined' && decently) ? decently : null; %>
+<% if (dd && dd.canPick) { %>
+  <form class="decently-dept-picker border rounded p-3 mb-3"
+        action="/oversight/tools/decently/department" method="POST">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <input type="hidden" name="returnTo" value="<%= decentlyReturnTo %>" />
+    <div class="d-flex flex-wrap align-items-end gap-2">
+      <div>
+        <label for="decentlyDepartmentSelect" class="form-label small fw-semibold mb-1">
+          <i class="fa-solid fa-building-user me-1"></i>Department
+        </label>
+        <select class="form-select form-select-sm" id="decentlyDepartmentSelect" name="departmentId">
+          <% dd.options.forEach(function (d) { %>
+            <option value="<%= d.id %>" <%= d.id === dd.departmentId ? 'selected' : '' %>><%= d.name %></option>
+          <% }) %>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-outline-primary btn-sm" id="decentlyDepartmentBtn">
+        Use this department
+      </button>
+    </div>
+    <p class="small text-muted mb-0 mt-2">
+      Volunteer Services: one Decently file per department. Working on
+      <strong><%= dd.departmentName %></strong>.
+    </p>
+  </form>
+<% } else if (dd && dd.departmentName) { %>
+  <p class="small text-muted mb-3">
+    <i class="fa-solid fa-building-user me-1"></i>Department: <strong><%= dd.departmentName %></strong>
+  </p>
+<% } %>

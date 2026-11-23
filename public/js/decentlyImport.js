@@ -6,6 +6,9 @@
  *  1. Upload    — user selects a CSV; client parses it.
  *  2. Review    — parsed rows sent to /process; results rendered into four tables.
  *                 Fuzzy rows expose per-row dropdowns for manual mapping.
+ *                 Volunteer Services imports match against everyone; people
+ *                 not yet in the department are marked "New to <department>"
+ *                 and join it on apply (multi-department phase 2d).
  *  3. Apply     — confirmed mapping sent to /apply; matched IDs activated
  *                 (Maybes are approved but held inactive until they reply
  *                 Yes), unmatched DB volunteers deactivated.
@@ -75,6 +78,8 @@ document.addEventListener("DOMContentLoaded", () => {
   let stateToCreate = [];
   /** @type {Array<{id:number, firstName:string, lastName:string, email:string|null, phone:string|null}>} */
   let stateCreated = [];
+  /** @type {string} department the import is for (from /process) */
+  let stateDepartmentName = "this department";
 
   // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -257,6 +262,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
+      stateDepartmentName = data.departmentName || "this department";
       stateMatched = data.matched || [];
       stateFuzzy = data.fuzzy || [];
       stateUnmatchedDb = data.unmatchedDb || [];
@@ -288,12 +294,18 @@ document.addEventListener("DOMContentLoaded", () => {
                     <td class="text-muted small">${esc(csvRow.email)}</td>
                     <td class="text-muted small">${esc(csvRow.phone)}</td>
                     <td><strong>${esc(dbName(dbMatch))}</strong>
+                        ${dbMatch.is_member === false
+                          ? `<span class="badge bg-info text-dark ms-1" title="Has an account but is not in ${esc(stateDepartmentName)} yet — joins it on apply">New to ${esc(stateDepartmentName)}</span>`
+                          : ""}
                         ${dbMatch.parking_disapproved
                           ? '<span class="badge bg-danger ms-1" title="Marked not approved for parking this year — stays inactive">Not approved for parking — stays inactive</span>'
                           : dbMatch.recruitment_reply === "maybe"
                             ? '<span class="badge bg-warning text-dark ms-1" title="Replied Maybe — will be approved but stay inactive until they reply Yes">Approved — waiting on Yes</span>'
                             : ""}
                         <div class="text-muted small">${esc(dbMatch.email || "")} · ${esc(dbMatch.phone || "")}</div>
+                        ${dbMatch.other_departments
+                          ? `<div class="text-muted small">Also serves in: ${esc(dbMatch.other_departments)}</div>`
+                          : ""}
                     </td>
                     <td><span class="badge ${
                       confidence === "email"
@@ -320,6 +332,10 @@ document.addEventListener("DOMContentLoaded", () => {
           .map(
             (c) =>
               `<option value="${c.id}">${esc(dbName(c))} — ${esc(c.email || "")} · ${esc(c.phone || "")}${
+                c.is_member === false
+                  ? ` (new to ${esc(stateDepartmentName)}${c.other_departments ? ` — serves in ${esc(c.other_departments)}` : ""})`
+                  : ""
+              }${
                 c.parking_disapproved
                   ? " (not approved for parking — stays inactive)"
                   : c.recruitment_reply === "maybe"
@@ -453,6 +469,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 <span class="text-success fw-semibold">
                     <i class="fa-solid fa-circle-check me-1"></i>
                     ${data.activated} activated, ${data.deactivated} deactivated${
+                      data.joined
+                        ? `, ${data.joined} joined ${esc(stateDepartmentName)}`
+                        : ""
+                    }${
                       data.heldMaybe
                         ? `, ${data.heldMaybe} approved but held (replied Maybe — they activate when they reply Yes)`
                         : ""
@@ -645,6 +665,9 @@ document.addEventListener("DOMContentLoaded", () => {
           headers: {
             "Content-Type": "application/json",
             "X-CSRF-Token": csrfToken,
+            // Create the account in the import's department (Volunteer
+            // Services may be importing for another department).
+            "X-Decently-Import": "1",
           },
           body: JSON.stringify({
             firstName,

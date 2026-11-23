@@ -33,6 +33,14 @@
 
             <div class="card-body">
 
+              <% if (typeof error !== 'undefined' && error) { %>
+                <div class="alert alert-danger" role="alert">
+                  <i class="fa-solid fa-triangle-exclamation me-2"></i><%= error %>
+                </div>
+              <% } %>
+
+              <%- include('../partials/decentlyDepartmentPicker', { decentlyReturnTo: '/oversight/tools/decently-import' }) %>
+
               <%# ── Phase 1: Upload ── %>
               <div id="phase-upload">
                 <p class="text-muted mb-3">
@@ -70,7 +78,11 @@
                     <i class="fa-solid fa-circle-check text-success me-1"></i>
                     Exact Matches <span class="badge bg-success ms-1" id="matchedCount">0</span>
                   </h3>
-                  <p class="text-muted small mb-2">These will be marked <strong>active</strong> and logged as imported.</p>
+                  <p class="text-muted small mb-2">
+                    These will be marked <strong>active</strong> and logged as imported.
+                    Anyone marked <span class="badge bg-info text-dark">New to this department</span>
+                    already has an account and joins this department.
+                  </p>
                   <div class="table-responsive">
                     <table class="table table-sm table-hover align-middle" id="matchedTable">
                       <thead class="table-light">
@@ -243,4 +255,4 @@
     <script src="/js/decentlyImport.js"></script>
     <script type="module" src="/js/tours/decentlyImportTour.js"></script>
   </body>
-</html>
+</html>

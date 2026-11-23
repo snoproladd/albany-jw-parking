@@ -203,6 +203,12 @@ import {
 } from "../lib/blobStorage.js";
 
 import { isProfileComplete } from "../lib/volunteerStatus.js";
+import {
+  decentlyDepartmentContext,
+  decentlyDepartmentIfImport,
+  decentlyDepartmentOptions,
+} from "../middleware/decentlyDepartment.js";
+import { canManageAllDepartments } from "../lib/departmentAccess.js";
 import multer from "multer";
 
 /**
@@ -1634,6 +1640,7 @@ export function oversightRouter({
     requireAuth,
     requirePermission("createVolunteerAccounts"),
     csrfProtection,
+    decentlyDepartmentIfImport,
     async (req, res) => {
       const {
         firstName,
@@ -1849,6 +1856,58 @@ export function oversightRouter({
   );
 
   // ===========================
+  // DECENTLY DEPARTMENT PICKER (multi-department phase 2d)
+  // ===========================
+
+  /**
+   * POST /oversight/tools/decently/department
+   * Volunteer Services staff choose which department the Decently export
+   * and import act on. Stored in the session; a cached export for another
+   * department is dropped.
+   *
+   * Body (form): { departmentId: number, returnTo?: string }
+   */
+  router.post(
+    "/oversight/tools/decently/department",
+    requireAuth,
+    requirePermission("accessAdminConsole"),
+    csrfProtection,
+    async (req, res) => {
+      const back = ["/oversight/tools/decently-import", "/oversight/tools/decently-export"]
+        .includes(req.body?.returnTo)
+        ? req.body.returnTo
+        : "/oversight/tools/decently-import";
+
+      if (!canManageAllDepartments(req.session)) {
+        return res.status(403).send("Only Volunteer Services staff can choose the department.");
+      }
+
+      try {
+        const departmentId = Number(req.body?.departmentId);
+        const options = await decentlyDepartmentOptions();
+        const chosen = options.find((d) => d.id === departmentId);
+        if (!chosen) {
+          return res.redirect(
+            back + "?error=" + encodeURIComponent("That department is not available."),
+          );
+        }
+
+        req.session.decentlyDepartmentId = chosen.id;
+        req.session.decentlyDepartmentName = chosen.name;
+        if (req.session.decentlyCache?.departmentId !== chosen.id) {
+          req.session.decentlyCache = null;
+        }
+        return res.redirect(back);
+      } catch (err) {
+        (logError || console.error)("decently/department POST error:", err);
+        return res.redirect(
+          back + "?error=" + encodeURIComponent("Could not change the department."),
+        );
+      }
+    },
+  );
+
+  // ===========================
   // DECENTLY EXPORT TOOL
   // ===========================
 
@@ -1862,8 +1921,13 @@ export function oversightRouter({
     requireAuth,
     requirePermission("accessAdminConsole"),
     csrfProtection,
+    decentlyDepartmentContext,
     (req, res) => {
-      const cached = req.session.decentlyCache || null;
+      // A file generated for another department is not offered here.
+      const cached =
+        req.session.decentlyCache?.departmentId === res.locals.decently.departmentId
+          ? req.session.decentlyCache
+          : null;
 
       return res.render("authentication_and_accounts/oversightDecentlyExport", {
         csrfToken: req.csrfToken(),
@@ -1887,6 +1951,7 @@ export function oversightRouter({
     requireAuth,
     requirePermission("accessAdminConsole"),
     csrfProtection,
+    decentlyDepartmentContext,
     async (req, res) => {
       try {
         const exportYear = await getActiveYear();
@@ -1939,10 +2004,18 @@ export function oversightRouter({
 
         const csv = csvLines.join("\r\n");
         const ids = rows.map((r) => r.id);
-        const filename = `DecentlyExport_${new Date().toISOString().slice(0, 10)}.csv`;
+        // One file per department: Decently records the department from
+        // whoever uploads it, so the name says which department it is for.
+        const { departmentId, departmentName } = res.locals.decently;
+        const deptSlug =
+          (departmentName || `department-${departmentId}`)
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-|-$/g, "") || `department-${departmentId}`;
+        const filename = `DecentlyExport_${deptSlug}_${new Date().toISOString().slice(0, 10)}.csv`;
 
         // Cache CSV + IDs in session until download or session end
-        req.session.decentlyCache = { csv, ids, filename };
+        req.session.decentlyCache = { csv, ids, filename, departmentId };
 
         return res.redirect("/oversight/tools/decently-export");
       } catch (err) {
@@ -1964,10 +2037,17 @@ export function oversightRouter({
     "/oversight/tools/decently-export/download",
     requireAuth,
     requirePermission("accessAdminConsole"),
+    decentlyDepartmentContext,
     async (req, res) => {
       const cached = req.session.decentlyCache;
 
-      if (!cached || !cached.csv) {
+      // The exported flags are set in the department the file was made for
+      // (decentlyDepartmentContext has switched to the chosen department).
+      if (
+        !cached ||
+        !cached.csv ||
+        cached.departmentId !== res.locals.decently.departmentId
+      ) {
         return res.redirect(
           "/oversight/tools/decently-export?error=" +
             encodeURIComponent("No export ready — please generate first."),
@@ -2008,9 +2088,11 @@ export function oversightRouter({
     requireAuth,
     requirePermission("accessAdminConsole"),
     csrfProtection,
+    decentlyDepartmentContext,
     (req, res) => {
       return res.render("authentication_and_accounts/decentlyImport", {
         csrfToken: req.csrfToken(),
+        error: req.query.error ? String(req.query.error) : null,
       });
     },
   );
@@ -2033,6 +2115,7 @@ export function oversightRouter({
     requireAuth,
     requirePermission("accessAdminConsole"),
     csrfProtection,
+    decentlyDepartmentContext,
     async (req, res) => {
       const { rows } = req.body || {};
 
@@ -2043,7 +2126,13 @@ export function oversightRouter({
       }
 
       try {
-        const dbVolunteers = await getVolunteersForImportMatch();
+        // Volunteer Services matches against everyone, so a person who
+        // already serves in another department is matched (and joins this
+        // one on apply) instead of being created again. Department admins
+        // match only their own members, as before.
+        const dbVolunteers = await getVolunteersForImportMatch({
+          allPeople: res.locals.decently.canPick,
+        });
 
         /**
          * Normalise a string for comparison: lowercase, strip non-alphanumeric, collapse spaces.
@@ -2140,11 +2229,14 @@ export function oversightRouter({
           }
         }
 
-        // DB volunteers not matched to any CSV row
-        const unmatchedDb = dbVolunteers.filter((v) => !matchedDbIds.has(v.id));
+        // This department's members not matched to any CSV row
+        const unmatchedDb = dbVolunteers.filter(
+          (v) => v.is_member && !matchedDbIds.has(v.id),
+        );
 
         return res.json({
           success: true,
+          departmentName: res.locals.decently.departmentName,
           matched,
           fuzzy,
           unmatchedCsv,
@@ -2165,15 +2257,18 @@ export function oversightRouter({
    *   matchedIds:  number[]   — DB IDs to activate + mark imported
    *   inactiveIds: number[]   — DB IDs to mark inactive
    * }
-   * Response: { success, activated, deactivated, heldMaybe }
+   * Response: { success, activated, deactivated, heldMaybe, heldDisapproved, joined }
    *   heldMaybe       — approved but left inactive: latest recruitment reply is Maybe
    *   heldDisapproved — approved by Decently but marked not approved for parking
+   *   joined          — Volunteer Services only: matched people who were not yet
+   *                     members and were added to the department
    */
   router.post(
     "/oversight/tools/decently-import/apply",
     requireAuth,
     requirePermission("accessAdminConsole"),
     csrfProtection,
+    decentlyDepartmentContext,
     async (req, res) => {
       const { matchedIds, inactiveIds } = req.body || {};
 
@@ -2184,11 +2279,12 @@ export function oversightRouter({
       }
 
       try {
-        const { activated, deactivated, heldMaybe, heldDisapproved } =
+        const { activated, deactivated, heldMaybe, heldDisapproved, joined } =
           await applyDecentlyImport(
             matchedIds.map(Number).filter(Boolean),
             inactiveIds.map(Number).filter(Boolean),
             req.session.userEmail || "admin",
+            { allowJoin: res.locals.decently.canPick },
           );
         return res.json({
           success: true,
@@ -2196,6 +2292,7 @@ export function oversightRouter({
           deactivated,
           heldMaybe,
           heldDisapproved,
+          joined,
         });
       } catch (err) {
         (logError || console.error)("decently-import/apply error:", err);
@@ -2217,6 +2314,7 @@ export function oversightRouter({
     requireAuth,
     requirePermission("accessAdminConsole"),
     csrfProtection,
+    decentlyDepartmentContext,
     async (req, res) => {
       const ids = Array.isArray(req.body?.ids)
         ? req.body.ids.map(Number).filter((n) => Number.isInteger(n) && n > 0)
@@ -2249,6 +2347,7 @@ export function oversightRouter({
     requireAuth,
     requirePermission("accessAdminConsole"),
     csrfProtection,
+    decentlyDepartmentContext,
     async (req, res) => {
       const { volunteerId, method } = req.body || {};
       const id = Number(volunteerId);
