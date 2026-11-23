@@ -4,9 +4,8 @@
  *
  * Every permission the app knows about, with a plain-language description
  * that admins see when building positions. Phase 3c bundles these into
- * department positions; phase 3d converts every route, view and client
- * check to these keys. Until then the old keys in src/config/roles.js stay
- * in force — this file changes no behaviour on its own.
+ * department positions; phase 3d converted every route, view and client
+ * check to these keys (src/config/roles.js is retired in phase 3d-8).
  *
  * Design and decisions: project doc claude/phase3a-permission-catalog-draft.md.
  *
@@ -23,6 +22,13 @@
  *   defaultVolunteer  In a department's default Volunteer position.
  *   volunteerServicesOnly  Only meaningful in the Volunteer Services department.
  *   replaces       Old permission keys / rank checks it takes over (for the audit).
+ *   tier           1 Basic, 2 Lead, 3 Oversight, 4 Admin, 5 Convention (phase 3d-7;
+ *                  see TIERS). Used for warnings and the Admin-tier granting limit.
+ *   requires       Prerequisite keys: granting this one grants them too
+ *                  (phase 3d-7; see PERMISSION_REQUIRES).
+ *
+ * Per-person grants and the tiers are designed in project doc
+ * claude/phase3d-7-person-permissions-draft.md.
  */
 
 /**
@@ -48,6 +54,90 @@ export const CATEGORIES = Object.freeze([
 ]);
 
 /**
+ * Trust tiers, lowest first (phase 3d-7). A permission's tier drives the
+ * editor's warnings and who may grant it (tier 4 only by department admins,
+ * tier 5 never by a department). Positions carry their own tier
+ * (positions.tier), which decides whether individual grants expire.
+ *
+ * @type {ReadonlyArray<{ tier: number, label: string, description: string }>}
+ */
+export const TIERS = Object.freeze([
+    { tier: 1, label: "Basic",      description: "Every volunteer." },
+    { tier: 2, label: "Lead",       description: "Shift leads, desk and specialist helpers." },
+    { tier: 3, label: "Oversight",  description: "Sees other people's details or plans the department." },
+    { tier: 4, label: "Admin",      description: "Changes access, sends to everyone, or is hard to undo." },
+    { tier: 5, label: "Convention", description: "Convention admins only; never granted by a department." },
+]);
+
+/**
+ * Each permission's tier (phase 3d-7). Every catalogue key must appear once.
+ * @type {Readonly<Record<number, ReadonlyArray<string>>>}
+ */
+const PERMISSION_TIERS = Object.freeze({
+    1: ["self.editProfile", "self.viewSchedule", "self.manageBlackouts", "schedules.view", "maps.view", "signs.view"],
+    2: ["volunteers.create", "attendance.checkIn", "attendance.viewReports", "counts.log", "counts.viewReport",
+        "lessons.submit", "shifts.lead", "rendezvous.manage", "signs.manage", "signs.publishMap",
+        "alerts.receiveCapacityAlerts", "alerts.receivePublishNotices", "alerts.receiveVolunteerTexts"],
+    3: ["volunteers.view", "volunteers.edit", "volunteers.markNotApproved", "volunteers.viewReports",
+        "standing.flag", "standing.viewDepartmentFlags", "notes.view", "notes.act", "notes.analyze",
+        "shifts.manage", "locations.manage", "eventTypes.manage", "events.manage",
+        "scheduler.use", "scheduler.analyze", "schedules.sendToVolunteer", "crews.assign",
+        "crews.viewRestricted", "crews.manageRestricted", "constraints.review",
+        "lessons.viewAll", "lessons.review", "lessons.publish"],
+    4: ["volunteers.archive", "volunteers.sendSignInLinks", "volunteers.exportData", "notes.analyzeAll",
+        "sms.manageOptOuts", "scheduler.manageRules", "scheduler.publish", "alerts.manageShiftAlerts",
+        "alerts.manageCapacityAlerts", "campaigns.send", "campaigns.edit", "counts.manageLocations",
+        "maps.sync", "positions.assign", "positions.manage", "structure.manage", "decently.run",
+        "systemVariables.manage", "bugReports.manage", "departments.runDecentlyForAll",
+        "departments.viewAllPeople", "departments.sendCampaigns", "departments.manageStanding",
+        "departments.assignPositions"],
+    5: ["convention.manageDays", "convention.manageEvents", "convention.sendCampaigns",
+        "convention.manageStanding", "convention.startYear", "convention.manageAdmins", "convention.testSms"],
+});
+
+/**
+ * Tier by key, built from PERMISSION_TIERS.
+ * @type {ReadonlyMap<string, number>}
+ */
+const TIER_BY_KEY = new Map(
+    Object.entries(PERMISSION_TIERS).flatMap(([tier, keys]) => keys.map((k) => [k, Number(tier)])),
+);
+
+/**
+ * Prerequisites (phase 3d-7): granting the key on the left also grants the
+ * keys on the right, and removing a prerequisite warns about what needs it.
+ * @type {Readonly<Record<string, ReadonlyArray<string>>>}
+ */
+const PERMISSION_REQUIRES = Object.freeze({
+    "volunteers.edit":              ["volunteers.view"],
+    "volunteers.markNotApproved":   ["volunteers.view"],
+    "volunteers.archive":           ["volunteers.view"],
+    "volunteers.exportData":        ["volunteers.view"],
+    "constraints.review":           ["volunteers.view"],
+    "notes.act":                    ["notes.view"],
+    "notes.analyze":                ["notes.view"],
+    "notes.analyzeAll":             ["notes.analyze"],
+    "scheduler.analyze":            ["scheduler.use"],
+    "scheduler.publish":            ["scheduler.use"],
+    "crews.assign":                 ["scheduler.use"],
+    "schedules.sendToVolunteer":    ["scheduler.use"],
+    "scheduler.manageRules":        ["scheduler.analyze"],
+    "crews.manageRestricted":       ["crews.viewRestricted"],
+    "rendezvous.manage":            ["schedules.view"],
+    "signs.manage":                 ["signs.view"],
+    "signs.publishMap":             ["signs.manage"],
+    "maps.sync":                    ["maps.view"],
+    "counts.manageLocations":       ["counts.viewReport"],
+    "campaigns.edit":               ["campaigns.send"],
+    "lessons.review":               ["lessons.viewAll"],
+    "lessons.publish":              ["lessons.review"],
+    "positions.manage":             ["positions.assign"],
+    "standing.viewDepartmentFlags": ["standing.flag"],
+    "departments.runDecentlyForAll": ["decently.run"],
+    "departments.assignPositions":  ["departments.viewAllPeople"],
+});
+
+/**
  * Build one catalogue entry with defaults filled in.
  *
  * @param {string} key
@@ -71,6 +161,8 @@ function def(key, label, description, category, opts = {}) {
         defaultVolunteer: opts.defaultVolunteer === true,
         volunteerServicesOnly: opts.volunteerServicesOnly === true,
         replaces: Object.freeze([...(opts.replaces ?? [])]),
+        tier: TIER_BY_KEY.get(key) ?? 0,
+        requires: Object.freeze([...(PERMISSION_REQUIRES[key] ?? [])]),
     });
 }
 
@@ -86,6 +178,8 @@ function def(key, label, description, category, opts = {}) {
  * @property {boolean} defaultVolunteer
  * @property {boolean} volunteerServicesOnly
  * @property {ReadonlyArray<string>} replaces
+ * @property {number} tier                  1–5, see TIERS.
+ * @property {ReadonlyArray<string>} requires  Prerequisite keys.
  */
 
 /**
@@ -315,6 +409,9 @@ export const PERMISSION_CATALOG = Object.freeze([
     def("departments.manageStanding", "Manage volunteer standing",
         "Receive flag alerts, see every flag reason, set and clear flags, and blacklist or lift a blacklist.",
         "vs", { volunteerServicesOnly: true, sensitive: true }),
+    def("departments.assignPositions", "Assign positions in any department",
+        "Give people positions and individual permissions in any department, limited to what you hold yourself.",
+        "vs", { volunteerServicesOnly: true }),
 
     // ── Convention-wide (convention admins only) ────────────────────────
     def("convention.manageDays", "Manage convention days",
@@ -353,6 +450,23 @@ for (const p of PERMISSION_CATALOG) {
     if (!CATEGORIES.some((c) => c.id === p.category)) {
         throw new Error(`permissions.js: unknown category "${p.category}" on ${p.key}`);
     }
+    if (!TIERS.some((t) => t.tier === p.tier)) {
+        throw new Error(`permissions.js: ${p.key} has no tier in PERMISSION_TIERS`);
+    }
+    if ((p.scope === "convention") !== (p.tier === 5)) {
+        throw new Error(`permissions.js: ${p.key} — convention-scope keys, and only they, are tier 5`);
+    }
+    for (const r of p.requires) {
+        if (!BY_KEY.has(r) || r === p.key) {
+            throw new Error(`permissions.js: ${p.key} requires unknown or self key "${r}"`);
+        }
+    }
+}
+for (const k of TIER_BY_KEY.keys()) {
+    if (!BY_KEY.has(k)) throw new Error(`permissions.js: PERMISSION_TIERS names unknown key "${k}"`);
+}
+for (const k of Object.keys(PERMISSION_REQUIRES)) {
+    if (!BY_KEY.has(k)) throw new Error(`permissions.js: PERMISSION_REQUIRES names unknown key "${k}"`);
 }
 
 /**
@@ -442,6 +556,38 @@ export function permissionsInCategory(categoryId) {
  */
 export function defaultVolunteerPermissions() {
     return PERMISSION_CATALOG.filter((p) => p.defaultVolunteer).map((p) => p.key);
+}
+
+/**
+ * A key plus everything it needs, directly or through other prerequisites
+ * (phase 3d-7). Used when granting, so a grant never leaves someone holding
+ * a permission without the ones it depends on.
+ *
+ * @param {string} key
+ * @returns {string[]} The key first, then its prerequisites.
+ */
+export function withPrerequisites(key) {
+    const out = [];
+    const seen = new Set();
+    const visit = (k) => {
+        if (seen.has(k)) return;
+        seen.add(k);
+        out.push(k);
+        (BY_KEY.get(k)?.requires ?? []).forEach(visit);
+    };
+    visit(key);
+    return out;
+}
+
+/**
+ * Keys that list `key` as a prerequisite (directly). Used to warn before a
+ * prerequisite is removed.
+ *
+ * @param {string} key
+ * @returns {string[]}
+ */
+export function dependentsOf(key) {
+    return PERMISSION_CATALOG.filter((p) => p.requires.includes(key)).map((p) => p.key);
 }
 
 /**

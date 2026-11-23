@@ -7,7 +7,7 @@
  * + saved Permission Matrix changes, lib/legacyRoleMap.js) plus the
  * permissions of their extra_* flags (Parking only); actual = the
  * permissions of the positions they hold (lib/positions.js, without the
- * account-level ones). Prints every difference. Read-only.
+ * account-level ones and individual grants). Prints every difference. Read-only.
  *
  *     node --env-file=.env scripts/verifyPositions.js          (dbo)
  *     node --env-file=.env scripts/verifyPositions.js --demo   (demo)
@@ -32,18 +32,19 @@ async function main() {
 
     const { matrix } = await loadMergedMatrix(query);
     const members = (await query(
-        `SELECT m.volunteer_id, m.department_id, m.role,
+        `SELECT m.volunteer_id, m.department_id, m.role, d.slug AS department_slug,
                 CAST(ISNULL(v.extra_signs_placement, 0) AS BIT) AS signs,
                 CAST(ISNULL(v.extra_parking_count, 0) AS BIT)   AS counts,
                 v.firstName, v.lastName
          FROM dbo.department_members m
          JOIN dbo.volunteer_in v ON v.id = m.volunteer_id
+         JOIN dbo.departments d ON d.id = m.department_id
          ORDER BY m.department_id, v.lastName, v.firstName;`,
     )).recordset;
 
     let differ = 0;
     for (const m of members) {
-        const expected = new Set(m.role ? permissionsForRole(m.role, matrix) : []);
+        const expected = new Set(m.role ? permissionsForRole(m.role, matrix, m.department_slug) : []);
         if (m.department_id === DEFAULT_DEPARTMENT_ID) {
             for (const e of EXTRA_POSITIONS) {
                 const has = e.column === "extra_signs_placement" ? m.signs : m.counts;
@@ -51,7 +52,8 @@ async function main() {
             }
         }
 
-        const { permissions } = await getEffectivePermissions(m.volunteer_id, m.department_id, false);
+        // Positions only: individual grants (phase 3d-7) are on top of roles by design.
+        const { permissions } = await getEffectivePermissions(m.volunteer_id, m.department_id, false, { includeGrants: false });
         const actual = new Set(permissions.filter((p) => !ACCOUNT_PERMISSIONS.includes(p)));
 
         const missing = [...expected].filter((p) => !actual.has(p));

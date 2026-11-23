@@ -45,7 +45,7 @@ const onlyDept = Number(args.find((a) => a.startsWith("--department="))?.split("
  *
  * @param {number} departmentId
  * @param {{ name: string, description: string, isDepartmentAdmin?: boolean, isDefault?: boolean,
- *           legacyRole?: string|null, legacyExtra?: string|null, sortOrder: number }} p
+ *           legacyRole?: string|null, legacyExtra?: string|null, sortOrder: number, tier: number }} p
  * @param {string[]} permissions
  * @returns {Promise<{ id: number, created: boolean, permissionsSet: boolean }>}
  */
@@ -64,9 +64,9 @@ async function upsertPosition(departmentId, p, permissions) {
         const ins = await exec(
             `INSERT INTO dbo.positions
                  (department_id, name, description, is_department_admin, is_default,
-                  legacy_role, legacy_extra, sort_order)
+                  legacy_role, legacy_extra, sort_order, tier)
              OUTPUT inserted.id
-             VALUES (@d, @name, @description, @admin, @default, @role, @extra, @sort);`,
+             VALUES (@d, @name, @description, @admin, @default, @role, @extra, @sort, @tier);`,
             (req) => {
                 req.input("d", sql.Int, departmentId);
                 req.input("name", sql.NVarChar(80), p.name);
@@ -76,20 +76,25 @@ async function upsertPosition(departmentId, p, permissions) {
                 req.input("role", sql.NVarChar(40), p.legacyRole ?? null);
                 req.input("extra", sql.NVarChar(60), p.legacyExtra ?? null);
                 req.input("sort", sql.Int, p.sortOrder);
+                req.input("tier", sql.TinyInt, p.tier);
             },
         );
         id = ins.recordset[0].id;
     } else {
-        // Keep the legacy links current (e.g. Parking Counter also covering extra_parking_count).
+        // Keep the legacy links current (e.g. Parking Counter also covering
+        // extra_parking_count); --refresh also resets the tier (phase 3d-7).
         await exec(
             `UPDATE dbo.positions
              SET legacy_role  = COALESCE(@role, legacy_role),
-                 legacy_extra = COALESCE(@extra, legacy_extra)
+                 legacy_extra = COALESCE(@extra, legacy_extra),
+                 tier         = IIF(@refresh = 1, @tier, tier)
              WHERE id = @id;`,
             (req) => {
                 req.input("id", sql.Int, id);
                 req.input("role", sql.NVarChar(40), p.legacyRole ?? null);
                 req.input("extra", sql.NVarChar(60), p.legacyExtra ?? null);
+                req.input("refresh", sql.Bit, refresh);
+                req.input("tier", sql.TinyInt, p.tier);
             },
         );
     }
@@ -123,7 +128,7 @@ async function main() {
     console.log(`Permission Matrix changes included: ${overrides.length}`);
 
     const departments = (await query(
-        "SELECT id, name FROM dbo.departments WHERE active = 1 ORDER BY id;",
+        "SELECT id, name, slug FROM dbo.departments WHERE active = 1 ORDER BY id;",
     )).recordset.filter((d) => !onlyDept || d.id === onlyDept);
 
     for (const dept of departments) {
@@ -133,7 +138,7 @@ async function main() {
 
         for (const rp of ROLE_POSITIONS) {
             const coversCounts = withExtras && rp.role === "COUNTER";
-            const perms = permissionsForRole(rp.role, matrix);
+            const perms = permissionsForRole(rp.role, matrix, dept.slug);
             const r = await upsertPosition(dept.id, {
                 name: rp.position,
                 description: rp.description,
@@ -142,6 +147,7 @@ async function main() {
                 legacyRole: rp.role,
                 legacyExtra: coversCounts ? "extra_parking_count" : null,
                 sortOrder: sort,
+                tier: rp.tier,
             }, perms);
             sort += 10;
             console.log(`  ${r.created ? "created " : "exists  "} ${rp.position.padEnd(16)} ${r.permissionsSet ? `${perms.length} permissions set` : "permissions unchanged"}`);
@@ -154,6 +160,7 @@ async function main() {
                     description: e.description,
                     legacyExtra: e.column,
                     sortOrder: sort,
+                    tier: e.tier,
                 }, e.permissions);
                 sort += 10;
                 console.log(`  ${r.created ? "created " : "exists  "} ${e.position.padEnd(16)} ${r.permissionsSet ? `${e.permissions.length} permissions set` : "permissions unchanged"}`);
