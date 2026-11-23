@@ -55,6 +55,7 @@ import { scheduleAnalysisRouter }  from "./routes/scheduleAnalysisRoutes.js";
 import { signsRouter } from "./routes/signsRoutes.js";
 import { countsRouter } from "./routes/countsRoutes.js";
 import { systemVariablesRouter } from "./routes/systemVariablesRoutes.js";
+import { positionsRouter } from "./routes/positionsRoutes.js";
 import { capacityAlertRouter } from "./routes/capacityAlertRoutes.js";
 import { lessonsLearnedRouter } from "./routes/lessonsLearnedRoutes.js";
 import { getBaseUrl, resetSmsClient, resetMailTransporter } from "./lib/messaging.js";
@@ -886,6 +887,7 @@ app.use("/", countsRouter({
   twilioMsgSid:     config.TWILIO_MSG_SID,
 }));
 app.use("/", systemVariablesRouter({ csrfProtection, logError }));
+app.use("/", positionsRouter({ logError }));
 app.use("/", capacityAlertRouter({ csrfProtection, logError }));
 app.use("/", conventionYearRouter({ csrfProtection, logError }));
 app.use(

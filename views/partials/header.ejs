@@ -58,7 +58,9 @@
           const navCounts       = has('counts.log');
           const navDecently     = has('decently.run');
           const navSystemVars   = has('systemVariables.manage');
-          const navAdmin        = hasAny('positions.manage', 'structure.manage') || navSystemVars;
+          const navPositions    = hasAny('positions.view', 'positions.assign', 'positions.manage',
+                                         'departments.assignPositions');
+          const navAdmin        = hasAny('positions.manage', 'structure.manage') || navSystemVars || navPositions;
           const navOperations   = navDocs || navComms || navVolunteers || navConvention || navReports || navSigns
                                   || navScheduling || navAttendance || navCounts || navDecently || navAdmin;
         %>
@@ -505,6 +507,11 @@
                 <li>
                   <div class="collapse" id="otNavAdmin">
                     <ul class="ot-nav-items">
+                      <% if (navPositions) { %>
+                      <li><a class="ot-nav-item" href="/oversight/tools/positions">
+                        <i class="fa-solid fa-user-shield"></i>Positions
+                      </a></li>
+                      <% } %>
                       <% if (has('positions.manage')) { %>
                       <li><a class="ot-nav-item" href="/oversight/tools/permissions">
                         <i class="fa-solid fa-sliders"></i>Permission Matrix

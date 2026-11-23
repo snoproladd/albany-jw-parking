@@ -83,7 +83,7 @@ const PERMISSION_TIERS = Object.freeze({
         "shifts.manage", "locations.manage", "eventTypes.manage", "events.manage",
         "scheduler.use", "scheduler.analyze", "schedules.sendToVolunteer", "crews.assign",
         "crews.viewRestricted", "crews.manageRestricted", "constraints.review",
-        "lessons.viewAll", "lessons.review", "lessons.publish"],
+        "lessons.viewAll", "lessons.review", "lessons.publish", "positions.view"],
     4: ["volunteers.archive", "volunteers.sendSignInLinks", "volunteers.exportData", "notes.analyzeAll",
         "sms.manageOptOuts", "scheduler.manageRules", "scheduler.publish", "alerts.manageShiftAlerts",
         "alerts.manageCapacityAlerts", "campaigns.send", "campaigns.edit", "counts.manageLocations",
@@ -131,6 +131,7 @@ const PERMISSION_REQUIRES = Object.freeze({
     "campaigns.edit":               ["campaigns.send"],
     "lessons.review":               ["lessons.viewAll"],
     "lessons.publish":              ["lessons.review"],
+    "positions.assign":             ["positions.view"],
     "positions.manage":             ["positions.assign"],
     "standing.viewDepartmentFlags": ["standing.flag"],
     "departments.runDecentlyForAll": ["decently.run"],
@@ -377,6 +378,9 @@ export const PERMISSION_CATALOG = Object.freeze([
         "lessons", { replaces: ["editVolunteerInfo", "ASSISTANT_ADMIN+"] }),
 
     // ── Department administration ───────────────────────────────────────
+    def("positions.view", "View positions",
+        "See this department's positions and what each one allows (read-only).",
+        "admin"),
     def("positions.assign", "Assign positions",
         "Give people positions in this department (only positions whose permissions you hold yourself).",
         "admin", { replaces: ["accessAdminConsole", "manageRoles", "canAssignRole", "canGrantExtraPerms"] }),

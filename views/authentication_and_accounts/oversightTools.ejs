@@ -33,7 +33,9 @@
     const showAttendance     = any('attendance.checkIn', 'attendance.viewReports');
     const showLessons        = any('lessons.submit', 'lessons.viewAll');
     const showDecently       = any('decently.run', 'departments.viewAllPeople');
-    const showAdministration = any('positions.manage', 'structure.manage');
+    const showPositions      = any('positions.view', 'positions.assign', 'positions.manage',
+                                   'departments.assignPositions');
+    const showAdministration = any('positions.manage', 'structure.manage') || showPositions;
     const showDocs           = any('maps.view', 'schedules.view');
   %>
 
@@ -814,6 +816,21 @@
                 <i class="fa-solid fa-gear me-2"></i>Administration
               </h2>
               <div class="row g-4 mb-2">
+
+                <% if (showPositions) { %>
+                <div class="col-12 col-sm-6 col-lg-4">
+                  <div class="admin-tool-card h-100">
+                    <div class="admin-tool-icon text-primary">
+                      <i class="fa-solid fa-user-shield"></i>
+                    </div>
+                    <h3 class="admin-tool-title">Positions</h3>
+                    <p class="admin-tool-desc">See the department's positions and what each one allows, or find which positions have a permission.</p>
+                    <a href="/oversight/tools/positions" class="btn btn-primary admin-tool-btn">
+                      Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                    </a>
+                  </div>
+                </div>
+                <% } %>
 
                 <% if (can('positions.manage')) { %>
                 <div class="col-12 col-sm-6 col-lg-4">

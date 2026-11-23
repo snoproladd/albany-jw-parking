@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Positions — <%= brand.siteName %></title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <%- include('../partials/metaDescription') %>
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+    <link rel="preload" href="/fonts/archivo-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/georama-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="/styles/fonts.css" />
+    <link rel="stylesheet" href="/styles/positions.css" />
+  </head>
+
+  <%#
+    Positions (multi-department phase 3d-7b). Read-only: a department's
+    positions and what each allows, by position and by permission. Data:
+    routes/positionsRoutes.js buildPositionsView(). Tabs, search and
+    expand/collapse: public/js/positionsPage.js.
+  %>
+  <body class="min-vh-100 bg-body-tertiary" data-authed="true">
+    <%- include('../partials/header') %>
+
+    <main class="container py-4">
+      <div class="row justify-content-center">
+        <div class="col-12 col-xl-11">
+
+          <section class="card shadow-lg admin-console-card">
+            <header class="card-header">
+              <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <h1 class="h4 mb-0">
+                  <i class="fa-solid fa-user-shield me-2" aria-hidden="true"></i>Positions
+                  <span class="text-muted fw-normal">· <%= department.name %></span>
+                </h1>
+                <a href="/oversight/tools" class="btn btn-secondary btn-sm">
+                  <i class="fa-solid fa-arrow-left me-1" aria-hidden="true"></i>Oversight Tools
+                </a>
+              </div>
+              <p class="mb-0 mt-1 text-muted small">
+                What each position allows in this department. Everyone signed in can also edit
+                their own profile, and convention admins hold every permission. Editing positions
+                is coming soon.
+              </p>
+            </header>
+
+            <div class="card-body">
+
+              <% if (canPickDepartment) { %>
+                <%# Plain GET form: works without JavaScript; the button submits. %>
+                <form class="row g-2 align-items-end mb-3" method="get" action="/oversight/tools/positions">
+                  <div class="col-12 col-sm-8 col-md-5">
+                    <label for="posDepartment" class="form-label small fw-semibold mb-1">Department</label>
+                    <select class="form-select form-select-sm" id="posDepartment" name="department">
+                      <% departments.forEach(function (d) { %>
+                        <option value="<%= d.slug %>" <%= d.id === department.id ? 'selected' : '' %>><%= d.name %></option>
+                      <% }) %>
+                    </select>
+                  </div>
+                  <div class="col-auto">
+                    <button type="submit" class="btn btn-primary btn-sm">Show</button>
+                  </div>
+                </form>
+              <% } %>
+
+              <%# ── Tier key ── %>
+              <ul class="pos-tier-key list-unstyled d-flex flex-wrap gap-2 mb-3" aria-label="Tiers">
+                <% tiers.forEach(function (t) { %>
+                  <li><span class="pos-tier pos-tier-<%= t.tier %>"><%= t.tier %> · <%= t.label %></span>
+                    <span class="small text-muted"><%= t.description %></span></li>
+                <% }) %>
+              </ul>
+
+              <%# ── Tabs ── %>
+              <div class="pos-tabs nav nav-tabs mb-3" role="tablist" aria-label="View">
+                <button type="button" class="nav-link active" role="tab" id="posTabPositions"
+                        aria-controls="posPanelPositions" aria-selected="true" data-hash="by-position">
+                  By position <span class="badge text-bg-secondary ms-1"><%= positions.length %></span>
+                </button>
+                <button type="button" class="nav-link" role="tab" id="posTabPermissions"
+                        aria-controls="posPanelPermissions" aria-selected="false" tabindex="-1" data-hash="by-permission">
+                  By permission <span class="badge text-bg-secondary ms-1"><%= permissionTotal %></span>
+                </button>
+              </div>
+
+              <%# ══ By position ══ %>
+              <div class="pos-panel" id="posPanelPositions" role="tabpanel" aria-labelledby="posTabPositions" tabindex="0">
+                <% if (positions.length === 0) { %>
+                  <p class="text-muted">This department has no positions yet.</p>
+                <% } else { %>
+                  <div class="d-flex justify-content-end gap-2 mb-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-pos-expand="open">Expand all</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-pos-expand="close">Collapse all</button>
+                  </div>
+
+                  <% positions.forEach(function (p) { %>
+                    <details class="pos-position">
+                      <summary class="pos-position-summary">
+                        <span class="pos-position-name"><%= p.name %></span>
+                        <span class="pos-tier pos-tier-<%= p.tier || 0 %>"><%= p.tierLabel %></span>
+                        <% if (p.isDepartmentAdmin) { %><span class="badge text-bg-dark">Department admin</span><% } %>
+                        <% if (p.isDefault) { %><span class="badge text-bg-info">Default</span><% } %>
+                        <span class="pos-position-meta small text-muted">
+                          <%= p.memberCount %> <%= p.memberCount === 1 ? 'person' : 'people' %> ·
+                          <%= p.permissionCount %> <%= p.permissionCount === 1 ? 'permission' : 'permissions' %>
+                        </span>
+                      </summary>
+
+                      <div class="pos-position-body">
+                        <% if (p.description) { %><p class="small mb-2"><%= p.description %></p><% } %>
+                        <% if (p.groups.length === 0) { %>
+                          <p class="small text-muted mb-0">No permissions.</p>
+                        <% } %>
+                        <% p.groups.forEach(function (g) { %>
+                          <h2 class="pos-group-heading"><%= g.label %></h2>
+                          <ul class="pos-perm-list list-unstyled">
+                            <% g.items.forEach(function (item) { %>
+                              <li class="pos-perm">
+                                <span class="pos-tier pos-tier-<%= item.tier %>" title="Tier: <%= item.tierLabel %>"><%= item.tier || '?' %></span>
+                                <span>
+                                  <span class="fw-semibold"><%= item.label %></span>
+                                  <code class="pos-key"><%= item.key %></code>
+                                  <span class="d-block small text-muted"><%= item.description %></span>
+                                  <% if (item.requiresLabels.length) { %>
+                                    <span class="d-block small pos-requires">Needs: <%= item.requiresLabels.join(', ') %></span>
+                                  <% } %>
+                                </span>
+                              </li>
+                            <% }) %>
+                          </ul>
+                        <% }) %>
+                      </div>
+                    </details>
+                  <% }) %>
+                <% } %>
+              </div>
+
+              <%# ══ By permission ══ %>
+              <div class="pos-panel" id="posPanelPermissions" role="tabpanel" aria-labelledby="posTabPermissions" tabindex="0" hidden>
+                <div class="row g-2 align-items-end mb-3">
+                  <div class="col-12 col-md-7">
+                    <label for="posSearch" class="form-label small fw-semibold mb-1">Find a permission</label>
+                    <input type="search" class="form-control form-control-sm" id="posSearch"
+                           placeholder="Name, key, description or position" autocomplete="off" />
+                  </div>
+                  <div class="col-12 col-md-5 text-md-end">
+                    <span class="small text-muted" id="posSearchCount" aria-live="polite"><%= permissionTotal %> permissions</span>
+                  </div>
+                </div>
+                <p class="small text-muted">
+                  <span class="pos-holder pos-holder-min">Highlighted</span> = the lowest-tier position that has it.
+                </p>
+
+                <% permissionGroups.forEach(function (g) { %>
+                  <section class="pos-perm-group" data-pos-group>
+                    <h2 class="pos-group-heading"><%= g.label %></h2>
+                    <ul class="pos-perm-list list-unstyled">
+                      <% g.items.forEach(function (item) { %>
+                        <li class="pos-perm" data-pos-search="<%= item.search %>">
+                          <span class="pos-tier pos-tier-<%= item.tier %>" title="Tier: <%= item.tierLabel %>"><%= item.tier %></span>
+                          <span class="flex-grow-1">
+                            <span class="fw-semibold"><%= item.label %></span>
+                            <code class="pos-key"><%= item.key %></code>
+                            <% if (item.sensitive) { %><span class="badge text-bg-warning ms-1">Sensitive</span><% } %>
+                            <span class="d-block small text-muted"><%= item.description %></span>
+                            <% if (item.requiresLabels.length) { %>
+                              <span class="d-block small pos-requires">Needs: <%= item.requiresLabels.join(', ') %></span>
+                            <% } %>
+                            <span class="d-block mt-1">
+                              <% if (item.note) { %>
+                                <span class="small fst-italic text-muted"><%= item.note %></span>
+                              <% } else { %>
+                                <% item.holders.forEach(function (h) { %>
+                                  <span class="pos-holder<%= h.isMinimum ? ' pos-holder-min' : '' %>"><%= h.name %><% if (h.isMinimum) { %><span class="visually-hidden"> (lowest tier)</span><% } %></span>
+                                <% }) %>
+                              <% } %>
+                            </span>
+                          </span>
+                        </li>
+                      <% }) %>
+                    </ul>
+                  </section>
+                <% }) %>
+                <p class="text-muted d-none" id="posNoMatch">No permissions match.</p>
+              </div>
+
+            </div>
+          </section>
+
+        </div>
+      </div>
+    </main>
+
+    <%- include('../partials/footer') %>
+
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/positionsPage.js"></script>
+  </body>
+</html>
