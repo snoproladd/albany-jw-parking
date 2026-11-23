@@ -6,7 +6,8 @@
  * does not keep enough path information to inspect routes reliably at
  * runtime) and reports, for every route, how it is gated:
  *
- *   new       requirePermission() with a key from src/config/permissions.js
+ *   new       requirePermission() with key(s) from src/config/permissions.js
+ *             (middleware/requirePermission.js; several keys = any one of them)
  *   legacy    requirePermission() with an old key from src/config/roles.js
  *             (shown with the new keys it maps to)
  *   unknown   requirePermission() with a key that is in neither list
@@ -166,9 +167,10 @@ function auditFile(file) {
 
         let signedIn = false;
         for (const mw of middleware) {
-            const perm = mw.match(/^requirePermission\(\s*["'`]([\w.]+)["'`]\s*\)$/);
+            // requirePermission("a.b") or requirePermission("a.b", "c.d", ...)
+            const perm = mw.match(/^requirePermission\(\s*((?:["'`][\w.]+["'`]\s*,?\s*)+)\)$/);
             const pub = mw.match(/^publicRoute\(\s*["'`]([^"'`]*)["'`]\s*\)$/);
-            if (perm) entry.keys.push(perm[1]);
+            if (perm) entry.keys.push(...[...perm[1].matchAll(/["'`]([\w.]+)["'`]/g)].map((k) => k[1]));
             else if (pub) entry.publicReason = pub[1];
             else if (mw === "requireAuth") signedIn = true;
             else if (!PLUMBING.test(mw)) entry.custom.push(mw.replace(/\s+/g, " ").slice(0, 60));

@@ -1,0 +1,12 @@
+<%#
+    views/partials/permissionsData.ejs
+    The session's catalogue permissions as a JSON data block, for client
+    scripts (public/js/permissions.js). Include it, then the script, only on
+    pages whose JS needs it: include('partials/permissionsData') with the
+    unescaped output tag, then a deferred script tag for /js/permissions.js.
+
+    A JSON block is data, not script, so it needs no nonce and runs nothing.
+    "<" is escaped so the content can never close the tag. The server still
+    checks every request; this only decides what the page shows.
+%>
+<script type="application/json" id="permissions-data"><%- JSON.stringify(locals.effectivePermissions || []).replace(/</g, '\\u003c') %></script>

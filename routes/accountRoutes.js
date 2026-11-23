@@ -31,7 +31,7 @@ import {
   setLastDepartment,
 } from "../lib/dbSync.js";
 import { DEFAULT_DEPARTMENT_ID, withScope } from "../lib/sql.js";
-import { syncLegacyPositions, getEffectivePermissions } from "../lib/positions.js";
+import { loadSessionPermissions } from "../lib/positions.js";
 import { verifyPassword, hashPassword } from "../lib/passwordVer.js";
 import { hashMagicLinkToken } from "../lib/magicLinkToken.js";
 
@@ -107,34 +107,23 @@ export function loginRouter({ csrfProtection, logError }) {
   }
 
   /**
-   * Store the person's positions and effective permissions for the current
-   * department in the session (multi-department phase 3c). Their positions
-   * are first brought in step with their role and extra_* flags.
+   * Store the person's positions, effective permissions and permission
+   * stamp for the current department in the session (multi-department
+   * phases 3c-3d; lib/positions.js loadSessionPermissions()). Their
+   * positions are first brought in step with their role and extra_* flags.
    *
-   * Nothing reads session.effectivePermissions for access yet (phase 3d), so
-   * a failure here is logged and never blocks signing in or switching.
+   * A failure is logged and never blocks signing in or switching: the
+   * person is left with no catalogue permissions and a null stamp, and
+   * middleware/permissionStamp.js tries again on their next request.
    *
    * @param {import("express").Request} req
    * @returns {Promise<void>}
    */
   async function _loadPositions(req) {
     try {
-      await withScope("system", () =>
-        syncLegacyPositions(req.session.userId, "sign-in"),
-      );
-      const { permissions, positions } = await withScope("system", () =>
-        getEffectivePermissions(
-          req.session.userId,
-          req.session.departmentId,
-          req.session.isConventionAdmin === true,
-        ),
-      );
-      req.session.effectivePermissions = permissions;
-      req.session.positions = positions;
+      await loadSessionPermissions(req.session, "sign-in");
     } catch (err) {
       (logError || console.error)("[accountRoutes] could not load positions:", err);
-      req.session.effectivePermissions = [];
-      req.session.positions = [];
     }
   }
 

@@ -24,6 +24,7 @@ import {
 } from "./lib/sql.js";
 import { demoContextMiddleware } from "./middleware/demoContext.js";
 import { resolveDepartmentMiddleware } from "./middleware/resolveDepartment.js";
+import { permissionStampMiddleware } from "./middleware/permissionStamp.js";
 import { INCOMPATIBILITIES } from "./src/config/privilegeRules.js";
 import { can, PERMISSIONS, ROLE_HIERARCHY, roleLevel, isRoleAtLeast } from "./src/config/roles.js";
 
@@ -516,6 +517,9 @@ let mapsSyncHandle = null;
     // Current department → request context (SESSION_CONTEXT on every query).
     // Must come right after the session and before any route.
     app.use(resolveDepartmentMiddleware);
+    // Signed-in people: reload permissions when their positions changed, and
+    // expose res.locals.can() to views (phase 3d). Needs the department.
+    app.use(permissionStampMiddleware);
     // Store the intended destination for post-login redirect.
     // Only captures GET requests to non-auth, non-static paths.
     app.use((req, res, next) => {
