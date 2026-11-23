@@ -1,13 +1,16 @@
 /**
  * @file routes/positionsRoutes.js
- * @description The read-only Positions page (multi-department phase 3d-7b).
+ * @description The Positions page (multi-department phase 3d-7b..d).
  *
- * Shows a department's positions and what each one allows, two ways:
+ * Shows a department's positions and what each one allows, two ways, plus
+ * a People tab for changing one person's access:
  *
  *   By position     each position, its tier, how many people hold it, and
  *                   its permissions grouped by catalogue category.
  *   By permission   every catalogue permission and the positions that hold
  *                   it, with the lowest-tier holder(s) highlighted.
+ *   People          (3d-7d) pick a member; give or take away positions,
+ *                   grant or revoke single permissions, tier-down.
  *
  * Routes:
  *   GET  /oversight/tools/positions[?department=<slug>]   the page
@@ -15,6 +18,9 @@
  *   PUT  /api/positions/:id                 edit a position            (positions.manage)
  *   POST /api/positions/:id/retire          retire (no holders only)   (positions.manage)
  *   POST /api/positions/:id/reactivate      bring a retired one back   (positions.manage)
+ *   PUT  /api/positions/people/:volunteerId one person's positions and grants
+ *                                           (positions.assign in their own department,
+ *                                            departments.assignPositions in any)
  *
  * Access: positions.view (Overseer and up), positions.assign,
  * positions.manage or departments.assignPositions. The page shows the
@@ -25,14 +31,20 @@
  * the department they are working in, within the granting limit in
  * lib/positionEditing.js; another department picked from the dropdown is
  * read-only. Every save is checked again on the server and logged in
- * permission_grant_log ("position-edit"). Assigning positions to people and
- * per-person grants come in 3d-7d.
+ * permission_grant_log ("position-edit").
+ *
+ * People (phase 3d-7d): holders of positions.assign in the department they
+ * are working in, and holders of departments.assignPositions (Volunteer
+ * Services staff) in any department. Rules: lib/positionEditing.js
+ * planPersonSave(). Every change is logged; the role and extra_* flags are
+ * written back until 3d-8.
  * Design: project doc claude/phase3d-7-person-permissions-draft.md.
  */
 
 import express from "express";
 import { requirePermission } from "../middleware/requirePermission.js";
-import { getActiveDepartments } from "../lib/dbSync.js";
+import { getActiveDepartments, getConventionDays } from "../lib/dbSync.js";
+import { getActiveYear } from "../lib/conventionYear.js";
 import { withScope } from "../lib/sql.js";
 import {
     getPositionMatrix,
@@ -41,8 +53,18 @@ import {
     savePosition,
     setPositionActive,
     sessionHasPermission,
+    getDepartmentMembers,
+    getPersonAccess,
+    savePersonAccess,
 } from "../lib/positions.js";
-import { permissionRules, positionLockReason, planPositionSave } from "../lib/positionEditing.js";
+import {
+    permissionRules,
+    positionLockReason,
+    planPositionSave,
+    positionAssignReason,
+    grantsNeverExpire,
+    planPersonSave,
+} from "../lib/positionEditing.js";
 import { canViewAllPeople, VOLUNTEER_SERVICES_SLUG } from "../lib/departmentAccess.js";
 import { CATEGORIES, TIERS, PERMISSION_CATALOG, getPermission } from "../src/config/permissions.js";
 
@@ -245,13 +267,17 @@ function actorName(session) {
 }
 
 /**
- * The editor (lib/positionEditing.js Editor) for the session's department.
+ * The editor (lib/positionEditing.js Editor) in a department: the session's
+ * department by default. Their held permissions are always the session's
+ * (the department they are working in), so Volunteer Services staff acting
+ * in another department are limited to what they hold in VS.
  *
  * @param {Record<string, any>} session
+ * @param {number} [departmentId]
  * @returns {Promise<import("../lib/positionEditing.js").Editor & { positionIds: number[] }>}
  */
-async function loadEditor(session) {
-    const ctx = await getEditorContext(session.userId, session.departmentId);
+async function loadEditor(session, departmentId = session.departmentId) {
+    const ctx = await getEditorContext(session.userId, departmentId);
     return {
         isConventionAdmin: session.isConventionAdmin === true,
         isDepartmentAdmin: ctx.isDepartmentAdmin,
@@ -306,6 +332,131 @@ function buildEditorData(rawPositions, editor, departmentSlug) {
 }
 
 /**
+ * True when the person may use the People tab in this department:
+ * convention admins anywhere, positions.assign holders in the department
+ * they are working in, departments.assignPositions holders in any.
+ *
+ * @param {Record<string, any>} session
+ * @param {{ id: number }} department
+ * @returns {boolean}
+ */
+function canAssignIn(session, department) {
+    if (session.isConventionAdmin === true) return true;
+    if (sessionHasPermission(session, "departments.assignPositions")) return true;
+    return department.id === session.departmentId && sessionHasPermission(session, "positions.assign");
+}
+
+/**
+ * Default expiry for new individual grants, end of day (UTC):
+ *   1. the active year's last convention day + 30 days, if that is still ahead;
+ *   2. otherwise (the convention is over but the year hasn't rolled over)
+ *      the next year's last convention day + 30 days, if its days are set up;
+ *   3. otherwise today + 30 days.
+ * A year with no convention days set up counts as Dec 31 for step 1.
+ *
+ * @param {Date} [now]
+ * @returns {Promise<Date>}
+ */
+async function defaultGrantExpiry(now = new Date()) {
+    /**
+     * Last convention day of a year + 30 days, end of day, or null when the
+     * year has no days.
+     * @param {number} year
+     * @returns {Promise<Date|null>}
+     */
+    const plus30 = async (year) => {
+        let last = null;
+        try {
+            for (const d of await getConventionDays(year)) {
+                const t = new Date(d.convention_date);
+                if (!Number.isNaN(t.getTime()) && (!last || t > last)) last = t;
+            }
+        } catch {
+            last = null;
+        }
+        return last
+            ? new Date(Date.UTC(last.getUTCFullYear(), last.getUTCMonth(), last.getUTCDate() + 30, 23, 59, 59))
+            : null;
+    };
+
+    const year = await getActiveYear();
+    const thisYear = (await plus30(year))
+        ?? new Date(Date.UTC(year, 11, 31 + 30, 23, 59, 59));
+    if (thisYear > now) return thisYear;
+
+    const nextYear = await plus30(year + 1);
+    if (nextYear && nextYear > now) return nextYear;
+
+    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 30, 23, 59, 59));
+}
+
+/**
+ * Display name for a member.
+ *
+ * @param {{ firstName: string|null, lastName: string|null, email: string|null, id: number }} m
+ * @returns {string}
+ */
+function memberName(m) {
+    const name = [m.firstName, m.lastName].filter(Boolean).join(" ").trim();
+    return name || m.email || `Volunteer ${m.id}`;
+}
+
+/**
+ * Everything the People tab's script needs for one person.
+ *
+ * @param {Object} args
+ * @param {NonNullable<Awaited<ReturnType<typeof getPersonAccess>>>} args.person
+ * @param {Awaited<ReturnType<typeof getPositionMatrix>>} args.positions  Active positions.
+ * @param {import("../lib/positionEditing.js").Editor} args.editor
+ * @param {{ id: number, slug: string }} args.department
+ * @param {boolean} args.isSelf
+ * @param {Date} args.defaultExpiry
+ * @returns {Record<string, any>}
+ */
+function buildPeopleData({ person, positions, editor, department, isSelf, defaultExpiry }) {
+    const rules = permissionRules(editor, department.slug);
+    return {
+        departmentSlug: department.slug,
+        defaultExpiry: defaultExpiry.toISOString().slice(0, 10),
+        readOnlyReason: isSelf && !editor.isConventionAdmin ? "You can't change your own access." : null,
+        person: {
+            id: person.id,
+            name: memberName(person),
+            email: person.email,
+            positionIds: person.positionIds,
+            grants: person.grants,
+            history: person.history,
+        },
+        categories: CATEGORIES,
+        tiers: TIERS,
+        positions: positions.map((p) => ({
+            id: p.id,
+            name: p.name,
+            tier: p.tier,
+            sortOrder: p.sortOrder,
+            isDepartmentAdmin: p.isDepartmentAdmin,
+            isDefault: p.isDefault,
+            permissions: p.permissions,
+            neverExpire: grantsNeverExpire([p]),
+            assignReason: positionAssignReason(editor, p),
+        })),
+        catalogue: PERMISSION_CATALOG
+            .filter((d) => d.scope === "department")
+            .map((d) => ({
+                key: d.key,
+                label: d.label,
+                description: d.description,
+                category: d.category,
+                tier: d.tier,
+                requires: [...d.requires],
+                editable: rules.get(d.key)?.editable === true,
+                reason: rules.get(d.key)?.reason ?? null,
+                hidden: d.volunteerServicesOnly && department.slug !== VOLUNTEER_SERVICES_SLUG,
+            })),
+    };
+}
+
+/**
  * Factory: build the Positions page router.
  *
  * @param {{ csrfProtection: import("express").RequestHandler, logError?: (...args: any[]) => void }} deps
@@ -353,12 +504,45 @@ export function positionsRouter({ csrfProtection, logError }) {
                     editorData = buildEditorData(rawPositions, editor, department.slug);
                 }
 
+                // People tab (phase 3d-7d)
+                const canAssign = canAssignIn(req.session, department);
+                let members = [];
+                let peopleData = null;
+                let selectedPersonId = null;
+                let personNotFound = false;
+                if (canAssign) {
+                    members = await withScope("system", () => getDepartmentMembers(department.id));
+                    const personId = Number(req.query.person);
+                    if (Number.isInteger(personId) && personId > 0) {
+                        const person = await withScope("system", () => getPersonAccess(personId, department.id));
+                        if (person) {
+                            selectedPersonId = person.id;
+                            const editor = await withScope("system", () => loadEditor(req.session, department.id));
+                            peopleData = buildPeopleData({
+                                person,
+                                positions: active,
+                                editor,
+                                department,
+                                isSelf: person.id === req.session.userId,
+                                defaultExpiry: await defaultGrantExpiry(),
+                            });
+                        } else {
+                            personNotFound = true;
+                        }
+                    }
+                }
+
                 return res.render("authentication_and_accounts/positions", {
                     department,
                     departments: canPickDepartment ? departments : [],
                     canPickDepartment,
                     canEdit,
                     editorData,
+                    canAssign,
+                    members: members.map((m) => ({ id: m.id, name: memberName(m), email: m.email, positions: m.positions })),
+                    peopleData,
+                    selectedPersonId,
+                    personNotFound,
                     retired: rawPositions.filter((p) => !p.active),
                     tiers: TIERS,
                     csrfToken: req.csrfToken(),
@@ -541,6 +725,92 @@ export function positionsRouter({ csrfProtection, logError }) {
         requirePermission("positions.manage"),
         csrfProtection,
         (req, res) => handleActive(req, res, true),
+    );
+
+    /**
+     * PUT /api/positions/people/:volunteerId
+     * Change one person's positions and individual grants in a department.
+     * Body: { departmentSlug?: string, positions: number[], grants: string[],
+     *         expiresOn?: "YYYY-MM-DD", note?: string,
+     *         tierDown?: { from: string[], to: string|null, kept: string[], removed: string[] } }
+     * `positions` and `grants` are the full new lists. departmentSlug picks
+     * another department (departments.assignPositions or convention admins);
+     * otherwise the session's department.
+     */
+    router.put(
+        "/api/positions/people/:volunteerId",
+        requirePermission("positions.assign", "departments.assignPositions"),
+        csrfProtection,
+        async (req, res) => {
+            try {
+                const volunteerId = Number(req.params.volunteerId);
+                if (!Number.isInteger(volunteerId) || volunteerId <= 0) {
+                    return res.status(400).json({ success: false, error: "Invalid volunteer." });
+                }
+
+                const departments = await getActiveDepartments();
+                let department = departments.find((d) => d.id === req.session.departmentId) ?? null;
+                const slug = req.body?.departmentSlug;
+                if (typeof slug === "string" && slug && slug !== department?.slug) {
+                    department = departments.find((d) => d.slug === slug) ?? null;
+                }
+                if (!department) {
+                    return res.status(400).json({ success: false, error: "Department not found." });
+                }
+                if (!canAssignIn(req.session, department)) {
+                    return res.status(403).json({
+                        success: false,
+                        error: "You can't change people's access in that department.",
+                    });
+                }
+
+                const result = await withScope("system", async () => {
+                    const person = await getPersonAccess(volunteerId, department.id);
+                    if (!person) return { status: 404, error: "That person isn't a member of this department." };
+
+                    const positions = (await getPositionMatrix(department.id)).filter((p) => p.active);
+                    const editor = await loadEditor(req.session, department.id);
+                    const plan = planPersonSave({
+                        editor,
+                        departmentSlug: department.slug,
+                        positions,
+                        person,
+                        isSelf: volunteerId === req.session.userId,
+                        defaultExpiry: await defaultGrantExpiry(),
+                        input: req.body ?? {},
+                    });
+                    if (plan.errors.length) return { status: 400, error: plan.errors.join(" "), errors: plan.errors };
+
+                    const changed = plan.positionsAdd.length + plan.positionsRemove.length
+                        + plan.grantsAdd.length + plan.grantsRemove.length;
+                    if (changed === 0) return { status: 200, changed: 0 };
+
+                    await savePersonAccess({
+                        departmentId: department.id,
+                        volunteerId,
+                        positionsAdd: plan.positionsAdd,
+                        positionsRemove: plan.positionsRemove,
+                        grantsAdd: plan.grantsAdd,
+                        grantsRemove: plan.grantsRemove,
+                        tierDown: plan.tierDown,
+                        role: plan.role,
+                        extras: plan.extras,
+                        note: plan.note,
+                        actorId: req.session.userId,
+                        actorName: actorName(req.session),
+                    });
+                    return { status: 200, changed };
+                });
+
+                if (result.status !== 200) {
+                    return res.status(result.status).json({ success: false, error: result.error, errors: result.errors });
+                }
+                return res.json({ success: true, changed: result.changed });
+            } catch (err) {
+                log("positions people save error:", err);
+                return res.status(500).json({ success: false, error: "Server error" });
+            }
+        },
     );
 
     return router;

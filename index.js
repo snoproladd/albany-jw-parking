@@ -25,7 +25,7 @@ import {
 import { demoContextMiddleware } from "./middleware/demoContext.js";
 import { resolveDepartmentMiddleware } from "./middleware/resolveDepartment.js";
 import { permissionStampMiddleware } from "./middleware/permissionStamp.js";
-import { isCountingAccount as isCountingAccountSession } from "./lib/positions.js";
+import { isCountingAccount as isCountingAccountSession, expireGrants } from "./lib/positions.js";
 import { requirePermission } from "./middleware/requirePermission.js";
 import { publicRoute, signedInRoute } from "./middleware/publicRoute.js";
 import { INCOMPATIBILITIES } from "./src/config/privilegeRules.js";
@@ -316,6 +316,30 @@ function startDbUpdate(loadFn, appInstance) {
       }
     }, 30_000));
   }
+}
+
+/**
+ * Hourly tidy-up of individual grants that have expired (phase 3d-7d), in
+ * the production and demo schemas. Expired grants stop counting the moment
+ * they expire; this logs "expire" in permission_grant_log and removes them.
+ * Runs once a minute after start, then every hour. The timers are unref'd
+ * so they don't hold up shutdown.
+ *
+ * @returns {void}
+ */
+function startGrantExpiry() {
+  const run = async () => {
+    for (const isDemo of [false, true]) {
+      try {
+        const removed = await runAsSystem(() => expireGrants(), { isDemo });
+        if (removed > 0) log(`Expired ${removed} individual grant(s) (${isDemo ? "demo" : "dbo"}).`);
+      } catch (err) {
+        logError(`Grant expiry failed (${isDemo ? "demo" : "dbo"}):`, err);
+      }
+    }
+  };
+  setTimeout(run, 60_000).unref();
+  setInterval(run, 60 * 60 * 1000).unref();
 }
 
 /**
@@ -1647,6 +1671,9 @@ app.use(
       logError,
     }));
     log("Shift alert scheduler started.");
+
+    startGrantExpiry();
+    log("Grant expiry job started.");
 
     mapsSyncHandle = runAsDepartment(DEFAULT_DEPARTMENT_ID, () => startMapsSyncInterval({
       graphConfig: {

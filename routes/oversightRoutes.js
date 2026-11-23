@@ -4,6 +4,8 @@ import express from "express";
 import { publicRoute, signedInRoute } from "../middleware/publicRoute.js";
 import crypto from "crypto";
 import sql from "mssql";
+import { withScope } from "../lib/sql.js";
+import { syncLegacyPositions } from "../lib/positions.js";
 
 import {
   exec,
@@ -908,6 +910,24 @@ export function oversightRouter({
     },
   );
 
+  /**
+   * After an old role tool changes someone's role or extra_* flags, bring
+   * their positions in line (phase 3d-7d: the page-load sync is gone). The
+   * People tab on the Positions page replaces these tools in 3d-7e. A
+   * failure is logged, not shown: the role change itself has been saved.
+   *
+   * @param {number} volunteerId
+   * @param {string} reason  Recorded as granted_by on added rows.
+   * @returns {Promise<void>}
+   */
+  async function syncAfterRoleChange(volunteerId, reason) {
+    try {
+      await withScope("system", () => syncLegacyPositions(volunteerId, reason));
+    } catch (err) {
+      (logError || console.error)("position sync after role change failed:", err);
+    }
+  }
+
   // ===========================
   // VOLUNTEER ASSIGNMENT (role + crew)
   // ===========================
@@ -994,6 +1014,7 @@ export function oversightRouter({
           });
         }
 
+        await syncAfterRoleChange(id, "edit-volunteer assignment");
         return res.json({ success: true });
       } catch (err) {
         (logError || console.error)(
@@ -1080,6 +1101,7 @@ export function oversightRouter({
             "/oversight/roles?error=Volunteer+not+found+or+already+approved",
           );
         }
+        await syncAfterRoleChange(targetId, "role management");
         return res.redirect("/oversight/roles?success=1");
       } catch (err) {
         (logError || console.error)("oversight/roles/desk POST error:", err);
@@ -1130,6 +1152,7 @@ export function oversightRouter({
             "/oversight/roles?error=Volunteer+not+found+or+already+archived",
           );
         }
+        await syncAfterRoleChange(targetId, "role management");
         return res.redirect("/oversight/roles?success=1");
       } catch (err) {
         (logError || console.error)("admin/roles POST error:", err);

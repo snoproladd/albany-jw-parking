@@ -3,9 +3,10 @@
  * @description Behaviour for the read-only Positions page
  * (views/authentication_and_accounts/positions.ejs, phase 3d-7b).
  *
- * - Tabs: "By position" / "By permission", following the WAI-ARIA tabs
- *   pattern (arrow keys, Home/End). The open tab is kept in the URL hash
- *   (#by-position / #by-permission) so a link or reload opens the same one.
+ * - Tabs: "By position" / "By permission" / "People" (when shown),
+ *   following the WAI-ARIA tabs pattern (arrow keys, Home/End). The open tab
+ *   is kept in the URL hash (#by-position / #by-permission / #people) so a
+ *   link or reload opens the same one.
  * - Expand all / Collapse all for the accordions (<details>) of each tab.
  * - Search on the By permission tab: hides permissions that don't match the
  *   typed words and categories with no match, opens the categories that
@@ -70,10 +71,8 @@
     document.querySelectorAll("[data-pos-expand]").forEach((button) => {
         button.addEventListener("click", () => {
             const open = button.getAttribute("data-pos-expand") === "open";
-            const selector = button.getAttribute("data-pos-scope") === "permissions"
-                ? "details.pos-category:not([hidden])"
-                : "details.pos-position";
-            document.querySelectorAll(selector).forEach((d) => {
+            const panel = button.closest(".pos-panel") || document;
+            panel.querySelectorAll("details.pos-position, details.pos-category:not([hidden])").forEach((d) => {
                 d.open = open;
             });
         });

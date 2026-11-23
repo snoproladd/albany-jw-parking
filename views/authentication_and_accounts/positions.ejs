@@ -12,7 +12,7 @@
     <link rel="preload" href="/fonts/georama-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="/styles/fonts.css" />
     <link rel="stylesheet" href="/styles/positions.css" />
-    <% if (canEdit) { %><meta name="csrf-token" content="<%= csrfToken %>" /><% } %>
+    <% if (canEdit || canAssign) { %><meta name="csrf-token" content="<%= csrfToken %>" /><% } %>
   </head>
 
   <%#
@@ -22,6 +22,8 @@
     expand/collapse: public/js/positionsPage.js. Editing, only for
     positions.manage holders in their own department:
     public/js/positionsEditor.js with the positions-editor-data block.
+    People tab (3d-7d), for canAssign: a server-side member picker; the
+    person's editor is public/js/positionsPeople.js with the people-data block.
   %>
   <body class="min-vh-100 bg-body-tertiary" data-authed="true">
     <%- include('../partials/header') %>
@@ -78,19 +80,28 @@
               </ul>
 
               <%# ── Tabs ── %>
+              <% const peopleActive = canAssign && (selectedPersonId !== null || personNotFound); %>
               <div class="pos-tabs nav nav-tabs mb-3" role="tablist" aria-label="View">
-                <button type="button" class="nav-link active" role="tab" id="posTabPositions"
-                        aria-controls="posPanelPositions" aria-selected="true" data-hash="by-position">
+                <button type="button" class="nav-link<%= peopleActive ? '' : ' active' %>" role="tab" id="posTabPositions"
+                        aria-controls="posPanelPositions" aria-selected="<%= !peopleActive %>"
+                        <%- peopleActive ? 'tabindex="-1"' : '' %> data-hash="by-position">
                   By position <span class="badge text-bg-secondary ms-1"><%= positions.length %></span>
                 </button>
                 <button type="button" class="nav-link" role="tab" id="posTabPermissions"
                         aria-controls="posPanelPermissions" aria-selected="false" tabindex="-1" data-hash="by-permission">
                   By permission <span class="badge text-bg-secondary ms-1"><%= permissionTotal %></span>
                 </button>
+                <% if (canAssign) { %>
+                  <button type="button" class="nav-link<%= peopleActive ? ' active' : '' %>" role="tab" id="posTabPeople"
+                          aria-controls="posPanelPeople" aria-selected="<%= peopleActive %>"
+                          <%- peopleActive ? '' : 'tabindex="-1"' %> data-hash="people">
+                    People <span class="badge text-bg-secondary ms-1"><%= members.length %></span>
+                  </button>
+                <% } %>
               </div>
 
               <%# ══ By position ══ %>
-              <div class="pos-panel" id="posPanelPositions" role="tabpanel" aria-labelledby="posTabPositions" tabindex="0">
+              <div class="pos-panel" id="posPanelPositions" role="tabpanel" aria-labelledby="posTabPositions" tabindex="0"<%= peopleActive ? ' hidden' : '' %>>
                 <% if (positions.length === 0) { %>
                   <p class="text-muted">This department has no positions yet.</p>
                   <% if (canEdit) { %>
@@ -241,6 +252,69 @@
                 <p class="text-muted d-none" id="posNoMatch">No permissions match.</p>
               </div>
 
+              <%# ══ People (phase 3d-7d) ══ %>
+              <% if (canAssign) { %>
+                <div class="pos-panel" id="posPanelPeople" role="tabpanel" aria-labelledby="posTabPeople" tabindex="0"<%= peopleActive ? '' : ' hidden' %>>
+                  <%# Plain GET form: works without JavaScript. %>
+                  <form class="row g-2 align-items-end mb-3" method="get" action="/oversight/tools/positions">
+                    <% if (canPickDepartment) { %><input type="hidden" name="department" value="<%= department.slug %>" /><% } %>
+                    <div class="col-12 col-md-8">
+                      <label for="posPerson" class="form-label small fw-semibold mb-1">Volunteer</label>
+                      <select class="form-select form-select-sm" id="posPerson" name="person">
+                        <option value="">Choose someone in <%= department.name %>…</option>
+                        <% members.forEach(function (m) { %>
+                          <option value="<%= m.id %>" <%= m.id === selectedPersonId ? 'selected' : '' %>><%= m.name %><%= m.positions ? ' — ' + m.positions : '' %></option>
+                        <% }) %>
+                      </select>
+                    </div>
+                    <div class="col-auto">
+                      <button type="submit" class="btn btn-primary btn-sm">Open</button>
+                    </div>
+                  </form>
+
+                  <% if (personNotFound) { %>
+                    <p class="alert alert-warning small">That person isn't a member of <%= department.name %>.</p>
+                  <% } %>
+
+                  <% if (peopleData) { %>
+                    <section class="pos-person" aria-labelledby="posPersonName">
+                      <h2 class="h5 mb-0" id="posPersonName"><%= peopleData.person.name %></h2>
+                      <% if (peopleData.person.email) { %><p class="small text-muted mb-2"><%= peopleData.person.email %></p><% } %>
+                      <% if (peopleData.readOnlyReason) { %>
+                        <p class="alert alert-info small py-2"><%= peopleData.readOnlyReason %></p>
+                      <% } %>
+                      <div id="posPeopleHost" class="pos-people-host">
+                        <noscript><p class="small text-muted">Changing access needs JavaScript.</p></noscript>
+                      </div>
+
+                      <% const labelOf = {}; peopleData.catalogue.forEach(function (c) { labelOf[c.key] = c.label; }); %>
+                      <% const actionText = { 'grant': 'Granted', 'revoke': 'Revoked', 'tier-down': 'Tier-down', 'expire': 'Expired',
+                                              'position-add': 'Given position', 'position-remove': 'Removed from position',
+                                              'year-reset': 'Year reset' }; %>
+                      <h3 class="pos-group-heading mt-4">Recent changes</h3>
+                      <% if (peopleData.person.history.length === 0) { %>
+                        <p class="small text-muted">No changes recorded yet.</p>
+                      <% } else { %>
+                        <ul class="list-unstyled small pos-history">
+                          <% peopleData.person.history.forEach(function (h) { %>
+                            <li>
+                              <time datetime="<%= h.createdAt %>"><%= new Date(h.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %></time>
+                              · <span class="fw-semibold"><%= actionText[h.action] || h.action %></span>
+                              <% if (h.positionName) { %>"<%= h.positionName %>"<% } %>
+                              <% if (h.permissionKey) { %>"<%= labelOf[h.permissionKey] || h.permissionKey %>"<% } %>
+                              <% if (h.actorName) { %><span class="text-muted">by <%= h.actorName %></span><% } %>
+                              <% if (h.note) { %><span class="d-block text-muted fst-italic"><%= h.note %></span><% } %>
+                            </li>
+                          <% }) %>
+                        </ul>
+                      <% } %>
+                    </section>
+                  <% } else if (!personNotFound) { %>
+                    <p class="small text-muted">Pick a volunteer to see and change their positions and permissions.</p>
+                  <% } %>
+                </div>
+              <% } %>
+
             </div>
           </section>
 
@@ -256,6 +330,10 @@
       <%# JSON data, not script: "<" escaped so it can never close the tag. %>
       <script type="application/json" id="positions-editor-data"><%- JSON.stringify(editorData).replace(/</g, '\\u003c') %></script>
       <script src="/js/positionsEditor.js"></script>
+    <% } %>
+    <% if (peopleData) { %>
+      <script type="application/json" id="people-data"><%- JSON.stringify(peopleData).replace(/</g, '\\u003c') %></script>
+      <script src="/js/positionsPeople.js"></script>
     <% } %>
   </body>
 </html>

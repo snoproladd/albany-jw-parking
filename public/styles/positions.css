@@ -223,6 +223,50 @@
     border-bottom: 1px solid var(--bs-border-color-translucent);
 }
 
+/* ── People tab (phase 3d-7d) ───────────────────────────────────────────────── */
+
+.pos-people-host {
+    min-height: 12rem;
+}
+
+.pos-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 999px;
+    background: var(--bs-tertiary-bg);
+    font-size: 0.875rem;
+}
+
+.btn-close-sm {
+    width: 0.5rem;
+    height: 0.5rem;
+    background-size: 0.5rem;
+}
+
+.pos-people-perm .form-check-input {
+    flex-shrink: 0;
+}
+
+/* What the person holds: a coloured bar and tint, not colour alone (the
+   ticked box and the source text say it too). */
+.pos-people-perm.pos-held {
+    background: var(--bs-success-bg-subtle);
+    box-shadow: inset 3px 0 0 var(--bs-success);
+    padding-left: 0.5rem;
+}
+
+.pos-source {
+    color: var(--bs-emphasis-color);
+}
+
+.pos-history li {
+    padding: 0.25rem 0;
+    border-bottom: 1px solid var(--bs-border-color-translucent);
+}
+
 @media (prefers-reduced-motion: reduce) {
     .pos-position-summary::before {
         transition: none;
