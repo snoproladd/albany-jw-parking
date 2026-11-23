@@ -1,5 +1,6 @@
 // routes/registrationRoutes.js
 import express from "express";
+import { publicRoute } from "../middleware/publicRoute.js";
 import crypto from "crypto";
 import { getBrand } from "../lib/branding.js";
 
@@ -99,11 +100,11 @@ export function createRegistrationRouter(deps) {
   // GET routes
   // ------------------------------------------------------------
 
-  router.get("/", csrfProtection, (req, res) => {
+  router.get("/", publicRoute("volunteer registration"), csrfProtection, (req, res) => {
     res.render("index", { csrfToken: req.csrfToken() });
   });
 
-  router.get("/email-pass", csrfProtection, (req, res) => {
+  router.get("/email-pass", publicRoute("volunteer registration"), csrfProtection, (req, res) => {
     const pending = (req.session.emailPassSetup || "").trim().toLowerCase();
     const isUpgrade = !!pending;
 
@@ -118,12 +119,12 @@ export function createRegistrationRouter(deps) {
     });
   });
 
-  router.get("/nonProfile", csrfProtection, (req, res) => {
+  router.get("/nonProfile", publicRoute("volunteer registration"), csrfProtection, (req, res) => {
     console.log("[GET /nonProfile] session:", req.session);
     res.render("nonProfile", { csrfToken: req.csrfToken() });
   });
 
-  router.get("/volunteerIn", csrfProtection, (req, res) => {
+  router.get("/volunteerIn", publicRoute("volunteer registration"), csrfProtection, (req, res) => {
     const disableNameFields = req.query.disable === "true";
     req.session.disableNameFields = disableNameFields;
 
@@ -141,12 +142,12 @@ export function createRegistrationRouter(deps) {
     });
   });
 
-  router.get("/personalInfo", csrfProtection, (req, res) => {
+  router.get("/personalInfo", publicRoute("volunteer registration"), csrfProtection, (req, res) => {
     if (!requireDraft(req, res)) return;
     res.render("personalInfo", { csrfToken: req.csrfToken() });
   });
 
-  router.get("/congregationInfo", csrfProtection, async (req, res) => {
+  router.get("/congregationInfo", publicRoute("volunteer registration"), csrfProtection, async (req, res) => {
     if (!requireDraft(req, res)) return;
     const congregations = await getCongregations();
     res.render("congregationInfo", {
@@ -155,7 +156,7 @@ export function createRegistrationRouter(deps) {
     });
   });
 
-  router.get("/spiritualInfo", csrfProtection, (req, res) => {
+  router.get("/spiritualInfo", publicRoute("volunteer registration"), csrfProtection, (req, res) => {
     if (!requireDraft(req, res)) return;
     const regId = req.session.registrationId;
     const volunteer =
@@ -169,12 +170,12 @@ export function createRegistrationRouter(deps) {
     });
   });
 
-  router.get("/notes", csrfProtection, (req, res) => {
+  router.get("/notes", publicRoute("volunteer registration"), csrfProtection, (req, res) => {
     if (!requireDraft(req, res)) return;
     res.render("notes", { csrfToken: req.csrfToken() });
   });
 
-  router.get("/volunteerSummary", csrfProtection, async (req, res) => {
+  router.get("/volunteerSummary", publicRoute("volunteer registration"), csrfProtection, async (req, res) => {
     if (!requireDraft(req, res)) return;
 
     try {
@@ -214,7 +215,7 @@ export function createRegistrationRouter(deps) {
     }
   });
 
-  router.get("/formDone", csrfProtection, (req, res) => {
+  router.get("/formDone", publicRoute("volunteer registration"), csrfProtection, (req, res) => {
     if (!requireDraft(req, res)) return;
     res.render("formDone", { csrfToken: req.csrfToken() });
   });
@@ -223,7 +224,7 @@ export function createRegistrationRouter(deps) {
   // POST — Non‑Profile Step (firstName + lastName + email)
   // ------------------------------------------------------------
 
-  router.post("/submit-nonProfileInfo", csrfProtection, async (req, res) => {
+  router.post("/submit-nonProfileInfo", publicRoute("volunteer registration"), csrfProtection, async (req, res) => {
     try {
       console.log("──────────────────────────────────────────");
       console.log("[POST /submit-nProfileInfo] HIT");
@@ -337,7 +338,7 @@ export function createRegistrationRouter(deps) {
   // POST — Volunteer Contact (phone)
   // ------------------------------------------------------------
 
-  router.post("/submit-volunteerInfo", csrfProtection, async (req, res) => {
+  router.post("/submit-volunteerInfo", publicRoute("volunteer registration"), csrfProtection, async (req, res) => {
     try {
       console.log("──────────────────────────────────────────");
       console.log("[POST /submit-volunteerInfo] HIT");
@@ -428,7 +429,7 @@ export function createRegistrationRouter(deps) {
   // POST — Personal Info
   // ------------------------------------------------------------
 
-  router.post("/submit-personalInfo", csrfProtection, async (req, res) => {
+  router.post("/submit-personalInfo", publicRoute("volunteer registration"), csrfProtection, async (req, res) => {
     try {
       const regId = req.session.registrationId;
       if (!regId) return res.redirect("/email-pass");
@@ -468,7 +469,7 @@ export function createRegistrationRouter(deps) {
   // POST — Congregation Info
   // ------------------------------------------------------------
 
-  router.post("/submitCongregation", csrfProtection, async (req, res) => {
+  router.post("/submitCongregation", publicRoute("volunteer registration"), csrfProtection, async (req, res) => {
     try {
       const regId = req.session.registrationId;
       if (!regId) return res.redirect("/email-pass");
@@ -532,7 +533,7 @@ export function createRegistrationRouter(deps) {
   // POST — Spiritual Info
   // ------------------------------------------------------------
 
-  router.post("/submitSpiritual", csrfProtection, async (req, res) => {
+  router.post("/submitSpiritual", publicRoute("volunteer registration"), csrfProtection, async (req, res) => {
     try {
       const regId = req.session.registrationId;
       if (!regId) return res.redirect("/email-pass");
@@ -559,7 +560,7 @@ export function createRegistrationRouter(deps) {
   // POST — Notes
   // ------------------------------------------------------------
 
-  router.post("/submitNotes", csrfProtection, async (req, res) => {
+  router.post("/submitNotes", publicRoute("volunteer registration"), csrfProtection, async (req, res) => {
     try {
       const regId = req.session.registrationId;
       if (!regId) return res.redirect("/email-pass");
@@ -580,7 +581,7 @@ export function createRegistrationRouter(deps) {
   // POST — Final Submission
   // ------------------------------------------------------------
 
-  router.post("/submitSummary", csrfProtection, async (req, res) => {
+  router.post("/submitSummary", publicRoute("volunteer registration"), csrfProtection, async (req, res) => {
     const regId = req.session.registrationId;
     const isJson = req.is("application/json");
 
@@ -647,7 +648,7 @@ export function createRegistrationRouter(deps) {
   // POST — EmailPass (registered users)
   // ------------------------------------------------------------
 
-  router.post("/submit-emailPass", csrfProtection, async (req, res) => {
+  router.post("/submit-emailPass", publicRoute("volunteer registration"), csrfProtection, async (req, res) => {
     const sessionEmail = (req.session.emailPassSetup || "")
       .trim()
       .toLowerCase();
@@ -779,7 +780,7 @@ export function createRegistrationRouter(deps) {
    * Converts the pending non-registered draft to a registered draft using
    * the supplied password, then sets up the session.
    */
-  router.post("/confirm-emailpass-recovery", csrfProtection, async (req, res) => {
+  router.post("/confirm-emailpass-recovery", publicRoute("volunteer registration"), csrfProtection, async (req, res) => {
     const pending = req.session.pendingEmailPassRecovery;
     if (!pending) {
       return res.status(400).json({ success: false, error: "No pending recovery." });
@@ -813,7 +814,7 @@ export function createRegistrationRouter(deps) {
     return res.json({ success: true });
   });
 
-  router.post("/confirm-draft-recovery", csrfProtection, (req, res) => {
+  router.post("/confirm-draft-recovery", publicRoute("volunteer registration"), csrfProtection, (req, res) => {
     const pending = req.session.pendingDraftRecovery;
     if (!pending) {
       return res
@@ -833,7 +834,7 @@ export function createRegistrationRouter(deps) {
    * Landing page where volunteers choose between a Standard or Enhanced account.
    * No authentication required.
    */
-  router.get("/create-profile", (req, res) => {
+  router.get("/create-profile", publicRoute("volunteer registration"), (req, res) => {
     res.render("registration/createProfileLaunch");
   });
 

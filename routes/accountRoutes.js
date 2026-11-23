@@ -1,5 +1,7 @@
 // routes/accountRoutes.js
 import express from "express";
+import { publicRoute, signedInRoute } from "../middleware/publicRoute.js";
+import { requirePermission } from "../middleware/requirePermission.js";
 import sql from "mssql";
 
 import {
@@ -353,7 +355,7 @@ export function loginRouter({ csrfProtection, logError }) {
   // User can choose to continue without an account or upgrade to a full account.
   // Show choice when an email exists in DB but no password is stored.
   // User can choose to continue without an account or upgrade to a full account.
-  router.get("/chooseContinueOrUpgrade", csrfProtection, (req, res) => {
+  router.get("/chooseContinueOrUpgrade", publicRoute("registration: continue or upgrade choice"), csrfProtection, (req, res) => {
     const error =
       typeof req.query.error === "string" && req.query.error.trim()
         ? req.query.error.trim()
@@ -371,7 +373,7 @@ export function loginRouter({ csrfProtection, logError }) {
   });
 
   // AUTO-RESUME: /continue-registration/auto
-  router.get("/continue-registration/auto", requireAuth, async (req, res) => {
+  router.get("/continue-registration/auto", requireAuth, signedInRoute("resume own draft registration"), async (req, res) => {
     try {
       const userId = req.session.userId;
       if (!userId) return res.redirect("/login");
@@ -432,7 +434,7 @@ export function loginRouter({ csrfProtection, logError }) {
       return res.redirect("/volunteerIn");
     }
   });
-  router.get("/continue-registration", csrfProtection, async (req, res) => {
+  router.get("/continue-registration", publicRoute("registration: continue a draft (verified in handler)"), csrfProtection, async (req, res) => {
     if (!req.session.userId) {
       return res.redirect("/login");
     }
@@ -465,7 +467,7 @@ export function loginRouter({ csrfProtection, logError }) {
     }
   });
 
-  router.post("/continue-registration", csrfProtection, async (req, res) => {
+  router.post("/continue-registration", publicRoute("registration: continue a draft (verified in handler)"), csrfProtection, async (req, res) => {
     if (!req.session.userId) {
       return res.redirect("/login");
     }
@@ -647,7 +649,7 @@ export function loginRouter({ csrfProtection, logError }) {
   });
 
   // Continue registration WITHOUT creating a password (non-registered path)
-  router.post("/continue-without-account", csrfProtection, async (req, res) => {
+  router.post("/continue-without-account", publicRoute("registration without an account"), csrfProtection, async (req, res) => {
     // Get the email securely from session, set in the login route
     const trimmedEmail = (req.session.pendingEmail || "").trim().toLowerCase();
 
@@ -707,7 +709,7 @@ export function loginRouter({ csrfProtection, logError }) {
   // UPGRADE TO ACCOUNT (set password for an email with no password)
   // Uses email stored in session.pendingEmail (secure, not in HTML/URL)
   // ===========================================================
-  router.post("/upgrade-to-account", csrfProtection, async (req, res) => {
+  router.post("/upgrade-to-account", publicRoute("registration: upgrade to an account"), csrfProtection, async (req, res) => {
     const pendingEmail = (req.session.pendingEmail || "").trim().toLowerCase();
 
     if (!pendingEmail) {
@@ -761,7 +763,7 @@ export function loginRouter({ csrfProtection, logError }) {
   // ===========================
   // LOGIN ROUTES
   // ===========================
-  router.get("/login", csrfProtection, (req, res) => {
+  router.get("/login", publicRoute("sign-in page"), csrfProtection, (req, res) => {
     const loginSuccess = req.session.loginSuccess || false;
     req.session.loginSuccess = null; // clear flash flag
 
@@ -773,7 +775,7 @@ export function loginRouter({ csrfProtection, logError }) {
     });
   });
 
-  router.post("/login", csrfProtection, async (req, res) => {
+  router.post("/login", publicRoute("sign-in"), csrfProtection, async (req, res) => {
     const { email, password } = req.body || {};
     const trimmedEmail = (email || "").trim().toLowerCase();
     const rawPassword = password || "";
@@ -880,7 +882,7 @@ export function loginRouter({ csrfProtection, logError }) {
    * for a shared account like COUNTER). Establishes the same session
    * a password login would, then redirects home.
    */
-  router.get("/login/magic/:token", csrfProtection, async (req, res) => {
+  router.get("/login/magic/:token", publicRoute("magic sign-in link (token checked in handler)"), csrfProtection, async (req, res) => {
     try {
       const tokenHash = hashMagicLinkToken(req.params.token || "");
       const row = await getActiveMagicLoginTokenByHash(tokenHash);
@@ -920,7 +922,7 @@ export function loginRouter({ csrfProtection, logError }) {
   // ===========================
   // Logout route: destroy session and redirect to home
   // ==========================
-  router.post("/logout", (req, res) => {
+  router.post("/logout", publicRoute("sign out"), (req, res) => {
     req.session.destroy(() => {
       res.redirect("/");
     });
@@ -930,7 +932,7 @@ export function loginRouter({ csrfProtection, logError }) {
   // Disallow GET on logout for security reasons (avoid CSRF issues)
   // ==========================
 
-  router.get("/logout", (req, res) => {
+  router.get("/logout", publicRoute("sign out"), (req, res) => {
     res.status(405).send("Logout must be POST");
   });
 
@@ -984,7 +986,7 @@ export function loginRouter({ csrfProtection, logError }) {
    * @returns {{ success: boolean, currentId: number,
    *   departments: Array<{ id: number, name: string }>, csrfToken: string }}
    */
-  router.get("/account/departments", requireAuth, csrfProtection, async (req, res) => {
+  router.get("/account/departments", requireAuth, signedInRoute("department switcher list"), csrfProtection, async (req, res) => {
     try {
       const { options } = await _departmentOptions(req.session.userId);
       return res.json({
@@ -1009,7 +1011,7 @@ export function loginRouter({ csrfProtection, logError }) {
    * @param {{ departmentId: number }} req.body
    * @returns {{ success: boolean, departmentId?: number, departmentName?: string, message?: string }}
    */
-  router.post("/account/department", requireAuth, csrfProtection, async (req, res) => {
+  router.post("/account/department", requireAuth, signedInRoute("switch department (membership checked in handler)"), csrfProtection, async (req, res) => {
     try {
       const departmentId = Number(req.body?.departmentId);
       if (!Number.isInteger(departmentId) || departmentId <= 0) {
@@ -1069,7 +1071,7 @@ export function loginRouter({ csrfProtection, logError }) {
   // ===========================
 
   // GET /my-account → show account page
-  router.get("/my-account", requireAuth, csrfProtection, async (req, res) => {
+  router.get("/my-account", requireAuth, requirePermission("self.editProfile"), csrfProtection, async (req, res) => {
     const id = req.session.userId;
     const pwError = req.query.pwError === "1";
     const pwSuccess = req.query.pwSuccess === "1";
@@ -1112,6 +1114,7 @@ export function loginRouter({ csrfProtection, logError }) {
   router.post(
     "/my-account/update/contact",
     requireAuth,
+    requirePermission("self.editProfile"),
     csrfProtection,
     async (req, res) => {
       const id = req.session.userId;
@@ -1149,6 +1152,7 @@ export function loginRouter({ csrfProtection, logError }) {
   router.post(
     "/my-account/update/personal",
     requireAuth,
+    requirePermission("self.editProfile"),
     csrfProtection,
     async (req, res) => {
       const id = req.session.userId;
@@ -1174,6 +1178,7 @@ export function loginRouter({ csrfProtection, logError }) {
   router.post(
     "/my-account/update/congregation",
     requireAuth,
+    requirePermission("self.editProfile"),
     csrfProtection,
     async (req, res) => {
       const id = req.session.userId;
@@ -1216,6 +1221,7 @@ export function loginRouter({ csrfProtection, logError }) {
   router.post(
     "/my-account/update/spiritual",
     requireAuth,
+    requirePermission("self.editProfile"),
     csrfProtection,
     async (req, res) => {
       const id = req.session.userId;
@@ -1241,6 +1247,7 @@ export function loginRouter({ csrfProtection, logError }) {
   router.post(
     "/my-account/update/notes",
     requireAuth,
+    requirePermission("self.editProfile"),
     csrfProtection,
     async (req, res) => {
       const id = req.session.userId;
@@ -1262,6 +1269,7 @@ export function loginRouter({ csrfProtection, logError }) {
   router.post(
     "/my-account/change-password",
     requireAuth,
+    requirePermission("self.editProfile"),
     csrfProtection,
     async (req, res) => {
       const id = req.session.userId;
@@ -1318,6 +1326,7 @@ export function loginRouter({ csrfProtection, logError }) {
   router.post(
     "/my-account/finalize",
     requireAuth,
+    requirePermission("self.editProfile"),
     csrfProtection,
     async (req, res) => {
       const id = req.session.userId;
@@ -1422,44 +1431,6 @@ export function loginRouter({ csrfProtection, logError }) {
         // Apply all section updates
         await Promise.all(promises);
 
-        // Audit fields (if you want to keep an explicit final stamp)
-        router.get(
-          "/my-account",
-          requireAuth,
-          csrfProtection,
-          async (req, res) => {
-            const id = req.session.userId;
-            const pwError = req.query.pwError === "1";
-            const pwSuccess = req.query.pwSuccess === "1";
-
-            try {
-              const user = await getVolunteerById(id);
-
-              if (!user) {
-                // If the record disappeared, force re-login
-                req.session.destroy?.(() => {});
-                return res.redirect("/login");
-              }
-
-              const congregations = await getCongregations();
-              const gender = user.gender || "";
-
-              res.render("myAccount", {
-                csrfToken: req.csrfToken(),
-                user,
-                congregations,
-                privilegeRulesJSON: JSON.stringify(INCOMPATIBILITIES),
-                gender,
-                pwError,
-                pwSuccess,
-              });
-            } catch (err) {
-              (logError || console.error)("myAccount GET error:", err);
-              res.status(500).send("Server error");
-            }
-          },
-        );
-
         return res.json({ success: true });
       } catch (err) {
         (logError || console.error)("my-account finalize error:", err);
@@ -1483,6 +1454,7 @@ export function loginRouter({ csrfProtection, logError }) {
   router.get(
     "/api/my-account/blackouts",
     requireAuth,
+    requirePermission("self.manageBlackouts"),
     async (req, res) => {
       const volunteerId = req.session.userId;
       const dayId = Number(req.query.dayId);
@@ -1511,6 +1483,7 @@ export function loginRouter({ csrfProtection, logError }) {
   router.post(
     "/api/my-account/blackouts",
     requireAuth,
+    requirePermission("self.manageBlackouts"),
     csrfProtection,
     async (req, res) => {
       const volunteerId = req.session.userId;
@@ -1553,6 +1526,7 @@ export function loginRouter({ csrfProtection, logError }) {
   router.delete(
     "/api/my-account/blackouts/:id",
     requireAuth,
+    requirePermission("self.manageBlackouts"),
     csrfProtection,
     async (req, res) => {
       const volunteerId = req.session.userId;

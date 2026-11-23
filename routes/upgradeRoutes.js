@@ -1,7 +1,8 @@
 // routes/upgradeRoutes.js
 import crypto from "crypto";
 import { hashPassword } from "../lib/passwordVer.js";
-import { isRoleAtLeast } from "../src/config/roles.js";
+import { publicRoute } from "../middleware/publicRoute.js";
+import { requirePermission } from "../middleware/requirePermission.js";
 import {
   sendResetEmail,
   sendResetSms,
@@ -28,7 +29,7 @@ const RESET_RESEND_COOLDOWN_MS = 60 * 1000 * 2; // 2 minutes
  * - GET  /upgrade/sent           → confirmation page
  * - GET  /reset-password/:hash   → show reset form
  * - POST /reset-password/:hash   → set new password + clear pending flag
- * - POST /upgrade/test-sms       → dev-only SMS test endpoint (NODE_ENV=development + ADMIN)
+ * - POST /upgrade/test-sms       → dev-only SMS test endpoint (NODE_ENV=development + systemVariables.manage)
  *
  * @param {object} deps
  * @param {import("express")} deps.express
@@ -106,14 +107,14 @@ export default function upgradeRoutes({
   // ─────────────────────────────────────────────────────────────
 
   // GET /upgrade → start: enter phone/email
-  router.get("/upgrade", csrfProtection, (req, res) => {
+  router.get("/upgrade", publicRoute("upgrade a registration to an account"), csrfProtection, (req, res) => {
     res.render("upgrade/upgradeStart", {
       csrfToken: req.csrfToken(),
     });
   });
 
   // POST /upgrade/find → lookup by phone/email
-  router.post("/upgrade/find", csrfProtection, async (req, res) => {
+  router.post("/upgrade/find", publicRoute("upgrade a registration to an account"), csrfProtection, async (req, res) => {
     try {
       const { phone, email } = req.body || {};
       if (!phone && !email) {
@@ -149,7 +150,7 @@ export default function upgradeRoutes({
   });
 
   // GET /upgrade/name → show name confirmation form
-  router.get("/upgrade/name", csrfProtection, async (req, res) => {
+  router.get("/upgrade/name", publicRoute("upgrade a registration to an account"), csrfProtection, async (req, res) => {
     try {
       const id = req.query.id;
       if (!id) return res.redirect("/upgrade");
@@ -169,7 +170,7 @@ export default function upgradeRoutes({
   });
 
   // POST /upgrade/name → verify name against DB record
-  router.post("/upgrade/name", csrfProtection, async (req, res) => {
+  router.post("/upgrade/name", publicRoute("upgrade a registration to an account"), csrfProtection, async (req, res) => {
     try {
       const { id, firstName, lastName, suffix } = req.body || {};
       if (!id || !firstName || !lastName) {
@@ -218,7 +219,7 @@ export default function upgradeRoutes({
   });
 
   // GET /upgrade/send → choose email vs SMS
-  router.get("/upgrade/send", csrfProtection, async (req, res) => {
+  router.get("/upgrade/send", publicRoute("upgrade a registration to an account"), csrfProtection, async (req, res) => {
     try {
       const id = req.query.id;
       if (!id) return res.redirect("/upgrade");
@@ -240,7 +241,7 @@ export default function upgradeRoutes({
   });
 
   // GET /upgrade/sent → confirmation that reset link was sent
-  router.get("/upgrade/sent", csrfProtection, async (req, res) => {
+  router.get("/upgrade/sent", publicRoute("upgrade a registration to an account"), csrfProtection, async (req, res) => {
     try {
       const { id, method } = req.query;
       if (!id || !method) return res.redirect("/upgrade");
@@ -265,7 +266,7 @@ export default function upgradeRoutes({
   });
 
   // POST /upgrade/send → set pending flag & send link
-  router.post("/upgrade/send", csrfProtection, async (req, res) => {
+  router.post("/upgrade/send", publicRoute("upgrade a registration to an account"), csrfProtection, async (req, res) => {
     try {
       const { id, method } = req.body || {};
 
@@ -351,7 +352,7 @@ export default function upgradeRoutes({
   });
 
   // GET /reset-password/:hash → show password reset form
-  router.get("/reset-password/:hash", csrfProtection, async (req, res) => {
+  router.get("/reset-password/:hash", publicRoute("password reset link (hash checked in handler)"), csrfProtection, async (req, res) => {
     try {
       const volunteer = await findVolunteerByResetHash(req.params.hash);
       if (!volunteer)
@@ -368,7 +369,7 @@ export default function upgradeRoutes({
   });
 
   // POST /reset-password/:hash → set new password and clear pending flag
-  router.post("/reset-password/:hash", csrfProtection, async (req, res) => {
+  router.post("/reset-password/:hash", publicRoute("password reset link (hash checked in handler)"), csrfProtection, async (req, res) => {
     try {
       const volunteer = await findVolunteerByResetHash(req.params.hash);
       if (!volunteer)
@@ -397,13 +398,10 @@ export default function upgradeRoutes({
   // POST /upgrade/test-sms → dev-only SMS test endpoint.
   // Sends a real SMS to any number, so it is refused unless the server is
   // explicitly running in development (an unset NODE_ENV counts as not dev)
-  // and the caller is a signed-in ADMIN.
-  router.post("/upgrade/test-sms", csrfProtection, async (req, res) => {
+  // and the caller holds systemVariables.manage.
+  router.post("/upgrade/test-sms", requirePermission("systemVariables.manage"), csrfProtection, async (req, res) => {
     if (process.env.NODE_ENV !== "development") {
       return res.status(404).json({ success: false, error: "Not found." });
-    }
-    if (!req.session?.userId || !isRoleAtLeast(req.session.userRole, "ADMIN")) {
-      return res.status(403).json({ success: false, error: "Not allowed." });
     }
 
     try {

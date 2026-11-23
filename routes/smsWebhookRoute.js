@@ -27,6 +27,7 @@
  */
 
 import express from "express";
+import { publicRoute } from "../middleware/publicRoute.js";
 import {
   findVolunteerByPhoneOrEmail,
   findShiftBySmsCode,
@@ -208,7 +209,7 @@ export function smsWebhookRouter({
    * Always returns TwiML regardless of outcome — Twilio retries on non-2xx
    * or missing responses, which would cause duplicate processing.
    */
-  router.post("/incoming", async (req, res) => {
+  router.post("/incoming", publicRoute("Twilio inbound SMS (signature checked in handler)"), async (req, res) => {
     /**
      * Send a TwiML response and end the HTTP transaction.
      * Accepts an optional reply body to include in a <Message> element.

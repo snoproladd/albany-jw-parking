@@ -8,6 +8,7 @@
  */
 
 import express from "express";
+import { publicRoute } from "../middleware/publicRoute.js";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
@@ -57,7 +58,7 @@ export function sitemapRouter() {
    * Renders a role-filtered index of all app pages.
    * Guests see public pages only; logged-in users see pages for their role.
    */
-  router.get("/sitemap", (req, res) => {
+  router.get("/sitemap", publicRoute("site map (filters its links itself)"), (req, res) => {
     const role = req.session?.userRole || "NON_REGISTERED";
     const permissions = req.session?.permissions || {};
     const roleLevel = ROLE_HIERARCHY.indexOf(role);

@@ -1,6 +1,7 @@
 // routes/oversightRoutes.js
 
 import express from "express";
+import { publicRoute, signedInRoute } from "../middleware/publicRoute.js";
 import crypto from "crypto";
 import sql from "mssql";
 
@@ -6771,7 +6772,7 @@ export function oversightRouter({
    * The ?secret= query param must match PDF_SECRET (random, server-startup value).
    * This route is intentionally unauthenticated — the secret is the credential.
    */
-  router.get("/internal/pdf/report", async (req, res) => {
+  router.get("/internal/pdf/report", publicRoute("internal PDF render (PDF secret checked in handler)"), async (req, res) => {
     if (!req.query.secret || req.query.secret !== PDF_SECRET) {
       return res.status(403).end();
     }
@@ -7652,7 +7653,7 @@ export function oversightRouter({
    * Body (JSON): { description: string, steps?: string, pageUrl?: string }
    * Response:    { success: boolean }
    */
-  router.post("/api/bug-report", requireAuth, async (req, res) => {
+  router.post("/api/bug-report", requireAuth, signedInRoute("report a bug"), async (req, res) => {
     const { description, steps, pageUrl } = req.body || {};
 
     if (!description?.trim()) {

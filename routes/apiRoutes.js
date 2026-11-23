@@ -1,5 +1,6 @@
 // routes/apiRoutes.js
 import express from "express";
+import { publicRoute } from "../middleware/publicRoute.js";
 import * as db from "../lib/dbSync.js";
 
 const router = express.Router();
@@ -16,7 +17,7 @@ const router = express.Router();
  * @param {express.NextFunction} next - Express next middleware function.
  * @returns {Promise<void>} JSON response: { exists: boolean } or error.
  */
-router.get("/volunteers/exists", async (req, res, next) => {
+router.get("/volunteers/exists", publicRoute("registration: duplicate-email check"), async (req, res, next) => {
   try {
     const email = String(req.query?.email ?? "").trim();
     if (!email) {
@@ -41,74 +42,6 @@ router.get("/volunteers/exists", async (req, res, next) => {
 });
 
 /**
- * JSON-based API wrapper around your draft insert logic.
- * Separate from the HTML form flow (/submit-emailPass, /submit-nonProfileInfo),
- * but useful for SPA/AJAX registration flows.
- *
- * Body (when disableNameFields=true):
- *   { email, password }
- *
- * Body (when disableNameFields=false):
- *   { firstName, lastName, suffix?, phone, email }
- *
- * Returns:
- *   201 + row JSON on success
- *   400 for bad input
- *   409 if user already registered (duplicate)
- *
- * @route POST /api/volunteers
- * @param {express.Request} req - Express request object.
- * @param {express.Response} res - Express response object.
- * @param {express.NextFunction} next - Express next middleware function.
- * @returns {Promise<void>} JSON response with draft row or error.
- */
-router.post("/volunteers", async (req, res, next) => {
-  try {
-    const disableNameFields = req.query.disableNameFields === "true";
-
-    const email = String(req.body?.email ?? "").trim();
-    const password = String(req.body?.password ?? "").trim();
-    const firstName = String(req.body?.firstName ?? "").trim();
-    const lastName = String(req.body?.lastName ?? "").trim();
-    const suffix = String(req.body?.suffix ?? "").trim();
-    const phone = String(req.body?.phone ?? "").trim();
-
-    // Validate required fields
-    if (disableNameFields && (!email || !password)) {
-      return res
-        .status(400)
-        .json({ error: "Email and password are required." });
-    }
-
-    if (!disableNameFields && (!firstName || !lastName || !phone || !email)) {
-      return res.status(400).json({
-        error: "First name, last name, phone, and email are required.",
-      });
-    }
-
-    let row;
-    if (disableNameFields) {
-      row = await db.insertDraftEmailPass(email, password);
-    } else {
-      row = await db.insertDraftNameEmail(firstName, lastName, suffix, email);
-    }
-
-    // insert* functions return null when duplicate/invalid → treat as 409 conflict.
-    if (!row) {
-      return res.status(409).json({ error: "User already registered." });
-    }
-
-    return res.status(201).json(row);
-  } catch (err) {
-    // Handle SQL unique constraint violations (2627, 2601)
-    if (err?.number === 2627 || err?.number === 2601) {
-      return res.status(409).json({ error: "User already registered." });
-    }
-    return next(err);
-  }
-});
-
-/**
  * Congregation dropdown autocomplete.
  *
  * Mounted as: app.use('/api', router)
@@ -119,7 +52,7 @@ router.post("/volunteers", async (req, res, next) => {
  * @param {express.Response} res - Express response object.
  * @returns {Promise<void>} JSON array of congregations or error.
  */
-router.get("/congregations", async (req, res) => {
+router.get("/congregations", publicRoute("registration: congregation list"), async (req, res) => {
   try {
     const congregations = await db.getCongregations();
     res.json(congregations);

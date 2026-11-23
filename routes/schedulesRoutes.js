@@ -14,6 +14,7 @@
  */
 
 import express from "express";
+import { publicRoute } from "../middleware/publicRoute.js";
 import { requirePermission } from "../src/config/roles.js";
 import { getPublishedSchedules } from "../lib/dbSync.js";
 import { streamPublishedFileToResponse } from "../lib/blobStorage.js";
@@ -100,7 +101,7 @@ export function schedulesRouter({ csrfProtection, logError, graphConfig }) {
    *
    * @param {string} blobName - Blob name from the published-files container.
    */
-  router.get("/schedule/pdf/:blobName", async (req, res) => {
+  router.get("/schedule/pdf/:blobName", publicRoute("published schedule PDF, emailed as a link"), async (req, res) => {
     const { blobName } = req.params;
     if (req.isDemo) {
       // Blob storage is shared with production; never serve it on the demo.

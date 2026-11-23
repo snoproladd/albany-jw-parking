@@ -44,6 +44,7 @@
  */
 
 import express from "express";
+import { publicRoute } from "../middleware/publicRoute.js";
 import multer from "multer";
 import { requirePermission } from "../src/config/roles.js";
 import {
@@ -349,7 +350,7 @@ export function signsRouter({
    * The ?secret= query param must match PDF_SECRET.
    * Accepts optional filter params: ?status=, ?template=, ?mapType=
    */
-  router.get("/internal/pdf/signs-map", async (req, res) => {
+  router.get("/internal/pdf/signs-map", publicRoute("internal PDF render (PDF secret checked in handler)"), async (req, res) => {
     if (!req.query.secret || req.query.secret !== PDF_SECRET) {
       return res.status(403).end();
     }

@@ -25,8 +25,10 @@ import {
 import { demoContextMiddleware } from "./middleware/demoContext.js";
 import { resolveDepartmentMiddleware } from "./middleware/resolveDepartment.js";
 import { permissionStampMiddleware } from "./middleware/permissionStamp.js";
+import { requirePermission } from "./middleware/requirePermission.js";
+import { publicRoute, signedInRoute } from "./middleware/publicRoute.js";
 import { INCOMPATIBILITIES } from "./src/config/privilegeRules.js";
-import { can, PERMISSIONS, ROLE_HIERARCHY, roleLevel, isRoleAtLeast } from "./src/config/roles.js";
+import { ROLE_HIERARCHY, roleLevel, isRoleAtLeast } from "./src/config/roles.js";
 
 const require = createRequire(import.meta.url);
 const { version: APP_VERSION } = require("./package.json");
@@ -639,16 +641,15 @@ let mapsSyncHandle = null;
     // API
     app.use("/api", apiRoutes);
     // ── Home page — dashboard for authenticated users ──────────────
-    app.get("/", csrfProtection, async (req, res) => {
+    app.get("/", publicRoute("home: landing page, dashboard when signed in"), csrfProtection, async (req, res) => {
       // COUNTER is a narrow shared-account role scoped to /counts only.
       // Short-circuit before any dashboard queries run.
       if (req.session.userRole === "COUNTER") {
         return res.redirect("/counts");
       }
 
-      const sessionRole  = req.session.userRole   || "NON_REGISTERED";
-      const sessionPerms = req.session.permissions || PERMISSIONS;
-      const canViewOversightWidgets = can(sessionPerms, sessionRole, "viewVolunteerInfo");
+      // Oversight widgets: the same people who can open volunteer records.
+      const canViewOversightWidgets = res.locals.can("volunteers.view");
 
       const baseData = {
         csrfToken: req.csrfToken(),
@@ -945,7 +946,7 @@ app.use(
      * rolling session timer while the user is active. Returns 401 when
      * no session exists so the client knows to redirect to login.
      */
-    app.get("/api/session/touch", (req, res) => {
+    app.get("/api/session/touch", signedInRoute("session keep-alive (checked in handler)"), (req, res) => {
       if (!req.session?.userId) {
         return res.status(401).json({ ok: false, reason: "unauthenticated" });
       }
@@ -957,7 +958,7 @@ app.use(
     // Validation Endpoints (Kickbox / Twilio)
     // ========================================================
 
-    app.get("/validate-email", async (req, res) => {
+    app.get("/validate-email", publicRoute("registration: email validation"), async (req, res) => {
       const email = (req.query.email || "").toString().trim();
       if (!email) {
         return res.status(400).json({
@@ -985,7 +986,7 @@ app.use(
       }
     });
 
-    app.get("/validate-phone", async (req, res) => {
+    app.get("/validate-phone", publicRoute("registration: phone validation"), async (req, res) => {
       try {
         const raw = (req.query.phone || "").toString();
         const digits = raw.replace(/\D+/g, "");
@@ -1028,7 +1029,7 @@ app.use(
      * Public page showing rendezvous point details + photo.
      * Access is gated by an HMAC token in the ?t= query parameter.
      */
-    app.get("/rv/:saId", async (req, res) => {
+    app.get("/rv/:saId", publicRoute("rendezvous link (token checked in handler)"), async (req, res) => {
       const saId = Number(req.params.saId);
       const token = String(req.query.t || "");
 
@@ -1060,7 +1061,7 @@ app.use(
      * Validates an HMAC token passed as ?t= query param with the
      * assignment ID in ?a= to prevent enumeration.
      */
-    app.get("/rv/photo/:blobName", async (req, res) => {
+    app.get("/rv/photo/:blobName", publicRoute("rendezvous photo (token checked in handler)"), async (req, res) => {
       const blobName = req.params.blobName;
       const saId = Number(req.query.a || 0);
       const token = String(req.query.t || "");
@@ -1085,7 +1086,7 @@ app.use(
     /**
      * Show the RSVP response page for an invite link.
      */
-    app.get("/invite/respond/:token", csrfProtection, async (req, res) => {
+    app.get("/invite/respond/:token", publicRoute("invitation reply link (token checked in handler)"), csrfProtection, async (req, res) => {
       const { token } = req.params;
       try {
         const invitation = await db.getInvitationByToken(token);
@@ -1110,7 +1111,7 @@ app.use(
      * Record a volunteer's RSVP response.
      * Revoked invitations cannot be responded to.
      */
-    app.post("/invite/respond/:token", csrfProtection, async (req, res) => {
+    app.post("/invite/respond/:token", publicRoute("invitation reply (token checked in handler)"), csrfProtection, async (req, res) => {
       const { token } = req.params;
       const { response, response_other } = req.body || {};
 
@@ -1191,6 +1192,7 @@ app.use(
      */
     app.post(
       "/api/sms/webhook",
+      publicRoute("Twilio opt-out webhook (signature checked in handler)"),
       express.urlencoded({ extended: false }),
       async (req, res) => {
         try {
@@ -1409,7 +1411,7 @@ app.use(
      * Public route — no session auth, invitation token is the credential.
      * Fire-and-forget from the client — always returns 200.
      */
-    app.post("/invite/opt-in/:token", csrfProtection, async (req, res) => {
+    app.post("/invite/opt-in/:token", publicRoute("SMS opt-in link (token checked in handler)"), csrfProtection, async (req, res) => {
       const { token } = req.params;
       try {
         const invitation = await db.getInvitationByToken(token);
@@ -1430,7 +1432,7 @@ app.use(
      * Returns a volunteer's slot assignments for one convention day.
      * Used by the home page day-navigator widget.
      */
-    app.get("/api/dashboard/shifts", async (req, res) => {
+    app.get("/api/dashboard/shifts", requirePermission("self.viewSchedule"), async (req, res) => {
       if (!req.session?.userId)
         return res
           .status(401)
@@ -1459,7 +1461,7 @@ app.use(
      * Returns the list of tour IDs this user has dismissed.
      * Used by tourBase.js to decide whether to show the first-visit prompt.
      */
-    app.get("/api/tours/status", async (req, res) => {
+    app.get("/api/tours/status", signedInRoute("tour prompts (empty when signed out)"), async (req, res) => {
       if (!req.session?.userId) return res.json({ dismissed: [] });
       try {
         const dismissed = await db.getTourDismissals(req.session.userId);
@@ -1475,7 +1477,7 @@ app.use(
      * Permanently dismisses a tour prompt for the logged-in user.
      * Body: { tourId: string } — the tour key, or '_all' to disable all prompts.
      */
-    app.post("/api/tours/dismiss", express.json(), async (req, res) => {
+    app.post("/api/tours/dismiss", signedInRoute("dismiss a tour prompt (checked in handler)"), express.json(), async (req, res) => {
       if (!req.session?.userId) {
         return res.status(401).json({ error: "Not logged in" });
       }
@@ -1496,7 +1498,7 @@ app.use(
      * GET /privacy
      * Renders the Privacy Policy page (public, no auth required).
      */
-    app.get("/privacy", (req, res) => {
+    app.get("/privacy", publicRoute("privacy policy"), (req, res) => {
       res.render("privacy");
     });
 
@@ -1504,11 +1506,11 @@ app.use(
      * GET /terms
      * Renders the Terms of Service page (public, no auth required).
      */
-    app.get("/terms", (req, res) => {
+    app.get("/terms", publicRoute("terms of use"), (req, res) => {
       res.render("terms");
     });
 
-    app.get("/health", (req, res) => res.send("OK"));
+    app.get("/health", publicRoute("health check"), (req, res) => res.send("OK"));
 
     app.use((req, res) => {
       res.status(404);

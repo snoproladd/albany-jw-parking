@@ -12,6 +12,8 @@
  *             (shown with the new keys it maps to)
  *   unknown   requirePermission() with a key that is in neither list
  *   public    marked with publicRoute("reason")
+ *   anySignedIn  marked with signedInRoute("reason"): any signed-in person,
+ *             no particular permission (department switch, keep-alive ...)
  *   custom    a custom gate middleware (requireRolloverRole, ...)
  *   signedIn  requireAuth only
  *   none      no gate at all
@@ -20,7 +22,7 @@
  *
  * Usage (from the repo root):
  *     npm run audit:routes
- *     node scripts/auditRoutes.js --strict    exit 1 unless every route is "new" or "public"
+ *     node scripts/auditRoutes.js --strict    exit 1 unless every route is "new", "public" or "anySignedIn"
  *                                             (the goal at the end of phase 3d)
  */
 
@@ -117,11 +119,12 @@ function splitArgs(inner) {
  * @property {number} line
  * @property {string} method
  * @property {string} path
- * @property {"new"|"legacy"|"unknown"|"public"|"custom"|"signedIn"|"none"} gate
+ * @property {"new"|"legacy"|"unknown"|"public"|"anySignedIn"|"custom"|"signedIn"|"none"} gate
  * @property {string[]} keys        Permission keys used.
  * @property {string[]} mapsTo      New keys the legacy keys map to.
  * @property {string[]} custom      Custom gate names.
  * @property {string} publicReason
+ * @property {string} signedInReason
  * @property {string[]} inline      Access checks found inside the handler.
  */
 
@@ -162,6 +165,7 @@ function auditFile(file) {
             mapsTo: [],
             custom: [],
             publicReason: "",
+            signedInReason: "",
             inline: [],
         };
 
@@ -170,8 +174,10 @@ function auditFile(file) {
             // requirePermission("a.b") or requirePermission("a.b", "c.d", ...)
             const perm = mw.match(/^requirePermission\(\s*((?:["'`][\w.]+["'`]\s*,?\s*)+)\)$/);
             const pub = mw.match(/^publicRoute\(\s*["'`]([^"'`]*)["'`]\s*\)$/);
+            const anySignedIn = mw.match(/^signedInRoute\(\s*["'`]([^"'`]*)["'`]\s*\)$/);
             if (perm) entry.keys.push(...[...perm[1].matchAll(/["'`]([\w.]+)["'`]/g)].map((k) => k[1]));
             else if (pub) entry.publicReason = pub[1];
+            else if (anySignedIn) entry.signedInReason = anySignedIn[1];
             else if (mw === "requireAuth") signedIn = true;
             else if (!PLUMBING.test(mw)) entry.custom.push(mw.replace(/\s+/g, " ").slice(0, 60));
         }
@@ -190,6 +196,7 @@ function auditFile(file) {
                 entry.mapsTo = [...new Set(legacy.flatMap((k) => LEGACY_PERMISSION_MAP[k] ?? []))];
             } else entry.gate = "new";
         } else if (entry.publicReason) entry.gate = "public";
+        else if (entry.signedInReason) entry.gate = "anySignedIn";
         else if (entry.custom.length > 0) entry.gate = "custom";
         else if (signedIn) entry.gate = "signedIn";
 
@@ -220,7 +227,7 @@ function main() {
     ];
     const routes = files.flatMap(auditFile);
 
-    const order = ["unknown", "none", "signedIn", "custom", "legacy", "public", "new"];
+    const order = ["unknown", "none", "signedIn", "custom", "legacy", "public", "anySignedIn", "new"];
     const counts = Object.fromEntries(order.map((g) => [g, routes.filter((r) => r.gate === g).length]));
     const unknownKeys = [...new Set(routes.filter((r) => r.gate === "unknown")
         .flatMap((r) => r.keys.filter((k) => !isKnownPermission(k) && !LEGACY_KEYS.has(k))))];
@@ -240,6 +247,7 @@ function main() {
         custom: "custom gate middleware — convert to a permission (phase 3d)",
         legacy: "old permission key — convert to the new key(s) shown",
         public: "declared public with publicRoute()",
+        anySignedIn: "declared for any signed-in person with signedInRoute()",
         new: "catalogue permission",
     };
     for (const g of order) lines.push(`| ${g} | ${counts[g]} | ${meaning[g]} |`);
@@ -258,6 +266,7 @@ function main() {
                 r.mapsTo.length ? r.mapsTo.join(", ") : "",
                 r.custom.length ? `custom: ${r.custom.join(", ")}` : "",
                 r.publicReason ? `public: ${r.publicReason}` : "",
+                r.signedInReason ? `any signed-in: ${r.signedInReason}` : "",
                 r.inline.length ? `inline check: ${r.inline.join(", ")}` : "",
             ].filter(Boolean).join("; ");
             lines.push(`| ${r.line} | ${r.method} | \`${cell(r.path)}\` | ${r.gate} | ${cell(r.keys.join(", "))} | ${cell(notes)} |`);
@@ -269,14 +278,14 @@ function main() {
     writeFileSync(join(ROOT, "docs", "ROUTE_AUDIT.md"), lines.join("\n"));
 
     console.log(`Route audit: ${routes.length} routes in ${files.length} files`);
-    for (const g of order) console.log(`  ${g.padEnd(9)} ${String(counts[g]).padStart(4)}  ${meaning[g]}`);
+    for (const g of order) console.log(`  ${g.padEnd(11)} ${String(counts[g]).padStart(4)}  ${meaning[g]}`);
     if (unknownKeys.length) console.log(`  Unknown keys: ${unknownKeys.join(", ")}`);
     if (unmappedLegacy.length) console.log(`  Old keys not in LEGACY_PERMISSION_MAP: ${unmappedLegacy.join(", ")}`);
     console.log("Full table: docs/ROUTE_AUDIT.md");
 
     if (unknownKeys.length > 0) return 1;
-    if (STRICT && routes.some((r) => r.gate !== "new" && r.gate !== "public")) {
-        console.log("--strict: some routes are not gated by a catalogue permission or declared public.");
+    if (STRICT && routes.some((r) => !["new", "public", "anySignedIn"].includes(r.gate))) {
+        console.log("--strict: some routes are not gated by a catalogue permission or declared public / any signed-in.");
         return 1;
     }
     return 0;

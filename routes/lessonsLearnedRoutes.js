@@ -28,6 +28,7 @@
  */
 
 import express from 'express';
+import { publicRoute } from "../middleware/publicRoute.js";
 import multer  from 'multer';
 import {
     requirePermission,
@@ -198,7 +199,7 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
      * Authenticated via ?secret= query param only — no session required.
      * This route is intentionally unauthenticated; the secret is the credential.
      */
-    router.get('/internal/pdf/lessons-learned', async (req, res) => {
+    router.get('/internal/pdf/lessons-learned', publicRoute("internal PDF render (PDF secret checked in handler)"), async (req, res) => {
         if (!req.query.secret || req.query.secret !== LL_PDF_SECRET) {
             return res.status(403).end();
         }
