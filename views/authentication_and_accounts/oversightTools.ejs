@@ -17,11 +17,27 @@
   <%- include('../partials/header') %>
 
   <%
-    const _role       = typeof userRole        !== 'undefined' ? userRole        : 'NON_REGISTERED';
-    const _perms      = typeof userPermissions !== 'undefined' ? userPermissions : {};
-    const roleLevel   = roleLevelOf(_role);
-    const isAtLeast   = (r) => isRoleAtLeast(_role, r);
-    const can         = (permission) => !!(_perms[_role] && _perms[_role][permission]);
+    // Phase 3d: cards whose tools have moved to permission keys use can('area.action')
+    // (res.locals.can, the person's positions). Cards whose tools are still on old
+    // keys use oldCan() / isAtLeast() until their slice converts them; 3d-8 removes both.
+    const _role     = typeof userRole        !== 'undefined' ? userRole        : 'NON_REGISTERED';
+    const _perms    = typeof userPermissions !== 'undefined' ? userPermissions : {};
+    const isAtLeast = (r) => isRoleAtLeast(_role, r);
+    const oldCan    = (permission) => !!(_perms[_role] && _perms[_role][permission]);
+    const any       = (...keys) => keys.some((k) => can(k));
+
+    // One flag per section, shared by the jump menu, the sidebar and the section.
+    const showCommunications = oldCan('accessAdminConsole') || any('volunteers.sendSignInLinks', 'bugReports.manage');
+    const showVolunteers     = any('volunteers.view', 'volunteers.edit', 'volunteers.create',
+                                   'positions.assign', 'notes.view', 'sms.manageOptOuts');
+    const showReports        = can('volunteers.viewReports');
+    const showSigns          = oldCan('viewSigns') || oldCan('manageSigns');
+    const showScheduling     = oldCan('manageShifts') || oldCan('createAssignments') || oldCan('accessAdminConsole');
+    const showAttendance     = any('attendance.checkIn', 'attendance.viewReports');
+    const showLessons        = isAtLeast('KEYMAN');
+    const showDecently       = oldCan('accessAdminConsole');
+    const showAdministration = any('positions.manage', 'structure.manage');
+    const showDocs           = oldCan('viewMaps') || oldCan('viewSchedules');
   %>
 
   <main class="container-fluid py-4 px-4">
@@ -32,34 +48,34 @@
         <div class="d-lg-none mb-3">
           <select class="form-select" id="otMobileNav" aria-label="Jump to section">
             <option value="">Jump to section…</option>
-            <% if (can('manageRoles') || can('editVolunteerInfo') || can('createVolunteerAccounts') || can('viewVolunteerInfo') || isAtLeast('OVERSEER')) { %>
+            <% if (showCommunications) { %>
+              <option value="communications">📨 Communications</option>
+            <% } %>
+            <% if (showVolunteers) { %>
               <option value="volunteer-management">👥 Volunteer Management</option>
             <% } %>
-            <% if (isAtLeast('OVERSEER')) { %>
+            <% if (showReports) { %>
               <option value="reports">📊 Reports</option>
             <% } %>
-            <% if (can('viewSigns') || can('manageSigns')) { %>
+            <% if (showSigns) { %>
               <option value="signs">🪧 Signs</option>
             <% } %>
-            <% if (can('manageShifts') || can('accessAdminConsole')) { %>
+            <% if (showScheduling) { %>
               <option value="scheduling">📅 Scheduling</option>
             <% } %>
-            <% if (can('logAttendance') || can('viewAttendance')) { %>
+            <% if (showAttendance) { %>
               <option value="attendance">✅ Attendance</option>
             <% } %>
-            <% if (isAtLeast('KEYMAN')) { %>
+            <% if (showLessons) { %>
               <option value="lessons-learned">💡 Lessons Learned</option>
             <% } %>
-            <% if (can('accessAdminConsole')) { %>
+            <% if (showDecently) { %>
               <option value="decently-sync">🔄 Decently Sync</option>
             <% } %>
-            <% if (can('manageRoles') && isAtLeast('ADMIN')) { %>
+            <% if (showAdministration) { %>
               <option value="administration">⚙️ Administration</option>
             <% } %>
-            <a class="ot-sidebar-link" href="#site-map">
-                <i class="fa-solid fa-sitemap"></i> Site Map
-              </a>
-          </nav>
+            <option value="site-map">🗺️ Site Map</option>
           </select>
         </div>
 
@@ -68,42 +84,47 @@
           <%# ── Desktop sidebar ─────────────────────────────────────── %>
           <nav class="d-none d-lg-flex flex-column gap-1 ot-sidebar flex-shrink-0" aria-label="Section navigation">
             <div class="ot-sidebar-label">Sections</div>
-             <% if (can('manageRoles') || can('editVolunteerInfo') || can('createVolunteerAccounts') || can('viewVolunteerInfo') || isAtLeast('OVERSEER')) { %>
+            <% if (showCommunications) { %>
+              <a class="ot-sidebar-link" href="#communications">
+                <i class="fa-solid fa-paper-plane"></i> Communications
+              </a>
+            <% } %>
+             <% if (showVolunteers) { %>
               <a class="ot-sidebar-link" href="#volunteer-management">
                 <i class="fa-solid fa-users"></i> Volunteer Management
               </a>
             <% } %>
-            <% if (isAtLeast('OVERSEER')) { %>
+            <% if (showReports) { %>
               <a class="ot-sidebar-link" href="#reports">
                 <i class="fa-solid fa-chart-bar"></i> Reports
               </a>
             <% } %>
-            <% if (can('viewSigns') || can('manageSigns')) { %>
+            <% if (showSigns) { %>
               <a class="ot-sidebar-link" href="#signs">
                 <i class="fa-solid fa-signs-post"></i> Signs
               </a>
             <% } %>
-            <% if (can('manageShifts') || can('accessAdminConsole')) { %>
+            <% if (showScheduling) { %>
               <a class="ot-sidebar-link" href="#scheduling">
                 <i class="fa-regular fa-calendar-days"></i> Scheduling
               </a>
             <% } %>
-            <% if (can('logAttendance') || can('viewAttendance')) { %>
+            <% if (showAttendance) { %>
               <a class="ot-sidebar-link" href="#attendance">
                 <i class="fa-solid fa-clipboard-check"></i> Attendance
               </a>
             <% } %>
-            <% if (isAtLeast('KEYMAN')) { %>
+            <% if (showLessons) { %>
               <a class="ot-sidebar-link" href="#lessons-learned">
                 <i class="fa-solid fa-lightbulb"></i> Lessons Learned
               </a>
             <% } %>
-            <% if (can('accessAdminConsole')) { %>
+            <% if (showDecently) { %>
               <a class="ot-sidebar-link" href="#decently-sync">
                 <i class="fa-solid fa-rotate"></i> Decently Sync
               </a>
             <% } %>
-            <% if (can('manageRoles') && isAtLeast('ADMIN')) { %>
+            <% if (showAdministration) { %>
               <a class="ot-sidebar-link" href="#administration">
                 <i class="fa-solid fa-gear"></i> Administration
               </a>
@@ -121,7 +142,7 @@
                 <h1 class="h2 my-2">
                   <i class="fa-solid fa-screwdriver-wrench me-2"></i>Operations
                 </h1>
-                <p class="mb-0">Available tools are based on your role.</p>
+                <p class="mb-0">Available tools are based on your positions.</p>
               </div>            </div>
           </header>
 
@@ -130,12 +151,13 @@
             <%# ══════════════════════════════════════════════
                 1. COMMUNICATIONS
             ══════════════════════════════════════════════ %>
-            <% if (can('accessAdminConsole')) { %>
+            <% if (showCommunications) { %>
               <h2 class="tools-group-heading" id="communications">
                 <i class="fa-solid fa-paper-plane me-2"></i>Communications
               </h2>
               <div class="row g-4 mb-5">
 
+                <% if (oldCan('accessAdminConsole')) { %>
                 <div class="col-12 col-sm-6 col-lg-4">
                   <div class="admin-tool-card h-100">
                     <div class="admin-tool-icon text-primary">
@@ -148,7 +170,9 @@
                     </a>
                   </div>
                 </div>
+                <% } %>
 
+                <% if (oldCan('accessAdminConsole')) { %>
                 <div class="col-12 col-sm-6 col-lg-4">
                   <div class="admin-tool-card h-100">
                     <div class="admin-tool-icon text-success">
@@ -161,7 +185,9 @@
                     </a>
                   </div>
                 </div>
+                <% } %>
 
+                <% if (can('volunteers.sendSignInLinks')) { %>
                 <div class="col-12 col-sm-6 col-lg-4">
                   <div class="admin-tool-card h-100">
                     <div class="admin-tool-icon text-warning">
@@ -174,7 +200,9 @@
                     </a>
                   </div>
                 </div>
+                <% } %>
 
+              <% if (can('bugReports.manage')) { %>
               <div class="col-12 col-sm-6 col-lg-4">
                   <div class="admin-tool-card h-100">
                     <div class="admin-tool-icon text-danger">
@@ -187,6 +215,7 @@
                     </a>
                   </div>
                 </div>
+              <% } %>
 
               </div>
             <% } %>
@@ -194,13 +223,13 @@
             <%# ══════════════════════════════════════════════
                 2. VOLUNTEER MANAGEMENT
             ══════════════════════════════════════════════ %>
-            <% if (can('manageRoles') || can('editVolunteerInfo') || can('createVolunteerAccounts') || can('viewVolunteerInfo') || isAtLeast('OVERSEER')) { %>
+            <% if (showVolunteers) { %>
               <h2 class="tools-group-heading" id="volunteer-management">
                 <i class="fa-solid fa-users me-2"></i>Volunteer Management
               </h2>
               <div class="row g-4 mb-5">
 
-                <% if (can('viewVolunteerInfo')) { %>
+                <% if (can('volunteers.view')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-info">
@@ -215,7 +244,7 @@
                   </div>
                 <% } %>
 
-                <% if (can('editVolunteerInfo')) { %>
+                <% if (can('volunteers.edit')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-success">
@@ -230,7 +259,7 @@
                   </div>
                 <% } %>
 
-                <% if (can('createVolunteerAccounts')) { %>
+                <% if (can('volunteers.create')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-info">
@@ -245,7 +274,7 @@
                   </div>
                 <% } %>
 
-               <% if (can('manageRoles') || isAtLeast('OVERSEER')) { %>
+               <% if (can('positions.assign')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-primary">
@@ -260,7 +289,7 @@
                   </div>
                 <% } %>
 
-                <% if (isAtLeast('OVERSEER')) { %>
+                <% if (can('notes.view')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-warning">
@@ -275,7 +304,7 @@
                   </div>
                 <% } %>
 
-                <% if (can('deleteVolunteer')) { %>
+                <% if (can('sms.manageOptOuts')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-primary">
@@ -295,7 +324,7 @@
             <%# ══════════════════════════════════════════════
                 3. REPORTS
             ══════════════════════════════════════════════ %>
-            <% if (isAtLeast('OVERSEER')) { %>
+            <% if (showReports) { %>
               <h2 class="tools-group-heading" id="reports">
                 <i class="fa-solid fa-chart-bar me-2"></i>Reports
               </h2>
@@ -406,13 +435,13 @@
             <%# ══════════════════════════════════════════════
                 3.5 SIGNS
             ══════════════════════════════════════════════ %>
-            <% if (can('viewSigns') || can('manageSigns')) { %>
+            <% if (showSigns) { %>
               <h2 class="tools-group-heading" id="signs">
                 <i class="fa-solid fa-signs-post me-2"></i>Signs
               </h2>
               <div class="row g-4 mb-5">
 
-                <% if (can('viewSigns')) { %>
+                <% if (oldCan('viewSigns')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-primary">
@@ -427,7 +456,7 @@
                   </div>
                 <% } %>
 
-                <% if (can('manageSigns')) { %>
+                <% if (oldCan('manageSigns')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-success">
@@ -442,7 +471,7 @@
                   </div>
                 <% } %>
 
-                <% if (can('viewSigns')) { %>
+                <% if (oldCan('viewSigns')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-warning">
@@ -463,13 +492,13 @@
             <%# ══════════════════════════════════════════════
                 4. SCHEDULING
             ══════════════════════════════════════════════ %>
-            <% if (can('manageShifts') || can('createAssignments') || can('accessAdminConsole')) { %>
+            <% if (showScheduling) { %>
               <h2 class="tools-group-heading" id="scheduling">
                 <i class="fa-regular fa-calendar-days me-2"></i>Scheduling
               </h2>
               <div class="row g-4 mb-5">
 
-                <% if (can('manageShifts')) { %>
+                <% if (oldCan('manageShifts')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-warning">
@@ -484,7 +513,7 @@
                   </div>
                 <% } %>
 
-                <% if (can('manageShifts')) { %>
+                <% if (oldCan('manageShifts')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-primary">
@@ -499,7 +528,7 @@
                   </div>
                 <% } %>
 
-                <% if (can('editRendezvous')) { %>
+                <% if (oldCan('editRendezvous')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-info">
@@ -514,7 +543,7 @@
                   </div>
                 <% } %>
 
-                <% if (can('accessAdminConsole')) { %>
+                <% if (oldCan('accessAdminConsole')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-secondary">
@@ -529,7 +558,7 @@
                   </div>
                 <% } %>
 
-                <% if (can('createAssignments')) { %>
+                <% if (oldCan('createAssignments')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-warning">
@@ -544,7 +573,7 @@
                   </div>
                 <% } %>
 
-                <% if (can('createAssignments')) { %>
+                <% if (oldCan('createAssignments')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-success">
@@ -559,7 +588,7 @@
                   </div>
                 <% } %>
 
-                <% if (can('createAssignments')) { %>
+                <% if (oldCan('createAssignments')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-warning">
@@ -574,7 +603,7 @@
                   </div>
                 <% } %>
 
-                <% if (can('deleteVolunteer')) { %>
+                <% if (oldCan('deleteVolunteer')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-primary">
@@ -589,7 +618,7 @@
                   </div>
                 <% } %>
 
-                <% if (can('createAssignments')) { %>
+                <% if (oldCan('createAssignments')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-info">
@@ -604,7 +633,7 @@
                   </div>
                 <% } %>
 
-                <% if (can('accessAdminConsole')) { %>
+                <% if (oldCan('accessAdminConsole')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-danger">
@@ -619,7 +648,7 @@
                   </div>
                 <% } %>
 
-                <% if (can('accessAdminConsole')) { %>
+                <% if (oldCan('accessAdminConsole')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-warning">
@@ -640,13 +669,13 @@
             <%# ══════════════════════════════════════════════
                 4. ATTENDANCE
             ══════════════════════════════════════════════ %>
-            <% if (can('logAttendance') || can('viewAttendance')) { %>
+            <% if (showAttendance) { %>
               <h2 class="tools-group-heading" id="attendance">
                 <i class="fa-solid fa-clipboard-check me-2"></i>Attendance
               </h2>
               <div class="row g-4 mb-5">
 
-                <% if (can('logAttendance')) { %>
+                <% if (can('attendance.checkIn')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-info">
@@ -661,7 +690,7 @@
                   </div>
                 <% } %>
 
-                <% if (can('viewAttendance')) { %>
+                <% if (can('attendance.viewReports')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-primary">
@@ -682,7 +711,7 @@
             <%# ══════════════════════════════════════════════
                 5. LESSONS LEARNED
             ══════════════════════════════════════════════ %>
-            <% if (isAtLeast('KEYMAN')) { %>
+            <% if (showLessons) { %>
               <h2 class="tools-group-heading" id="lessons-learned">
                 <i class="fa-solid fa-lightbulb me-2"></i>Lessons Learned
               </h2>
@@ -703,7 +732,7 @@
                 </div>
 
                 <%# Published report — OVERSEER+ only %>
-                <% if (can('editVolunteerInfo')) { %>
+                <% if (oldCan('editVolunteerInfo')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-success">
@@ -724,7 +753,7 @@
             <%# ══════════════════════════════════════════════
                 5. DECENTLY SYNC
             ══════════════════════════════════════════════ %>
-            <% if (can('accessAdminConsole')) { %>
+            <% if (showDecently) { %>
               <h2 class="tools-group-heading" id="decently-sync">
                 <i class="fa-solid fa-rotate me-2"></i>Decently Sync
               </h2>
@@ -777,12 +806,13 @@
             <%# ══════════════════════════════════════════════
                 6. ADMINISTRATION
             ══════════════════════════════════════════════ %>
-            <% if (can('manageRoles') && isAtLeast('ADMIN')) { %>
+            <% if (showAdministration) { %>
               <h2 class="tools-group-heading" id="administration">
                 <i class="fa-solid fa-gear me-2"></i>Administration
               </h2>
               <div class="row g-4 mb-2">
 
+                <% if (can('positions.manage')) { %>
                 <div class="col-12 col-sm-6 col-lg-4">
                   <div class="admin-tool-card h-100">
                     <div class="admin-tool-icon text-danger">
@@ -795,8 +825,9 @@
                     </a>
                   </div>
                 </div>
+                <% } %>
 
-                <% if (can('manageCampaigns')) { %>
+                <% if (can('structure.manage')) { %>
                 <div class="col-12 col-sm-6 col-lg-4">
                   <div class="admin-tool-card h-100">
                     <div class="admin-tool-icon text-primary">
@@ -817,13 +848,13 @@
           <%# ══════════════════════════════════════════════
                 7. DOCS
             ══════════════════════════════════════════════ %>
-            <% if (can('viewMaps') || can('viewSchedules')) { %>
+            <% if (showDocs) { %>
               <h2 class="tools-group-heading" id="docs">
                 <i class="fa-solid fa-folder-open me-2"></i>Docs
               </h2>
               <div class="row g-4 mb-5">
 
-                <% if (can('viewMaps')) { %>
+                <% if (oldCan('viewMaps')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-primary">
@@ -838,7 +869,7 @@
                   </div>
                 <% } %>
 
-                <% if (can('viewSchedules')) { %>
+                <% if (oldCan('viewSchedules')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-success">

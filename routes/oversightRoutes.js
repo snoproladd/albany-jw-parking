@@ -184,8 +184,8 @@ import { verifyPassword, hashPassword } from "../lib/passwordVer.js";
 
 import { INCOMPATIBILITIES } from "../src/config/privilegeRules.js";
 
+import { requirePermission } from "../middleware/requirePermission.js";
 import {
-  requirePermission,
   canAssignRole,
   ROLE_HIERARCHY,
   PERMISSIONS,
@@ -350,15 +350,14 @@ export function oversightRouter({
   router.get(
     "/editVolunteer/:id",
     requireAuth,
-    requirePermission("viewVolunteerInfo"),
+    requirePermission("volunteers.view"),
     csrfProtection,
     async (req, res) => {
       const targetUserId = parseInt(req.params.id, 10);
       if (!targetUserId) return res.redirect("/editVolunteer");
 
       const actorRole = req.session.userRole || "NON_REGISTERED";
-      const perms = req.session.permissions ?? {};
-      const canDelete = !!perms[actorRole]?.deleteVolunteer;
+      const canDelete = res.locals.can("volunteers.archive");
 
       try {
         const [
@@ -403,7 +402,7 @@ export function oversightRouter({
   router.get(
     "/editVolunteer",
     requireAuth,
-    requirePermission("viewVolunteerInfo"),
+    requirePermission("volunteers.view"),
     csrfProtection,
     async (req, res) => {
       const id = await req.session.userId;
@@ -411,8 +410,7 @@ export function oversightRouter({
       const pwSuccess = req.query.pwSuccess === "1";
       const includeDeleted = req.query.includeDeleted === "1";
       const actorRole = req.session.userRole || "NON_REGISTERED";
-      const perms = req.session.permissions ?? {};
-      const canDelete = !!perms[actorRole]?.deleteVolunteer;
+      const canDelete = res.locals.can("volunteers.archive");
 
       try {
         const volunteers =
@@ -453,7 +451,7 @@ export function oversightRouter({
   router.post(
     "/selectVolEdit",
     requireAuth,
-    requirePermission("viewVolunteerInfo"),
+    requirePermission("volunteers.view"),
     csrfProtection,
     async (req, res) => {
       const { targetUserId } = req.body;
@@ -465,8 +463,7 @@ export function oversightRouter({
       const includeDeleted =
         req.body.includeDeleted === "1" || req.query.includeDeleted === "1";
       const actorRole = req.session.userRole || "NON_REGISTERED";
-      const perms = req.session.permissions ?? {};
-      const canDelete = !!perms[actorRole]?.deleteVolunteer;
+      const canDelete = res.locals.can("volunteers.archive");
 
       try {
         const targetUser = await getVolunteerById(Number(targetUserId));
@@ -513,43 +510,6 @@ export function oversightRouter({
       }
     },
   );
-
-  // ===========================
-  // EDIT VOLUNTEER ACCOUNT BY VOLUNTEER
-  // ===========================
-
-  // GET /my-account → show account page
-  router.get("/my-account", requireAuth, csrfProtection, async (req, res) => {
-    const id = req.session.userId;
-    const pwError = req.query.pwError === "1";
-    const pwSuccess = req.query.pwSuccess === "1";
-
-    try {
-      const user = await getVolunteerById(id);
-
-      if (!user) {
-        // If the record disappeared, force re-login
-        req.session.destroy?.(() => {});
-        return res.redirect("/login");
-      }
-
-      const congregations = await getCongregations();
-      const gender = user.gender || "";
-
-      res.render("myAccount", {
-        csrfToken: req.csrfToken(),
-        user,
-        congregations,
-        privilegeRulesJSON: JSON.stringify(INCOMPATIBILITIES),
-        gender,
-        pwError,
-        pwSuccess,
-      });
-    } catch (err) {
-      (logError || console.error)("myAccount GET error:", err);
-      res.status(500).send("Server error");
-    }
-  });
   /**
    * POST /edit-volunteer/active
    * Immediately toggle active_current_year for a volunteer.
@@ -561,7 +521,7 @@ export function oversightRouter({
   router.post(
     "/edit-volunteer/active",
     requireAuth,
-    requirePermission("editVolunteerInfo"),
+    requirePermission("volunteers.edit"),
     csrfProtection,
     async (req, res) => {
       const { targetUserId, active, confirmReactivate } = req.body || {};
@@ -636,7 +596,7 @@ export function oversightRouter({
   router.post(
     "/edit-volunteer/disapprove",
     requireAuth,
-    requirePermission("editVolunteerInfo"),
+    requirePermission("volunteers.markNotApproved"),
     csrfProtection,
     async (req, res) => {
       const { targetUserId, disapproved } = req.body || {};
@@ -694,7 +654,7 @@ export function oversightRouter({
   router.post(
     "/edit-volunteer/delete",
     requireAuth,
-    requirePermission("deleteVolunteer"),
+    requirePermission("volunteers.archive"),
     csrfProtection,
     async (req, res) => {
       const { targetUserId } = req.body || {};
@@ -742,7 +702,7 @@ export function oversightRouter({
   router.post(
     "/edit-volunteer/reinstate",
     requireAuth,
-    requirePermission("deleteVolunteer"),
+    requirePermission("volunteers.archive"),
     csrfProtection,
     async (req, res) => {
       const { targetUserId } = req.body || {};
@@ -789,7 +749,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/sms-management",
     requireAuth,
-    requirePermission("deleteVolunteer"),
+    requirePermission("sms.manageOptOuts"),
     async (req, res) => {
       try {
         const volunteers = await getVolunteersForSmsManagement();
@@ -812,7 +772,7 @@ export function oversightRouter({
   router.post(
     "/oversight/tools/sms-management/toggle",
     requireAuth,
-    requirePermission("deleteVolunteer"),
+    requirePermission("sms.manageOptOuts"),
     csrfProtection,
     async (req, res) => {
       const { volunteerId, optOut } = req.body || {};
@@ -828,181 +788,6 @@ export function oversightRouter({
       } catch (err) {
         (logError || console.error)("sms-management/toggle POST error:", err);
         return res.status(500).json({ success: false, error: "Server error." });
-      }
-    },
-  );
-
-  // CONTACT
-  router.post(
-    "/my-account/update/contact",
-    requireAuth,
-    csrfProtection,
-    async (req, res) => {
-      const id = req.session.userId;
-      if (!id) return res.redirect("/login");
-
-      const { email, phone, SMSCapable, whatsappid, smsShiftAlertsOptIn } =
-        req.body;
-      const smsCapable = SMSCapable === "yes";
-      // Checkbox: present in body when checked, absent when unchecked.
-      const smsShiftAlertsOptInBool =
-        smsShiftAlertsOptIn !== undefined && smsShiftAlertsOptIn !== "";
-
-      try {
-        await updateUserContact(
-          id,
-          {
-            email,
-            phone,
-            smsCapable,
-            whatsappid,
-            smsShiftAlertsOptIn: smsShiftAlertsOptInBool,
-          },
-          getEditedBy(req),
-        );
-        return res.redirect("/my-account");
-      } catch (err) {
-        (logError || console.error)("my-account contact update error:", err);
-        return res.status(500).send("Failed to update contact info.");
-      }
-    },
-  );
-
-  // PERSONAL
-  router.post(
-    "/my-account/update/personal",
-    requireAuth,
-    csrfProtection,
-    async (req, res) => {
-      const id = req.session.userId;
-      if (!id) return res.redirect("/login");
-
-      const { dobirthRaw, genderRaw, staminaRaw } = req.body;
-
-      try {
-        await updateUserPersonal(
-          id,
-          { dobirthRaw, genderRaw, staminaRaw },
-          getEditedBy(req),
-        );
-        return res.redirect("/my-account");
-      } catch (err) {
-        (logError || console.error)("my-account personal update error:", err);
-        return res.status(500).send("Failed to update personal info.");
-      }
-    },
-  );
-
-  // CONGREGATION
-  router.post(
-    "/my-account/update/congregation",
-    requireAuth,
-    csrfProtection,
-    async (req, res) => {
-      const id = req.session.userId;
-      if (!id) return res.redirect("/login");
-
-      const {
-        congAssigned,
-        congregation,
-        congregationOtherCity,
-        congregationOtherState,
-        congregationOtherLang,
-        extraAttend,
-      } = req.body;
-
-      try {
-        await updateUserCongregation(
-          id,
-          {
-            congAssigned,
-            congregation,
-            congregationOtherCity,
-            congregationOtherState,
-            congregationOtherLang,
-            extraAttend,
-          },
-          getEditedBy(req),
-        );
-        return res.redirect("/my-account");
-      } catch (err) {
-        (logError || console.error)(
-          "my-account congregation update error:",
-          err,
-        );
-        return res.status(500).send("Failed to update congregation info.");
-      }
-    },
-  );
-
-  // SPIRITUAL (privileges)
-  router.post(
-    "/my-account/update/spiritual",
-    requireAuth,
-    csrfProtection,
-    async (req, res) => {
-      const id = req.session.userId;
-      if (!id) return res.redirect("/login");
-
-      let { privileges } = req.body;
-      // If only one checkbox is checked, Express sends a string
-      if (!Array.isArray(privileges) && typeof privileges === "string") {
-        privileges = [privileges];
-      }
-
-      try {
-        await updateUserSpiritual(id, privileges || [], getEditedBy(req));
-        return res.redirect("/my-account");
-      } catch (err) {
-        (logError || console.error)("my-account spiritual update error:", err);
-        return res.status(500).send("Failed to update spiritual info.");
-      }
-    },
-  );
-
-  // NOTES
-  router.post(
-    "/my-account/update/notes",
-    requireAuth,
-    csrfProtection,
-    async (req, res) => {
-      const id = req.session.userId;
-      if (!id) return res.redirect("/login");
-
-      const { notes } = req.body;
-
-      try {
-        await updateUserNotes(id, notes, getEditedBy(req));
-        return res.redirect("/my-account");
-      } catch (err) {
-        (logError || console.error)("my-account notes update error:", err);
-        return res.status(500).send("Failed to update notes.");
-      }
-    },
-  );
-
-  // PASSWORD CHANGE
-  router.post(
-    "/my-account/change-password",
-    requireAuth,
-    csrfProtection,
-    async (req, res) => {
-      const id = req.session.userId;
-      if (!id) return res.redirect("/login");
-
-      const { newPassword, confirmPassword } = req.body || {};
-
-      if (!newPassword || !confirmPassword || newPassword !== confirmPassword) {
-        return res.redirect("/my-account?pwError=1");
-      }
-
-      try {
-        const pwd = hashPassword(newPassword);
-        await updateUserPassword(id, pwd, getEditedBy(req));
-        return res.redirect("/my-account?pwSuccess=1");
-      } catch (err) {
-        (logError || console.error)("myAccount password change error:", err);
-        return res.redirect("/my-account?pwError=1");
       }
     },
   );
@@ -1041,7 +826,7 @@ export function oversightRouter({
   router.post(
     "/edit-volunteer/finalize",
     requireAuth,
-    requirePermission("editVolunteerInfo"),
+    requirePermission("volunteers.edit"),
     csrfProtection,
     async (req, res) => {
       const editorId = req.session.userId; // actor
@@ -1135,7 +920,7 @@ export function oversightRouter({
   router.post(
     "/edit-volunteer/assignment",
     requireAuth,
-    requirePermission("createAssignments"),
+    requirePermission("crews.assign"),
     csrfProtection,
     async (req, res) => {
       const {
@@ -1233,7 +1018,7 @@ export function oversightRouter({
   router.get(
     "/oversight/roles",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("positions.assign"),
     csrfProtection,
     async (req, res) => {
       try {
@@ -1272,7 +1057,7 @@ export function oversightRouter({
   router.post(
     "/oversight/roles/desk",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("positions.assign"),
     csrfProtection,
     async (req, res) => {
       const editedBy = req.session.userEmail || "admin";
@@ -1311,7 +1096,7 @@ export function oversightRouter({
   router.post(
     "/oversight/roles",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("positions.assign"),
     csrfProtection,
     async (req, res) => {
       const actorRole = req.session.userRole || "NON_REGISTERED";
@@ -1360,12 +1145,14 @@ export function oversightRouter({
   /**
    * GET /oversight/tools
    * Central dashboard for Oversight Tools.
-   * Accessible to ASSISTANT_ADMIN and ADMIN only.
+   * Open to any signed-in person (phase 3d-3); each card shows only when the
+   * person holds the permission its tool needs, so someone with no tools sees
+   * just the site map.
    */
   router.get(
     "/oversight/tools",
     requireAuth,
-    requirePermission("viewSigns"),
+    signedInRoute("tools hub: each card checks its own permission"),
     csrfProtection,
     (req, res) => {
       res.render("authentication_and_accounts/oversightTools", {
@@ -1388,7 +1175,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/send-reset",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("volunteers.sendSignInLinks"),
     csrfProtection,
     async (req, res) => {
       try {
@@ -1421,7 +1208,7 @@ export function oversightRouter({
   router.post(
     "/oversight/tools/send-reset",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("volunteers.sendSignInLinks"),
     csrfProtection,
     async (req, res) => {
       const { targetId, method, linkType } = req.body || {};
@@ -1557,7 +1344,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/create-volunteer",
     requireAuth,
-    requirePermission("createVolunteerAccounts"),
+    requirePermission("volunteers.create"),
     csrfProtection,
     async (req, res) => {
       try {
@@ -1605,7 +1392,7 @@ export function oversightRouter({
   router.post(
     "/api/admin/check-duplicates",
     requireAuth,
-    requirePermission("createVolunteerAccounts"),
+    requirePermission("volunteers.create"),
     async (req, res) => {
       const { firstName, lastName, email, phone } = req.body || {};
 
@@ -1642,7 +1429,7 @@ export function oversightRouter({
   router.post(
     "/oversight/tools/create-volunteer",
     requireAuth,
-    requirePermission("createVolunteerAccounts"),
+    requirePermission("volunteers.create"),
     csrfProtection,
     decentlyDepartmentIfImport,
     async (req, res) => {
@@ -1767,7 +1554,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/permissions",
     requireAuth,
-    requirePermission("manageRoles"),
+    requirePermission("positions.manage"),
     csrfProtection,
     async (req, res) => {
       try {
@@ -1810,7 +1597,7 @@ export function oversightRouter({
   router.post(
     "/oversight/tools/permissions",
     requireAuth,
-    requirePermission("manageRoles"),
+    requirePermission("positions.manage"),
     csrfProtection,
     async (req, res) => {
       const { roleName, permission, isGranted } = req.body || {};
@@ -2651,7 +2438,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/magic-links",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("volunteers.sendSignInLinks"),
     csrfProtection,
     async (req, res) => {
       try {
@@ -2675,7 +2462,7 @@ export function oversightRouter({
   router.post(
     "/oversight/tools/magic-links/:id/revoke",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("volunteers.sendSignInLinks"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -5353,7 +5140,7 @@ export function oversightRouter({
   router.get(
     "/api/reports/scheduling-coverage",
     requireAuth,
-    requirePermission("viewAttendance"),
+    requirePermission("attendance.viewReports"),
     async (req, res) => {
       try {
         const year = parseInt(req.query.year, 10) || await getActiveYear();
@@ -5381,7 +5168,7 @@ export function oversightRouter({
   router.get(
     "/api/reports/attendance-overview",
     requireAuth,
-    requirePermission("viewAttendance"),
+    requirePermission("attendance.viewReports"),
     async (req, res) => {
       try {
         const year = parseInt(req.query.year, 10) || await getActiveYear();
@@ -5410,7 +5197,7 @@ export function oversightRouter({
   router.get(
     "/api/reports/demographics",
     requireAuth,
-    requirePermission("viewAttendance"),
+    requirePermission("attendance.viewReports"),
     async (req, res) => {
       try {
         const year = parseInt(req.query.year, 10) || await getActiveYear();
@@ -5436,7 +5223,7 @@ export function oversightRouter({
   router.get(
     "/api/reports/crew-staffing",
     requireAuth,
-    requirePermission("viewAttendance"),
+    requirePermission("attendance.viewReports"),
     async (req, res) => {
       try {
         const year = parseInt(req.query.year, 10) || await getActiveYear();
@@ -5469,7 +5256,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/contacts",
     requireAuth,
-    requirePermission("viewVolunteerInfo"),
+    requirePermission("volunteers.view"),
     csrfProtection,
     async (req, res) => {
       try {
@@ -5497,7 +5284,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/reports",
     requireAuth,
-    requirePermission("createAssignments"),
+    requirePermission("volunteers.viewReports"),
     csrfProtection,
     async (req, res) => {
       try {
@@ -5531,7 +5318,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/attendance/checkin",
     requireAuth,
-    requirePermission("logAttendance"),
+    requirePermission("attendance.checkIn"),
     csrfProtection,
     async (req, res) => {
       try {
@@ -5560,7 +5347,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/attendance/report",
     requireAuth,
-    requirePermission("viewAttendance"),
+    requirePermission("attendance.viewReports"),
     csrfProtection,
     async (req, res) => {
       try {
@@ -5587,7 +5374,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/attendance/shift-data/:shiftId",
     requireAuth,
-    requirePermission("logAttendance"),
+    requirePermission("attendance.checkIn"),
     async (req, res) => {
       const shiftId = Number(req.params.shiftId);
       if (!shiftId)
@@ -5615,7 +5402,7 @@ export function oversightRouter({
   router.post(
     "/oversight/tools/attendance/record",
     requireAuth,
-    requirePermission("logAttendance"),
+    requirePermission("attendance.checkIn"),
     csrfProtection,
     async (req, res) => {
       const {
@@ -5663,7 +5450,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/attendance/day-checkin/:dayId",
     requireAuth,
-    requirePermission("logAttendance"),
+    requirePermission("attendance.checkIn"),
     async (req, res) => {
       const dayId = Number(req.params.dayId);
       if (!dayId)
@@ -5690,7 +5477,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/attendance/day-report/:dayId",
     requireAuth,
-    requirePermission("viewAttendance"),
+    requirePermission("attendance.viewReports"),
     async (req, res) => {
       const dayId = Number(req.params.dayId);
       if (!dayId)
@@ -5718,7 +5505,7 @@ export function oversightRouter({
   router.get(
     "/edit-volunteer/blackouts/:volunteerId",
     requireAuth,
-    requirePermission("editVolunteerInfo"),
+    requirePermission("volunteers.edit"),
     async (req, res) => {
       const volunteerId = Number(req.params.volunteerId);
       const dayId = Number(req.query.dayId);
@@ -5748,7 +5535,7 @@ export function oversightRouter({
   router.post(
     "/edit-volunteer/blackouts",
     requireAuth,
-    requirePermission("editVolunteerInfo"),
+    requirePermission("volunteers.edit"),
     csrfProtection,
     async (req, res) => {
       const { volunteerId, conventionDayId, startMins, endMins, reason } =
@@ -5795,7 +5582,7 @@ export function oversightRouter({
   router.delete(
     "/edit-volunteer/blackouts/:id",
     requireAuth,
-    requirePermission("editVolunteerInfo"),
+    requirePermission("volunteers.edit"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -5831,7 +5618,7 @@ export function oversightRouter({
   router.post(
     "/edit-volunteer/set-rsvp",
     requireAuth,
-    requirePermission("editVolunteerInfo"),
+    requirePermission("volunteers.edit"),
     csrfProtection,
     async (req, res) => {
       const { invitationId, response } = req.body || {};
@@ -5902,7 +5689,7 @@ export function oversightRouter({
   router.post(
     "/api/crews/batch/:crewKey",
     requireAuth,
-    requirePermission("createAssignments"),
+    requirePermission("crews.assign"),
     csrfProtection,
     async (req, res) => {
       const { crewKey } = req.params;
@@ -5949,7 +5736,7 @@ export function oversightRouter({
   router.patch(
     "/api/crews/:volunteerId/:crewKey",
     requireAuth,
-    requirePermission("createAssignments"),
+    requirePermission("crews.assign"),
     csrfProtection,
     async (req, res) => {
       const volunteerId = Number(req.params.volunteerId);
@@ -7476,7 +7263,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/oversightstructure",
     requireAuth,
-    requirePermission("manageCampaigns"),
+    requirePermission("structure.manage"),
     csrfProtection,
     async (req, res) => {
       try {
@@ -7509,7 +7296,7 @@ export function oversightRouter({
   router.post(
     "/oversight/tools/oversightstructure/add",
     requireAuth,
-    requirePermission("manageCampaigns"),
+    requirePermission("structure.manage"),
     csrfProtection,
     async (req, res) => {
       const { parent_id, role_title, volunteer_id, sort_order } =
@@ -7544,7 +7331,7 @@ export function oversightRouter({
   router.post(
     "/oversight/tools/oversightstructure/save",
     requireAuth,
-    requirePermission("manageCampaigns"),
+    requirePermission("structure.manage"),
     csrfProtection,
     async (req, res) => {
       const { nodes } = req.body || {};
@@ -7587,7 +7374,7 @@ export function oversightRouter({
   router.delete(
     "/oversight/tools/oversightstructure/:id",
     requireAuth,
-    requirePermission("manageCampaigns"),
+    requirePermission("structure.manage"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -7689,7 +7476,7 @@ export function oversightRouter({
   router.post(
     "/oversight/tools/bug-reports/log",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("bugReports.manage"),
     csrfProtection,
     async (req, res) => {
       const {
@@ -7750,7 +7537,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/bug-reports",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("bugReports.manage"),
     csrfProtection,
     async (req, res) => {
       const status = ["open", "fixed", "wontfix", "duplicate"].includes(
@@ -7784,7 +7571,7 @@ export function oversightRouter({
   router.put(
     "/oversight/tools/bug-reports/:id",
     requireAuth,
-    requirePermission("accessAdminConsole"),
+    requirePermission("bugReports.manage"),
     csrfProtection,
     async (req, res) => {
       const id = Number(req.params.id);
@@ -7918,7 +7705,7 @@ export function oversightRouter({
   router.get(
     "/api/volunteers/search",
     requireAuth,
-    requirePermission("createAssignments"),
+    requirePermission("scheduler.use"),
     async (req, res) => {
       try {
         const q = (req.query.q || "").trim().toLowerCase();
@@ -8093,115 +7880,6 @@ export function oversightRouter({
   // ============================================================
 
   /**
-   * GET /api/reports/scheduling-coverage
-   * Per-convention-day slot fill rate (needed vs. assigned).
-   * Query param: ?year=YYYY (defaults to current year).
-   * Permission: viewAttendance (OVERSEER+)
-   */
-  router.get(
-    "/api/reports/scheduling-coverage",
-    requireAuth,
-    requirePermission("viewAttendance"),
-    async (req, res) => {
-      try {
-        const year = parseInt(req.query.year, 10) || await getActiveYear();
-        const days = await getSchedulingCoverageSummary(year);
-        return res.json({ year, days });
-      } catch (err) {
-        (logError || console.error)(
-          "GET /api/reports/scheduling-coverage error:",
-          err,
-        );
-        return res
-          .status(500)
-          .json({ error: "Failed to fetch scheduling coverage data." });
-      }
-    },
-  );
-
-  /**
-   * GET /api/reports/attendance-overview
-   * Per-convention-day attendance rollup (invited / attended / no-show).
-   * Query param: ?year=YYYY (defaults to current year).
-   * Permission: viewAttendance (OVERSEER+)
-   */
-  router.get(
-    "/api/reports/attendance-overview",
-    requireAuth,
-    requirePermission("viewAttendance"),
-    async (req, res) => {
-      try {
-        const year = parseInt(req.query.year, 10) || await getActiveYear();
-        const days = await getAttendanceSummary(year);
-        return res.json({ year, days });
-      } catch (err) {
-        (logError || console.error)(
-          "GET /api/reports/attendance-overview error:",
-          err,
-        );
-        return res
-          .status(500)
-          .json({ error: "Failed to fetch attendance overview data." });
-      }
-    },
-  );
-
-  /**
-   * GET /api/reports/demographics
-   * One row per active completed volunteer: age, gender, spiritual privilege flags.
-   * Client aggregates into bins — no server-side grouping.
-   * Query param: ?year=YYYY (defaults to current year).
-   * Permission: viewAttendance (OVERSEER+)
-   */
-  router.get(
-    "/api/reports/demographics",
-    requireAuth,
-    requirePermission("viewAttendance"),
-    async (req, res) => {
-      try {
-        const year = parseInt(req.query.year, 10) || await getActiveYear();
-        const volunteers = await getVolunteerDemographics(year);
-        return res.json({ year, volunteers });
-      } catch (err) {
-        (logError || console.error)(
-          "GET /api/reports/demographics error:",
-          err,
-        );
-        return res
-          .status(500)
-          .json({ error: "Failed to fetch demographics data." });
-      }
-    },
-  );
-
-  /**
-   * GET /api/reports/crew-staffing
-   * Roster count vs. scheduled count per crew department for the year.
-   * Query param: ?year=YYYY (defaults to current year).
-   * Permission: viewAttendance (OVERSEER+)
-   */
-  router.get(
-    "/api/reports/crew-staffing",
-    requireAuth,
-    requirePermission("viewAttendance"),
-    async (req, res) => {
-      try {
-        const year = parseInt(req.query.year, 10) || await getActiveYear();
-        const crews = await getCrewStaffingSummary(year);
-        return res.json({ year, crews });
-      } catch (err) {
-        (logError || console.error)(
-          "GET /api/reports/crew-staffing error:",
-          err,
-        );
-        return res
-          .status(500)
-          .json({ error: "Failed to fetch crew staffing data." });
-      }
-    },
-  );
-
-  /**
    * GET /api/reports/day-staffing
    * Per-crew staffing health for a single convention day:
    * volunteer_need, scheduled, attended, and gap per department.
@@ -8211,7 +7889,7 @@ export function oversightRouter({
   router.get(
     "/api/reports/day-staffing",
     requireAuth,
-    requirePermission("viewAttendance"),
+    requirePermission("attendance.viewReports"),
     async (req, res) => {
       try {
         const dayId = parseInt(req.query.dayId, 10);
@@ -8243,7 +7921,7 @@ export function oversightRouter({
   router.get(
     "/oversight/tools/notes-report",
     requireAuth,
-    requirePermission("viewVolunteerInfo"),
+    requirePermission("notes.view"),
     async (req, res) => {
       try {
         return res.render("notesReport", {
@@ -8268,7 +7946,7 @@ export function oversightRouter({
   router.get(
     "/api/notes-report/volunteers",
     requireAuth,
-    requirePermission("viewVolunteerInfo"),
+    requirePermission("notes.view"),
     async (req, res) => {
       try {
         const volunteers = await getNotesReportVolunteers();
@@ -8293,7 +7971,7 @@ export function oversightRouter({
   router.get(
     "/api/notes-report/volunteers/dismissed",
     requireAuth,
-    requirePermission("viewVolunteerInfo"),
+    requirePermission("notes.view"),
     async (req, res) => {
       try {
         const volunteers = await getNotesReportVolunteers({
@@ -8322,7 +8000,7 @@ export function oversightRouter({
   router.get(
     "/api/notes-report/volunteers/:id",
     requireAuth,
-    requirePermission("viewVolunteerInfo"),
+    requirePermission("notes.view"),
     async (req, res) => {
       try {
         const volunteerId = parseInt(req.params.id, 10);
@@ -8352,7 +8030,7 @@ export function oversightRouter({
   router.post(
     "/api/notes-report/read",
     requireAuth,
-    requirePermission("viewVolunteerInfo"),
+    requirePermission("notes.act"),
     async (req, res) => {
       try {
         const volunteerId = parseInt(req.body.volunteerId, 10);
@@ -8374,7 +8052,7 @@ export function oversightRouter({
   router.get(
     "/api/notes-report/actions",
     requireAuth,
-    requirePermission("viewVolunteerInfo"),
+    requirePermission("notes.view"),
     async (req, res) => {
       try {
         const actions = await getVolunteerActions({
@@ -8398,7 +8076,7 @@ export function oversightRouter({
   router.post(
     "/api/notes-report/actions",
     requireAuth,
-    requirePermission("viewVolunteerInfo"),
+    requirePermission("notes.act"),
     async (req, res) => {
       try {
         const volunteerId = parseInt(req.body.volunteerId, 10);
@@ -8428,7 +8106,7 @@ export function oversightRouter({
   router.patch(
     "/api/notes-report/actions/:id/solution",
     requireAuth,
-    requirePermission("viewVolunteerInfo"),
+    requirePermission("notes.act"),
     async (req, res) => {
       try {
         const actionId = parseInt(req.params.id, 10);
@@ -8464,7 +8142,7 @@ export function oversightRouter({
   router.patch(
     "/api/notes-report/actions/:id/complete",
     requireAuth,
-    requirePermission("viewVolunteerInfo"),
+    requirePermission("notes.act"),
     async (req, res) => {
       try {
         const actionId = parseInt(req.params.id, 10);
@@ -8490,7 +8168,7 @@ export function oversightRouter({
   router.delete(
     "/api/notes-report/actions/:id",
     requireAuth,
-    requirePermission("viewVolunteerInfo"),
+    requirePermission("notes.act"),
     async (req, res) => {
       try {
         const actionId = parseInt(req.params.id, 10);
@@ -8515,7 +8193,7 @@ export function oversightRouter({
   router.post(
     "/api/notes-report/dismiss",
     requireAuth,
-    requirePermission("viewVolunteerInfo"),
+    requirePermission("notes.act"),
     async (req, res) => {
       try {
         const volunteerId = parseInt(req.body.volunteerId, 10);
@@ -8550,7 +8228,7 @@ export function oversightRouter({
   router.post(
     "/api/notes-report/restore",
     requireAuth,
-    requirePermission("viewVolunteerInfo"),
+    requirePermission("notes.act"),
     async (req, res) => {
       try {
         const volunteerId = parseInt(req.body.volunteerId, 10);
@@ -8577,7 +8255,7 @@ export function oversightRouter({
   router.get(
     "/api/notes-report/sms-messages/resolved",
     requireAuth,
-    requirePermission("viewVolunteerInfo"),
+    requirePermission("notes.view"),
     async (req, res) => {
       try {
         const messages = await getResolvedInboundSms();
@@ -8601,7 +8279,7 @@ export function oversightRouter({
   router.get(
     "/api/notes-report/sms-messages",
     requireAuth,
-    requirePermission("viewVolunteerInfo"),
+    requirePermission("notes.view"),
     async (req, res) => {
       try {
         const messages = await getUnresolvedInboundSms();
@@ -8623,7 +8301,7 @@ export function oversightRouter({
   router.post(
     "/api/notes-report/sms-messages/:id/resolve",
     requireAuth,
-    requirePermission("viewVolunteerInfo"),
+    requirePermission("notes.act"),
     async (req, res) => {
       try {
         const id = parseInt(req.params.id, 10);
