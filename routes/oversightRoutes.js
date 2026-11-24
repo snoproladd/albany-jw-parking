@@ -6470,15 +6470,18 @@ export function oversightRouter({
   /**
    * POST /oversight/tools/scheduler/publish
    * Full publish pipeline for one or more convention days.
-   * Generates per-day PDFs, uploads them to SharePoint (/Schedules subfolder),
-   * then sends one batched notification per volunteer covering all selected days.
-   * The blob download URL is stored in the DB for auth-free volunteer access.
+   * Generates per-day PDFs, uploads them to SharePoint (/Schedules/<department>)
+   * and Blob storage, then sends one batched notification per volunteer
+   * covering all selected days (texts only to those opted in). The blob
+   * download URL is stored in the DB for auth-free volunteer access.
+   * Test runs (dryRun, adminOnly) change nothing real: see lib/publishSchedule.js.
    *
-   * Body (JSON): { dayIds: number[], alertMode: 'all'|'differential' }
+   * Body (JSON): { dayIds: number[], alertMode: 'all'|'differential',
+   *                dryRun?: boolean, adminOnly?: boolean }
    *   dayId (number) is also accepted for backward compatibility.
-   * Response: { success, days[], totalEmailSent, totalSmsSent }
+   * Response: { success, days[], totalEmailSent, totalSmsSent } (days[].pdfBase64 on a dry run)
    *
-   * @requires ASSISTANT_ADMIN+ (accessAdminConsole permission)
+   * @requires scheduler.publish
    */
   router.post(
     "/oversight/tools/scheduler/publish",
@@ -6521,8 +6524,15 @@ export function oversightRouter({
         /* non-fatal — publishDays falls back to "Day_<id>" labels */
       }
 
-      // Upload schedules to the /Schedules subfolder so the /schedules
-      // volunteer page picks them up via listOneDriveFolder.
+      // Upload schedules to the department's own subfolder of /Schedules, so
+      // departments never overwrite each other's files (same file names).
+      // Characters SharePoint won't take in a folder name are replaced.
+      const departmentFolder =
+        String(req.session.departmentName || `Department ${req.session.departmentId}`)
+          .replace(/["*:<>?/\\|#%~&{}]/g, "-")
+          .replace(/\s+/g, " ")
+          .trim()
+          .replace(/^\.+|\.+$/g, "") || `Department ${req.session.departmentId}`;
       const baseConfig = graphConfig ?? {
         tenantId: process.env.GRAPH_TENANT_ID,
         clientId: process.env.GRAPH_CLIENT_ID,
@@ -6534,7 +6544,7 @@ export function oversightRouter({
       };
       const resolvedGraphConfig = {
         ...baseConfig,
-        folderPath: `${baseConfig.folderPath}/Schedules`,
+        folderPath: `${baseConfig.folderPath}/Schedules/${departmentFolder}`,
       };
 
       try {

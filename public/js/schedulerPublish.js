@@ -22,8 +22,13 @@
  *     selected (batched server-side to prevent message spam).
  *   • The Publish button label reflects the selected day count.
  *   • Per-day success/error icons animate in as results arrive.
- *   • Visibility gated by data-can-publish on the body element; set by the
- *     scheduler GET route for ASSISTANT_ADMIN+ only.
+ *   • Publishing needs scheduler.publish (data-can-publish on the body); the
+ *     day-bar button is shown locked without it.
+ *   • Tests never change the real publish: a dry run builds the PDFs but
+ *     uploads nothing (each day gets a View PDF button), and "only people who
+ *     can publish" sends real messages to them without updating SharePoint,
+ *     publish history or the differential baseline.
+ *   • Texts go only to volunteers who opted in to texts.
  */
 
 // ─────────────────────────────────────────────
@@ -76,6 +81,20 @@ function _readConventionDays() {
  */
 function _csrf() {
     return document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+}
+
+/**
+ * Open a dry-run PDF (base64) in a new tab. Browsers block opening data: URLs
+ * at the top level, so the PDF becomes a Blob URL, released after a minute.
+ *
+ * @param {string} base64
+ * @returns {void}
+ */
+function _openPdf(base64) {
+    const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+    const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+    window.open(url, '_blank', 'noopener');
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 /**
@@ -382,7 +401,7 @@ function _buildModal() {
     dryRunLabel.appendChild(dryRunEl);
     const dryRunText = document.createElement('span');
     dryRunText.className = 'sched-pub-option-text';
-    dryRunText.innerHTML = '<strong>Dry run</strong> \u2014 generate &amp; upload PDF only; skip all notifications';
+    dryRunText.innerHTML = '<strong>Dry run</strong> \u2014 build the PDFs to check them; nothing is uploaded or sent';
     dryRunLabel.appendChild(dryRunText);
     optSection.appendChild(dryRunLabel);
 
@@ -396,7 +415,7 @@ function _buildModal() {
     adminOnlyLabel.appendChild(adminOnlyEl);
     const adminOnlyText = document.createElement('span');
     adminOnlyText.className = 'sched-pub-option-text';
-    adminOnlyText.innerHTML = '<strong>Admin only</strong> \u2014 notify ADMIN+ users only, not scheduled volunteers';
+    adminOnlyText.innerHTML = '<strong>Only people who can publish</strong> \u2014 a test send; volunteers, SharePoint and publish history are left unchanged';
     adminOnlyLabel.appendChild(adminOnlyText);
     optSection.appendChild(adminOnlyLabel);
 
@@ -796,6 +815,16 @@ async function _doPublish({ el, dayRows, modeAll, publishBtn, cancelBtn, summary
                 entry.statusEl.innerHTML =
                     '<span class="sched-pub-status-ok">' +
                     '<i class="fa-solid fa-circle-check"></i></span>';
+                if (dr.pdfBase64) {
+                    // Dry run: nothing was uploaded, so open the PDF from memory.
+                    const viewBtn = document.createElement('button');
+                    viewBtn.type      = 'button';
+                    viewBtn.className = 'btn btn-link btn-sm p-0 ms-2 sched-pub-view-pdf';
+                    viewBtn.innerHTML = '<i class="fa-solid fa-file-pdf me-1" aria-hidden="true"></i>View PDF';
+                    viewBtn.setAttribute('aria-label', `View the ${dr.dayLabel || 'day'} PDF`);
+                    viewBtn.addEventListener('click', () => _openPdf(dr.pdfBase64));
+                    entry.statusEl.appendChild(viewBtn);
+                }
             }
         }
 
@@ -831,10 +860,10 @@ async function _doPublish({ el, dayRows, modeAll, publishBtn, cancelBtn, summary
         summaryEl.innerHTML =
             `<div class="sched-pub-summary-ok">` +
             `<i class="fa-solid fa-flask me-1"></i>` +
-            `Dry run complete \u2014 PDF generated and uploaded. No notifications sent.` +
+            `Dry run complete \u2014 PDFs built (use View PDF beside each day). Nothing was uploaded or sent.` +
             `</div>`;
     } else {
-        const qualifier = adminOnly ? ' (admin only)' : '';
+        const qualifier = adminOnly ? ' to people who can publish (test; history unchanged)' : '';
         summaryEl.innerHTML =
             `<div class="sched-pub-summary-ok">` +
             `<i class="fa-solid fa-circle-check me-1"></i>` +
