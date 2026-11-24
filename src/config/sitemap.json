@@ -177,6 +177,20 @@
           "icon": "fa-solid fa-link",
           "permission": "volunteers.sendSignInLinks",
           "tourId": "sendReset"
+        },
+        {
+          "title": "Magic Links",
+          "path": "/oversight/tools/magic-links",
+          "description": "Create passwordless sign-in links and QR codes, such as for shared counting stations, and revoke them.",
+          "icon": "fa-solid fa-qrcode",
+          "permission": "volunteers.sendSignInLinks"
+        },
+        {
+          "title": "Bug Reports",
+          "path": "/oversight/tools/bug-reports",
+          "description": "Review bugs submitted by volunteers, update their status and log the fix.",
+          "icon": "fa-solid fa-bug",
+          "permission": "bugReports.manage"
         }
       ]
     },
@@ -387,6 +401,13 @@
           "icon": "fa-solid fa-file-import",
           "permission": "decently.run",
           "tourId": "decentlyImport"
+        },
+        {
+          "title": "People & Departments",
+          "path": "/oversight/tools/people-departments",
+          "description": "Every volunteer and the departments they serve in, with positions, active and Decently status.",
+          "icon": "fa-solid fa-building-user",
+          "permission": "departments.viewAllPeople"
         }
       ]
     },
@@ -423,13 +444,6 @@
           "icon": "fa-solid fa-database",
           "permission": "systemVariables.manage",
           "tourId": "systemVariables"
-        },
-        {
-          "title": "Magic Links",
-          "path": "/oversight/tools/magic-links",
-          "description": "View and revoke passwordless login tokens for shared accounts, such as printed QR codes for COUNTER stations.",
-          "icon": "fa-solid fa-qrcode",
-          "permission": "volunteers.sendSignInLinks"
         }
       ]
     },

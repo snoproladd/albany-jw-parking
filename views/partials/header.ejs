@@ -46,11 +46,11 @@
           // One flag per Tools group; the Tools menu shows when any group does.
           const navDocs         = hasAny('maps.view', 'schedules.view', 'lessons.viewAll');
           const navComms        = hasAny('campaigns.send', 'volunteers.sendSignInLinks');
-          const navVolunteers   = hasAny('volunteers.edit', 'volunteers.create', 'notes.view');
+          const navVolunteers   = hasAny('volunteers.view', 'volunteers.edit', 'volunteers.create', 'notes.view');
           const navConvention   = has('lessons.submit');
           const navReports      = has('volunteers.viewReports');
           const navSigns        = hasAny('signs.view', 'signs.manage');
-          const navScheduling   = hasAny('shifts.manage', 'locations.manage', 'eventTypes.manage',
+          const navScheduling   = hasAny('shifts.manage', 'locations.manage', 'rendezvous.manage', 'eventTypes.manage',
                                          'crews.assign', 'scheduler.use', 'scheduler.manageRules',
                                          'alerts.manageShiftAlerts', 'alerts.manageCapacityAlerts');
           const navAttendance   = hasAny('attendance.checkIn', 'attendance.viewReports');
@@ -217,6 +217,9 @@
                       <li><a class="ot-nav-item" href="/oversight/tools/send-reset">
                         <i class="fa-solid fa-link"></i>Send Reset Link
                       </a></li>
+                      <li><a class="ot-nav-item" href="/oversight/tools/magic-links">
+                        <i class="fa-solid fa-qrcode"></i>Magic Links
+                      </a></li>
                       <% } %>
                     </ul>
                   </div>
@@ -249,6 +252,11 @@
                       <% if (has('notes.view')) { %>
                         <li><a class="ot-nav-item" href="/oversight/tools/notes-report">
                           <i class="fa-solid fa-note-sticky"></i>Notes Report
+                        </a></li>
+                      <% } %>
+                      <% if (has('volunteers.view')) { %>
+                        <li><a class="ot-nav-item" href="/oversight/tools/contacts">
+                          <i class="fa-solid fa-address-book"></i>Contact Directory
                         </a></li>
                       <% } %>
                     </ul>
@@ -383,6 +391,11 @@
                       <% if (has('crews.assign')) { %>
                         <li><a class="ot-nav-item" href="/oversight/tools/crew-assignments">
                           <i class="fa-solid fa-people-group"></i>Crew Assignments
+                        </a></li>
+                      <% } %>
+                      <% if (has('rendezvous.manage')) { %>
+                        <li><a class="ot-nav-item" href="/oversight/tools/rendezvous">
+                          <i class="fa-solid fa-location-dot"></i>Rendezvous Points
                         </a></li>
                       <% } %>
                       <% if (has('scheduler.use')) { %>

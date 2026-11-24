@@ -6,6 +6,9 @@ import crypto from "crypto";
 import sql from "mssql";
 import { withScope } from "../lib/sql.js";
 import { getEffectivePermissions, getPositionMatrix } from "../lib/positions.js";
+import { getPermission } from "../src/config/permissions.js";
+import { generateMagicLinkToken, hashMagicLinkToken } from "../lib/magicLinkToken.js";
+import QRCode from "qrcode";
 
 import {
   exec,
@@ -170,6 +173,8 @@ import {
   getResolvedInboundSms,
   resolveInboundSmsMessage,
   listAllMagicLoginTokens,
+  getMagicLinkCandidates,
+  createMagicLoginToken,
   revokeMagicLoginToken,
   getSchedulerColumnPrefs,
   updateSchedulerColumnPrefs,
@@ -2178,9 +2183,20 @@ export function oversightRouter({
   // ===========================
 
   /**
+   * Today's date in Eastern time, as YYYY-MM-DD.
+   *
+   * @returns {string}
+   */
+  function easternDateString() {
+    return new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
+  }
+
+  /**
    * GET /oversight/tools/magic-links
-   * List all magic login tokens across all volunteers, most recent
-   * first, for auditing and revocation.
+   * List the magic login tokens of the department's people, most recent
+   * first, for auditing and revocation, plus the form to create one
+   * (phase 3d-8g): the department's registered members to pick from and
+   * the earliest expiry date allowed (tomorrow, Eastern).
    */
   router.get(
     "/oversight/tools/magic-links",
@@ -2189,14 +2205,129 @@ export function oversightRouter({
     csrfProtection,
     async (req, res) => {
       try {
-        const tokens = await listAllMagicLoginTokens();
+        const [tokens, candidates] = await Promise.all([
+          listAllMagicLoginTokens(),
+          getMagicLinkCandidates(),
+        ]);
+        const tomorrow = new Date(`${easternDateString()}T12:00:00Z`);
+        tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
         return res.render("authentication_and_accounts/magicLinks", {
           csrfToken: req.csrfToken(),
           tokens,
+          candidates,
+          minExpiry: tomorrow.toISOString().slice(0, 10),
         });
       } catch (err) {
         (logError || console.error)("magicLinks GET error:", err);
         return res.status(500).send("Server error");
+      }
+    },
+  );
+
+  /**
+   * POST /oversight/tools/magic-links
+   * Create a magic sign-in link for a member of the current department
+   * (phase 3d-8g). A link signs in as that person, so it is refused when:
+   *   - they aren't a registered member of the department;
+   *   - they are a convention admin and the creator isn't;
+   *   - they hold any permission here that the creator doesn't (so a link
+   *     can't be used to gain access).
+   * The raw link is returned once (with a QR code as a PNG data URL) and
+   * never stored: only its SHA-256 hash is saved.
+   *
+   * Body: { volunteerId: number, label?: string, expiresOn?: "YYYY-MM-DD" }
+   *       expiresOn blank = never expires; otherwise after today (Eastern),
+   *       and the link stops working at the end of that day.
+   * Response: { success, url, qrDataUrl, token: { id, label, created_at,
+   *             expires_at, firstName, lastName, email } } or { success: false, error }
+   */
+  router.post(
+    "/oversight/tools/magic-links",
+    requireAuth,
+    requirePermission("volunteers.sendSignInLinks"),
+    csrfProtection,
+    async (req, res) => {
+      const volunteerId = Number(req.body?.volunteerId);
+      const label = typeof req.body?.label === "string" ? req.body.label.trim() : "";
+      const expiresOn = typeof req.body?.expiresOn === "string" ? req.body.expiresOn.trim() : "";
+
+      if (!Number.isInteger(volunteerId) || volunteerId <= 0) {
+        return res.status(400).json({ success: false, error: "Pick a person." });
+      }
+      if (label.length > 100) {
+        return res.status(400).json({ success: false, error: "The label can be at most 100 characters." });
+      }
+
+      /** @type {Date|null} */
+      let expiresAt = null;
+      if (expiresOn) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(expiresOn) || Number.isNaN(Date.parse(`${expiresOn}T00:00:00Z`))) {
+          return res.status(400).json({ success: false, error: "The expiry date isn't a valid date." });
+        }
+        if (expiresOn <= easternDateString()) {
+          return res.status(400).json({ success: false, error: "Pick an expiry date after today." });
+        }
+        // End of that day in Eastern time: midnight Eastern is 05:00 UTC
+        // (04:00 in summer, so a link may last an extra hour then).
+        expiresAt = new Date(`${expiresOn}T05:00:00Z`);
+        expiresAt.setUTCDate(expiresAt.getUTCDate() + 1);
+      }
+
+      try {
+        const [person] = await getMagicLinkCandidates(volunteerId);
+        if (!person) {
+          return res.status(404).json({
+            success: false,
+            error: "That person isn't a registered member of this department.",
+          });
+        }
+        if (person.isConventionAdmin && !req.session.isConventionAdmin) {
+          return res.status(403).json({
+            success: false,
+            error: "Only a convention admin can make a link for a convention admin.",
+          });
+        }
+
+        const theirs = await withScope("system", () =>
+          getEffectivePermissions(person.id, req.session.departmentId, person.isConventionAdmin),
+        );
+        const missing = theirs.permissions.filter((k) => !res.locals.can(k));
+        if (missing.length) {
+          const names = missing.slice(0, 3).map((k) => getPermission(k)?.label ?? k);
+          return res.status(403).json({
+            success: false,
+            error: `They have access you don't (${names.join(", ")}${missing.length > 3 ? ", …" : ""}), `
+              + "so you can't make a sign-in link for them.",
+          });
+        }
+
+        const rawToken = generateMagicLinkToken();
+        const id = await createMagicLoginToken({
+          volunteerId: person.id,
+          tokenHash: hashMagicLinkToken(rawToken),
+          label: label || null,
+          expiresAt,
+        });
+        const url = `${getBaseUrl(req)}/login/magic/${rawToken}`;
+        const qrDataUrl = await QRCode.toDataURL(url, { width: 512, margin: 2 });
+
+        return res.json({
+          success: true,
+          url,
+          qrDataUrl,
+          token: {
+            id,
+            label: label || null,
+            created_at: new Date().toISOString(),
+            expires_at: expiresAt ? expiresAt.toISOString() : null,
+            firstName: person.firstName,
+            lastName: person.lastName,
+            email: person.email,
+          },
+        });
+      } catch (err) {
+        (logError || console.error)("magicLinks create error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
       }
     },
   );

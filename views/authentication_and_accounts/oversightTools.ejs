@@ -30,12 +30,12 @@
     const showScheduling     = any('shifts.manage', 'locations.manage', 'rendezvous.manage', 'eventTypes.manage',
                                    'crews.assign', 'scheduler.use', 'scheduler.manageRules',
                                    'alerts.manageShiftAlerts', 'alerts.manageCapacityAlerts');
-    const showAttendance     = any('attendance.checkIn', 'attendance.viewReports');
+    const showAttendance     = any('attendance.checkIn', 'attendance.viewReports', 'counts.log');
     const showLessons        = any('lessons.submit', 'lessons.viewAll');
     const showDecently       = any('decently.run', 'departments.viewAllPeople');
     const showPositions      = any('positions.view', 'positions.assign', 'positions.manage',
                                    'departments.assignPositions');
-    const showAdministration = can('structure.manage') || showPositions;
+    const showAdministration = any('structure.manage', 'systemVariables.manage') || showPositions;
     const showDocs           = any('maps.view', 'schedules.view');
   %>
 
@@ -195,6 +195,19 @@
                     <h3 class="admin-tool-title">Send Reset Link</h3>
                     <p class="admin-tool-desc">Send password reset or account completion links to volunteers with incomplete registrations.</p>
                     <a href="/oversight/tools/send-reset" class="btn btn-warning admin-tool-btn">
+                      Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                    </a>
+                  </div>
+                </div>
+
+                <div class="col-12 col-sm-6 col-lg-4">
+                  <div class="admin-tool-card h-100">
+                    <div class="admin-tool-icon text-warning">
+                      <i class="fa-solid fa-qrcode"></i>
+                    </div>
+                    <h3 class="admin-tool-title">Magic Links</h3>
+                    <p class="admin-tool-desc">Create passwordless sign-in links and QR codes, such as for shared counting stations, and revoke them.</p>
+                    <a href="/oversight/tools/magic-links" class="btn btn-warning admin-tool-btn">
                       Open <i class="fa-solid fa-arrow-right ms-1"></i>
                     </a>
                   </div>
@@ -691,6 +704,21 @@
                   </div>
                 <% } %>
 
+                <% if (can('counts.log')) { %>
+                  <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="admin-tool-card h-100">
+                      <div class="admin-tool-icon text-info">
+                        <i class="fa-solid fa-car"></i>
+                      </div>
+                      <h3 class="admin-tool-title">Parking Counter</h3>
+                      <p class="admin-tool-desc">Log vehicle counts for a lot or garage on convention days.</p>
+                      <a href="/counts" class="btn btn-info admin-tool-btn">
+                        Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                      </a>
+                    </div>
+                  </div>
+                <% } %>
+
               </div>
             <% } %>
 
@@ -784,7 +812,7 @@
                         <i class="fa-solid fa-building-user"></i>
                       </div>
                       <h3 class="admin-tool-title">People &amp; Departments</h3>
-                      <p class="admin-tool-desc">Every volunteer and the departments they serve in, with role, active and Decently status. Volunteer Services only.</p>
+                      <p class="admin-tool-desc">Every volunteer and the departments they serve in, with positions, active and Decently status. Volunteer Services only.</p>
                       <a href="/oversight/tools/people-departments" class="btn btn-primary admin-tool-btn">
                         Open <i class="fa-solid fa-arrow-right ms-1"></i>
                       </a>
@@ -830,6 +858,21 @@
                     <h3 class="admin-tool-title">Layers of Oversight</h3>
                     <p class="admin-tool-desc">Configure the reporting structure displayed on volunteer home pages.</p>
                     <a href="/oversight/tools/oversightstructure" class="btn btn-primary admin-tool-btn">
+                      Open <i class="fa-solid fa-arrow-right ms-1"></i>
+                    </a>
+                  </div>
+                </div>
+                <% } %>
+
+                <% if (can('systemVariables.manage')) { %>
+                <div class="col-12 col-sm-6 col-lg-4">
+                  <div class="admin-tool-card h-100">
+                    <div class="admin-tool-icon text-primary">
+                      <i class="fa-solid fa-database"></i>
+                    </div>
+                    <h3 class="admin-tool-title">System Variables</h3>
+                    <p class="admin-tool-desc">Manage the lists used throughout the site, such as location types and sub-location labels.</p>
+                    <a href="/oversight/tools/system-variables" class="btn btn-primary admin-tool-btn">
                       Open <i class="fa-solid fa-arrow-right ms-1"></i>
                     </a>
                   </div>
