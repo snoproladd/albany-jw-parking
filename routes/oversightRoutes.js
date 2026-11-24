@@ -139,6 +139,7 @@ import {
   getSchedulerReportData,
   getVolunteerScheduleReport,
   getPublishHistory,
+  getDeliverySummaries,
   getCrewMatrix,
   updateVolunteerCrew,
   batchUpdateVolunteerCrew,
@@ -188,7 +189,7 @@ import { INCOMPATIBILITIES } from "../src/config/privilegeRules.js";
 
 import { requirePermission } from "../middleware/requirePermission.js";
 
-import { sendResetEmail, sendResetSms, getBaseUrl } from "../lib/messaging.js";
+import { sendResetEmail, sendResetSms, getBaseUrl, describeSmsError } from "../lib/messaging.js";
 
 import { PDF_SECRET, publishDays } from "../lib/publishSchedule.js";
 import { startPublishJob, getPublishJob, publishJobView } from "../lib/publishJobs.js";
@@ -6280,9 +6281,13 @@ export function oversightRouter({
    * Return the most recent publish record for each convention day.
    * Used by the publish modal to display last-published timestamps.
    *
-   * Response: { success: boolean, history: Record<string, { publishedAt: string|null, filename: string }> }
+   * Each day also carries the delivery summary of the publish run it came
+   * from (message_deliveries), when there is one.
    *
-   * @requires accessAdminConsole permission
+   * Response: { success: boolean, history: Record<string, { publishedAt: string|null,
+   *   filename: string, runId: string|null, deliveries: object|null }> }
+   *
+   * @requires scheduler.publish
    */
   router.get(
     "/api/scheduler/publish-history",
@@ -6291,7 +6296,8 @@ export function oversightRouter({
     async (req, res) => {
       try {
         const rows = await getPublishHistory();
-        /** @type {Record<string, { publishedAt: string|null, filename: string }>} */
+        const deliveries = await getDeliverySummaries(rows.map((r) => r.run_id));
+        /** @type {Record<string, { publishedAt: string|null, filename: string, runId: string|null, deliveries: object|null }>} */
         const history = {};
         for (const r of rows) {
           history[String(r.convention_day_id)] = {
@@ -6299,6 +6305,8 @@ export function oversightRouter({
               ? new Date(r.published_at).toISOString()
               : null,
             filename: r.filename || null,
+            runId: r.run_id || null,
+            deliveries: (r.run_id && deliveries[r.run_id]) || null,
           };
         }
         return res.json({ success: true, history });
@@ -6389,6 +6397,44 @@ export function oversightRouter({
         return res
           .status(500)
           .json({ success: false, error: err.message || "Server error." });
+      }
+    },
+  );
+
+  /**
+   * GET /api/scheduler/publish-runs/:runId/deliveries
+   * Delivery summary of one publish run (message_deliveries by run id): email
+   * sent / failed, texts delivered / pending / failed / untracked, and who
+   * failed with Twilio's reason. Polled by the publish modal after sending,
+   * as Twilio's status callbacks arrive. Row-level security keeps it to the
+   * session's department.
+   *
+   * Response: { success, deliveries: { email, sms, failures[] } | null }
+   *
+   * @requires scheduler.publish
+   */
+  router.get(
+    "/api/scheduler/publish-runs/:runId/deliveries",
+    requireAuth,
+    requirePermission("scheduler.publish"),
+    async (req, res) => {
+      const runId = String(req.params.runId);
+      if (!/^[0-9a-f-]{36}$/i.test(runId)) {
+        return res.status(400).json({ success: false, error: "Invalid run." });
+      }
+      try {
+        const summaries = await getDeliverySummaries([runId]);
+        const summary = summaries[runId] || null;
+        if (summary) {
+          summary.failures = summary.failures.map((f) => ({
+            ...f,
+            reason: f.channel === "email" ? "email failed" : describeSmsError(f.errorCode),
+          }));
+        }
+        return res.json({ success: true, deliveries: summary });
+      } catch (err) {
+        (logError || console.error)("publish-runs deliveries GET error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
       }
     },
   );
@@ -6580,13 +6626,27 @@ export function oversightRouter({
       const departmentId = req.session.departmentId;
       const publishedBy = req.session.userEmail || "admin";
 
+      // Twilio status callbacks need a public https address: production's own,
+      // or locally TWILIO_STATUS_CALLBACK_BASE set to the ngrok address. With
+      // none, texts are sent untracked (recorded as 'not_tracked').
+      const callbackBase = String(
+        process.env.TWILIO_STATUS_CALLBACK_BASE ||
+          process.env.APP_BASE_URL ||
+          `${req.protocol}://${req.get("host")}`,
+      ).replace(/\/+$/, "");
+      const smsStatusCallback = /^https:\/\//i.test(callbackBase)
+        ? `${callbackBase}/webhook/sms/status`
+        : null;
+
       try {
         const { job, started } = startPublishJob({
           departmentId,
           startedBy: publishedBy,
           onError: (err) => (logError || console.error)("scheduler/publish job error:", err),
-          run: (progress) => publishDays({
+          run: (progress, jobId) => publishDays({
             onProgress: progress,
+            runId: jobId,
+            smsStatusCallback,
             dayIds,
             dayMeta,
             alertMode,

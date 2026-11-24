@@ -15,6 +15,11 @@
  *       b. Async (post-response): analyze, append note, log to DB,
  *          create action item, notify overseers via SMS and email.
  *
+ * Also POST /webhook/sms/status: Twilio's delivery status callbacks for
+ * texts the app sends with a statusCallback (schedule publishes; see
+ * lib/publishSchedule.js). Updates dbo.message_deliveries; on error 21610
+ * (the number replied STOP) also sets the volunteer's sms_opted_in to 0.
+ *
  * Security:
  *  - No session auth (POST from Twilio, not a browser).
  *  - No CSRF token (not a browser form).
@@ -44,6 +49,8 @@ import {
   createAiBlackoutSuggestion,
   resolveSmsDepartment,
   volunteerHasPermission,
+  updateMessageDeliveryStatus,
+  markVolunteerSmsOptedOut,
 } from "../lib/dbSync.js";
 import { analyzeSms } from "../lib/smsInboundAnalyzer.js";
 import { sendResetSms, sendResetEmail } from "../lib/messaging.js";
@@ -622,6 +629,51 @@ export function smsWebhookRouter({
         res.setHeader("Content-Type", "text/xml");
         res.send(EMPTY_TWIML);
       }
+    }
+  });
+
+  /**
+   * POST /webhook/sms/status
+   * Twilio delivery status callback for a text sent with statusCallback:
+   * MessageSid, MessageStatus (queued, sent, delivered, undelivered, failed,
+   * ...), and ErrorCode when it failed. Updates the message_deliveries row;
+   * on 21610 (opted out) also turns off the volunteer's sms_opted_in.
+   *
+   * Always answers 204: Twilio retries on errors, and a bad or unknown
+   * callback is not worth a retry. Runs signed out, i.e. in system scope.
+   */
+  router.post("/status", publicRoute("Twilio delivery status callback (signature checked in handler)"), async (req, res) => {
+    try {
+      const twilioSig = String(req.headers["x-twilio-signature"] || "");
+      const proto = String(req.headers["x-forwarded-proto"] || req.protocol || "https");
+      const host = String(req.headers["x-forwarded-host"] || req.headers["host"] || "");
+      const fullUrl = `${proto}://${host}${req.originalUrl}`;
+
+      if (twilioAuthToken) {
+        const valid = await validateTwilioSig(twilioAuthToken, twilioSig, fullUrl, req.body || {});
+        if (!valid) {
+          log("[smsWebhook] Status callback rejected: invalid Twilio signature url=%s", fullUrl);
+          return res.status(204).end();
+        }
+      }
+
+      const sid = String(req.body?.MessageSid || req.body?.SmsSid || "").trim();
+      const status = String(req.body?.MessageStatus || req.body?.SmsStatus || "").trim().toLowerCase();
+      const code = Number(req.body?.ErrorCode);
+      const errorCode = Number.isFinite(code) && code > 0 ? code : null;
+      const errorMessage = req.body?.ErrorMessage ? String(req.body.ErrorMessage) : null;
+      if (!sid || !status) return res.status(204).end();
+
+      const row = await updateMessageDeliveryStatus({ sid, status, errorCode, errorMessage });
+
+      if (row?.volunteerId && errorCode === 21610) {
+        await markVolunteerSmsOptedOut(row.volunteerId);
+        log(`[smsWebhook] Volunteer ${row.volunteerId} marked opted out of texts (Twilio 21610).`);
+      }
+      return res.status(204).end();
+    } catch (err) {
+      log("[smsWebhook] Status callback error:", err);
+      return res.status(204).end();
     }
   });
 

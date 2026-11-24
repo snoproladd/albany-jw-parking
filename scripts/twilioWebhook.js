@@ -10,6 +10,10 @@
  * Or via npm:
  *   npm run webhook:prod
  *   npm run webhook:dev
+ *
+ * Delivery status callbacks (publish texts) are set per message, not here:
+ * the app uses TWILIO_STATUS_CALLBACK_BASE, else its own address. In dev
+ * mode this prints the .env line that points them at ngrok too.
  */
 
 import "dotenv/config";
@@ -49,6 +53,13 @@ await client.messaging.v1.services(MESSAGING_SERVICE_SID).update({
         fallbackUrl:       URLS[mode].fallbackUrl,
     });
   console.log(`✓ Twilio inbound webhook → [${mode}]: ${URLS[mode].inboundRequestUrl   }`);
+  if (mode === "dev") {
+    const base = new URL(URLS.dev.inboundRequestUrl).origin;
+    console.log(`  For delivery tracking of texts sent locally, put this in .env and restart:`);
+    console.log(`  TWILIO_STATUS_CALLBACK_BASE=${base}`);
+  } else {
+    console.log("  Remove TWILIO_STATUS_CALLBACK_BASE from your local .env if you set it for dev.");
+  }
 } catch (err) {
   console.error("Twilio API error:", err.message);
   process.exit(1);

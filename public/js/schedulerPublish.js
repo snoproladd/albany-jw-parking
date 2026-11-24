@@ -31,6 +31,10 @@
  *   • Texts go only to volunteers who opted in to texts.
  *   • The publish runs as a background job (one per department at a time);
  *     the modal polls its progress and lists anyone a send failed for.
+ *   • Delivery tracking: after sending, the modal polls the run's deliveries
+ *     (GET /api/scheduler/publish-runs/:runId/deliveries) for up to two
+ *     minutes as Twilio reports each text delivered or failed; each day's
+ *     "Last:" line also shows its last publish's delivery summary.
  */
 
 // ─────────────────────────────────────────────
@@ -83,6 +87,71 @@ function _readConventionDays() {
  */
 function _csrf() {
     return document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+}
+
+/**
+ * One line summing up a run's deliveries, e.g.
+ * "Texts: 38 delivered, 2 pending, 1 failed · Email: 40 sent".
+ *
+ * @param {{ email: { sent: number, failed: number },
+ *           sms: { delivered: number, pending: number, failed: number, untracked: number } }} d
+ * @returns {string}
+ */
+function _deliveryLine(d) {
+    const sms = [];
+    if (d.sms.delivered) sms.push(`${d.sms.delivered} delivered`);
+    if (d.sms.pending)   sms.push(`${d.sms.pending} pending`);
+    if (d.sms.failed)    sms.push(`${d.sms.failed} failed`);
+    if (d.sms.untracked) sms.push(`${d.sms.untracked} sent (not tracked)`);
+    const email = [`${d.email.sent} sent`];
+    if (d.email.failed) email.push(`${d.email.failed} failed`);
+    return [sms.length ? `Texts: ${sms.join(', ')}` : null, `Email: ${email.join(', ')}`]
+        .filter(Boolean).join(' \u00b7 ');
+}
+
+/**
+ * Show a run's delivery report in `el`, polling
+ * GET /api/scheduler/publish-runs/:runId/deliveries every 5 s for up to two
+ * minutes, or until no text is still pending. Failed people are listed with
+ * Twilio's reason.
+ *
+ * @param {string} runId
+ * @param {HTMLElement} el
+ * @param {boolean} smsTracked  False: texts went without a status callback.
+ * @returns {Promise<void>}
+ */
+async function _followDeliveries(runId, el, smsTracked) {
+    const until = Date.now() + 120_000;
+    el.textContent = smsTracked ? 'Checking delivery\u2026' : '';
+    for (;;) {
+        let d = null;
+        try {
+            const res = await fetch(`/api/scheduler/publish-runs/${encodeURIComponent(runId)}/deliveries`, {
+                headers: { Accept: 'application/json' },
+            });
+            const data = await res.json().catch(() => ({}));
+            d = data.success ? data.deliveries : null;
+        } catch {
+            /* try again next round */
+        }
+        if (d) {
+            const pending = d.sms.pending > 0 && Date.now() < until;
+            el.innerHTML =
+                `<div><i class="fa-solid fa-satellite-dish me-1" aria-hidden="true"></i>` +
+                `${_esc(_deliveryLine(d))}${pending ? ' \u2014 waiting for Twilio\u2026' : ''}</div>` +
+                (d.failures.length
+                    ? `<ul class="mb-0 mt-1">` +
+                      d.failures.map((f) => `<li>${_esc(f.name)} \u2014 ${_esc(f.channel === 'sms' ? 'text' : 'email')}: ${_esc(f.reason)}</li>`).join('') +
+                      `</ul>`
+                    : '') +
+                (!smsTracked && d.sms.untracked
+                    ? `<div class="text-muted">Texts weren't tracked: no public callback address is set (TWILIO_STATUS_CALLBACK_BASE).</div>`
+                    : '');
+            if (!pending) return;
+        }
+        if (Date.now() >= until) return;
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
 }
 
 /**
@@ -707,6 +776,14 @@ async function _loadPublishHistory(modal) {
         dayEntry.metaEl.textContent = entry?.publishedAt
             ? `Last: ${_relDate(new Date(entry.publishedAt))}`
             : 'Last: Never published';
+        // Delivery summary of that publish run, with failures in the tooltip.
+        if (entry?.deliveries) {
+            const d = entry.deliveries;
+            dayEntry.metaEl.textContent += ` \u00b7 ${_deliveryLine(d)}`;
+            dayEntry.metaEl.title = d.failures?.length
+                ? 'Not delivered: ' + d.failures.map((f) => f.name).join(', ')
+                : '';
+        }
     }
 
     // Clear any remaining "Checking…" labels
@@ -826,6 +903,9 @@ async function _doPublish({ el, dayRows, modeAll, publishBtn, cancelBtn, summary
     let totalEmail = 0, totalSms = 0, errorDays = [];
     /** People a send failed for. @type {Array<{ name: string, channels: string[] }>} */
     let failures = [];
+    /** The run's id for the delivery report, and whether texts are tracked. */
+    let runId = null;
+    let smsTracked = false;
 
     try {
         const res  = await fetch('/oversight/tools/scheduler/publish', {
@@ -861,6 +941,8 @@ async function _doPublish({ el, dayRows, modeAll, publishBtn, cancelBtn, summary
         }
         const data = job.result;
         failures = Array.isArray(data.failures) ? data.failures : [];
+        runId = data.runId || null;
+        smsTracked = data.smsTracked === true;
 
         // Per-day status icons
         for (const dr of data.days || []) {
@@ -932,7 +1014,9 @@ async function _doPublish({ el, dayRows, modeAll, publishBtn, cancelBtn, summary
             `</div>`;
     }
 
-    if (failures.length) {
+    // Send-time failures; with a run id the live delivery report below
+    // lists them (and later ones) instead.
+    if (failures.length && !(runId && !dryRun)) {
         summaryEl.innerHTML +=
             `<div class="sched-pub-summary-err mt-2">` +
             `<i class="fa-solid fa-triangle-exclamation me-1"></i>` +
@@ -940,6 +1024,15 @@ async function _doPublish({ el, dayRows, modeAll, publishBtn, cancelBtn, summary
             `<ul class="mb-0 mt-1">` +
             failures.map((f) => `<li>${_esc(f.name)} \u2014 ${_esc(f.channels.join(', '))}</li>`).join('') +
             `</ul></div>`;
+    }
+
+    // Live delivery report (real sends only): texts update as Twilio reports.
+    if (runId && !dryRun) {
+        const deliveryEl = document.createElement('div');
+        deliveryEl.className = 'sched-pub-deliveries mt-2 small';
+        deliveryEl.setAttribute('aria-live', 'polite');
+        summaryEl.appendChild(deliveryEl);
+        _followDeliveries(runId, deliveryEl, smsTracked);
     }
 
     // ── Swap footer to "Done" ────────────────────────────────
