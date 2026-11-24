@@ -141,7 +141,6 @@ export function loginRouter({ csrfProtection, logError }) {
    * @param {{
    *   id: number, email: string, firstName: string, lastName: string,
    *   registration_status: string|null,
-   *   extra_signs_placement: boolean, extra_parking_count: boolean,
    * }} user
    * @returns {Promise<void>}
    */
@@ -786,9 +785,7 @@ export function loginRouter({ csrfProtection, logError }) {
         passwordAlgo,
         registration_status,
         last_step,
-        account_status, 
-        extra_signs_placement,
-        extra_parking_count
+        account_status
       FROM dbo.volunteer_in
       WHERE LOWER(email) = @email
         AND accountType = 'registered'

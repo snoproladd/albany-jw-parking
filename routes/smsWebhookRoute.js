@@ -7,8 +7,9 @@
  *  2. Route opt-out keywords (STOP/QUIT/etc.) to handleSmsOptOutWebhook.
  *  3. Unknown phone number — reply asking for name, alert overseers.
  *  4. Known volunteer + valid shift code + T-15 sent — existing check-in path.
- *  5. Known volunteer + OVERSEER role or above — suppress freeform pipeline
- *       (prevents notification loop when oversight staff reply to alert SMS).
+ *  5. Known volunteer who receives volunteer-text alerts
+ *       (alerts.receiveVolunteerTexts) — suppress freeform pipeline
+ *       (prevents notification loop when alert recipients reply to alert SMS).
  *  6. Known volunteer + everything else (freeform) — AI analysis pipeline:
  *       a. Acknowledge the volunteer via TwiML reply.
  *       b. Async (post-response): analyze, append note, log to DB,
@@ -435,16 +436,16 @@ export function smsWebhookRouter({
         }
       }
 
-      // ── 7. Overseer guard — suppress freeform pipeline for oversight roles ──
-      // Prevents a notification loop: when an ADMIN replies to an alert SMS
+      // ── 7. Alert-recipient guard — suppress freeform pipeline ──
+      // Prevents a notification loop: when an alert recipient replies to an alert SMS
       // (which arrives over the same Twilio Messaging Service channel), their
       // reply would otherwise trigger the full freeform pipeline and notify
-      // every other ADMIN about what an overseer just said.
+      // every other recipient about what they just said.
       // The shift-code check-in path (step 6) runs before this guard and is
       // unaffected — oversight staff can still check in via SMS code normally.
       //
       // First choose the department (routing rules 2–4) unless a shift code
-      // already did; the role that matters is the one in that department.
+      // already did; the permission that matters is the one in that department.
       if (!routed) {
         routeToDepartment(
           req,

@@ -36,8 +36,8 @@
  * People (phase 3d-7d): holders of positions.assign in the department they
  * are working in, and holders of departments.assignPositions (Volunteer
  * Services staff) in any department. Rules: lib/positionEditing.js
- * planPersonSave(). Every change is logged; the role and extra_* flags are
- * written back until 3d-8.
+ * planPersonSave(). Every change is logged (since 3d-8e nothing is written
+ * back to the old role or extra_* flags).
  * Design: project doc claude/phase3d-7-person-permissions-draft.md.
  */
 
@@ -805,8 +805,6 @@ export function positionsRouter({ csrfProtection, logError }) {
                         grantsAdd: plan.grantsAdd,
                         grantsRemove: plan.grantsRemove,
                         tierDown: plan.tierDown,
-                        role: plan.role,
-                        extras: plan.extras,
                         note: plan.note,
                         actorId: req.session.userId,
                         actorName: actorName(req.session),

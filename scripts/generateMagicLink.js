@@ -7,6 +7,10 @@
  * output is lost, the token cannot be recovered, only revoked and
  * regenerated.
  *
+ * Runs in system scope (lib/sql.js withScope()): row-level security would
+ * otherwise hide every volunteer who belongs to a department, since a
+ * script has no session department.
+ *
  * Usage:
  *   node scripts/generateMagicLink.js <email> [label]
  *
@@ -18,6 +22,7 @@ import "dotenv/config";
 import QRCode from "qrcode";
 import { getVolunteerByEmailNonArchived, createMagicLoginToken } from "../lib/dbSync.js";
 import { generateMagicLinkToken, hashMagicLinkToken } from "../lib/magicLinkToken.js";
+import { withScope, closeSqlPool } from "../lib/sql.js";
 
 const APP_BASE_URL = process.env.APP_BASE_URL || "https://albanyjwparking.org";
 
@@ -61,7 +66,9 @@ async function main() {
     console.log("");
 }
 
-main().catch((err) => {
-    console.error("Failed to generate magic link:", err);
-    process.exit(1);
-});
+withScope("system", main)
+    .then(() => closeSqlPool())
+    .catch((err) => {
+        console.error("Failed to generate magic link:", err);
+        process.exit(1);
+    });
