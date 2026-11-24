@@ -1,7 +1,7 @@
 /**
  * @fileoverview invitationTrackerTour.js
  * Shepherd.js tour for the Invitation Tracker (/oversight/tools/campaigns/tracker).
- * Walks through stat cards, filters, the table, and row-level actions.
+ * Walks through the stat cards, filters, campaign cards, sends and actions.
  *
  * @module invitationTrackerTour
  */
@@ -22,21 +22,17 @@ import {
 function buildInvitationTrackerTour() {
   const tour = createTour();
 
-  const hasRows = !!document.querySelector(".it-row");
+  const firstCard = document.querySelector(".it-campaign");
+  const hasRemind = !!document.querySelector(".it-remind-btn");
+  const hasEdit = !!document.querySelector(".it-campaign .it-edit-btn");
   const hasRevoke = !!document.querySelector(".it-revoke-btn");
-  const hasReinstate = !!document.querySelector(".it-reinstate-btn");
-  const hasAddBtn =
-    !!document.getElementById("itAddVolunteersBtn") &&
-    !document
-      .getElementById("itAddVolunteersWrap")
-      ?.classList.contains("d-none");
 
   const steps = [];
 
   steps.push({
     id: "it-stats",
     title: "Summary stats",
-    text: "These cards give you an instant snapshot: total sent, Yes / No / Maybe responses, Pending (no reply yet), and Revoked. The counts update live as you apply filters below.",
+    text: "A snapshot of everyone in view: total invited, Yes / No / Maybe, Pending (no reply yet) and Revoked. Each person is counted once, and the counts follow the filters below.",
     attachTo: { element: ".it-stat-card", on: "bottom" },
     buttons: null,
   });
@@ -44,23 +40,15 @@ function buildInvitationTrackerTour() {
   steps.push({
     id: "it-campaign-filter",
     title: "Campaign filter",
-    text: "Narrow to a specific campaign. Follow-up campaigns are indented with an arrow (↳) to show their parent. Selecting either a parent or a follow-up shows the combined family view, with each volunteer shown once using their most definitive response; a note below the filter says how many follow-up sends are included. Selecting a campaign also enables the <strong>Add volunteers</strong> shortcut.",
+    text: "Show just one campaign. Choosing a follow-up (↳) shows its whole campaign, since follow-ups live inside the campaign they follow.",
     attachTo: { element: "#itBatchFilter", on: "bottom" },
-    buttons: null,
-  });
-
-  steps.push({
-    id: "it-day-filter",
-    title: "Convention day filter",
-    text: "Filter by the convention day linked to the campaign — useful when you've sent invitations for multiple days and want to see responses for one at a time.",
-    attachTo: { element: "#itDayFilter", on: "bottom" },
     buttons: null,
   });
 
   steps.push({
     id: "it-response-filter",
     title: "Response filter",
-    text: "Show only a specific response status. <strong>Pending</strong> is the most useful filter during the convention build-up — it shows everyone who hasn't replied yet so you can decide who to follow up with.",
+    text: "Show only people with a given answer. Cards without anyone matching are hidden, and each card shows how many of its people match.",
     attachTo: { element: "#itResponseFilter", on: "bottom" },
     buttons: null,
   });
@@ -68,17 +56,55 @@ function buildInvitationTrackerTour() {
   steps.push({
     id: "it-search",
     title: "Name search",
-    text: "Type any part of a volunteer's last or first name to filter the table instantly. Works alongside all other filters.",
+    text: "Type part of a name to find someone. When only a few campaigns match, they open on their <strong>People</strong> list.",
     attachTo: { element: "#itSearch", on: "bottom" },
     buttons: null,
   });
 
-  if (hasRows) {
+  if (firstCard) {
     steps.push({
-      id: "it-table",
-      title: "Invitation table",
-      text: "Each row shows the volunteer, which campaign they were sent, the linked event and shift, delivery channel (email/SMS), send date, reminder history, and their response. The first 100 matching rows are shown, with <strong>Show more</strong> and <strong>Show all</strong> buttons under the table. The filters, stats and Remind count always cover every matching invitation, not just the rows on screen.",
-      attachTo: { element: "#itTable", on: "top" },
+      id: "it-card",
+      title: "One card per campaign",
+      text: "Each campaign is one card, with its follow-ups inside it. The bar shows how everyone has answered; the line under it gives the counts.",
+      attachTo: { element: ".it-campaign", on: "top" },
+      buttons: null,
+    });
+
+    steps.push({
+      id: "it-toggle",
+      title: "Sends and people",
+      text: "Open a card to see its <strong>Sends</strong>: the original message, people added later, every reminder and follow-up, in order. Open a send to read exactly what went out and see who got it, with text and email delivery. <strong>People</strong> lists everyone once with their answer.",
+      attachTo: { element: ".it-toggle", on: "bottom" },
+      buttons: null,
+    });
+  }
+
+  if (hasRemind) {
+    steps.push({
+      id: "it-remind",
+      title: "Remind pending",
+      text: "Opens Campaign Center with everyone who hasn't answered already selected, ready to send a reminder. The reminder shows up as its own send on this card.",
+      attachTo: { element: ".it-remind-btn", on: "left" },
+      buttons: null,
+    });
+  }
+
+  if (firstCard) {
+    steps.push({
+      id: "it-add",
+      title: "Add people",
+      text: "Opens Campaign Center on this campaign so you can send it to more volunteers without writing the message again.",
+      attachTo: { element: ".it-add-btn", on: "left" },
+      buttons: null,
+    });
+  }
+
+  if (hasEdit) {
+    steps.push({
+      id: "it-edit-campaign",
+      title: "Edit campaign",
+      text: "Rename the campaign, change its saved message, parent link, <strong>Response needed</strong> or <strong>Recruitment</strong>, or deactivate it. Changing the saved message only affects future sends: each send keeps the text it went out with.",
+      attachTo: { element: ".it-campaign .it-edit-btn", on: "left" },
       buttons: null,
     });
   }
@@ -86,55 +112,9 @@ function buildInvitationTrackerTour() {
   if (hasRevoke) {
     steps.push({
       id: "it-revoke",
-      title: "Revoking an invitation",
-      text: "The <strong>ban icon</strong> revokes an invitation — the volunteer's RSVP link is deactivated and the row is marked revoked. This is useful when someone is removed from a shift after already being invited.",
+      title: "Revoke or reinstate",
+      text: "The <strong>ban icon</strong> revokes someone's invitation so their RSVP link stops working; the <strong>rotate-left icon</strong> brings it back. Check <strong>Show revoked</strong> to see revoked people.",
       attachTo: { element: ".it-revoke-btn", on: "left" },
-      buttons: null,
-    });
-  }
-
-  if (hasReinstate) {
-    steps.push({
-      id: "it-reinstate",
-      title: "Reinstating an invitation",
-      text: "The <strong>rotate-left icon</strong> reinstates a revoked invitation, reactivating the RSVP link. Show revoked rows by checking <strong>Show revoked</strong> in the filter bar.",
-      attachTo: { element: ".it-reinstate-btn", on: "left" },
-      buttons: null,
-    });
-  }
-
-  const hasRemindBtn =
-    !!document.getElementById("itRemindBtn") &&
-    !document.getElementById("itRemindBtn")?.closest(".d-none");
-  const editBtn = document.getElementById("itEditCampaignBtn");
-  const hasEditBtn = !!editBtn && !editBtn.classList.contains("d-none");
-
-  if (hasRemindBtn) {
-    steps.push({
-      id: "it-remind",
-      title: "Remind pending volunteers",
-      text: "When a campaign with <strong>Response needed</strong> is selected, this amber button opens Campaign Center with all pending volunteers pre-selected — ready to send a follow-up. Pending count is calculated across the whole campaign family.",
-      attachTo: { element: "#itRemindBtn", on: "left" },
-      buttons: null,
-    });
-  }
-
-  if (hasEditBtn) {
-    steps.push({
-      id: "it-edit-campaign",
-      title: "Edit campaign",
-      text: "The pencil icon opens a modal to rename the campaign, edit its saved message, change its parent link, toggle <strong>Response needed</strong> or <strong>Recruitment campaign</strong>, or deactivate it. Admin only.",
-      attachTo: { element: "#itEditCampaignBtn", on: "left" },
-      buttons: null,
-    });
-  }
-
-  if (hasAddBtn) {
-    steps.push({
-      id: "it-add-volunteers",
-      title: "Add more volunteers",
-      text: "With a campaign selected, this button takes you directly to Campaign Center with that campaign pre-selected in <strong>Add to Existing</strong> mode — so you can send to additional volunteers without re-composing the message.",
-      attachTo: { element: "#itAddVolunteersBtn", on: "top" },
       buttons: null,
     });
   }

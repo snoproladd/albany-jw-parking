@@ -29,6 +29,7 @@
             const totalMaybe   = invitations.filter(i => i.response === 'maybe').length;
             const totalPending = invitations.filter(i => !i.responded_at && !i.revoked && i.response_needed).length;
             const totalRevoked = invitations.filter(i => i.revoked).length;
+            const familyCount  = new Set(invitations.map(i => i.family_root_id || i.batch_id)).size;
         %>
 
       <div class="row justify-content-center">
@@ -39,7 +40,7 @@
                 <h1 class="h4 mb-0">
                   <i class="fa-solid fa-chart-gantt me-2"></i>Invitation Tracker
                 </h1>
-                <div class="d-flex gap-2 flex-wrap">                  <div id="itRemindWrap" data-pending-count="<%= totalPending %>"></div>
+                <div class="d-flex gap-2 flex-wrap">
                   <a href="/oversight/tools/campaigns" class="btn btn-primary btn-sm">
                     <i class="fa-solid fa-paper-plane me-1"></i>Campaign Center
                   </a>
@@ -100,7 +101,7 @@
 
                     <div>
                         <label class="form-label form-label-sm mb-1" for="itBatchFilter">Campaign</label>
-                        <div class="d-flex gap-1 align-items-center">
+                        <div>
                             <select class="form-select form-select-sm it-filter-select" id="itBatchFilter">
                                 <option value="">All campaigns</option>
                                 <% batches.forEach(function(b) { %>
@@ -112,16 +113,7 @@
                                     </option>
                                 <% }); %>
                             </select>
-                            <% if (canManageCampaigns) { %>
-                                <button type="button"
-                                    class="btn btn-outline-secondary btn-sm d-none"
-                                    id="itEditCampaignBtn"
-                                    title="edit this campaign">
-                                    <i class="fa-solid fa-pen-to-square"></i>
-                                </button>
-                            <% } %>
                         </div>
-                        <div id="itBatchGroupNote" class="form-text d-none"></div>
                     </div>
 
                     <div>
@@ -186,86 +178,63 @@
                                placeholder="Last, First…" autocomplete="off" />
                     </div>
 
-                    <%# Add-to-campaign shortcut %>
-                    <div id="itAddVolunteersWrap" class="<%= activeBatch ? '' : 'd-none' %>">
-                        <a href="#" class="btn btn-outline-primary btn-sm" id="itAddVolunteersBtn">
-                            <i class="fa-solid fa-user-plus me-1"></i>Add volunteers to this campaign
-                        </a>
-                    </div>
-
                 </div>
             </div>
         </div>
 
-        <%# ── Table ─────────────────────────────────────────────────────────── %>
-        <div class="card shadow-sm">
-            <div class="card-body p-0">
-                <noscript>
-                    <div class="alert alert-warning m-3 mb-0">JavaScript is required to list the invitations.</div>
-                </noscript>
-                <% if (invitations.length === 0) { %>
-                    <div class="text-center text-muted py-5">
-                        <i class="fa-solid fa-inbox fa-2x mb-3 d-block"></i>
-                        No invitations found for the current filters.
-                    </div>
-                <% } else { %>
-                    <div class="table-responsive">
-                        <table class="table table-hover table-sm it-table mb-0" id="itTable">
-                            <thead class="table-light">
-                                <tr>
-                                    <th class="it-col-name">Volunteer</th>
-                                    <th class="it-col-campaign">Campaign</th>
-                                    <th class="it-col-event">Event / Shift</th>
-                                    <th class="it-col-channel">Ch.</th>
-                                    <th class="it-col-sent">Sent</th>
-                                    <th class="it-col-reminded">Reminded</th>
-                                    <th class="it-col-response">Response</th>
-                                    <th class="it-col-responded">Responded</th>
-                                    <th class="it-col-actions"><span class="visually-hidden">Actions</span></th>
-                                </tr>
-                            </thead>
-                            <% const pageSize = 100; /* keep in step with the fallback PAGE_SIZE in invitationTracker.js */ %>
-                            <tbody id="itTableBody" data-page-size="<%= pageSize %>">
-                                <%# Blank placeholder rows hold the table's height until invitationTracker.js
-                                    renders the real ones, so the footer does not jump when they arrive. %>
-                                <% for (let i = 0; i < Math.min(invitations.length, pageSize); i++) { %>
-                                    <tr class="it-skeleton-row" aria-hidden="true"><td colspan="9"></td></tr>
-                                <% } %>
-                            </tbody>
-                        </table>
-                    </div>
-                <% } %>
+        <%# ── Campaign cards ───────────────────────────────────────────────────
+            One card per campaign (with its follow-ups), rendered by
+            invitationTracker.js from the JSON below. Opening a card loads its
+            sends (original, people added, reminders, follow-ups) and lists
+            everyone in it. %>
+        <noscript>
+            <div class="alert alert-warning">JavaScript is required to list the campaigns.</div>
+        </noscript>
+        <% if (invitations.length === 0) { %>
+            <div class="text-center text-muted py-5" id="itEmptyAll">
+                <i class="fa-solid fa-inbox fa-2x mb-3 d-block" aria-hidden="true"></i>
+                No invitations sent yet.
             </div>
+        <% } %>
+        <%# Placeholder cards hold the list's height until the real ones render,
+            so the footer does not jump when they arrive. %>
+        <div id="itCampaignList" class="it-campaign-list" aria-live="polite" aria-busy="true">
+            <% for (let i = 0; i < Math.min(familyCount, 6); i++) { %>
+                <div class="it-campaign-skeleton" aria-hidden="true"></div>
+            <% } %>
+        </div>
+        <div class="text-center text-muted py-4 d-none" id="itEmptyFiltered">
+            No campaigns match the current filters.
         </div>
 
-        <p class="text-muted small mt-2 mb-0" id="itRowCount">
-            Showing <%= invitations.length %> invitation<%= invitations.length !== 1 ? 's' : '' %>
-        </p>
+        <p class="text-muted small mt-2 mb-0" id="itRowCount"></p>
 
-        <%# Rows are rendered in chunks by invitationTracker.js; these reveal the rest. %>
-        <div class="mt-2 d-none" id="itShowMoreWrap">
-            <button type="button" class="btn btn-outline-secondary btn-sm" id="itShowMoreBtn"></button>
-            <button type="button" class="btn btn-link btn-sm" id="itShowAllBtn"></button>
-        </div>
-
-        <%# Every invitation as data (lib/trackerPayload.js). "<" is escaped, so no field can close this block. %>
+        <%# Every invitation and campaign as data (lib/trackerPayload.js). "<" is escaped, so no field can close these blocks. %>
         <script id="it-rows-data" type="application/json"><%- trackerRowsJson %></script>
+        <script id="it-campaigns-data" type="application/json"><%- campaignsJson %></script>
 
             </div><%# /.card-body %>
           </section>
         </div>
       </div>
-        <div class="it-toast-container">
-            <div id="itNoBatchToast" class="toast align-items-center text-bg-secondary border-0" role="alert" aria-live="assertive" aria-atomic="true">
-                <div class="d-flex">
-                    <div class="toast-body">
-                        <i class="fa-solid fa-circle-info me-2"></i>Please select a Campaign to remind volunteers.
-                    </div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+    </main>
+
+    <%# ── Confirm modal (revoke / reinstate) ────────────────────────────────── %>
+    <div class="modal fade" id="itConfirmModal" tabindex="-1" aria-labelledby="itConfirmTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="itConfirmTitle">Are you sure?</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="itConfirmBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="itConfirmOkBtn">Continue</button>
                 </div>
             </div>
         </div>
-    </main>
+    </div>
 
     <% if (canManageCampaigns) { %>
     <%# ── Edit Campaign Modal ─────────────────────────────────────────────── %>
@@ -370,6 +339,7 @@
     <% } %>
 
     <input type="hidden" id="itCsrfToken" value="<%= csrfToken %>" />
+    <input type="hidden" id="itCanManage" value="<%= canManageCampaigns ? '1' : '0' %>" />
 
     <%- include('../partials/footer') %>
 

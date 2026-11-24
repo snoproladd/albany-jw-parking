@@ -128,7 +128,8 @@
                     <%
                         const displayName = v.lastName + ', ' + v.firstName + (v.suffix ? ' ' + v.suffix : '');
                         const hasEmail    = !!v.email;
-                        const hasSms      = !!v.phone && v.sms_capable;
+                        const hasSms      = !!v.phone && v.smsCapable;
+                        const smsConsent  = hasSms && v.smsOptedIn;
                         const crewKeys    = [
                             v.crew_lots_garages   ? 'lots_and_garages' : null,
                             v.crew_signs          ? 'signs'            : null,
@@ -152,7 +153,7 @@
                         data-crews="<%= crewKeys %>"
                         data-has-email="<%= hasEmail %>"
                         data-has-sms="<%= hasSms %>"
-                        data-sms-opted-out="<%= v.sms_opted_out ? '1' : '0' %>"
+                        data-sms-opted-in="<%= smsConsent ? '1' : '0' %>"
                     >
                         <input
                             type="checkbox"
@@ -168,8 +169,10 @@
                             <% if (hasEmail) { %>
                                 <i class="fa-solid fa-envelope mc-icon-email" title="Has email"></i>
                             <% } %>
-                            <% if (hasSms) { %>
-                                <i class="fa-solid fa-comment-sms mc-icon-sms" title="SMS capable"></i>
+                            <% if (smsConsent) { %>
+                                <i class="fa-solid fa-comment-sms mc-icon-sms" title="Can receive texts"></i>
+                            <% } else if (hasSms) { %>
+                                <i class="fa-solid fa-comment-slash mc-icon-sms-off" title="Texts off: not opted in"></i>
                             <% } %>
                         </span>
                     </li>

@@ -24,11 +24,15 @@ document.addEventListener("DOMContentLoaded", () => {
   /** @type {HTMLElement | null} */
   const finalizeStatus = document.getElementById("finalize-status");
 
-  /** @type {boolean} True after a successful finalize — suppresses beforeunload. */
-  let hasFinalized = false;
-
-  /** @type {boolean} True once any section has been saved into cache. */
-  let hasCachedChanges = false;
+  /**
+   * Each section's values as last stored in the database (at page load, then
+   * after every successful finalize), as JSON keyed by section name. A page
+   * has unsaved changes only when a section's current values differ from
+   * these, so opening a section and saving it unchanged, or finalizing,
+   * leaves nothing to warn about.
+   * @type {Record<string, string>}
+   */
+  let savedValues = {};
 
   // ---------------------------------------------------------------------
   // Helpers (IDs, state, UI)
@@ -83,10 +87,55 @@ document.addEventListener("DOMContentLoaded", () => {
    * @returns {boolean}
    */
   function userHasUnsavedChanges() {
-    if (hasFinalized) return false;
-    if (!allLocked()) return true;
-    if (hasCachedChanges) return true;
-    return false;
+    return editableSections().some(
+      ({ sec, name }) =>
+        name in savedValues && sectionValuesJson(sec, name) !== savedValues[name],
+    );
+  }
+
+  /**
+   * Every editable section: its .accordion-body and its name, taken from the
+   * section's EDIT / SAVE button (data-section).
+   *
+   * @returns {Array<{ sec: HTMLElement, name: string }>}
+   */
+  function editableSections() {
+    return Array.from(root.querySelectorAll(".summary-edit-btn[data-section]"))
+      .map((btn) => ({
+        sec: /** @type {HTMLElement|null} */ (btn.closest(".accordion-body")),
+        name: /** @type {HTMLElement} */ (btn).dataset.section || "",
+      }))
+      .filter((s) => s.sec && s.name);
+  }
+
+  /**
+   * A section's current values as JSON, read the same way they are cached
+   * for finalize (cacheSection), without touching the cache.
+   *
+   * @param {HTMLElement} sec - The section's .accordion-body.
+   * @param {string} name - Section name (data-section).
+   * @returns {string}
+   */
+  function sectionValuesJson(sec, name) {
+    const cache = window.editVolunteerCache;
+    const had = Object.prototype.hasOwnProperty.call(cache, name);
+    const previous = cache[name];
+    cacheSection(sec, name);
+    const json = JSON.stringify(cache[name] ?? null);
+    if (had) cache[name] = previous;
+    else delete cache[name];
+    return json;
+  }
+
+  /**
+   * Record every section's current values as the saved state.
+   * @returns {void}
+   */
+  function rememberSavedValues() {
+    savedValues = {};
+    editableSections().forEach(({ sec, name }) => {
+      savedValues[name] = sectionValuesJson(sec, name);
+    });
   }
 
   /**
@@ -95,8 +144,6 @@ document.addEventListener("DOMContentLoaded", () => {
    */
   function clearEditVolunteerCache() {
     window.editVolunteerCache = {};
-    hasCachedChanges = false;
-    hasFinalized = false;
 
     if (finalizeStatus) finalizeStatus.innerHTML = "";
     if (finalizeBtn) finalizeBtn.textContent = "Finalize Changes";
@@ -387,6 +434,13 @@ document.addEventListener("DOMContentLoaded", () => {
   // beforeunload guard
   // ---------------------------------------------------------------------
 
+  // Coming back with the browser's Back / Forward restores this page as it
+  // was, including a suppress flag set when it was left on purpose; clear
+  // it so the guard works again for changes made from here.
+  window.addEventListener("pageshow", (event) => {
+    if (event.persisted) window.__suppressBeforeUnload = false;
+  });
+
   window.addEventListener("beforeunload", (event) => {
     if (window.__suppressBeforeUnload) return;
     if (!userHasUnsavedChanges()) return;
@@ -416,6 +470,10 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
   })();
+
+  // Baseline for the unsaved-changes guard, taken once every script that
+  // adjusts fields on load (privilege rules, phone and date formatting) has run.
+  rememberSavedValues();
 
   // ---------------------------------------------------------------------
   // Collapse guard — prevent opening/closing while a section is in edit mode
@@ -591,9 +649,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const isEditing = sec.dataset.editing === "true";
 
     if (isEditing) {
-      // SAVE
+      // SAVE — cache it for finalize only if it actually changed
       cacheSection(sec, sectionName);
-      hasCachedChanges = true;
+      if (
+        JSON.stringify(window.editVolunteerCache[sectionName] ?? null) ===
+        savedValues[sectionName]
+      ) {
+        delete window.editVolunteerCache[sectionName];
+      }
 
       setSectionEditing(sec, false);
       updateVisitingCongregationVisibility();
@@ -722,8 +785,9 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        hasFinalized = true;
-        hasCachedChanges = false;
+        // What's on screen is now what's stored: nothing left to warn about
+        window.editVolunteerCache = {};
+        rememberSavedValues();
 
         finalizeStatus.innerHTML = `
                     <div class="alert alert-success">

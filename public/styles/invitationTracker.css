@@ -7,6 +7,8 @@
      2. Table
      3. Response badges
      4. Event label + dot
+     5. Campaign cards
+     6. Sends
    ============================================================= */
 
 
@@ -110,21 +112,6 @@
     min-width: 130px;
 }
 
-/* Blank rows the server prints (as many as the first page will hold) so the
-   table keeps its height until invitationTracker.js has rendered the real
-   rows; without them the footer jumps down when the rows arrive. The height
-   approximates a real row. */
-.it-skeleton-row {
-    visibility: hidden;
-    pointer-events: none;
-}
-
-.it-skeleton-row td {
-    height: 4rem;
-    padding: 0;
-    border: 0;
-}
-
 /* The shared admin card is capped at 850px, which left the 826px table wider
    than its scroll wrapper. The extra class outranks the cap. */
 .admin-console-card.card.shadow-lg.it-card-wide {
@@ -216,4 +203,181 @@
 .it-danger-zone {
     border-color: var(--bs-danger-border-subtle) !important;
     background: var(--bs-danger-bg-subtle);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   5. Campaign cards
+   ───────────────────────────────────────────────────────────── */
+
+.it-campaign-list {
+    display: grid;
+    gap: 0.75rem;
+}
+
+/* Placeholders the server prints so the list keeps its height until
+   invitationTracker.js renders the real cards (no layout shift). */
+.it-campaign-skeleton {
+    height: 9rem;
+    border-radius: 0.375rem;
+    background: var(--bs-secondary-bg, #e9ecef);
+}
+
+.it-campaign-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+}
+
+.it-campaign-title {
+    min-width: 0;
+}
+
+.it-campaign-title .h6 {
+    font-weight: 600;
+}
+
+.it-campaign-meta {
+    font-size: 0.85rem;
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+.it-campaign-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.it-progress {
+    display: flex;
+    height: 0.5rem;
+    margin: 0.75rem 0 0.4rem;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--bs-secondary-bg, #e9ecef);
+}
+
+.it-seg {
+    display: block;
+    height: 100%;
+}
+
+.it-seg--yes     { background: var(--bs-success, #198754); }
+.it-seg--maybe   { background: var(--bs-warning, #ffc107); }
+.it-seg--other   { background: var(--bs-info, #0dcaf0); }
+.it-seg--no      { background: var(--bs-danger, #dc3545); }
+.it-seg--pending { background: var(--bs-secondary-border-subtle, #c4c8cb); }
+.it-seg--revoked { background: var(--bs-dark, #212529); }
+
+.it-campaign-legend {
+    font-size: 0.85rem;
+    margin-bottom: 0.25rem;
+}
+
+.it-legend--yes     { color: var(--bs-success-text-emphasis, #0a3622); }
+.it-legend--maybe   { color: var(--bs-warning-text-emphasis, #664d03); }
+.it-legend--other   { color: var(--bs-info-text-emphasis, #055160); }
+.it-legend--no      { color: var(--bs-danger-text-emphasis, #58151c); }
+.it-legend--pending { color: var(--bs-secondary-text-emphasis, #2b2d42); }
+.it-legend--revoked { color: var(--bs-emphasis-color, #000); }
+
+.it-campaign-detail {
+    margin-top: 0.5rem;
+}
+
+.it-row--revoked td {
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+/* A revoke / reinstate that failed keeps its button, outlined to show it */
+.it-action-failed {
+    outline: 2px solid var(--bs-danger, #dc3545);
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   6. Sends
+   ───────────────────────────────────────────────────────────── */
+
+.it-send {
+    border-top: 1px solid var(--bs-border-color, #dee2e6);
+}
+
+.it-send-head-row {
+    display: flex;
+    align-items: center;
+}
+
+/* The whole header line is the open / close button */
+.it-send-head {
+    display: grid;
+    grid-template-columns: 1rem auto 1fr;
+    gap: 0.1rem 0.5rem;
+    flex: 1;
+    min-width: 0;
+    padding: 0.6rem 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    text-align: left;
+}
+
+.it-send-head:focus-visible {
+    outline: 2px solid var(--bs-primary, #0d6efd);
+    outline-offset: 2px;
+}
+
+.it-send-chevron {
+    grid-row: 1 / span 2;
+    align-self: center;
+    font-size: 0.75rem;
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+.it-send-title {
+    font-weight: 600;
+}
+
+.it-send-meta {
+    font-size: 0.85rem;
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+.it-send-summary {
+    grid-column: 2 / span 2;
+    font-size: 0.85rem;
+}
+
+.it-send-body {
+    padding: 0 0 0.75rem 1.5rem;
+}
+
+.it-send-message {
+    margin-bottom: 0.75rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: 0.375rem;
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    font-size: 0.9rem;
+}
+
+/* Keep the line breaks the message was written with */
+.it-send-text {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 575.98px) {
+    .it-send-head {
+        grid-template-columns: 1rem 1fr;
+    }
+
+    .it-send-meta,
+    .it-send-summary {
+        grid-column: 2;
+    }
+
+    .it-send-body {
+        padding-left: 0;
+    }
 }

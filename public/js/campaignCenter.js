@@ -1215,16 +1215,21 @@ function updateSubjectVisibility() {
     /** Whether this send is a reminder — reuse existing tokens rather than INSERT. */
     const isReminder = campaignMode === "add_to" && (pendingVolIds?.length ?? 0) > 0;
 
-    // Warn if SMS channel selected but some recipients have opted out
+    // Warn if SMS is selected but some recipients can't be texted — no
+    // text-capable phone, or no texting consent (sms_opted_in, cleared by
+    // STOP). The server enforces the same rule; this just sets expectations.
     if (sendSms) {
-      const optedOutCount = recipientIds.filter((id) => {
+      const noTextCount = recipientIds.filter((id) => {
         const li = document.querySelector(`.mc-volunteer-item[data-id="${id}"]`);
-        return li?.dataset.smsOptedOut === "1";
+        return li?.dataset.smsOptedIn !== "1";
       }).length;
-      if (optedOutCount > 0) {
+      if (noTextCount > 0) {
+        const fallback = sendEmail
+          ? "They'll get the email only, or be skipped if they have no email."
+          : "They'll be skipped because email isn't selected.";
         const ok = await confirmAction(
-          "SMS opted-out recipients",
-          `${optedOutCount} selected volunteer${optedOutCount === 1 ? " has" : "s have"} opted out of SMS. They will still receive the message via any other selected channel. Continue?`,
+          "Some recipients can't get texts",
+          `${noTextCount} selected volunteer${noTextCount === 1 ? " can't" : "s can't"} be texted (not opted in, or no text-capable phone). ${fallback} Continue?`,
         );
         if (!ok) {
           sendBtn.disabled = false;
@@ -1286,9 +1291,10 @@ function updateSubjectVisibility() {
 
       // ── Double-send warning ──────────────────────────────────────
       if (!data.success && data.pendingWarnings?.length) {
-        const names = data.pendingWarnings.map((w) => w.name).join("\n  • ");
-        const proceed = confirm(
-          `The following volunteers already have an unanswered invite for this event:\n\n  • ${names}\n\nSend again anyway?`,
+        const names = data.pendingWarnings.map((w) => w.name).join(", ");
+        const proceed = await confirmAction(
+          "Already invited",
+          `These volunteers already have an unanswered invite for this event: ${names}. Send again anyway?`,
         );
         if (!proceed) {
           sendBtn.disabled = false;
@@ -1374,6 +1380,7 @@ function updateSubjectVisibility() {
    *   sent?: number,
    *   batchId?: number,
    *   skipped?: Array<{name:string,reason:string}>,
+   *   emailOnly?: Array<{name:string,reason:string}>,
    *   errors?: Array<{name:string,reason:string}>,
    *   error?: string
    * }} data
@@ -1399,7 +1406,15 @@ function updateSubjectVisibility() {
     if (data.skipped?.length) {
       html += `<p class="fw-semibold text-warning mb-1"><i class="fa-solid fa-triangle-exclamation me-1"></i>Skipped (${data.skipped.length}):</p><ul class="small mb-3">`;
       data.skipped.forEach(({ name, reason }) => {
-        html += `<li><strong>${name}</strong> — ${reason}</li>`;
+        html += `<li><strong>${escapeHtml(name)}</strong> — ${escapeHtml(reason)}</li>`;
+      });
+      html += `</ul>`;
+    }
+
+    if (data.emailOnly?.length) {
+      html += `<p class="fw-semibold text-secondary mb-1"><i class="fa-solid fa-comment-slash me-1"></i>Email only, no text (${data.emailOnly.length}):</p><ul class="small mb-3">`;
+      data.emailOnly.forEach(({ name, reason }) => {
+        html += `<li><strong>${escapeHtml(name)}</strong> — ${escapeHtml(reason)}</li>`;
       });
       html += `</ul>`;
     }
@@ -1407,7 +1422,7 @@ function updateSubjectVisibility() {
     if (data.errors?.length) {
       html += `<p class="fw-semibold text-danger mb-1"><i class="fa-solid fa-circle-xmark me-1"></i>Errors (${data.errors.length}):</p><ul class="small mb-3">`;
       data.errors.forEach(({ name, reason }) => {
-        html += `<li><strong>${name}</strong> — ${reason}</li>`;
+        html += `<li><strong>${escapeHtml(name)}</strong> — ${escapeHtml(reason)}</li>`;
       });
       html += `</ul>`;
     }

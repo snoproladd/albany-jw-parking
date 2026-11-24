@@ -140,6 +140,11 @@ import {
   getVolunteerScheduleReport,
   getPublishHistory,
   getDeliverySummaries,
+  createCampaignSend,
+  finishCampaignSend,
+  getCampaignSendSummaries,
+  getCampaignFamilySends,
+  recordMessageDelivery,
   getCrewMatrix,
   updateVolunteerCrew,
   batchUpdateVolunteerCrew,
@@ -189,13 +194,25 @@ import { INCOMPATIBILITIES } from "../src/config/privilegeRules.js";
 
 import { requirePermission } from "../middleware/requirePermission.js";
 
-import { sendResetEmail, sendResetSms, getBaseUrl, describeSmsError } from "../lib/messaging.js";
+import {
+  sendResetEmail,
+  sendResetSms,
+  sendTrackedSms,
+  normalizeToE164,
+  getBaseUrl,
+  describeSmsError,
+} from "../lib/messaging.js";
 
 import { PDF_SECRET, publishDays } from "../lib/publishSchedule.js";
 import { startPublishJob, getPublishJob, publishJobView } from "../lib/publishJobs.js";
 import { buildAlertMessage, sendAlertSms, sendRows } from "../lib/alertScheduler.js";
 import { getBrand } from "../lib/branding.js";
-import { buildTrackerRows, jsonForScript } from "../lib/trackerPayload.js";
+import {
+  buildTrackerRows,
+  buildTrackerCampaigns,
+  buildTrackerSends,
+  jsonForScript,
+} from "../lib/trackerPayload.js";
 
 import {
   uploadRendezvousPhoto,
@@ -269,6 +286,26 @@ function _fmtTimeShort(val) {
   }
   const ap = h >= 12 ? "PM" : "AM";
   return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${ap}`;
+}
+
+/**
+ * The Twilio delivery status callback URL for texts sent during this
+ * request, or null when there is no public https address to give Twilio
+ * (texts are then sent untracked and recorded as 'not_tracked').
+ *
+ * Production uses its own address; locally TWILIO_STATUS_CALLBACK_BASE is
+ * set to the ngrok address (npm run webhook:dev).
+ *
+ * @param {import("express").Request} req
+ * @returns {string|null}
+ */
+function smsStatusCallbackUrl(req) {
+  const base = String(
+    process.env.TWILIO_STATUS_CALLBACK_BASE ||
+      process.env.APP_BASE_URL ||
+      `${req.protocol}://${req.get("host")}`,
+  ).replace(/\/+$/, "");
+  return /^https:\/\//i.test(base) ? `${base}/webhook/sms/status` : null;
 }
 
 /**
@@ -4176,10 +4213,60 @@ export function oversightRouter({
           .json({ success: false, error: "Failed to create campaign record." });
       }
 
+      // ── Record this send (Invitation Tracker history) ────────────────
+      // run_id ties the texts and emails below to it in message_deliveries.
+      // Recording is best effort: a failure here never stops the send.
+      const runId = crypto.randomUUID();
+      const smsStatusCallback = smsStatusCallbackUrl(req);
+      let sendId = null;
+      try {
+        sendId = await createCampaignSend({
+          batchId,
+          kind:
+            campaignMode === "add_to"
+              ? isReminder
+                ? "reminder"
+                : "added"
+              : "original",
+          messageSubject: subject?.trim() || null,
+          messageBody: body.trim(),
+          channels: sendEmail && sendSms ? "both" : sendEmail ? "email" : "sms",
+          sentBy,
+          runId,
+        });
+      } catch (err) {
+        (logError || console.error)("campaigns/send createCampaignSend error:", err);
+      }
+
+      /** @type {import("../lib/dbSync.js").CampaignSendRecipient[]} */
+      const sendRecipients = [];
+
+      /**
+       * Record one text or email of this send in message_deliveries.
+       * Never throws.
+       *
+       * @param {object} d - Fields for recordMessageDelivery().
+       * @returns {Promise<void>}
+       */
+      const trackDelivery = async (d) => {
+        try {
+          await recordMessageDelivery({ source: "campaign", runId, ...d });
+        } catch (err) {
+          (logError || console.error)("campaigns/send recordMessageDelivery error:", err.message);
+        }
+      };
+
       /** @type {Array<{ name: string, reason: string }>} */
       const skipped = [];
       /** @type {Array<{ name: string, reason: string }>} */
       const errors = [];
+      /**
+       * Volunteers who got the email but no text because they can't be
+       * texted (no consent, no text-capable phone). Reported separately
+       * so "sent" never implies a text went out.
+       * @type {Array<{ name: string, reason: string }>}
+       */
+      const emailOnly = [];
       let sent = 0;
 
       const baseUrl = getBaseUrl(req);
@@ -4209,16 +4296,40 @@ export function oversightRouter({
           .join(", ");
 
         const willEmail = sendEmail && !!vol.email;
-        const willSms = sendSms && !!vol.phone && !!vol.smsCapable;
+        // Texts need a phone, a text-capable number and texting consent
+        // (sms_opted_in, cleared by STOP) — the same rule publish uses.
+        const smsReachable = !!vol.phone && !!vol.smsCapable;
+        const willSms = sendSms && smsReachable && !!vol.smsOptedIn;
 
         if (!willEmail && !willSms) {
           const missing = [];
           if (sendEmail && !vol.email) missing.push("no email on file");
           if (sendSms && !vol.phone) missing.push("no phone on file");
-          if (sendSms && !vol.smsCapable) missing.push("SMS not capable");
+          else if (sendSms && !vol.smsCapable) missing.push("SMS not capable");
+          else if (sendSms && !vol.smsOptedIn)
+            missing.push("not opted in to texts");
           skipped.push({ name: shortName, reason: missing.join("; ") });
+          sendRecipients.push({
+            volunteerId: vol.id,
+            invitationId: null,
+            name: shortName,
+            channel: null,
+            outcome: "skipped",
+            reason: missing.join("; "),
+          });
           continue;
         }
+
+        /** Why this person gets no text though texts were chosen, or null. */
+        const noTextReason =
+          sendSms && !willSms
+            ? !vol.phone
+              ? "no phone on file"
+              : !vol.smsCapable
+                ? "SMS not capable"
+                : "not opted in to texts"
+            : null;
+        if (noTextReason) emailOnly.push({ name: shortName, reason: noTextReason });
 
         // Reminder path — reuse the existing invitation row and token.
         // Falls through to INSERT if no existing row is found (e.g. revoked
@@ -4245,6 +4356,14 @@ export function oversightRouter({
           skipped.push({
             name: shortName,
             reason: "No open invitation found to remind.",
+          });
+          sendRecipients.push({
+            volunteerId: vol.id,
+            invitationId: null,
+            name: shortName,
+            channel: null,
+            outcome: "skipped",
+            reason: "No open invitation to remind",
           });
           continue;
         }
@@ -4331,6 +4450,7 @@ export function oversightRouter({
           willEmail && willSms ? "both" : willEmail ? "email" : "sms";
 
         // Store or update invitation record
+        let invitationId = existingInvitation?.id ?? null;
         try {
           if (existingInvitation) {
             await remindInvitation({
@@ -4339,7 +4459,7 @@ export function oversightRouter({
               remindedBy: sentBy,
             });
           } else {
-            await createInvitation({
+            invitationId = await createInvitation({
               volunteerId: vol.id,
               token,
               channel,
@@ -4361,8 +4481,21 @@ export function oversightRouter({
             name: shortName,
             reason: "Failed to store invitation record.",
           });
+          sendRecipients.push({
+            volunteerId: vol.id,
+            invitationId: null,
+            name: shortName,
+            channel: null,
+            outcome: "error",
+            reason: "Invitation could not be saved",
+          });
           continue;
         }
+
+        let emailOk = false;
+        let smsOk = false;
+        /** @type {string[]} */
+        const failedChannels = [];
 
         // Send email
         if (willEmail) {
@@ -4374,6 +4507,7 @@ export function oversightRouter({
               isResume: false,
               customBody: resolvedBody,
             });
+            emailOk = !!ok;
             if (!ok)
               errors.push({
                 name: shortName,
@@ -4389,34 +4523,108 @@ export function oversightRouter({
               reason: "Email threw an exception.",
             });
           }
+          if (!emailOk) failedChannels.push("email failed");
+          await trackDelivery({
+            volunteerId: vol.id,
+            recipientName: fullName,
+            channel: "email",
+            address: vol.email,
+            status: emailOk ? "sent" : "failed",
+          });
         }
 
-        // Send SMS
+        // Send SMS — tracked through Twilio status callbacks
         if (willSms) {
+          let phoneE164 = null;
           try {
-            const ok = await sendResetSms(
-              vol.phone,
-              rsvpUrl,
-              twilioAccountSid,
-              twilioAuthToken,
-              twilioMsgSid,
-              { firstName: vol.firstName, customBody: resolvedBody },
-            );
-            if (!ok)
-              errors.push({ name: shortName, reason: "SMS delivery failed." });
-          } catch (err) {
-            (logError || console.error)(
-              `messaging/send SMS error for vol ${vol.id}:`,
-              err,
-            );
-            errors.push({ name: shortName, reason: "SMS threw an exception." });
+            phoneE164 = normalizeToE164(vol.phone);
+          } catch {
+            /* reported below as a bad number */
+          }
+          if (!phoneE164) {
+            errors.push({ name: shortName, reason: "SMS: not a valid phone number." });
+            failedChannels.push("text: not a valid phone number");
+            await trackDelivery({
+              volunteerId: vol.id,
+              recipientName: fullName,
+              channel: "sms",
+              address: vol.phone,
+              status: "failed",
+              errorMessage: "Not a valid phone number",
+            });
+          } else {
+            const result = await sendTrackedSms({
+              to: phoneE164,
+              body: resolvedBody,
+              accountSid: twilioAccountSid,
+              authToken: twilioAuthToken,
+              messagingServiceSid: twilioMsgSid,
+              statusCallback: smsStatusCallback,
+            });
+            smsOk = result.ok;
+            if (!result.ok) {
+              const why = describeSmsError(result.errorCode);
+              errors.push({ name: shortName, reason: `SMS failed: ${why}.` });
+              failedChannels.push(`text failed: ${why}`);
+            }
+            await trackDelivery({
+              volunteerId: vol.id,
+              recipientName: fullName,
+              channel: "sms",
+              address: phoneE164,
+              providerSid: result.sid,
+              status: !result.ok
+                ? "failed"
+                : smsStatusCallback
+                  ? ["queued", "accepted", "sending", "sent", "delivered"].includes(result.status)
+                    ? result.status
+                    : "queued"
+                  : "not_tracked",
+              errorCode: result.errorCode,
+              errorMessage: result.errorMessage,
+            });
           }
         }
 
-        sent++;
+        // This person's line in the send record
+        const deliveredChannel =
+          emailOk && smsOk ? "both" : emailOk ? "email" : smsOk ? "sms" : null;
+        sendRecipients.push({
+          volunteerId: vol.id,
+          invitationId,
+          name: shortName,
+          channel: deliveredChannel,
+          outcome: !deliveredChannel
+            ? "error"
+            : noTextReason && !failedChannels.length
+              ? "email_only"
+              : "sent",
+          reason: failedChannels.length
+            ? failedChannels.join("; ")
+            : noTextReason,
+        });
+
+        // Count people who were actually reached on at least one channel
+        if (deliveredChannel) sent++;
       }
 
-      return res.json({ success: true, sent, batchId, skipped, errors });
+      if (sendId) {
+        try {
+          await finishCampaignSend(sendId, sendRecipients);
+        } catch (err) {
+          (logError || console.error)("campaigns/send finishCampaignSend error:", err);
+        }
+      }
+
+      return res.json({
+        success: true,
+        sent,
+        batchId,
+        sendId,
+        skipped,
+        emailOnly,
+        errors,
+      });
     },
   );
 
@@ -4873,19 +5081,29 @@ export function oversightRouter({
         // intentionally so the client can switch filters without a page reload.
         // batchId, dayId, and responseFilter are passed to the template only
         // to pre-select the client-side filter dropdowns on initial load.
-        const [invitations, conventionDays, batches] = await Promise.all([
-          getInvitationsForTracker({ includeRevoked }),
-          getConventionDays(year),
-          getInvitationBatches(year),
-        ]);
+        const [invitations, conventionDays, batches, sendSummaries] =
+          await Promise.all([
+            getInvitationsForTracker({ includeRevoked }),
+            getConventionDays(year),
+            getInvitationBatches(year),
+            getCampaignSendSummaries().catch((err) => {
+              // Missing before campaign_sends.sql has run: cards just show
+              // no send count.
+              (logError || console.error)("campaigns/tracker send summaries error:", err.message);
+              return new Map();
+            }),
+          ]);
 
-        // The rows travel as a JSON island and the page renders them in
-        // chunks client-side (see lib/trackerPayload.js). `invitations` is
-        // still passed for the server-rendered stat cards.
+        // The rows travel as a JSON island and the page groups them into
+        // campaign cards client-side (see lib/trackerPayload.js).
+        // `invitations` is still passed for the server-rendered stat cards.
         return res.render("authentication_and_accounts/invitationTracker", {
           csrfToken: req.csrfToken(),
           invitations,
           trackerRowsJson: jsonForScript(buildTrackerRows(invitations)),
+          campaignsJson: jsonForScript(
+            buildTrackerCampaigns(batches, sendSummaries),
+          ),
           batchesJson: jsonForScript(batches),
           conventionDays,
           batches,
@@ -4902,6 +5120,53 @@ export function oversightRouter({
       }
     },
   );
+  /**
+   * GET /oversight/tools/campaigns/batches/:id/sends
+   * Every send of a campaign family, oldest first: the original, people
+   * added later, reminders and follow-ups, each with the message exactly as
+   * written and who it went to, with their text and email delivery status.
+   * Loaded by the Invitation Tracker when a campaign card is opened. A
+   * follow-up's id returns its whole family.
+   *
+   * Response: {
+   *   success: true,
+   *   rootId: number,
+   *   sends: import("../lib/trackerPayload.js").TrackerSend[]
+   * }
+   *
+   * @requires campaigns.send permission
+   */
+  router.get(
+    "/oversight/tools/campaigns/batches/:id/sends",
+    requireAuth,
+    requirePermission("campaigns.send"),
+    async (req, res) => {
+      const id = Number(req.params.id);
+      if (!Number.isInteger(id) || id <= 0)
+        return res.status(400).json({ success: false, error: "Invalid id." });
+
+      try {
+        const batch = await getInvitationBatch(id);
+        if (!batch)
+          return res
+            .status(404)
+            .json({ success: false, error: "Campaign not found." });
+        const rootId = batch.parent_batch_id || batch.id;
+        const sends = await getCampaignFamilySends(rootId);
+        return res.json({
+          success: true,
+          rootId,
+          sends: buildTrackerSends(sends, describeSmsError),
+        });
+      } catch (err) {
+        (logError || console.error)("campaigns/batches sends GET error:", err);
+        return res
+          .status(500)
+          .json({ success: false, error: "Could not load the sends." });
+      }
+    },
+  );
+
   // ===========================
   // SHIFTS — Invitable toggle
   // ===========================
@@ -6626,17 +6891,9 @@ export function oversightRouter({
       const departmentId = req.session.departmentId;
       const publishedBy = req.session.userEmail || "admin";
 
-      // Twilio status callbacks need a public https address: production's own,
-      // or locally TWILIO_STATUS_CALLBACK_BASE set to the ngrok address. With
-      // none, texts are sent untracked (recorded as 'not_tracked').
-      const callbackBase = String(
-        process.env.TWILIO_STATUS_CALLBACK_BASE ||
-          process.env.APP_BASE_URL ||
-          `${req.protocol}://${req.get("host")}`,
-      ).replace(/\/+$/, "");
-      const smsStatusCallback = /^https:\/\//i.test(callbackBase)
-        ? `${callbackBase}/webhook/sms/status`
-        : null;
+      // Twilio status callbacks need a public https address (see
+      // smsStatusCallbackUrl); with none, texts are sent untracked.
+      const smsStatusCallback = smsStatusCallbackUrl(req);
 
       try {
         const { job, started } = startPublishJob({

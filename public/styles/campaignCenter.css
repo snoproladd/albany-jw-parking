@@ -239,6 +239,11 @@
     color: var(--bs-success, #198754);
 }
 
+/* Phone can take texts, but the volunteer hasn't agreed (or sent STOP). */
+.mc-icon-sms-off {
+    color: var(--bs-secondary-color, #6c757d);
+}
+
 
 /* ─────────────────────────────────────────────────────────────
    5. Main — header + cards
