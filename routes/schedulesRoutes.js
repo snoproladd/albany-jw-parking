@@ -93,8 +93,10 @@ export function schedulesRouter({ csrfProtection, logError, graphConfig }) {
   /**
    * GET /schedule/pdf/:blobName
    * Public endpoint (no auth required) that streams a published schedule PDF
-   * from Blob Storage. The blobName is the timestamp-prefixed name returned
-   * by uploadPublishedFile(), e.g. "1719251234567-Friday_Schedule_Jul_3_2026.pdf".
+   * from Blob Storage. The blobName is the prefixed name returned by
+   * uploadPublishedFile(): a random 32-hex-character prefix, e.g.
+   * "3f9c…e1-Friday_Schedule_Jul_3_2026.pdf" (older blobs: a millisecond
+   * timestamp, e.g. "1719251234567-Friday_Schedule_Jul_3_2026.pdf").
    *
    * @param {string} blobName - Blob name from the published-files container.
    */
@@ -108,8 +110,8 @@ export function schedulesRouter({ csrfProtection, logError, graphConfig }) {
       return res.status(400).send("Invalid file name.");
     }
     try {
-      // Strip timestamp prefix for the user-facing filename
-      const displayName = blobName.replace(/^\d+-/, "");
+      // Strip the random (or older timestamp) prefix for the user-facing filename
+      const displayName = blobName.replace(/^(?:[0-9a-f]{32}|\d+)-/, "");
       res.setHeader("Content-Disposition", `inline; filename="${displayName}"`);
       await streamPublishedFileToResponse(blobName, res);
     } catch (err) {

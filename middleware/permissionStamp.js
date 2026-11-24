@@ -22,6 +22,10 @@
  *                                     header's Tools menu, the hub page and its
  *                                     site map entry.
  *
+ * Ends the session when the account has since been archived, deleted or
+ * marked compromised (getPermissionStamp() `blocked`): a page load is sent
+ * to /login, anything else gets a 401 JSON reply.
+ *
  * A failure is logged (at most once a minute) and never blocks the request.
  *
  * Mount: after the session and resolveDepartmentMiddleware, before the nav
@@ -66,8 +70,31 @@ function logError(...args) {
 }
 
 /**
+ * End a session whose account may no longer be signed in, then answer the
+ * request: a redirect to /login for a page load, a 401 JSON reply otherwise.
+ *
+ * @param {import("express").Request} req
+ * @param {import("express").Response} res
+ * @param {number} volunteerId  For the log line.
+ * @returns {void}
+ */
+function endBlockedSession(req, res, volunteerId) {
+    console.warn(`[${new Date().toISOString()}] [middleware/permissionStamp] `
+        + `signed out volunteer ${volunteerId}: account archived, deleted or compromised`);
+    const wantsPage = req.method === "GET" && !req.xhr && req.accepts(["html", "json"]) === "html";
+    req.session.destroy(() => {
+        if (wantsPage) {
+            res.redirect("/login");
+        } else {
+            res.status(401).json({ success: false, error: "Your session has ended. Please sign in again." });
+        }
+    });
+}
+
+/**
  * Reload the session's permissions when the stamp has changed, then expose
- * can() to views.
+ * can() to views. Ends the session instead when the account may no longer
+ * be signed in (endBlockedSession()).
  *
  * @param {import("express").Request} req
  * @param {import("express").Response} res
@@ -82,6 +109,10 @@ export async function permissionStampMiddleware(req, res, next) {
             const current = await withScope("system", () =>
                 getPermissionStamp(s.userId, s.departmentId),
             );
+            if (current.blocked) {
+                endBlockedSession(req, res, s.userId);
+                return;
+            }
             if (current.stamp !== s.permissionStamp) {
                 s.isConventionAdmin = current.isConventionAdmin;
                 await loadSessionPermissions(s, "page load");

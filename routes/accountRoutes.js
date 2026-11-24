@@ -34,6 +34,7 @@ import { DEFAULT_DEPARTMENT_ID, withScope } from "../lib/sql.js";
 import { loadSessionPermissions } from "../lib/positions.js";
 import { verifyPassword, hashPassword } from "../lib/passwordVer.js";
 import { hashMagicLinkToken } from "../lib/magicLinkToken.js";
+import { createRateLimiter } from "../middleware/rateLimit.js";
 
 import { INCOMPATIBILITIES } from "../src/config/privilegeRules.js";
 import { getActiveYear } from "../lib/conventionYear.js";
@@ -757,6 +758,14 @@ export function loginRouter({ csrfProtection, logError }) {
     });
   });
 
+  /**
+   * Failed sign-ins: at most 10 per email from one IP, and 50 per IP across
+   * all emails, in 15 minutes. Only failures count; a successful sign-in
+   * clears that email's count.
+   */
+  const loginFailuresByEmail = createRateLimiter({ windowMs: 15 * 60 * 1000, max: 10 });
+  const loginFailuresByIp = createRateLimiter({ windowMs: 15 * 60 * 1000, max: 50 });
+
   router.post("/login", publicRoute("sign-in"), csrfProtection, async (req, res) => {
     const { email, password } = req.body || {};
     const trimmedEmail = (email || "").trim().toLowerCase();
@@ -766,6 +775,31 @@ export function loginRouter({ csrfProtection, logError }) {
       return res.status(400).render("authentication_and_accounts/login", {
         csrfToken: req.csrfToken(),
         error: "Please enter both email and password.",
+        email: trimmedEmail,
+        loginSuccess: false,
+      });
+    }
+
+    const ipKey = req.ip || "unknown";
+    const emailKey = `${ipKey}|${trimmedEmail}`;
+
+    /**
+     * Count a failed sign-in for this email and IP.
+     * @returns {void}
+     */
+    const recordFailure = () => {
+      loginFailuresByEmail.hit(emailKey);
+      loginFailuresByIp.hit(ipKey);
+    };
+
+    const limit = [loginFailuresByEmail.check(emailKey), loginFailuresByIp.check(ipKey)]
+      .find((r) => r.limited);
+    if (limit) {
+      const minutes = Math.ceil(limit.retryAfterSeconds / 60);
+      res.set("Retry-After", String(limit.retryAfterSeconds));
+      return res.status(429).render("authentication_and_accounts/login", {
+        csrfToken: req.csrfToken(),
+        error: `Too many sign-in attempts. Please wait ${minutes} minute${minutes === 1 ? "" : "s"} and try again.`,
         email: trimmedEmail,
         loginSuccess: false,
       });
@@ -789,7 +823,7 @@ export function loginRouter({ csrfProtection, logError }) {
       FROM dbo.volunteer_in
       WHERE LOWER(email) = @email
         AND accountType = 'registered'
-        AND registration_status <> 'archived';
+        AND registration_status NOT IN ('archived', 'deleted');
       `,
         (reqSql) => {
           reqSql.input("email", sql.NVarChar(255), trimmedEmail);
@@ -800,6 +834,7 @@ export function loginRouter({ csrfProtection, logError }) {
 
       // No matching account at all → invalid
       if (!user) {
+        recordFailure();
         return res.status(401).render("authentication_and_accounts/login", {
           csrfToken: req.csrfToken(),
           error: "Invalid email or password.",
@@ -828,6 +863,7 @@ export function loginRouter({ csrfProtection, logError }) {
       });
 
       if (!isValid) {
+        recordFailure();
         return res.status(401).render("authentication_and_accounts/login", {
           csrfToken: req.csrfToken(),
           error: "Invalid email or password.",
@@ -835,6 +871,7 @@ export function loginRouter({ csrfProtection, logError }) {
           loginSuccess: false,
         });
       }
+      loginFailuresByEmail.reset(emailKey);
       await _establishSession(req, user);
       // One-shot flag consumed by GET /counts to force the setup panel on the
       // first visit after login, even if localStorage holds a prior session's
