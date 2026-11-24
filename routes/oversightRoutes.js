@@ -191,6 +191,7 @@ import { requirePermission } from "../middleware/requirePermission.js";
 import { sendResetEmail, sendResetSms, getBaseUrl } from "../lib/messaging.js";
 
 import { PDF_SECRET, publishDays } from "../lib/publishSchedule.js";
+import { startPublishJob, getPublishJob, publishJobView } from "../lib/publishJobs.js";
 import { buildAlertMessage, sendAlertSms, sendRows } from "../lib/alertScheduler.js";
 import { getBrand } from "../lib/branding.js";
 import { buildTrackerRows, jsonForScript } from "../lib/trackerPayload.js";
@@ -6393,6 +6394,30 @@ export function oversightRouter({
   );
 
   /**
+   * GET /api/scheduler/publish-jobs/:id
+   * Progress and, when finished, the result of a background publish
+   * (lib/publishJobs.js), for the publish modal to poll. Only jobs of the
+   * session's department are visible.
+   *
+   * Response: { success, job: { id, status: 'running'|'done'|'failed',
+   *   startedBy, startedAt, message, done, total, result, error } }
+   *
+   * @requires scheduler.publish
+   */
+  router.get(
+    "/api/scheduler/publish-jobs/:id",
+    requireAuth,
+    requirePermission("scheduler.publish"),
+    (req, res) => {
+      const job = getPublishJob(String(req.params.id));
+      if (!job || job.departmentId !== req.session.departmentId) {
+        return res.status(404).json({ success: false, error: "That publish isn't running any more." });
+      }
+      return res.json({ success: true, job: publishJobView(job) });
+    },
+  );
+
+  /**
    * GET /api/scheduler/:dayId
    * Return the full shift/department/location schedule payload for a
    * single convention day. Consumed by the scheduler grid builder.
@@ -6479,7 +6504,12 @@ export function oversightRouter({
    * Body (JSON): { dayIds: number[], alertMode: 'all'|'differential',
    *                dryRun?: boolean, adminOnly?: boolean }
    *   dayId (number) is also accepted for backward compatibility.
-   * Response: { success, days[], totalEmailSent, totalSmsSent } (days[].pdfBase64 on a dry run)
+   * Runs as a background job (lib/publishJobs.js), one per department at a
+   * time: answers 202 { success, jobId } at once; poll
+   * GET /api/scheduler/publish-jobs/:id for progress and the result
+   * ({ days[], totalEmailSent, totalSmsSent, failures[] }; days[].pdfBase64
+   * on a dry run). 409 { success: false, error, jobId } when one is already
+   * running in the department.
    *
    * @requires scheduler.publish
    */
@@ -6547,26 +6577,45 @@ export function oversightRouter({
         folderPath: `${baseConfig.folderPath}/Schedules/${departmentFolder}`,
       };
 
+      const departmentId = req.session.departmentId;
+      const publishedBy = req.session.userEmail || "admin";
+
       try {
-        const result = await publishDays({
-          dayIds,
-          dayMeta,
-          alertMode,
-          publishedBy: req.session.userEmail || "admin",
-          serverPort: serverPort || Number(process.env.PORT) || 3000,
-          appBaseUrl:
-              process.env.APP_BASE_URL ||
-              `${req.protocol}://${req.get("host")}`,
-          smtpConfig,
-          twilioAccountSid,
-          twilioAuthToken,
-          twilioMsgSid,
-          graphConfig: resolvedGraphConfig,
-          dryRun: req.body?.dryRun === true,
-          adminOnly: req.body?.adminOnly === true,
+        const { job, started } = startPublishJob({
+          departmentId,
+          startedBy: publishedBy,
+          onError: (err) => (logError || console.error)("scheduler/publish job error:", err),
+          run: (progress) => publishDays({
+            onProgress: progress,
+            dayIds,
+            dayMeta,
+            alertMode,
+            publishedBy,
+            serverPort: serverPort || Number(process.env.PORT) || 3000,
+            appBaseUrl:
+                process.env.APP_BASE_URL ||
+                `${req.protocol}://${req.get("host")}`,
+            smtpConfig,
+            twilioAccountSid,
+            twilioAuthToken,
+            twilioMsgSid,
+            graphConfig: resolvedGraphConfig,
+            dryRun: req.body?.dryRun === true,
+            adminOnly: req.body?.adminOnly === true,
+          }),
         });
 
-        return res.json(result);
+        if (!started) {
+          const at = new Date(job.startedAt).toLocaleTimeString("en-US", {
+            hour: "numeric", minute: "2-digit", timeZone: "America/New_York",
+          });
+          return res.status(409).json({
+            success: false,
+            error: `A publish is already running (started by ${job.startedBy} at ${at}).`,
+            jobId: job.id,
+          });
+        }
+        return res.status(202).json({ success: true, jobId: job.id });
       } catch (err) {
         (logError || console.error)("scheduler/publish POST error:", err);
         return res.status(500).json({

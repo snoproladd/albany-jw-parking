@@ -29,6 +29,8 @@
  *     can publish" sends real messages to them without updating SharePoint,
  *     publish history or the differential baseline.
  *   • Texts go only to volunteers who opted in to texts.
+ *   • The publish runs as a background job (one per department at a time);
+ *     the modal polls its progress and lists anyone a send failed for.
  */
 
 // ─────────────────────────────────────────────
@@ -81,6 +83,40 @@ function _readConventionDays() {
  */
 function _csrf() {
     return document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+}
+
+/**
+ * Poll a background publish (GET /api/scheduler/publish-jobs/:id) every
+ * 1.5 s until it finishes. Up to 5 network errors in a row are retried.
+ *
+ * @param {string} jobId
+ * @param {(job: { message: string, done: number, total: number }) => void} onProgress
+ * @returns {Promise<{ status: string, result: object|null, error: string|null }>}
+ */
+async function _waitForPublishJob(jobId, onProgress) {
+    let networkErrors = 0;
+    for (;;) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        let res;
+        try {
+            res = await fetch(`/api/scheduler/publish-jobs/${encodeURIComponent(jobId)}`, {
+                headers: { Accept: 'application/json' },
+            });
+        } catch (err) {
+            if (++networkErrors >= 5) throw err;
+            continue;
+        }
+        networkErrors = 0;
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.success) {
+            throw new Error(data.error || `Server error (${res.status})`);
+        }
+        if (data.job.status === 'running') {
+            onProgress(data.job);
+            continue;
+        }
+        return data.job;
+    }
 }
 
 /**
@@ -743,8 +779,11 @@ async function _fetchPreview({ el, dayRows, modeAll, dryRunEl, adminOnlyEl, publ
 // ─────────────────────────────────────────────
 
 /**
- * Execute the publish pipeline via POST /oversight/tools/scheduler/publish.
- * Disables controls, shows per-day status icons, then renders a summary.
+ * Execute the publish pipeline via POST /oversight/tools/scheduler/publish,
+ * which starts a background job; polls it (showing its progress on the
+ * button), then shows per-day status icons and a summary, including anyone
+ * an email or text failed for. If a publish is already running in the
+ * department, shows that one's progress instead.
  *
  * @param {{
  *   el:         HTMLDivElement,
@@ -785,6 +824,8 @@ async function _doPublish({ el, dayRows, modeAll, publishBtn, cancelBtn, summary
 
     // ── API call ─────────────────────────────────────────────
     let totalEmail = 0, totalSms = 0, errorDays = [];
+    /** People a send failed for. @type {Array<{ name: string, channels: string[] }>} */
+    let failures = [];
 
     try {
         const res  = await fetch('/oversight/tools/scheduler/publish', {
@@ -796,11 +837,30 @@ async function _doPublish({ el, dayRows, modeAll, publishBtn, cancelBtn, summary
             body: JSON.stringify({ dayIds, alertMode, dryRun, adminOnly }),
         });
 
-        const data = await res.json();
+        const started = await res.json().catch(() => ({}));
 
-        if (!res.ok || !data.success) {
-            throw new Error(data.error || `Server error (${res.status})`);
+        // 409: a publish is already running in this department — show
+        // its progress instead of starting another.
+        if (res.status === 409 && started.jobId) {
+            summaryEl.classList.remove('d-none');
+            summaryEl.innerHTML =
+                `<div class="sched-pub-summary-err">` +
+                `<i class="fa-solid fa-hourglass-half me-1"></i>${_esc(started.error)} Showing its progress.` +
+                `</div>`;
+        } else if (!res.ok || !started.success || !started.jobId) {
+            throw new Error(started.error || `Server error (${res.status})`);
         }
+
+        // The publish runs in the background: poll until it finishes.
+        const job = await _waitForPublishJob(started.jobId, (j) => {
+            publishBtn.innerHTML =
+                `<span class="spinner-border spinner-border-sm me-1"></span>${_esc(j.message || 'Publishing\u2026')}`;
+        });
+        if (job.status === 'failed' || !job.result) {
+            throw new Error(job.error || 'Publish failed.');
+        }
+        const data = job.result;
+        failures = Array.isArray(data.failures) ? data.failures : [];
 
         // Per-day status icons
         for (const dr of data.days || []) {
@@ -870,6 +930,16 @@ async function _doPublish({ el, dayRows, modeAll, publishBtn, cancelBtn, summary
             `Published${qualifier}. Sent ${totalEmail} email${totalEmail !== 1 ? 's' : ''} ` +
             `and ${totalSms} SMS.` +
             `</div>`;
+    }
+
+    if (failures.length) {
+        summaryEl.innerHTML +=
+            `<div class="sched-pub-summary-err mt-2">` +
+            `<i class="fa-solid fa-triangle-exclamation me-1"></i>` +
+            `Not delivered to ${failures.length} ${failures.length === 1 ? 'person' : 'people'}:` +
+            `<ul class="mb-0 mt-1">` +
+            failures.map((f) => `<li>${_esc(f.name)} \u2014 ${_esc(f.channels.join(', '))}</li>`).join('') +
+            `</ul></div>`;
     }
 
     // ── Swap footer to "Done" ────────────────────────────────
