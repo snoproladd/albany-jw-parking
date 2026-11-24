@@ -1,0 +1,46 @@
+# Route access audit (phase 3d): every route must be gated by a catalogue
+# permission (requirePermission) or declared publicRoute() / signedInRoute().
+# Runs scripts/auditRoutes.js --strict, which exits 1 when any route is not,
+# so a push or pull request that adds an ungated route shows a red check.
+#
+# Only multi-department for now: testing and main still run 2.x, whose routes
+# use the old role keys and would fail --strict. At the 3.0 cutover, add
+# testing and main to the push branches (and the same step to main.yml before
+# the Docker build) so an ungated route can't deploy.
+#
+# The script reads source files as text and imports only
+# src/config/permissions.js and src/config/roles.js, so no npm install is needed.
+
+name: Route access audit
+
+on:
+  push:
+    branches:
+      - multi-department
+  pull_request:
+    branches:
+      - testing
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+
+      - name: Audit routes (strict)
+        run: node scripts/auditRoutes.js --strict
+
+      - name: Add the full table to the run summary
+        if: failure()
+        run: cat docs/ROUTE_AUDIT.md >> "$GITHUB_STEP_SUMMARY"
