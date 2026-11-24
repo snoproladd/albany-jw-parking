@@ -477,8 +477,10 @@ b {
   background-color: color-mix(in srgb, var(--Background) 80%, transparent);
 }
 
-/* Locked summary sections — disable interaction without hiding content */
-.accordion-body.summary-locked input,
+/* Locked summary sections — disable interaction without hiding content.
+   Checkboxes and radios are left out of the background rule: it would paint
+   over Bootstrap's checked colour and make ticked boxes look empty. */
+.accordion-body.summary-locked input:not(.form-check-input),
 .accordion-body.summary-locked select,
 .accordion-body.summary-locked textarea {
   pointer-events: none;
