@@ -1,6 +1,6 @@
 /**
  * @file oversightTools.js
- * @description Oversight Tools page — mobile section jump + sidebar active state.
+ * @description Tools hub page — mobile section jump + sidebar active state.
  */
 document.addEventListener("DOMContentLoaded", () => {
   // ── Mobile section jump dropdown ─────────────────────────────────

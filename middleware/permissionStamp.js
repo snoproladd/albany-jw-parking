@@ -15,6 +15,12 @@
  *   res.locals.can(key)               true when the session holds the catalogue key
  *   res.locals.effectivePermissions   the session's catalogue keys (for
  *                                     views/partials/permissionsData.ejs)
+ *   res.locals.hasTools               true when the person has something on the
+ *                                     Tools hub beyond what every volunteer has:
+ *                                     a convention admin, or any department key of
+ *                                     tier 2 or higher (phase 3d-8c). Decides the
+ *                                     header's Tools menu, the hub page and its
+ *                                     site map entry.
  *
  * A failure is logged (at most once a minute) and never blocks the request.
  *
@@ -24,6 +30,22 @@
 
 import { withScope } from "../lib/sql.js";
 import { getPermissionStamp, loadSessionPermissions } from "../lib/positions.js";
+import { getPermission } from "../src/config/permissions.js";
+
+/**
+ * True when these keys open something on the Tools hub that a plain
+ * Volunteer (tier 1 only) doesn't have.
+ *
+ * @param {Iterable<string>} keys
+ * @returns {boolean}
+ */
+export function keysGiveTools(keys) {
+    for (const key of keys) {
+        const def = getPermission(key);
+        if (def && def.scope !== "account" && def.tier >= 2) return true;
+    }
+    return false;
+}
 
 /**
  * Time of the last logged failure, to keep a broken database from flooding
@@ -72,5 +94,6 @@ export async function permissionStampMiddleware(req, res, next) {
     const held = new Set(Array.isArray(s?.effectivePermissions) ? s.effectivePermissions : []);
     res.locals.can = (key) => held.has(key);
     res.locals.effectivePermissions = [...held];
+    res.locals.hasTools = Boolean(s?.isConventionAdmin) || keysGiveTools(held);
     next();
 }

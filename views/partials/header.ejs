@@ -1,6 +1,5 @@
 <header class="py-2 mb-4">
   <%- include('brandData') %>
-  <%- include('roleData') %>
   <nav class="navbar navbar-expand-lg navbar-light site-navbar shadow-sm">
     <div class="container-fluid">
 
@@ -44,7 +43,7 @@
           const has             = (key) => typeof can === 'function' && can(key);
           const hasAny          = (...keys) => keys.some((k) => has(k));
 
-          // One flag per Operations group; the Operations menu shows when any group does.
+          // One flag per Tools group; the Tools menu shows when any group does.
           const navDocs         = hasAny('maps.view', 'schedules.view', 'lessons.viewAll');
           const navComms        = hasAny('campaigns.send', 'volunteers.sendSignInLinks');
           const navVolunteers   = hasAny('volunteers.edit', 'volunteers.create', 'notes.view');
@@ -61,8 +60,11 @@
           const navPositions    = hasAny('positions.view', 'positions.assign', 'positions.manage',
                                          'departments.assignPositions');
           const navAdmin        = has('structure.manage') || navSystemVars || navPositions;
-          const navOperations   = navDocs || navComms || navVolunteers || navConvention || navReports || navSigns
-                                  || navScheduling || navAttendance || navCounts || navDecently || navAdmin;
+          // The Tools menu only for people with something beyond a Volunteer's
+          // pages (res.locals.hasTools, phase 3d-8c).
+          const navOperations   = (typeof hasTools !== 'undefined' && hasTools)
+                                  && (navDocs || navComms || navVolunteers || navConvention || navReports || navSigns
+                                  || navScheduling || navAttendance || navCounts || navDecently || navAdmin);
         %>
 
         <!-- Nav items — left side, spread with auto margins -->
@@ -146,7 +148,7 @@
                  role="button" data-bs-toggle="dropdown" aria-expanded="false"
                  data-bs-auto-close="outside">
                 <i class="fa-solid fa-screwdriver-wrench me-1"></i>
-                Operations
+                Tools
               </a>
               <ul class="dropdown-menu ot-nav-dropdown" aria-labelledby="oversightDropdown">
 

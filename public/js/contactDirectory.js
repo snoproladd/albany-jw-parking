@@ -16,7 +16,8 @@
  * @property {string|null} suffix
  * @property {string|null} email
  * @property {string|null} phone
- * @property {string} role
+ * @property {string} positions  Position names, "A, B" (phase 3d-8c; was role).
+ * @property {number} tier       Highest position tier (0 = none).
  */
 
 const searchInput = document.getElementById("cdSearch");
@@ -61,19 +62,6 @@ function fullName(v) {
     return `${v.lastName}, ${v.firstName}${suffix}`;
 }
 
-/**
- * Human-readable label for a role string (e.g. "ASSISTANT_ADMIN" -> "Assistant Admin").
- *
- * @param {string} role
- * @returns {string}
- */
-function roleLabel(role) {
-    return (role || "")
-        .toLowerCase()
-        .split("_")
-        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(" ");
-}
 
 /**
  * Apply the current search filter to the full volunteer list.
@@ -104,8 +92,9 @@ function applySort(rows) {
             av = fullName(a);
             bv = fullName(b);
         } else if (col === "role") {
-            av = roleLabel(a.role);
-            bv = roleLabel(b.role);
+            // Positions column: highest tier first, then by name.
+            av = `${9 - (a.tier || 0)} ${a.positions || ""}`;
+            bv = `${9 - (b.tier || 0)} ${b.positions || ""}`;
         } else {
             av = a[col] || "";
             bv = b[col] || "";
@@ -167,7 +156,7 @@ function render(rows) {
         tr.appendChild(phoneTd);
 
         const roleTd = document.createElement("td");
-        roleTd.textContent = roleLabel(v.role);
+        roleTd.textContent = v.positions || "—";
         tr.appendChild(roleTd);
 
         frag.appendChild(tr);

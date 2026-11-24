@@ -41,7 +41,6 @@ import {
 } from "./schedulerConflicts.js";
 
 import { initContextMenu } from "./schedulerContextMenu.js";
-import { roleLevel, isRoleAtLeast } from "./roles.js";
 import { createPublishButton, setPublishCurrentDayId } from "./schedulerPublish.js";
 
 import {
@@ -698,7 +697,11 @@ export async function initDomActions() {
       pill.dataset.sortOrder = String(sortOrder);
       pill.dataset.firstName = v.firstName || "";
       pill.dataset.lastName  = v.lastName  || "";
-      pill.dataset.role      = v.role || "REGISTERED";
+      // Access summary from the person's positions (phase 3d-8c; was role).
+      pill.dataset.tier      = String(v.tier || 0);
+      pill.dataset.canLead   = v.canLead ? "true" : "false";
+      pill.dataset.positions = v.positions || "";
+      pill.dataset.topPosition = v.topPosition || "";
       pill.dataset.phone     = v.phone || "";
       pill.dataset.email     = v.email || "";
       pill.dataset.suffix    = v.suffix || "";
@@ -715,6 +718,15 @@ export async function initDomActions() {
       // Crew badge row — one badge per assigned crew; intake note badge if present
       const crewsDiv = document.createElement("div");
       crewsDiv.classList.add("pill-crews");
+
+      // Position badge for anyone above a plain volunteer (phase 3d-8c).
+      if ((v.tier || 0) >= 2 && v.topPosition) {
+        const posBadge = document.createElement("span");
+        posBadge.classList.add("pill-position-badge", `pill-position-tier-${Math.min(v.tier, 5)}`);
+        posBadge.textContent = v.topPosition;
+        posBadge.title = v.positions || v.topPosition;
+        crewsDiv.appendChild(posBadge);
+      }
 
       for (const [key, assigned] of Object.entries(v.crews || {})) {
         if (!assigned) continue;
@@ -827,7 +839,7 @@ export async function initDomActions() {
    * @returns {void}
    */
   function _applyVolunteerFilters() {
-    const rankValue   = document.getElementById("vol-rank-filter")?.value   ?? "";
+    const positionValue = document.getElementById("vol-rank-filter")?.value ?? "";
     const deptValue   = document.getElementById("vol-department-filter")?.value ?? "";
     const usageValue  = document.getElementById("vol-usage-filter")?.value  ?? "";
     const genderValue = document.getElementById("vol-gender-filter")?.value ?? "";
@@ -852,7 +864,7 @@ export async function initDomActions() {
       }
 
       const show =
-        _matchesRank(v, rankValue) &&
+        _matchesPosition(v, positionValue) &&
         _matchesDept(v, deptValue) &&
         _matchesUsage(v, usageValue) &&
         _matchesGender(v, genderValue) &&
@@ -874,10 +886,12 @@ export async function initDomActions() {
       const vb = _volunteers.find((v) => v.id === Number(b.dataset.id));
       if (!va || !vb) return 0;
 
-      if (sortOrder === "rank") {
-        const diff =
-          Math.max(roleLevel(vb.role), 0) - Math.max(roleLevel(va.role), 0);
+      if (sortOrder === "responsibility") {
+        // Highest position tier first, then those who can lead (phase 3d-8c).
+        const diff = (vb.tier || 0) - (va.tier || 0);
         if (diff !== 0) return diff;
+        const leadDiff = Number(Boolean(vb.canLead)) - Number(Boolean(va.canLead));
+        if (leadDiff !== 0) return leadDiff;
       }
 
       if (sortOrder === "department") {
@@ -910,18 +924,22 @@ export async function initDomActions() {
   }
 
   /**
-   * @param {object} v         - Volunteer row.
-   * @param {string} rankValue - Filter select value ('', '1', '2', '3').
+   * Position filter (phase 3d-8c): the options are the department's own
+   * positions. 'pos:<name>' matches anyone holding that position,
+   * 'none' anyone holding no position, '' everyone.
+   *
+   * @param {{ positions?: string }} v - Volunteer row; positions is "A, B".
+   * @param {string} value - Filter select value.
    * @returns {boolean}
    */
-  function _matchesRank(v, rankValue) {
-    if (!rankValue) return true;
-    const role = String(v.role || "")
-      .trim()
-      .toUpperCase();
-    if (rankValue === "1") return role === "REGISTERED";
-    if (rankValue === "2") return role === "KEYMAN";
-    if (rankValue === "3") return isRoleAtLeast(role, "OVERSEER");
+  function _matchesPosition(v, value) {
+    if (!value) return true;
+    const held = String(v.positions || "")
+      .split(",")
+      .map((n) => n.trim())
+      .filter(Boolean);
+    if (value === "none") return held.length === 0;
+    if (value.startsWith("pos:")) return held.includes(value.slice(4));
     return true;
   }
 

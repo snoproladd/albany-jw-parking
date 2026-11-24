@@ -48,12 +48,16 @@
                 autocomplete="off"
               />
               <div class="d-flex flex-column gap-1">
-                <span class="small text-muted crew-filter-label">Filter by role</span>
+                <%# Position filter (phase 3d-8c; was role): the positions people in
+                    this list hold, plus people with none. %>
+                <% const _cmPositions = [...new Set(volunteers.flatMap((v) =>
+                       (v.positions || '').split(', ').filter(Boolean)))].sort(); %>
+                <span class="small text-muted crew-filter-label">Filter by position</span>
                 <div class="crew-filter-btngroup" id="crewRoleFilter">
-                  <button type="button" class="crew-filter-btn" data-value="NON_REGISTERED">Non-Reg</button>
-                  <button type="button" class="crew-filter-btn" data-value="REGISTERED">Registered</button>
-                  <button type="button" class="crew-filter-btn" data-value="KEYMAN">Keyman</button>
-                  <button type="button" class="crew-filter-btn" data-value="OVERSEER">Overseer</button>
+                  <% _cmPositions.forEach(function (name) { %>
+                    <button type="button" class="crew-filter-btn" data-value="<%= name %>"><%= name %></button>
+                  <% }) %>
+                  <button type="button" class="crew-filter-btn" data-value="">No position</button>
                 </div>
               </div>
               <div class="d-flex flex-column gap-1">
@@ -95,7 +99,7 @@
                   <thead class="table-light">
                     <tr>
                       <th class="crew-col-name">Name</th>
-                      <th class="crew-col-role">Role</th>
+                      <th class="crew-col-role">Positions</th>
                       <th class="crew-col-crew text-center" data-crew="lots_and_garages">
                         <span class="crew-badge crew-lots-and-garages">L&amp;G</span>
                         <div class="crew-col-label">Lots &amp; Garages</div>
@@ -144,22 +148,17 @@
                     <% volunteers.forEach(v => { %>
                       <tr class="crew-row"
                           data-id="<%= v.id %>"
-                          data-role="<%= v.role %>"
+                          data-positions="|<%= (v.positions || '').split(', ').filter(Boolean).join('|') %>|"
                           data-name="<%= (v.lastName + ' ' + v.firstName).toLowerCase() %>"
                           data-gender="<%= v.gender || '' %>">
                         <td class="fw-semibold">
                           <%= v.lastName %>, <%= v.firstName %>
                         </td>
                         <td>
-                          <span class="badge <%=
-                            v.role === 'ADMIN'           ? 'bg-danger'            :
-                            v.role === 'ASSISTANT_ADMIN' ? 'bg-warning text-dark' :
-                            v.role === 'OVERSEER'        ? 'bg-primary'           :
-                            v.role === 'KEYMAN'          ? 'bg-info text-dark'    :
-                            v.role === 'REGISTERED'      ? 'bg-success'           :
-                                                           'bg-secondary'
-                          %>">
-                            <%= v.role %>
+                          <%# Coloured by highest position tier (same colours as the Positions page). %>
+                          <span class="crew-tier crew-tier-<%= Math.min(Math.max(v.tier || 0, 0), 5) %>"
+                                title="Highest tier: <%= v.tier || 'none' %>">
+                            <%= v.positions || 'No position' %>
                           </span>
                         </td>
                         <td class="text-center">
@@ -225,7 +224,7 @@
 
             <div class="mt-4 d-flex gap-2 flex-wrap">
               <a href="/oversight/tools" class="btn btn-outline-secondary btn-sm">
-                <i class="fa-solid fa-arrow-left me-1"></i>Back to Oversight Tools
+                <i class="fa-solid fa-arrow-left me-1"></i>Back to Tools
               </a>
               <a href="/oversight/tools/scheduler" class="btn btn-outline-warning btn-sm">
                 <i class="fa-regular fa-calendar-days me-1"></i>Scheduler

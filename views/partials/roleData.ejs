@@ -1,4 +1,0 @@
-<%# Role order for client JS (read by /js/roles.js). Data island — not executed, CSP-safe.
-    Included by header.ejs next to brandData. Source of truth: src/config/roles.js (ROLE_HIERARCHY,
-    exposed through app.locals in index.js). %>
-<script id="app-roles-json" type="application/json"><%- JSON.stringify(typeof ROLE_HIERARCHY !== 'undefined' ? ROLE_HIERARCHY : []).replace(/</g, '\\u003c') %></script>

@@ -135,17 +135,17 @@
     },
     {
       "id": "oversight",
-      "label": "Oversight",
+      "label": "Tools",
       "icon": "fa-solid fa-screwdriver-wrench",
       "pages": [
         {
           "title": "All Tools",
           "path": "/oversight/tools",
-          "description": "Oversight dashboard showing all tools available based on your role and permissions.",
+          "description": "Every tool your positions open, in one place.",
           "icon": "fa-solid fa-table-cells-large",
           "permission": null,
           "tourId": "oversightTools",
-          "signedIn": true
+          "tools": true
         }
       ]
     },

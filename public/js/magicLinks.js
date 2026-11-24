@@ -1,6 +1,6 @@
 /**
  * @file magicLinks.js
- * @description Client logic for the Oversight Tools "Magic Links" page.
+ * @description Client logic for the Tools "Magic Links" page.
  *
  * Responsibilities:
  *  - Revoke a magic login token via POST, with a confirm prompt since

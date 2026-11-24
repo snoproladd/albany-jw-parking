@@ -5,7 +5,7 @@
  * Responsibilities:
  *  - Wire each crew toggle switch to an immediate AJAX PATCH save.
  *  - Toggle-all button per crew column (affects only visible rows).
- *  - Live name search, role filter, crew assignment filter, and gender filter.
+ *  - Live name search, position filter, crew assignment filter, and gender filter.
  *  - Show an inline toast on save success or failure.
  */
 
@@ -265,9 +265,11 @@ document.addEventListener("DOMContentLoaded", () => {
   // ─────────────────────────────────────────────
 
   /**
-   * Apply name search, role filter, crew filter, and gender filter to table rows.
+   * Apply name search, position filter, crew filter, and gender filter to table rows.
    * All four filters use AND logic between them.
-   * Role and crew filters use OR logic within their own selections.
+   * Position and crew filters use OR logic within their own selections.
+   * A position button's value is the position name ("" = no position);
+   * rows carry data-positions as "|A|B|" (phase 3d-8c; was role).
    * Gender filter is a single-value radio selection (all | male | female).
    *
    * @returns {void}
@@ -293,9 +295,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     document.querySelectorAll(".crew-row").forEach((row) => {
       const nameMatch = !term || (row.dataset.name || "").includes(term);
+      const rowPositions = row.dataset.positions || "||";
       const roleMatch =
         selectedRoles.length === 0 ||
-        selectedRoles.includes(row.dataset.role || "");
+        selectedRoles.some((name) =>
+          name === "" ? rowPositions === "||" : rowPositions.includes(`|${name}|`),
+        );
       const crewMatch = _matchesCrewFilter(row, selectedCrewFilters);
       const genderMatch =
         genderVal === "all" || (row.dataset.gender || "") === genderVal;
@@ -340,7 +345,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 document.getElementById("crewSearch")?.addEventListener("input", _applyFilters);
 
-  // Toggle-button groups — role and crew use multi-select (toggle) behavior
+  // Toggle-button groups — position and crew use multi-select (toggle) behavior
   ["crewRoleFilter", "crewCrewFilter"].forEach((id) => {
     document.getElementById(id)?.addEventListener("click", (e) => {
       const btn = /** @type {HTMLElement} */ (e.target).closest(

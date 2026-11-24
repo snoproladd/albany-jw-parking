@@ -26,6 +26,7 @@ const __dirname = dirname(__filename);
  * @property {string|string[]|null} permission - Catalogue key(s) that open the page
  *                                     (any one is enough), or null.
  * @property {boolean} [signedIn]      - With no permission: shown to anyone signed in.
+ * @property {boolean} [tools]         - The Tools hub: shown when res.locals.hasTools.
  */
 
 /**
@@ -90,6 +91,7 @@ export function sitemapRouter() {
         const keys = Array.isArray(page.permission) ? page.permission : [page.permission];
         return keys.some((k) => can(k));
       }
+      if (page.tools) return Boolean(res.locals.hasTools);
       if (page.signedIn) return isLoggedIn;
       return true;
     }

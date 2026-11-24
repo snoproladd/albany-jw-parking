@@ -71,13 +71,17 @@
                 </div>
 
                 <div class="mc-filter-group">
-                    <label class="mc-filter-label" for="mcRoleFilter">Role</label>
+                    <%# Position filter (phase 3d-8c; was role): the positions people in
+                        this list hold, plus "Overseer and up" (tier 3+). %>
+                    <% const _mcPositions = [...new Set(volunteers.flatMap((v) =>
+                           (v.positions || '').split(', ').filter(Boolean)))].sort(); %>
+                    <label class="mc-filter-label" for="mcRoleFilter">Position</label>
                     <select id="mcRoleFilter" class="form-select form-select-sm">
                         <option value="">All</option>
-                        <option value="REGISTERED">Registered</option>
-                        <option value="DESK">Desk</option>
-                        <option value="KEYMAN">Keyman</option>
-                        <option value="OVERSEER+">Overseer+</option>
+                        <% _mcPositions.forEach(function (name) { %>
+                            <option value="pos:<%= name %>"><%= name %></option>
+                        <% }) %>
+                        <option value="tier3">Overseer and up</option>
                     </select>
                 </div>
 
@@ -143,7 +147,8 @@
                         data-status="<%= v.registration_status %>"
                         data-active="<%= v.active_current_year %>"
                         data-gender="<%= v.gender || '' %>"
-                        data-role="<%= v.role || '' %>"
+                        data-positions="|<%= (v.positions || '').split(', ').filter(Boolean).join('|') %>|"
+                        data-tier="<%= v.tier || 0 %>"
                         data-crews="<%= crewKeys %>"
                         data-has-email="<%= hasEmail %>"
                         data-has-sms="<%= hasSms %>"
@@ -187,7 +192,7 @@
                         <i class="fa-solid fa-chart-gantt me-1"></i>Invitation Tracker
                     </a>
                     <a href="/oversight/tools" class="btn btn-secondary btn-sm">
-                        <i class="fa-solid fa-arrow-left me-1"></i>Oversight Tools
+                        <i class="fa-solid fa-arrow-left me-1"></i>Tools
                     </a>
                 </div>
             </div>

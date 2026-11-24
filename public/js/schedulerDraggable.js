@@ -3,7 +3,7 @@
  * @description Drag-and-drop wrapper for the volunteer scheduler.
  * Wraps the agnostic-draggable UMD library (window.agnosticDraggable),
  * manages draggable name pills and droppable shift slots, and enforces
- * role and department drop guards.
+ * slot (Keyman) and department drop guards.
  *
  * Depends on agnostic-draggable.js being loaded as a UMD script before
  * this module executes (i.e. before scheduler.js is imported).
@@ -12,7 +12,6 @@
 const { Draggable, Droppable } = window.agnosticDraggable;
 
 import { getConflicts } from './schedulerConflicts.js';
-import { roleLevel } from './roles.js';
 
 
 
@@ -34,27 +33,23 @@ const boundDroppables = new WeakSet();
 let volunteers = [];
 
 // ─────────────────────────────────────────────
-//  Slot role rules (ordering comes from /js/roles.js)
+//  Slot rules (Keyman slots need shifts.lead; phase 3d-8c)
 // ─────────────────────────────────────────────
 
 /**
- * Minimum role required to occupy each named slot type.
- * keyman slots require KEYMAN+; keyman_asst slots accept any role.
- * @type {Record<string, string>}
- */
-const MIN_ROLE_FOR_SLOT = {
-  keyman: "KEYMAN",
-  keyman_asst: "NON_REGISTERED",
-};
-
-/**
- * Role level of a volunteer pill, treating a missing or unknown role as
- * the lowest level (matches the previous `?? 0` behaviour).
+ * Whether a volunteer pill may fill a named slot (`data-role` on the drop
+ * zone). Phase 3d-8c: Keyman slots need someone who can lead shifts (holds
+ * `shifts.lead`, through a position or an individual grant: the pill's
+ * `data-can-lead`); Keyman Assistant slots, and any other, accept anyone.
+ * Before, Keyman slots needed the KEYMAN role or higher.
+ *
  * @param {HTMLElement} pill
- * @returns {number}
+ * @param {string|undefined} slotRole  The drop zone's `data-role`.
+ * @returns {boolean}
  */
-function _pillRoleLevel(pill) {
-  return Math.max(roleLevel(String(pill.dataset.role || "").toUpperCase()), 0);
+function _pillCanFillSlot(pill, slotRole) {
+  if (slotRole !== "keyman") return true;
+  return pill.dataset.canLead === "true";
 }
 
 /**
@@ -311,8 +306,8 @@ export function onReturnToPool(event) {
  * Determine whether a dragged pill may be dropped on a given drop zone.
  * Two independent checks run in order — either can veto the drop:
  *
- * 1. **Role check** — if the drop zone has `data-role`, the volunteer's
- *    role must meet the minimum level defined in MIN_ROLE_FOR_SLOT.
+ * 1. **Slot check** — a Keyman slot (`data-role="keyman"`) needs a
+ *    volunteer who can lead shifts (_pillCanFillSlot).
  * 2. **Department check** — if the drop zone is inside a
  *    `[data-department]` container, the volunteer must have the
  *    matching crew flag set to true.
@@ -350,12 +345,8 @@ function canDrop(pill, dz) {
     }
   }
 
-  // ── Role check ──────────────────────────────────────────────────────
-  const slotRole = targetDz.dataset.role;
-  if (slotRole) {
-    const minLevel = roleLevel(MIN_ROLE_FOR_SLOT[slotRole] ?? "NON_REGISTERED");
-    if (_pillRoleLevel(pill) < minLevel) return false;
-  }
+  // ── Slot check (Keyman needs shifts.lead) ────────────────────────────
+  if (!_pillCanFillSlot(pill, targetDz.dataset.role)) return false;
 
   // ── Department check ─────────────────────────────────────────────────
   const dept = targetDz.closest("[data-department]")?.dataset.department;
@@ -400,7 +391,7 @@ function _findNextEmptyVolunteerDz(anyDz) {
  *
  * Redirects to the first empty volunteer DZ in the same shift when:
  *  - the hovered DZ already contains a pill, **or**
- *  - the hovered DZ is a KM/KA slot the volunteer's role cannot fill.
+ *  - the hovered DZ is a Keyman slot the volunteer cannot fill.
  *
  * Falls back to the original DZ if no empty volunteer slot exists
  * (subsequent canDrop checks will reject it).
@@ -416,11 +407,7 @@ function _resolveDropTarget(pill, dz) {
 
   let roleBlocked = false;
   if (!isOccupied) {
-    const slotRole = dz.dataset.role;
-    if (slotRole) {
-      const minLevel = roleLevel(MIN_ROLE_FOR_SLOT[slotRole] ?? "NON_REGISTERED");
-      roleBlocked = _pillRoleLevel(pill) < minLevel;
-    }
+    roleBlocked = !_pillCanFillSlot(pill, dz.dataset.role);
   }
 
   if (isOccupied || roleBlocked) {

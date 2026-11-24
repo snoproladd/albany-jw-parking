@@ -1,6 +1,6 @@
 /**
  * @fileoverview oversightToolsTour.js
- * Shepherd.js tour for the Oversight Tools hub (/oversight/tools).
+ * Shepherd.js tour for the Tools hub (/oversight/tools).
  * Walks overseers through the layout, sidebar navigation, and tool card sections.
  *
  * @module oversightToolsTour
@@ -15,7 +15,7 @@ import {
 } from "./tourBase.js";
 
 /**
- * Builds and returns the Oversight Tools hub tour.
+ * Builds and returns the Tools hub tour.
  *
  * @returns {Shepherd.Tour}
  */
@@ -31,7 +31,7 @@ function buildOversightToolsTour() {
 
     steps.push({
         id: 'ot-welcome',
-        title: 'Oversight Tools',
+        title: 'Tools',
         text: 'This is your central hub. Every administrative tool is grouped here by function — communications, volunteer management, scheduling, attendance, and more. What you see depends on your role.',
         buttons: null,
     });
@@ -78,7 +78,7 @@ function buildOversightToolsTour() {
         steps.push({
             id: 'ot-open-btn',
             title: 'Opening a tool',
-            text: 'Click <strong>Open</strong> on any card to go straight to that tool. Use your browser\'s back button or the <strong>Oversight Tools</strong> link inside each tool to return here.',
+            text: 'Click <strong>Open</strong> on any card to go straight to that tool. Use your browser\'s back button or the <strong>Tools</strong> link inside each tool to return here.',
             attachTo: { element: '.admin-tool-btn', on: 'bottom' },
             buttons: null,
         });
@@ -102,7 +102,7 @@ function buildOversightToolsTour() {
 }
 
 /**
- * Attaches the tour to #tourTriggerBtn on the Oversight Tools hub.
+ * Attaches the tour to #tourTriggerBtn on the Tools hub.
  *
  * @returns {void}
  */

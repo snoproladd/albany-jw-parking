@@ -97,11 +97,12 @@
             placeholder="Search by name…"
             autocomplete="off"
           />
-          <select id="vol-rank-filter" aria-label="Filter by rank" data-action="filter" class="form-select form-select-sm">
-            <option value="">All Ranks</option>
-            <option value="1">Registered</option>
-            <option value="2">Keyman</option>
-            <option value="3">Overseer+</option>
+          <select id="vol-rank-filter" aria-label="Filter by position" data-action="filter" class="form-select form-select-sm">
+            <option value="">Everyone</option>
+            <% (locals.positionOptions || []).forEach(function (p) { %>
+            <option value="pos:<%= p.name %>"><%= p.name %></option>
+            <% }) %>
+            <option value="none">No position</option>
           </select>
           <select id="vol-department-filter" aria-label="Filter by department" data-action="filter" class="form-select form-select-sm">
             <option value="">All Departments</option>
@@ -126,7 +127,7 @@
           </select>
           <select id="vol-sort-order" aria-label="Sort volunteers by" data-action="filter" class="form-select form-select-sm">
             <option value="lastName">Sort: Last Name</option>
-            <option value="rank">Sort: Rank</option>
+            <option value="responsibility">Sort: Responsibility</option>
             <option value="department">Sort: Department</option>
             <option value="usage">Sort: Usage (least first)</option>
           </select>

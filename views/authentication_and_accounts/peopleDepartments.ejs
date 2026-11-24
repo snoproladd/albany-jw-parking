@@ -33,7 +33,7 @@
                   <i class="fa-solid fa-building-user me-2"></i>People &amp; Departments
                 </h1>
                 <a href="/oversight/tools" class="btn btn-secondary btn-sm">
-                  <i class="fa-solid fa-arrow-left me-1"></i>Oversight Tools
+                  <i class="fa-solid fa-arrow-left me-1"></i>Tools
                 </a>
               </div>
               <p class="mb-0 mt-1 text-muted small">
@@ -99,9 +99,9 @@
                           <% } %>
                           <% p.memberships.forEach(function (m) { %>
                             <span class="pd-membership <%= m.active ? 'pd-membership-active' : 'pd-membership-inactive' %>"
-                                  title="<%= m.departmentName %>: <%= m.role || 'no role' %>, <%= m.active ? 'active' : 'inactive' %>, <%= m.approved ? 'Decently approved' : 'not approved by Decently' %><%= m.exported ? ', sent to Decently' : '' %><%= m.disapprovedYear ? ', not approved for ' + m.disapprovedYear : '' %>">
+                                  title="<%= m.departmentName %>: <%= m.positions || 'no position' %>, <%= m.active ? 'active' : 'inactive' %>, <%= m.approved ? 'Decently approved' : 'not approved by Decently' %><%= m.exported ? ', sent to Decently' : '' %><%= m.disapprovedYear ? ', not approved for ' + m.disapprovedYear : '' %>">
                               <span class="pd-membership-name"><%= m.departmentName %></span>
-                              <span class="pd-membership-role"><%= m.role || '—' %></span>
+                              <span class="pd-membership-role"><%= m.positions || '—' %></span>
                               <i class="fa-solid <%= m.active ? 'fa-circle-check text-success' : 'fa-circle-minus text-secondary' %>" aria-hidden="true"></i>
                               <% if (m.approved) { %><i class="fa-solid fa-stamp text-primary" aria-hidden="true"></i><% } %>
                               <% if (m.disapprovedYear) { %><i class="fa-solid fa-ban text-danger" aria-hidden="true"></i><% } %>

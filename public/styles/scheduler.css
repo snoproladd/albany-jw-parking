@@ -776,6 +776,30 @@
     border: 1px solid #fcd34d;
 }
 
+/* Position badge on pool pills for tier 2 and up (phase 3d-8c). Hidden
+   with the rest of .pill-crews once a pill is dropped into a slot. */
+.pill-position-badge {
+    display: inline-block;
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    padding: 0.05rem 0.22rem;
+    border-radius: 0.18rem;
+    line-height: 1.4;
+    white-space: nowrap;
+    background: var(--bs-primary-bg-subtle);
+    color: var(--bs-primary-text-emphasis);
+    border: 1px solid var(--bs-primary-border-subtle);
+}
+
+.pill-position-tier-3,
+.pill-position-tier-4,
+.pill-position-tier-5 {
+    background: var(--bs-dark-bg-subtle);
+    color: var(--bs-emphasis-color);
+    border-color: var(--bs-border-color);
+}
+
 /* Pending constraint badge — rose pill on pool pills with AI-suggested
    blackouts awaiting review (right-click → Scheduling Constraints) */
 .pill-constraint-badge {
@@ -1909,4 +1933,4 @@
 .scheduler-quick-link:hover {
     background: rgba(255, 255, 255, 0.12);
     color: var(--bs-body-color);
-}
+}

@@ -1,6 +1,6 @@
 /**
  * @file navDropdown.js
- * @description Oversight Tools nav dropdown — collapse chevron sync.
+ * @description Tools nav dropdown — collapse chevron sync.
  *
  * Bootstrap handles the actual collapse/expand via data-bs-toggle.
  * This file keeps the chevron rotation in sync with collapse state

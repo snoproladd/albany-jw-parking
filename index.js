@@ -29,7 +29,6 @@ import { isCountingAccount as isCountingAccountSession, expireGrants } from "./l
 import { requirePermission } from "./middleware/requirePermission.js";
 import { publicRoute, signedInRoute } from "./middleware/publicRoute.js";
 import { INCOMPATIBILITIES } from "./src/config/privilegeRules.js";
-import { ROLE_HIERARCHY } from "./src/config/roles.js";
 
 const require = createRequire(import.meta.url);
 const { version: APP_VERSION } = require("./package.json");
@@ -79,11 +78,6 @@ const __dirname = dirname(__filename);
 
 const app = express();
 
-// Role order for partials/roleData.ejs, which hands it to the scheduler's
-// client JS (public/js/roles.js). Views check permissions with
-// res.locals.can() instead (phase 3d); this goes in phase 3d-8c, when the
-// scheduler moves to position tiers.
-app.locals.ROLE_HIERARCHY = ROLE_HIERARCHY;
 const isProd = config.NODE_ENV === "production";
 const PORT = process.env.PORT || config.PORT || (isProd ? 80 : 3000);
 const HOST = "0.0.0.0";

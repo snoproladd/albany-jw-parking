@@ -242,12 +242,13 @@ document.addEventListener("DOMContentLoaded", () => {
   let activeCrew   = "";
   let activeSearch = "";
 
-  /** Role keys that satisfy the "Overseer+" filter bucket. */
-  const OVERSEER_PLUS = new Set(["OVERSEER", "ASSISTANT_ADMIN", "ADMIN"]);
 
   /**
    * Apply all active filters to the volunteer list.
-   * Filters: status, active, gender, role, crew, name search.
+   * Filters: status, active, gender, position, crew, name search.
+   * Position (phase 3d-8c; was role): "pos:<name>" matches people holding
+   * that position (data-positions is "|A|B|"); "tier3" matches Overseer and
+   * up (data-tier 3 or higher).
    * All filters use AND logic. Selections persist across filter changes.
    * @returns {void}
    */
@@ -264,9 +265,10 @@ document.addEventListener("DOMContentLoaded", () => {
         activeGender === "all" || (li.dataset.gender || "") === activeGender;
       const matchRole =
         activeRole === "all" ||
-        (activeRole === "OVERSEER+"
-          ? OVERSEER_PLUS.has(li.dataset.role || "")
-          : li.dataset.role === activeRole);
+        (activeRole === "tier3"
+          ? Number(li.dataset.tier || 0) >= 3
+          : activeRole.startsWith("pos:") &&
+            (li.dataset.positions || "").includes(`|${activeRole.slice(4)}|`));
       const matchCrew =
         !activeCrew ||
         (li.dataset.crews || "").split(",").includes(activeCrew);

@@ -5,7 +5,7 @@ import { publicRoute, signedInRoute } from "../middleware/publicRoute.js";
 import crypto from "crypto";
 import sql from "mssql";
 import { withScope } from "../lib/sql.js";
-import { getEffectivePermissions } from "../lib/positions.js";
+import { getEffectivePermissions, getPositionMatrix } from "../lib/positions.js";
 
 import {
   exec,
@@ -1001,15 +1001,15 @@ export function oversightRouter({
   );
 
   // ===========================
-  // Oversight Tools DASHBOARD
+  // TOOLS HUB
   // ===========================
 
   /**
    * GET /oversight/tools
-   * Central dashboard for Oversight Tools.
-   * Open to any signed-in person (phase 3d-3); each card shows only when the
-   * person holds the permission its tool needs, so someone with no tools sees
-   * just the site map.
+   * The Tools hub (called "Oversight Tools" before phase 3d-8c; the URL
+   * stays). Each card shows only when the person holds the permission its
+   * tool needs. People with nothing beyond a Volunteer's pages
+   * (res.locals.hasTools false) are sent to the home page.
    */
   router.get(
     "/oversight/tools",
@@ -1017,7 +1017,8 @@ export function oversightRouter({
     signedInRoute("tools hub: each card checks its own permission"),
     csrfProtection,
     (req, res) => {
-      res.render("authentication_and_accounts/oversightTools", {
+      if (!res.locals.hasTools) return res.redirect("/");
+      return res.render("authentication_and_accounts/oversightTools", {
         csrfToken: req.csrfToken(),
       });
     },
@@ -5638,7 +5639,9 @@ export function oversightRouter({
    * GET /oversight/tools/scheduler
    * Render the drag-and-drop volunteer scheduler page.
    * Convention days are passed for the day picker; schedule data
-   * and volunteers load client-side via AJAX.
+   * and volunteers load client-side via AJAX. The department's active
+   * positions, highest tier first, feed the pool's position filter
+   * (phase 3d-8c).
    *
    * @requires createAssignments permission
    */
@@ -5654,9 +5657,22 @@ export function oversightRouter({
         const conventionDays = allDays.filter(
           (d) => d.schedulable !== false && d.schedulable !== 0,
         );
+
+        /**
+         * Effective tier for ordering: a department admin ranks as 4.
+         * @param {{ tier: number|null, isDepartmentAdmin: boolean }} p
+         * @returns {number}
+         */
+        const rankOf = (p) => (p.isDepartmentAdmin ? 4 : (p.tier ?? 1));
+        const positionOptions = (await getPositionMatrix(req.session.departmentId))
+          .filter((p) => p.active)
+          .sort((a, b) => rankOf(b) - rankOf(a) || a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
+          .map((p) => ({ name: p.name, tier: rankOf(p) }));
+
         return res.render("authentication_and_accounts/scheduler", {
           csrfToken: req.csrfToken(),
           conventionDays,
+          positionOptions,
           year,
           actorId: req.session.userId || 0,
           canPublish: res.locals.can("scheduler.publish"),
