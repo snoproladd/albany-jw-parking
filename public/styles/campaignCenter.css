@@ -618,3 +618,149 @@
     color: var(--bs-body-color, #212529);
     margin: 0;
 }
+
+/* ─────────────────────────────────────────────────────────────
+   19. Numbered steps (1 what, 2 event, 3 who, 4 message, 5 review)
+   ───────────────────────────────────────────────────────────── */
+
+.mc-step-title {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 0.85rem;
+}
+
+.mc-step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 50%;
+    background: var(--bs-primary-bg-subtle, #cfe2ff);
+    color: var(--bs-primary-text-emphasis, #052c65);
+    font-size: 0.85rem;
+}
+
+.mc-step-optional {
+    font-size: 0.8rem;
+    font-weight: 400;
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+/* Step 1: the five choices */
+.mc-purposes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+    gap: 0.5rem;
+}
+
+.mc-purpose {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    column-gap: 0.5rem;
+    align-items: center;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 0.5rem;
+    background: var(--bs-body-bg, #fff);
+    color: inherit;
+    text-align: left;
+}
+
+.mc-purpose i {
+    grid-row: 1 / span 2;
+    color: var(--bs-primary, #0d6efd);
+}
+
+.mc-purpose-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.mc-purpose-desc {
+    grid-column: 2;
+    font-size: 0.78rem;
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+.mc-purpose:hover:not(:disabled) {
+    border-color: var(--bs-primary-border-subtle, #9ec5fe);
+}
+
+.mc-purpose:focus-visible {
+    outline: 2px solid var(--bs-primary, #0d6efd);
+    outline-offset: 2px;
+}
+
+.mc-purpose.active {
+    border: 2px solid var(--bs-primary, #0d6efd);
+    background: var(--bs-primary-bg-subtle, #cfe2ff);
+    padding: calc(0.6rem - 1px) calc(0.75rem - 1px);
+}
+
+.mc-purpose:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+/* Step 4: template dropdown and manager */
+.mc-template-select {
+    width: auto;
+    min-width: 13rem;
+}
+
+.mc-template-manager {
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    border: 1px dashed var(--bs-border-color, #dee2e6);
+    border-radius: 0.5rem;
+}
+
+.mc-sms-counter {
+    margin-top: 0.35rem;
+}
+
+/* Step 5: preview and counts */
+.mc-preview {
+    padding: 0.75rem 0.9rem;
+    border-radius: 0.5rem;
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    font-size: 0.9rem;
+}
+
+.mc-preview-subject {
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+}
+
+/* Keep the message's own line breaks, and wrap long links */
+.mc-preview-body {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.mc-review-counts {
+    display: grid;
+    gap: 0.25rem;
+    font-size: 0.9rem;
+}
+
+.mc-review-row {
+    display: grid;
+    grid-template-columns: 5rem 1fr;
+    gap: 0.75rem;
+}
+
+.mc-review-row dt {
+    font-weight: 500;
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+.mc-review-row dd {
+    margin: 0;
+}

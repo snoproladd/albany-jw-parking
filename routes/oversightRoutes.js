@@ -144,6 +144,7 @@ import {
   finishCampaignSend,
   getCampaignSendSummaries,
   getCampaignFamilySends,
+  getShiftMergeContext,
   recordMessageDelivery,
   getCrewMatrix,
   updateVolunteerCrew,
@@ -187,6 +188,7 @@ import {
   updateSchedulerColumnPrefs,
 } from "../lib/dbSync.js";
 import { getActiveYear, distributionFolderPath } from "../lib/conventionYear.js";
+import { fillMergeFields } from "../lib/campaignMerge.js";
 
 import { verifyPassword, hashPassword } from "../lib/passwordVer.js";
 
@@ -3961,6 +3963,8 @@ export function oversightRouter({
 
         return res.render("authentication_and_accounts/campaignCenter", {
           csrfToken: req.csrfToken(),
+          jsonForScript,
+          selectPending: req.query.selectPending === "1",
           volunteers,
           templates,
           conventionDays,
@@ -4373,79 +4377,15 @@ export function oversightRouter({
           : crypto.randomUUID();
         const rsvpUrl = `${baseUrl}/invite/respond/${encodeURIComponent(token)}`;
 
-        /**
-         * Replace all {field} placeholders in a string.
-         * @param {string} text
-         * @returns {string}
-         */
-        /**
-         * Build the location string for merge fields.
-         * Single location → just the name.
-         * Multiple → "At one of: Name1, Name2, …"
-         * @returns {string}
-         */
-        function resolveLocationName() {
-          if (!shiftContext) return "";
-          const count = shiftContext.location_count || 0;
-          const names = shiftContext.location_names || "";
-          if (!names) return "";
-          return count > 1 ? `At one of: ${names}` : names;
-        }
-
-        /**
-         * Format a TIME value (epoch-anchored Date or ISO string) to h:MM AM/PM.
-         * @param {Date|string|null} val
-         * @returns {string}
-         */
-        function fmtShiftTime(val) {
-          if (!val) return "";
-          const d = new Date(val);
-          if (isNaN(d.valueOf())) return String(val).slice(0, 5);
-          const h = d.getUTCHours();
-          const m = String(d.getUTCMinutes()).padStart(2, "0");
-          const ap = h >= 12 ? "PM" : "AM";
-          return `${h % 12 || 12}:${m} ${ap}`;
-        }
-
-        function resolveMergeFields(text) {
-          return text
-            .replace(/\{firstName\}/g, vol.firstName || "")
-            .replace(/\{lastName\}/g, vol.lastName || "")
-            .replace(/\{fullName\}/g, fullName)
-            .replace(/\{link\}/g, rsvpUrl)
-            .replace(/\{year\}/g, String(year))
-            .replace(
-              /\{shiftDate\}/g,
-              shiftContext?.convention_date
-                ? new Date(shiftContext.convention_date).toLocaleDateString(
-                    "en-US",
-                    {
-                      weekday: "long",
-                      month: "long",
-                      day: "numeric",
-                      timeZone: "UTC",
-                    },
-                  )
-                : "",
-            )
-            .replace(/\{shiftDay\}/g, shiftContext?.day_label || "")
-            .replace(/\{shiftStart\}/g, fmtShiftTime(shiftContext?.shift_start))
-            .replace(/\{shiftEnd\}/g, fmtShiftTime(shiftContext?.shift_end))
-            .replace(/\{shiftType\}/g, shiftContext?.event_type_name || "")
-            .replace(/\{shiftLabel\}/g, shiftContext?.shift_label || "")
-            .replace(/\{locationName\}/g, resolveLocationName())
-            .replace(
-              /\{locationAddress\}/g,
-              shiftContext?.location_address || "",
-            )
-            .replace(
-              /\{locationMapsUrl\}/g,
-              shiftContext?.location_maps_url || "",
-            );
-        }
-
-        const resolvedSubject = resolveMergeFields(subject || "");
-        const resolvedBody = resolveMergeFields(body);
+        const mergeValues = {
+          firstName: vol.firstName,
+          lastName: vol.lastName,
+          rsvpUrl,
+          year,
+          context: shiftContext,
+        };
+        const resolvedSubject = fillMergeFields(subject || "", mergeValues);
+        const resolvedBody = fillMergeFields(body, mergeValues);
         const channel =
           willEmail && willSms ? "both" : willEmail ? "email" : "sms";
 
@@ -4625,6 +4565,72 @@ export function oversightRouter({
         emailOnly,
         errors,
       });
+    },
+  );
+
+  /**
+   * POST /oversight/tools/campaigns/preview
+   * The message one volunteer would get, with every merge field filled in the
+   * same way the send does (lib/campaignMerge.js). Used by the Campaign
+   * Center's Review step. The RSVP link is a sample with the real address,
+   * since the real one is only made when the invitation is sent.
+   *
+   * Body (JSON): {
+   *   volunteerId:      number,
+   *   subject?:         string,
+   *   body:             string,
+   *   batchId?:         number|null   campaign whose event applies (Add
+   *                                   people, Reminder, a follow-up's parent)
+   *   conventionDayId?: number|null   event picked for a new campaign
+   *   shiftId?:         number|null
+   * }
+   * Response: { success: true, subject: string, body: string }
+   *
+   * @requires campaigns.send permission
+   */
+  router.post(
+    "/oversight/tools/campaigns/preview",
+    requireAuth,
+    requirePermission("campaigns.send"),
+    csrfProtection,
+    async (req, res) => {
+      const { volunteerId, subject = "", body = "" } = req.body || {};
+      const batchId = Number(req.body?.batchId) || null;
+      const dayId = Number(req.body?.conventionDayId) || null;
+      const shiftId = Number(req.body?.shiftId) || null;
+      if (!Number(volunteerId))
+        return res.status(400).json({ success: false, error: "No volunteer to preview." });
+
+      try {
+        const [volunteers, year, context] = await Promise.all([
+          getVolunteersForMessaging(),
+          getActiveYear(),
+          dayId
+            ? getShiftMergeContext({ conventionDayId: dayId, shiftId })
+            : batchId
+              ? getInvitationBatch(batchId)
+              : null,
+        ]);
+        const vol = volunteers.find((v) => v.id === Number(volunteerId));
+        if (!vol)
+          return res.status(404).json({ success: false, error: "Volunteer not found." });
+
+        const values = {
+          firstName: vol.firstName,
+          lastName: vol.lastName,
+          rsvpUrl: `${getBaseUrl(req)}/invite/respond/${"0".repeat(8)}-${"0".repeat(4)}-${"0".repeat(4)}-${"0".repeat(4)}-${"0".repeat(12)}`,
+          year,
+          context,
+        };
+        return res.json({
+          success: true,
+          subject: fillMergeFields(String(subject), values),
+          body: fillMergeFields(String(body), values),
+        });
+      } catch (err) {
+        (logError || console.error)("campaigns/preview error:", err);
+        return res.status(500).json({ success: false, error: "Could not build the preview." });
+      }
     },
   );
 

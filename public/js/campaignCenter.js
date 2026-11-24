@@ -6,14 +6,17 @@
  *  - Volunteer list rendering, filtering (status, active, gender, role, crew,
  *    name search), and multi-select (checkbox, CTRL+click, SHIFT+click, Select All Visible).
  *  - Send list chip management.
- *  - Campaign mode toggle (New Campaign / Add to Existing).
- *  - Event picker (invitable shifts only, cascading day → shift).
- *  - Batch name auto-suggest.
- *  - Template CRUD.
- *  - Compose area — channel toggles, merge field insertion.
- *  - Send button gating and AJAX send POST.
- *  - Double-send warning with confirm-and-retry.
- *  - Send results log.
+ *  - The page's five steps:
+ *    1. What is being sent: New invitation, Add people, Reminder, Follow-up
+ *       or Announcement (PURPOSES), with the campaign name, campaign or
+ *       parent picker, and answer settings each one needs.
+ *    2. Event (invitable shifts, day → shift), or the picked campaign's.
+ *    3. Who gets it (the send list chips).
+ *    4. Message: template dropdown and manager, channels, merge fields
+ *       (event fields only with an event), text length and segments.
+ *    5. Review: the first recipient's filled-in message (POST
+ *       /oversight/tools/campaigns/preview), per-channel counts, and Send.
+ *  - Double-send warning with confirm-and-retry; send results log.
  */
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -41,80 +44,69 @@ document.addEventListener("DOMContentLoaded", () => {
   const searchInput = document.getElementById("mcSearch");
   const roleFilter  = /** @type {HTMLSelectElement|null} */ (document.getElementById("mcRoleFilter"));
   const crewFilter  = /** @type {HTMLSelectElement|null} */ (document.getElementById("mcCrewFilter"));
-  const sendEmailChk = document.getElementById("mcSendEmail");
-  const sendSmsChk = document.getElementById("mcSendSms");
+  const sendEmailChk = /** @type {HTMLInputElement|null} */ (document.getElementById("mcSendEmail"));
+  const sendSmsChk = /** @type {HTMLInputElement|null} */ (document.getElementById("mcSendSms"));
   const subjectWrap = document.getElementById("mcSubjectWrap");
-  const subjectInput = document.getElementById("mcSubject");
-  const bodyInput = document.getElementById("mcBody");
-  const sendBtn = document.getElementById("mcSendBtn");
-  const sendBtnCount = document.getElementById("mcSendBtnCount");
-  const sendBtnPlural = document.getElementById("mcSendBtnPlural");
+  const subjectInput = /** @type {HTMLInputElement|null} */ (document.getElementById("mcSubject"));
+  const bodyInput = /** @type {HTMLTextAreaElement|null} */ (document.getElementById("mcBody"));
+  const sendBtn = /** @type {HTMLButtonElement|null} */ (document.getElementById("mcSendBtn"));
   const sendHint = document.getElementById("mcSendHint");
   const resultsCard = document.getElementById("mcResultsCard");
   const resultsBody = document.getElementById("mcResultsBody");
   const resultsDismiss = document.getElementById("mcResultsDismiss");
   const csrfTokenEl = document.getElementById("mcCsrfToken");
 
-  // Message type
-  const typeInvitationBtn = document.getElementById("mcTypeInvitation");
-  const typeAlertBtn      = document.getElementById("mcTypeAlert");
-  const typeFollowupBtn   = document.getElementById("mcTypeFollowup");
-  const typeDesc          = document.getElementById("mcTypeDesc");
-  const modeWrap          = document.getElementById("mcModeWrap");
-
-  // Campaign mode
-  const modeNewBtn      = document.getElementById("mcModeNew");
-  const modeAddToBtn    = document.getElementById("mcModeAddTo");
-  const modeFollowupBtn = document.getElementById("mcModeFollowup");
+  // Step 1 — purpose and campaign settings
+  const purposeBtns = Array.from(root.querySelectorAll(".mc-purpose[data-purpose]"));
   const campaignNameWrap = document.getElementById("mcCampaignNameWrap");
-  const campaignNameInput = document.getElementById("mcCampaignName");
+  const campaignNameInput = /** @type {HTMLInputElement|null} */ (document.getElementById("mcCampaignName"));
   const suggestNameBtn = document.getElementById("mcSuggestNameBtn");
   const existingBatchWrap = document.getElementById("mcExistingBatchWrap");
-  const existingBatchSelect = document.getElementById("mcExistingBatch");
+  const existingBatchSelect = /** @type {HTMLSelectElement|null} */ (document.getElementById("mcExistingBatch"));
   const batchPreview = document.getElementById("mcBatchPreview");
   const batchPreviewText = document.getElementById("mcBatchPreviewText");
-  const batchTrackerLink = document.getElementById("mcBatchTrackerLink");
+  const batchTrackerLink = /** @type {HTMLAnchorElement|null} */ (document.getElementById("mcBatchTrackerLink"));
   const parentBatchWrap = document.getElementById("mcParentBatchWrap");
-  const parentBatchSelect = document.getElementById("mcParentBatch");
-  const responseNeededWrap    = document.getElementById("mcResponseNeededWrap");
-  const responseNeededChk     = document.getElementById("mcResponseNeeded");
-  const recruitmentChk        = document.getElementById("mcIsRecruitment");
+  const parentBatchSelect = /** @type {HTMLSelectElement|null} */ (document.getElementById("mcParentBatch"));
+  const responseNeededWrap = document.getElementById("mcResponseNeededWrap");
+  const responseNeededChk = /** @type {HTMLInputElement|null} */ (document.getElementById("mcResponseNeeded"));
+  const recruitmentChk = /** @type {HTMLInputElement|null} */ (document.getElementById("mcIsRecruitment"));
+  const responseConfigWrap = document.getElementById("mcResponseConfigWrap");
+  const responseTypeSelect = /** @type {HTMLSelectElement|null} */ (document.getElementById("mcResponseType"));
+  const responseStandardWrap = document.getElementById("mcResponseStandardWrap");
+  const responsePollWrap = document.getElementById("mcResponsePollWrap");
+  const responseOptionsWrap = document.getElementById("mcResponseOptionsWrap");
 
-  /**
-   * A recruitment campaign must ask for a response: disable (and clear)
-   * the Recruitment checkbox whenever "Response needed" is off.
-   *
-   * @returns {void}
-   */
-  function syncRecruitmentState() {
-    if (!recruitmentChk) return;
-    const allowed = responseNeededChk?.checked ?? true;
-    recruitmentChk.disabled = !allowed;
-    if (!allowed) recruitmentChk.checked = false;
-  }
-  const responseConfigWrap    = document.getElementById("mcResponseConfigWrap");
-  const responseTypeSelect    = document.getElementById("mcResponseType");
-  const responseStandardWrap  = document.getElementById("mcResponseStandardWrap");
-  const responsePollWrap      = document.getElementById("mcResponsePollWrap");
-  const responseOptionsWrap   = document.getElementById("mcResponseOptionsWrap");
+  // Step 2 — event
   const eventPickerWrap = document.getElementById("mcEventPickerWrap");
-
-  // Event picker
-  const eventDaySelect = document.getElementById("mcEventDay");
-  const eventShiftSelect = document.getElementById("mcEventShift");
+  const eventInheritedNote = document.getElementById("mcEventInherited");
+  const eventDaySelect = /** @type {HTMLSelectElement|null} */ (document.getElementById("mcEventDay"));
+  const eventShiftSelect = /** @type {HTMLSelectElement|null} */ (document.getElementById("mcEventShift"));
   const eventPreview = document.getElementById("mcEventPreview");
   const eventPreviewText = document.getElementById("mcEventPreviewText");
 
-  // Templates
+  // Step 3 — recipients
+  const whoNote = document.getElementById("mcWhoNote");
+
+  // Step 4 — templates and message
+  const templateSelect = /** @type {HTMLSelectElement|null} */ (document.getElementById("mcTemplateSelect"));
+  const manageTemplatesBtn = document.getElementById("mcManageTemplatesBtn");
+  const templateManager = document.getElementById("mcTemplatesCard");
   const templateList = document.getElementById("mcTemplateList");
   const templateEditor = document.getElementById("mcTemplateEditor");
   const newTemplateBtn = document.getElementById("mcNewTemplateBtn");
-  const tplNameInput = document.getElementById("mcTplName");
-  const tplSubjectInput = document.getElementById("mcTplSubject");
-  const tplBodyInput = document.getElementById("mcTplBody");
-  const tplSaveBtn = document.getElementById("mcTplSaveBtn");
+  const tplNameInput = /** @type {HTMLInputElement|null} */ (document.getElementById("mcTplName"));
+  const tplSubjectInput = /** @type {HTMLInputElement|null} */ (document.getElementById("mcTplSubject"));
+  const tplBodyInput = /** @type {HTMLTextAreaElement|null} */ (document.getElementById("mcTplBody"));
+  const tplSaveBtn = /** @type {HTMLButtonElement|null} */ (document.getElementById("mcTplSaveBtn"));
   const tplCancelBtn = document.getElementById("mcTplCancelBtn");
   const tplStatus = document.getElementById("mcTplStatus");
+  const smsCounter = document.getElementById("mcSmsCounter");
+
+  // Step 5 — review
+  const previewEl = document.getElementById("mcPreview");
+  const previewLabel = document.getElementById("mcPreviewLabel");
+  const reviewCounts = document.getElementById("mcReviewCounts");
 
   // =========================================================
   // State
@@ -123,11 +115,13 @@ document.addEventListener("DOMContentLoaded", () => {
   /** @type {Set<number>} */
   const selectedIds = new Set();
 
-  /** @type {'new'|'add_to'|'followup'} */
-  let campaignMode = "new";
+  /**
+   * What is being sent (step 1).
+   * @typedef {'invite'|'add'|'remind'|'followup'|'announce'} Purpose
+   */
 
-  /** @type {'invitation'|'alert'|'followup'} */
-  let messageType = "invitation";
+  /** @type {Purpose} */
+  let purpose = "invite";
 
   /** @type {number|null} */
   let editingTemplateId = null;
@@ -457,7 +451,7 @@ document.addEventListener("DOMContentLoaded", () => {
     chip.className = "mc-chip";
     chip.id = `mcChip_${id}`;
     chip.dataset.id = String(id);
-    chip.innerHTML = `${name}<button type="button" class="mc-chip-remove" aria-label="Remove ${name}" data-id="${id}"><i class="fa-solid fa-xmark"></i></button>`;
+    chip.innerHTML = `${escapeHtml(name)}<button type="button" class="mc-chip-remove" aria-label="Remove ${escapeAttr(name)}" data-id="${id}"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>`;
     chipArea?.appendChild(chip);
     updateChipAreaVisibility();
     updateSendListCount();
@@ -497,36 +491,6 @@ function updateChipAreaVisibility() {
     updateSelectionCount();
     updateSendButton();
   });
-
-  // =========================================================
-  // Campaign mode toggle
-  // =========================================================
-
-   // =========================================================
-  // Message type constants
-  // =========================================================
-
-  /**
-   * Default behavior for each message type.
-   * @type {Record<string, {responseNeeded:boolean, showLink:boolean, description:string}>}
-   */
-  const TYPE_DEFAULTS = {
-    invitation: {
-      responseNeeded: true,
-      showLink:       true,
-      description:    "Invite volunteers to a shift. Includes an RSVP link and response prompt.",
-    },
-    alert: {
-      responseNeeded: false,
-      showLink:       false,
-      description:    "Send an announcement or reminder. No RSVP link or response prompt by default.",
-    },
-    followup: {
-      responseNeeded: true,
-      showLink:       true,
-      description:    "Follow up on a previous campaign. Includes an RSVP link.",
-    },
-  };
 
   // =========================================================
   // Confirmation modal helper
@@ -580,141 +544,205 @@ function updateChipAreaVisibility() {
   }
 
   // =========================================================
-  // Message type selection
+  // Step 1 — what is being sent
   // =========================================================
 
   /**
-   * Set the active message type, apply defaults, and update all
-   * dependent UI: type buttons, description, sub-mode visibility,
-   * campaign mode, responseNeeded checkbox, and {link} chip visibility.
+   * How each choice in step 1 behaves.
    *
-   * @param {'invitation'|'alert'|'followup'} type
+   * mode: the send route's campaignMode. type: the message type saved on a
+   * new campaign (null = the picked campaign's own type). picker: which
+   * campaign list step 1 shows. response: whether the "Response needed"
+   * settings show. event: "pick" (choose in step 2), "campaign" (the picked
+   * campaign's) or "parent" (the parent campaign's).
+   *
+   * @type {Record<Purpose, {
+   *   mode: 'new'|'add_to'|'followup',
+   *   type: 'invitation'|'alert'|'followup'|null,
+   *   name: boolean,
+   *   picker: 'existing'|'parent'|null,
+   *   response: boolean,
+   *   responseDefault: boolean,
+   *   event: 'pick'|'campaign'|'parent',
+   *   link: boolean,
+   * }>}
+   */
+  const PURPOSES = {
+    invite:   { mode: "new",      type: "invitation", name: true,  picker: null,       response: true,  responseDefault: true,  event: "pick",     link: true },
+    add:      { mode: "add_to",   type: null,         name: false, picker: "existing", response: false, responseDefault: true,  event: "campaign", link: true },
+    remind:   { mode: "add_to",   type: null,         name: false, picker: "existing", response: false, responseDefault: true,  event: "campaign", link: true },
+    followup: { mode: "followup", type: "followup",   name: true,  picker: "parent",   response: true,  responseDefault: true,  event: "parent",   link: true },
+    announce: { mode: "new",      type: "alert",      name: true,  picker: null,       response: false, responseDefault: false, event: "pick",     link: false },
+  };
+
+  /** Every campaign of the year, as the server embedded it. */
+  const batchesData = parseJson("mc-batches-data") || [];
+
+  /** Whether the page was opened from the tracker's "Remind pending". */
+  const selectPending = parseJson("mc-select-pending") === true;
+
+  /**
+   * The message last filled in from a campaign, so picking another campaign
+   * replaces it but never overwrites a message someone typed.
+   * @type {{ subject: string, body: string }|null}
+   */
+  let autoFilled = null;
+
+  /** @returns {HTMLOptionElement|null} The campaign picked for Add people / Reminder. */
+  function existingOption() {
+    const opt = existingBatchSelect?.options[existingBatchSelect.selectedIndex];
+    return opt?.value ? opt : null;
+  }
+
+  /** @returns {HTMLOptionElement|null} The parent picked for a Follow-up. */
+  function parentOption() {
+    const opt = parentBatchSelect?.options[parentBatchSelect.selectedIndex];
+    return opt?.value ? opt : null;
+  }
+
+  /**
+   * The message type of this send: the purpose's own, or for Add people and
+   * Reminder the picked campaign's.
+   * @returns {'invitation'|'alert'|'followup'}
+   */
+  function currentMessageType() {
+    const cfg = PURPOSES[purpose];
+    if (cfg.type) return cfg.type;
+    const t = existingOption()?.dataset.type;
+    return t === "alert" || t === "followup" ? t : "invitation";
+  }
+
+  /**
+   * The campaign whose saved event and details apply: the picked campaign
+   * (Add people, Reminder) or the parent (Follow-up).
+   * @returns {number|null}
+   */
+  function contextBatchId() {
+    const cfg = PURPOSES[purpose];
+    if (cfg.picker === "existing") return Number(existingOption()?.value) || null;
+    if (cfg.picker === "parent") return Number(parentOption()?.value) || null;
+    return null;
+  }
+
+  /**
+   * A recruitment campaign must ask for a response: disable (and clear)
+   * the Recruitment checkbox whenever "Response needed" is off.
    * @returns {void}
    */
-  function setMessageType(type) {
-    const defaults = TYPE_DEFAULTS[type];
-    if (!defaults) return;
+  function syncRecruitmentState() {
+    if (!recruitmentChk) return;
+    const allowed = responseNeededChk?.checked ?? true;
+    recruitmentChk.disabled = !allowed;
+    if (!allowed) recruitmentChk.checked = false;
+  }
 
-    messageType = type;
+  /**
+   * Show the answer settings that go with the chosen response type.
+   * @returns {void}
+   */
+  function syncResponseTypeUI() {
+    const type = responseTypeSelect?.value || "standard";
+    responseStandardWrap?.classList.toggle("d-none", type !== "standard");
+    responsePollWrap?.classList.toggle("d-none", type !== "poll");
+    responseOptionsWrap?.classList.toggle("d-none", type === "standard");
+  }
 
-    // Type button active states
-    for (const [btn, t] of [
-      [typeInvitationBtn, "invitation"],
-      [typeAlertBtn,      "alert"],
-      [typeFollowupBtn,   "followup"],
-    ]) {
-      btn?.classList.toggle("active",             t === type);
-      btn?.classList.toggle("btn-primary",        t === type);
-      btn?.classList.toggle("btn-outline-primary", t !== type);
-    }
+  /**
+   * Show or hide the answer settings for the current purpose and the
+   * "Response needed" box.
+   * @returns {void}
+   */
+  function syncResponseVisibility() {
+    const cfg = PURPOSES[purpose];
+    responseNeededWrap?.classList.toggle("d-none", !cfg.response);
+    responseConfigWrap?.classList.toggle("d-none", !cfg.response || !(responseNeededChk?.checked ?? true));
+  }
 
-    // Description
-    if (typeDesc) typeDesc.textContent = defaults.description;
+  /**
+   * Switch what is being sent and update step 1's fields, step 2 and the
+   * merge fields to match.
+   *
+   * @param {Purpose} next
+   * @returns {void}
+   */
+  function setPurpose(next) {
+    if (!PURPOSES[next]) return;
+    const changed = next !== purpose;
+    purpose = next;
+    const cfg = PURPOSES[next];
 
-    // Sub-mode wrap — only visible for invitation type
-    modeWrap?.classList.toggle("d-none", type !== "invitation");
-
-    // Drive campaign mode from type
-    if (type === "followup") {
-      setCampaignMode("followup");
-    } else if (type === "alert") {
-      setCampaignMode("new");
-    } else {
-      // invitation — keep current sub-mode unless it's followup (reset to new)
-      if (campaignMode === "followup") setCampaignMode("new");
-    }
-
-    // Response needed default
-    if (responseNeededChk) responseNeededChk.checked = defaults.responseNeeded;
-    syncRecruitmentState();
-
-    // Show/hide {link} merge chips
-    document.querySelectorAll(".mc-link-chip").forEach((chip) => {
-      chip.classList.toggle("d-none", !defaults.showLink);
+    purposeBtns.forEach((btn) => {
+      const on = btn.dataset.purpose === next;
+      btn.classList.toggle("active", on);
+      btn.setAttribute("aria-pressed", String(on));
     });
 
-    updateSendButton();
-  }
+    campaignNameWrap?.classList.toggle("d-none", !cfg.name);
+    existingBatchWrap?.classList.toggle("d-none", cfg.picker !== "existing");
+    parentBatchWrap?.classList.toggle("d-none", cfg.picker !== "parent");
 
-  typeInvitationBtn?.addEventListener("click", () => setMessageType("invitation"));
-  typeAlertBtn?.addEventListener("click",      () => setMessageType("alert"));
-  typeFollowupBtn?.addEventListener("click",   () => setMessageType("followup"));
+    if (changed && responseNeededChk) responseNeededChk.checked = cfg.responseDefault;
+    syncRecruitmentState();
+    syncResponseVisibility();
 
-  /**
-   * Switch between New Campaign, Add to Existing, and Follow-up modes.
-   * Controls visibility of campaign name, parent picker, response needed,
-   * existing batch picker, and event picker panels.
-   * @param {'new'|'add_to'|'followup'} mode
-   * @returns {void}
-   */
-  function setCampaignMode(mode) {
-    campaignMode = mode;
-    const isNew = mode === "new";
-    const isAddTo = mode === "add_to";
-    const isFollowup = mode === "followup";
-
-    // Sub-mode button active states (secondary color — primary is reserved for type buttons)
-    for (const [btn, active] of [
-      [modeNewBtn,   isNew],
-      [modeAddToBtn, isAddTo],
-    ]) {
-      btn?.classList.toggle("active",              active);
-      btn?.classList.toggle("btn-secondary",       active);
-      btn?.classList.toggle("btn-outline-secondary", !active);
-    }
-
-    // Panel visibility
-    campaignNameWrap?.classList.toggle("d-none", isAddTo);
-    existingBatchWrap?.classList.toggle("d-none", !isAddTo);
-    parentBatchWrap?.classList.toggle("d-none", !isFollowup);
-    responseNeededWrap?.classList.toggle("d-none", isAddTo);
-    eventPickerWrap?.classList.toggle("d-none", isAddTo);
-
-    // Always clear stale badges when switching modes. The subsequent
-    // onExistingBatchChange / onParentBatchChange calls will re-apply
-    // badges if a campaign is already selected in the new mode.
     clearInviteStatusBadges();
+    if (cfg.picker === "existing" && existingOption()) onExistingBatchChange();
+    if (cfg.picker === "parent" && parentOption()) onParentBatchChange();
 
-    // Pre-fill subject/body from selected batch
-    if (isAddTo && existingBatchSelect?.value) onExistingBatchChange();
-
-    // Auto-suggest follow-up name when parent is already selected
-    if (isFollowup && parentBatchSelect?.value) onParentBatchChange();
-
+    updateEventStep();
     updateSendButton();
   }
 
-  modeNewBtn?.addEventListener("click", () => setCampaignMode("new"));
-  modeAddToBtn?.addEventListener("click", () => setCampaignMode("add_to"));
-  modeFollowupBtn?.addEventListener("click", () => setCampaignMode("followup"));
+  purposeBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (!(btn instanceof HTMLButtonElement) || btn.disabled) return;
+      setPurpose(/** @type {Purpose} */ (btn.dataset.purpose));
+    });
+  });
+
+  responseNeededChk?.addEventListener("change", () => {
+    syncRecruitmentState();
+    syncResponseVisibility();
+    updateSendButton();
+  });
+  responseTypeSelect?.addEventListener("change", syncResponseTypeUI);
 
   /**
-   * Handle parent batch selection change in follow-up mode.
-   * Auto-suggests campaign name and pre-fills subject/body from parent.
+   * Fill the message in from a campaign's saved text, unless someone has
+   * written their own.
+   *
+   * @param {HTMLOptionElement} opt - A campaign option with data-subject / data-body.
    * @returns {void}
    */
+  function fillMessageFrom(opt) {
+    const body = bodyInput?.value.trim() || "";
+    const subject = subjectInput?.value.trim() || "";
+    const untouched = !body || (autoFilled && autoFilled.body === body && autoFilled.subject === subject);
+    if (!untouched) return;
+    autoFilled = { subject: opt.dataset.subject || "", body: opt.dataset.body || "" };
+    if (subjectInput) subjectInput.value = autoFilled.subject;
+    if (bodyInput) bodyInput.value = autoFilled.body;
+  }
+
   /**
-   * Handle parent batch selection change in follow-up mode.
-   * Auto-suggests a campaign name from the parent and applies
-   * invite-status badges so the user can see who responded.
-   * Compose fields are intentionally left blank — the follow-up
-   * message should be written fresh.
+   * A Follow-up parent was picked: suggest a name and show who answered the
+   * parent. The follow-up's message is written fresh.
    * @returns {void}
    */
   function onParentBatchChange() {
-    const opt = parentBatchSelect?.options[parentBatchSelect.selectedIndex];
-    if (!opt?.value) return;
-
-    // Auto-suggest name: "Follow-up: <parent name>"
+    const opt = parentOption();
+    if (!opt) {
+      clearInviteStatusBadges();
+      updateEventStep();
+      updateSendButton();
+      return;
+    }
     const parentName = opt.dataset.name || opt.textContent.trim();
     if (campaignNameInput && !campaignNameInput.value.trim()) {
       campaignNameInput.value = `Follow-up: ${parentName}`;
     }
-
-    // Show parent campaign's invite statuses so the user can see
-    // who responded, who declined, and who never replied.
-    applyInviteStatusBadges(Number(opt.value));
-
+    applyInviteStatusBadges(Number(opt.value), false);
+    updateEventStep();
     updateSendButton();
   }
 
@@ -722,7 +750,6 @@ function updateChipAreaVisibility() {
 
   /**
    * Remove all invitation status badges from the volunteer list.
-   * Called when switching to new campaign mode or clearing a batch.
    * @returns {void}
    */
   function clearInviteStatusBadges() {
@@ -733,152 +760,132 @@ function updateChipAreaVisibility() {
   }
 
   /**
-   * Fetch invited volunteer IDs + statuses for a batch and apply
-   * visual indicators to the volunteer list. Auto-selects pending
-   * volunteers (unanswered, not revoked).
+   * Show each volunteer's status in a campaign (Invited · Yes / No / Maybe /
+   * Pending / Revoked) on the volunteer list. For a Reminder, also select
+   * exactly the people still to answer.
    *
    * @param {number} batchId
+   * @param {boolean} selectPendingPeople - Replace the selection with the
+   *   campaign's pending people (Reminder).
    * @returns {Promise<void>}
    */
-  async function applyInviteStatusBadges(batchId) {
+  async function applyInviteStatusBadges(batchId, selectPendingPeople) {
     clearInviteStatusBadges();
-
     try {
-      const res  = await fetch(
-        `/oversight/tools/campaigns/batches/${batchId}/invited`,
-        { headers: { "X-CSRF-Token": getCsrf() } }
-      );
+      const res = await fetch(`/oversight/tools/campaigns/batches/${batchId}/invited`, {
+        headers: { "X-CSRF-Token": getCsrf() },
+      });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.success) return;
+      // The choice may have changed while this was loading
+      if (contextBatchId() !== batchId) return;
 
-      /** @type {Map<number, {response:string|null, responded_at:string|null, revoked:boolean}>} */
-      const inviteMap = new Map(
-        data.invited.map((i) => [i.volunteer_id, i])
-      );
+      /** @type {Map<number, {response:string|null, revoked:boolean}>} */
+      const inviteMap = new Map(data.invited.map((i) => [i.volunteer_id, i]));
+
+      // Pending people: the server's list when the tracker sent us here for
+      // this campaign (it also counts answers to follow-ups), otherwise
+      // everyone invited who hasn't answered and isn't revoked.
+      const serverPending =
+        selectPendingPeople && preselectedBatch?.id === batchId && Array.isArray(pendingVolIds)
+          ? new Set(pendingVolIds)
+          : null;
+
+      if (selectPendingPeople) {
+        getAllItems().forEach((li) => setItemSelected(li, false));
+      }
 
       getAllItems().forEach((li) => {
-        const id  = Number(li.dataset.id);
+        const id = Number(li.dataset.id);
         const inv = inviteMap.get(id);
         if (!inv) return;
-
         li.classList.add("mc-vol-already-invited");
 
-        // Determine badge state
         let statusClass = "mc-invite-status--pending";
         let statusLabel = "Invited · Pending";
-
         if (inv.revoked) {
           statusClass = "mc-invite-status--revoked";
           statusLabel = "Invited · Revoked";
-        } else if (inv.response === "yes") {
+        } else if (inv.response === "yes" || inv.response === "no" || inv.response === "maybe") {
+          statusClass = `mc-invite-status--${inv.response}`;
+          statusLabel = `Invited · ${inv.response[0].toUpperCase()}${inv.response.slice(1)}`;
+        } else if (inv.response) {
           statusClass = "mc-invite-status--yes";
-          statusLabel = "Invited · Yes";
-        } else if (inv.response === "no") {
-          statusClass = "mc-invite-status--no";
-          statusLabel = "Invited · No";
-        } else if (inv.response === "maybe") {
-          statusClass = "mc-invite-status--maybe";
-          statusLabel = "Invited · Maybe";
+          statusLabel = "Invited · Answered";
         }
-
-        // Inject badge into the row
         const badge = document.createElement("span");
         badge.className = `mc-invite-status ${statusClass}`;
         badge.textContent = statusLabel;
         li.appendChild(badge);
 
-        // Auto-select pending volunteers only when the page was opened from the
-        // tracker reminder flow (preselectedBatch is set). When a user manually
-        // picks an existing campaign the status badges are shown for reference
-        // but auto-selecting the entire pending cohort is surprising behaviour.
-        // Also skip when pendingVolIds is present — that array is the authoritative
-        // pre-selection from ?selectPending=1 and must not be overridden here.
-        if (!inv.revoked && !inv.response && preselectedBatch && !(pendingVolIds?.length > 0)) {
-          setItemSelected(li, true);
+        if (selectPendingPeople) {
+          const pending = serverPending ? serverPending.has(id) : !inv.revoked && !inv.response;
+          if (pending) setItemSelected(li, true);
         }
       });
 
       updateSelectionCount();
       updateSendButton();
-
+      if (selectPendingPeople) {
+        volunteerList?.querySelector(".mc-selected")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
     } catch (err) {
       console.error("[campaignCenter] applyInviteStatusBadges error:", err);
     }
   }
 
   /**
-   * Handle selection of an existing batch — pre-fill subject/body,
-   * show the batch preview line, and fetch + apply invitation status
-   * badges to the volunteer list.
+   * A campaign was picked for Add people or Reminder: fill in its message,
+   * show its summary and statuses, and for a Reminder select its pending
+   * people.
    * @returns {void}
    */
   function onExistingBatchChange() {
-    if (!existingBatchSelect) return;
-    const opt = existingBatchSelect.options[existingBatchSelect.selectedIndex];
-    if (!opt?.value) {
+    const opt = existingOption();
+    if (!opt) {
       batchPreview?.classList.add("d-none");
       clearInviteStatusBadges();
+      updateEventStep();
+      updateSendButton();
       return;
     }
 
-    // Pre-fill compose fields only for tracker-originated reminder flows.
-    // When a user manually selects a campaign, the compose area stays blank
-    // to prevent accidentally re-sending an old message.
-    if (preselectedBatch) {
-      if (subjectInput && opt.dataset.subject !== undefined) {
-        subjectInput.value = opt.dataset.subject || "";
-      }
-      if (bodyInput && opt.dataset.body !== undefined) {
-        bodyInput.value = opt.dataset.body || "";
-        bodyInput.dispatchEvent(new Event("input", { bubbles: true }));
-      }
-    }
+    fillMessageFrom(opt);
 
-    // Show preview + tracker link
-    if (batchPreviewText) {
-      batchPreviewText.textContent = opt.textContent.trim();
-    }
-    if (batchTrackerLink) {
-      batchTrackerLink.href = `/oversight/tools/campaigns/tracker?batchId=${opt.value}`;
-    }
+    if (batchPreviewText) batchPreviewText.textContent = opt.textContent.trim().replace(/\s+/g, " ");
+    if (batchTrackerLink) batchTrackerLink.href = `/oversight/tools/campaigns/tracker?batchId=${opt.value}`;
 
-    // Populate original message preview and collapse it (user opens on demand)
     const origMsgPreview = document.getElementById("mcOrigMsgPreview");
     const origMsgSubject = document.getElementById("mcOrigMsgSubject");
-    const origMsgBody    = document.getElementById("mcOrigMsgBody");
-    const toggleOrigBtn  = document.getElementById("mcToggleOrigMsg");
+    const origMsgBody = document.getElementById("mcOrigMsgBody");
+    const toggleOrigBtn = document.getElementById("mcToggleOrigMsg");
     if (origMsgSubject) {
       const subjectVal = opt.dataset.subject || "";
       origMsgSubject.textContent = subjectVal ? `Subject: ${subjectVal}` : "";
       origMsgSubject.classList.toggle("d-none", !subjectVal);
     }
-    if (origMsgBody) {
-      origMsgBody.textContent = opt.dataset.body || "(no message body saved)";
-    }
-    if (origMsgPreview) origMsgPreview.classList.add("d-none");
-    if (toggleOrigBtn)  toggleOrigBtn.textContent = "View original message";
-
+    if (origMsgBody) origMsgBody.textContent = opt.dataset.body || "(no message body saved)";
+    origMsgPreview?.classList.add("d-none");
+    if (toggleOrigBtn) toggleOrigBtn.textContent = "View saved message";
     batchPreview?.classList.remove("d-none");
-    updateSendButton();
 
-    // Fetch and apply invitation status badges
-    applyInviteStatusBadges(Number(opt.value));
+    applyInviteStatusBadges(Number(opt.value), purpose === "remind");
+    updateEventStep();
+    updateSendButton();
   }
 
   existingBatchSelect?.addEventListener("change", onExistingBatchChange);
 
-  // Toggle the original message preview panel in Add to Existing mode.
-  // Wired once here; onExistingBatchChange() resets it on each batch change.
   document.getElementById("mcToggleOrigMsg")?.addEventListener("click", () => {
     const panel = document.getElementById("mcOrigMsgPreview");
-    const btn   = document.getElementById("mcToggleOrigMsg");
+    const btn = document.getElementById("mcToggleOrigMsg");
     if (!panel || !btn) return;
     const nowHidden = panel.classList.toggle("d-none");
-    btn.textContent = nowHidden ? "View original message" : "Hide original message";
+    btn.textContent = nowHidden ? "View saved message" : "Hide saved message";
   });
 
   // =========================================================
-  // Event picker
+  // Step 2 — event
   // =========================================================
 
   /**
@@ -889,18 +896,11 @@ function updateChipAreaVisibility() {
   function populateShiftSelect(dayId) {
     if (!eventShiftSelect) return;
     eventShiftSelect.innerHTML = '<option value="">— All shifts —</option>';
-
-    if (!dayId) {
-      eventShiftSelect.classList.add("d-none");
-      return;
-    }
-
-    const day = conventionDaysData.find((d) => d.id === dayId);
+    const day = dayId ? conventionDaysData.find((d) => d.id === dayId) : null;
     if (!day?.sessions?.length) {
       eventShiftSelect.classList.add("d-none");
       return;
     }
-
     day.sessions.forEach((session) => {
       if (!session.shifts?.length) return;
       const group = document.createElement("optgroup");
@@ -918,8 +918,21 @@ function updateChipAreaVisibility() {
       });
       eventShiftSelect.appendChild(group);
     });
-
     eventShiftSelect.classList.remove("d-none");
+  }
+
+  /**
+   * "Friday — Friday, July 3" for a convention day id.
+   * @param {number|null} dayId
+   * @returns {string}
+   */
+  function dayText(dayId) {
+    const day = dayId ? conventionDaysData.find((d) => d.id === dayId) : null;
+    if (!day) return "";
+    const dateStr = new Date(day.convention_date).toLocaleDateString("en-US", {
+      weekday: "long", month: "long", day: "numeric", timeZone: "UTC",
+    });
+    return `${day.label} — ${dateStr}`;
   }
 
   /** @returns {void} */
@@ -927,50 +940,80 @@ function updateChipAreaVisibility() {
     if (!eventPreview || !eventPreviewText) return;
     const dayId = Number(eventDaySelect?.value) || null;
     const shiftId = Number(eventShiftSelect?.value) || null;
-
-    if (!dayId) {
-      eventPreview.classList.add("d-none");
-      return;
-    }
-
-    const day = conventionDaysData.find((d) => d.id === dayId);
+    const day = dayText(dayId);
     if (!day) {
       eventPreview.classList.add("d-none");
       return;
     }
-
-    const dateStr = new Date(day.convention_date).toLocaleDateString("en-US", {
-      weekday: "long",
-      month: "long",
-      day: "numeric",
-      timeZone: "UTC",
-    });
-
-    if (!shiftId) {
-      eventPreviewText.textContent = `Linked to ${day.label} — ${dateStr}`;
-    } else {
-      const opt = eventShiftSelect?.querySelector(`option[value="${shiftId}"]`);
-      if (opt) {
-        eventPreviewText.textContent = `${opt.dataset.eventTypeName} shift, ${fmtTime(opt.dataset.shiftStart)}–${fmtTime(opt.dataset.shiftEnd)} · ${day.label} — ${dateStr}`;
-      }
-    }
+    const opt = shiftId ? eventShiftSelect?.querySelector(`option[value="${shiftId}"]`) : null;
+    eventPreviewText.textContent = opt
+      ? `${opt.dataset.eventTypeName} shift, ${fmtTime(opt.dataset.shiftStart)}–${fmtTime(opt.dataset.shiftEnd)} · ${day}`
+      : `Linked to ${day}`;
     eventPreview.classList.remove("d-none");
   }
 
-  eventDaySelect?.addEventListener("change", () => {
-    const dayId = Number(eventDaySelect.value) || null;
-    populateShiftSelect(dayId);
-    if (eventShiftSelect) eventShiftSelect.value = "";
-    updateEventPreview();
-  });
-
-  eventShiftSelect?.addEventListener("change", updateEventPreview);
+  /**
+   * Whether this send has an event, so the shift and location merge fields
+   * mean something.
+   * @returns {boolean}
+   */
+  function hasEvent() {
+    const cfg = PURPOSES[purpose];
+    if (cfg.event === "pick") return !!eventDaySelect?.value;
+    const opt = cfg.picker === "parent" ? parentOption() : existingOption();
+    return !!opt?.dataset.dayId;
+  }
 
   /**
-   * Get the currently selected event link values.
+   * Show the event pickers, or say which campaign's event is used, and
+   * show the shift merge fields only when there is an event.
+   * @returns {void}
+   */
+  function updateEventStep() {
+    const cfg = PURPOSES[purpose];
+    const pick = cfg.event === "pick";
+    eventPickerWrap?.classList.toggle("d-none", !pick);
+    if (eventInheritedNote) {
+      let text = "";
+      if (!pick) {
+        const opt = cfg.picker === "parent" ? parentOption() : existingOption();
+        const whose = cfg.picker === "parent" ? "the campaign it follows up" : "the campaign";
+        if (!opt) text = `Uses the event of ${whose} — pick it in step 1.`;
+        else if (opt.dataset.dayId) text = `Uses the event of ${whose}: ${dayText(Number(opt.dataset.dayId)) || "linked day"}.`;
+        else text = `${cfg.picker === "parent" ? "The campaign it follows up" : "This campaign"} has no linked event.`;
+      }
+      eventInheritedNote.textContent = text;
+      eventInheritedNote.classList.toggle("d-none", pick);
+    }
+
+    const withEvent = hasEvent();
+    root.querySelectorAll('.mc-event-chip[data-target="mcBody"]').forEach((chip) => {
+      chip.classList.toggle("d-none", !withEvent);
+    });
+    root.querySelectorAll('.mc-link-chip[data-target="mcBody"]').forEach((chip) => {
+      chip.classList.toggle("d-none", !PURPOSES[purpose].link || currentMessageType() === "alert");
+    });
+  }
+
+  eventDaySelect?.addEventListener("change", () => {
+    populateShiftSelect(Number(eventDaySelect.value) || null);
+    if (eventShiftSelect) eventShiftSelect.value = "";
+    updateEventPreview();
+    updateEventStep();
+    updateSendButton();
+  });
+
+  eventShiftSelect?.addEventListener("change", () => {
+    updateEventPreview();
+    updateSendButton();
+  });
+
+  /**
+   * The event picked in step 2 (new campaigns only).
    * @returns {{ conventionDayId: number|null, sessionId: number|null, shiftId: number|null }}
    */
   function getSelectedEvent() {
+    if (PURPOSES[purpose].event !== "pick") return { conventionDayId: null, sessionId: null, shiftId: null };
     const shiftOpt = eventShiftSelect?.options[eventShiftSelect.selectedIndex];
     return {
       conventionDayId: Number(eventDaySelect?.value) || null,
@@ -979,39 +1022,24 @@ function updateChipAreaVisibility() {
     };
   }
 
-  // =========================================================
-  // Batch name suggestion
-  // =========================================================
-
   suggestNameBtn?.addEventListener("click", async () => {
-    const { conventionDayId, shiftId } = getSelectedEvent();
     const dayOpt = eventDaySelect?.options[eventDaySelect.selectedIndex];
-    const shiftOpt =
-      eventShiftSelect?.options[eventShiftSelect?.selectedIndex ?? -1];
-
-    const payload = {
-      dayLabel: dayOpt?.dataset.label || null,
-      conventionDate: dayOpt?.dataset.date || null,
-      shiftLabel: shiftOpt?.dataset.sessionLabel || null,
-      eventTypeName: shiftOpt?.dataset.eventTypeName || null,
-    };
-
+    const shiftOpt = eventShiftSelect?.options[eventShiftSelect?.selectedIndex ?? -1];
     try {
-      const res = await fetch(
-        "/oversight/tools/campaigns/batches/suggest-name",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-Token": getCsrf(),
-          },
-          body: JSON.stringify(payload),
-        },
-      );
+      const res = await fetch("/oversight/tools/campaigns/batches/suggest-name", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": getCsrf() },
+        body: JSON.stringify({
+          dayLabel: dayOpt?.dataset.label || null,
+          conventionDate: dayOpt?.dataset.date || null,
+          shiftLabel: shiftOpt?.dataset.sessionLabel || null,
+          eventTypeName: shiftOpt?.dataset.eventTypeName || null,
+        }),
+      });
       const data = await res.json().catch(() => ({}));
       if (data.success && campaignNameInput) {
         campaignNameInput.value = data.name;
-        campaignNameInput.dispatchEvent(new Event("input", { bubbles: true }));
+        updateSendButton();
       }
     } catch (err) {
       console.error("[campaignCenter] suggest-name error:", err);
@@ -1019,14 +1047,13 @@ function updateChipAreaVisibility() {
   });
 
   // =========================================================
-  // Channel toggles
+  // Step 4 — channels, merge fields, text length
   // =========================================================
 
   /** @returns {void} */
-function updateSubjectVisibility() {
-  if (!subjectWrap) return;
-  subjectWrap.classList.toggle("d-none", !sendEmailChk?.checked);
-}
+  function updateSubjectVisibility() {
+    subjectWrap?.classList.toggle("d-none", !sendEmailChk?.checked);
+  }
 
   sendEmailChk?.addEventListener("change", () => {
     updateSubjectVisibility();
@@ -1034,108 +1061,15 @@ function updateSubjectVisibility() {
   });
   sendSmsChk?.addEventListener("change", updateSendButton);
 
-  // ── Response needed manual override warning ─────────────────────────────
-  responseNeededChk?.addEventListener("change", async () => {
-    const checked = responseNeededChk.checked;
-    responseConfigWrap?.classList.toggle("d-none", !checked);
-
-    if (checked && messageType === "alert") {
-      const ok = await confirmAction(
-        "Add response prompt to alert?",
-        "Alerts don't usually require a response. Adding an RSVP prompt may confuse recipients. Continue?",
-      );
-      if (!ok) { responseNeededChk.checked = false; syncRecruitmentState(); return; }
-    } else if (!checked && (messageType === "invitation" || messageType === "followup")) {
-      const ok = await confirmAction(
-        "Remove response prompt?",
-        "Invitations typically require a response. Removing it will send this as info-only with no RSVP. Continue?",
-      );
-      if (!ok) { responseNeededChk.checked = true; syncRecruitmentState(); return; }
-    }
-
-    syncRecruitmentState();
-    updateSendButton();
-  });
-
-  // =========================================================
-  // Send button gating
-  // =========================================================
-
-  /** @returns {void} */
-  function updateSendButton() {
-    const hasRecipients = selectedIds.size > 0;
-    const hasChannel = sendEmailChk?.checked || sendSmsChk?.checked;
-    const hasBody = (bodyInput?.value.trim().length || 0) > 0;
-    const hasName =
-      campaignMode === "add_to"
-        ? !!existingBatchSelect?.value
-        : campaignMode === "followup"
-          ? !!parentBatchSelect?.value && (campaignNameInput?.value.trim().length || 0) > 0
-          : (campaignNameInput?.value.trim().length || 0) > 0;
-
-    if (sendBtn)
-      sendBtn.disabled = !(hasRecipients && hasChannel && hasBody && hasName);
-
-  // ── Response config type selector ─────────────────────────────
-
   /**
-   * Show/hide response config sub-sections based on selected type.
-   * @returns {void}
-   */
-  function syncResponseTypeUI() {
-    const type = responseTypeSelect?.value || "standard";
-    responseStandardWrap?.classList.toggle("d-none", type !== "standard");
-    responsePollWrap?.classList.toggle("d-none",     type !== "poll");
-    responseOptionsWrap?.classList.toggle("d-none",  type === "standard");
-  }
-
-  responseTypeSelect?.addEventListener("change", syncResponseTypeUI);
-  syncResponseTypeUI();
-
-    if (sendBtnCount) sendBtnCount.textContent = String(selectedIds.size);
-    if (sendBtnPlural)
-      sendBtnPlural.textContent = selectedIds.size === 1 ? "" : "s";
-
-    if (sendHint) {
-      if (!hasRecipients)
-        sendHint.textContent = "Select recipients from the list.";
-      else if (!hasChannel)
-        sendHint.textContent = "Select at least one channel.";
-      else if (!hasBody)
-        sendHint.textContent = "Write a message before sending.";
-      else if (!hasName) {
-        if (campaignMode === "new") {
-          sendHint.textContent = "Enter a campaign name.";
-        } else if (campaignMode === "followup") {
-          sendHint.textContent = parentBatchSelect?.value
-            ? "Enter a campaign name."
-            : "Select a parent campaign.";
-        } else {
-          sendHint.textContent = "Select an existing campaign.";
-        }
-      } else {
-        sendHint.textContent = "";
-      }
-    }
-  }
-
-  bodyInput?.addEventListener("input", updateSendButton);
-  campaignNameInput?.addEventListener("input", updateSendButton);
-  existingBatchSelect?.addEventListener("change", updateSendButton);
-
-  // =========================================================
-  // Merge field insertion
-  // =========================================================
-
-  /**
-   * Insert a merge field at the current cursor position.
+   * Insert a merge field at the cursor.
    * @param {HTMLInputElement|HTMLTextAreaElement} el
    * @param {string} field
    * @returns {void}
    */
   function insertAtCursor(el, field) {
     const start = el.selectionStart ?? el.value.length;
-    const end   = el.selectionEnd   ?? el.value.length;
+    const end = el.selectionEnd ?? el.value.length;
     el.value = el.value.slice(0, start) + field + el.value.slice(end);
     el.focus({ preventScroll: true });
     el.selectionStart = el.selectionEnd = start + field.length;
@@ -1143,143 +1077,379 @@ function updateSubjectVisibility() {
   }
 
   root.addEventListener("click", (ev) => {
-    const chip = ev.target.closest(".mc-merge-chip");
-    if (!chip) return;
-    const targetEl = document.getElementById(chip.dataset.target);
-    if (targetEl) insertAtCursor(targetEl, chip.dataset.field);
+    const chip = ev.target instanceof Element ? ev.target.closest(".mc-merge-chip") : null;
+    if (!(chip instanceof HTMLElement)) return;
+    const targetEl = document.getElementById(chip.dataset.target || "");
+    if (targetEl instanceof HTMLInputElement || targetEl instanceof HTMLTextAreaElement) {
+      insertAtCursor(targetEl, chip.dataset.field || "");
+    }
   });
+
+  /** Characters a text can carry at 160 per segment (GSM 03.38). */
+  const GSM_BASIC = new Set(
+    "@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà",
+  );
+  /** GSM characters that take two places. */
+  const GSM_EXTENDED = new Set("^{}\\[~]|€\f");
+
+  /**
+   * How a text message will be split into segments.
+   *
+   * @param {string} text
+   * @returns {{ length: number, segments: number, unicode: boolean, special: string[] }}
+   *   special: up to three characters that forced 70-character segments.
+   */
+  function smsSegments(text) {
+    let units = 0;
+    /** @type {Set<string>} */
+    const special = new Set();
+    for (const ch of text) {
+      if (GSM_BASIC.has(ch)) units += 1;
+      else if (GSM_EXTENDED.has(ch)) units += 2;
+      else special.add(ch);
+    }
+    if (special.size) {
+      const length = text.length; // UTF-16 code units, as carriers count them
+      return { length, segments: length <= 70 ? 1 : Math.ceil(length / 67), unicode: true, special: [...special].slice(0, 3) };
+    }
+    return { length: units, segments: units <= 160 ? 1 : Math.ceil(units / 153), unicode: false, special: [] };
+  }
+
+  /**
+   * Show the text length and segment count under the message, measured on
+   * the filled-in preview when there is one.
+   * @returns {void}
+   */
+  function updateSmsCounter() {
+    if (!smsCounter) return;
+    const text = lastPreview?.body ?? bodyInput?.value ?? "";
+    const show = !!sendSmsChk?.checked && text.trim().length > 0;
+    smsCounter.classList.toggle("d-none", !show);
+    if (!show) return;
+    const s = smsSegments(text);
+    const parts = [
+      `Text: ${s.length} characters · ${s.segments === 1 ? "1 text" : `${s.segments} texts (long messages are split)`}`,
+    ];
+    if (lastPreview) parts.push(`measured for ${lastPreview.name}`);
+    let html = parts.join(" · ");
+    if (s.unicode) {
+      html += ` · <span class="text-warning-emphasis">contains ${s.special.map((c) => `“${escapeHtml(c)}”`).join(" ")}, so each text holds 70 characters instead of 160</span>`;
+    }
+    smsCounter.innerHTML = html;
+    smsCounter.classList.toggle("text-warning-emphasis", s.segments > 3);
+  }
+
+  // =========================================================
+  // Step 1 / 4 — templates dropdown and manager
+  // =========================================================
+
+  /** Rebuild the "Start from a template" dropdown. @returns {void} */
+  function renderTemplateSelect() {
+    if (!templateSelect) return;
+    templateSelect.innerHTML =
+      '<option value="">Start from a template…</option>' +
+      templates.map((t) => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join("");
+  }
+
+  /**
+   * Put a template's subject and message into the compose fields, asking
+   * first when that would replace a message someone wrote.
+   *
+   * @param {{ subject?: string|null, body: string, name: string }} tpl
+   * @returns {Promise<void>}
+   */
+  async function loadTemplate(tpl) {
+    const current = bodyInput?.value.trim() || "";
+    if (current && current !== tpl.body.trim() && !(autoFilled && autoFilled.body === current)) {
+      const ok = await confirmAction("Replace your message?", `Load "${tpl.name}" in place of the message you've written?`);
+      if (!ok) return;
+    }
+    if (subjectInput) subjectInput.value = tpl.subject || "";
+    if (bodyInput) bodyInput.value = tpl.body;
+    autoFilled = null;
+    updateSendButton();
+  }
+
+  templateSelect?.addEventListener("change", () => {
+    const tpl = templates.find((t) => t.id === Number(templateSelect.value));
+    templateSelect.value = "";
+    if (tpl) loadTemplate(tpl);
+  });
+
+  manageTemplatesBtn?.addEventListener("click", () => {
+    const opening = templateManager?.classList.contains("d-none") ?? false;
+    templateManager?.classList.toggle("d-none", !opening);
+    manageTemplatesBtn.setAttribute("aria-expanded", String(opening));
+    manageTemplatesBtn.textContent = opening ? "Hide templates" : "Manage templates";
+    if (!opening) closeTemplateEditor();
+  });
+
+  // =========================================================
+  // Step 3 / 5 — who gets what, preview, Send
+  // =========================================================
+
+  /**
+   * What each selected person will get on the chosen channels.
+   * @returns {{ email: number, text: number, reached: number,
+   *   noText: number, skipped: string[] }}
+   */
+  function reviewTally() {
+    const sendEmail = !!sendEmailChk?.checked;
+    const sendSms = !!sendSmsChk?.checked;
+    const tally = { email: 0, text: 0, reached: 0, noText: 0, skipped: /** @type {string[]} */ ([]) };
+    selectedIds.forEach((id) => {
+      const li = volunteerList?.querySelector(`.mc-volunteer-item[data-id="${id}"]`);
+      const hasEmail = li?.dataset.hasEmail === "true";
+      const canText = li?.dataset.smsOptedIn === "1";
+      const email = sendEmail && hasEmail;
+      const text = sendSms && canText;
+      if (email) tally.email++;
+      if (text) tally.text++;
+      if (sendSms && !canText && email) tally.noText++;
+      if (email || text) tally.reached++;
+      else tally.skipped.push(getVolunteerName(id));
+    });
+    return tally;
+  }
+
+  /**
+   * Fill in step 5's counts and step 3's note.
+   * @param {ReturnType<typeof reviewTally>} t
+   * @returns {void}
+   */
+  function renderReview(t) {
+    if (whoNote) {
+      whoNote.textContent =
+        purpose === "remind"
+          ? "Reminders go to people who were sent this campaign and haven't answered; anyone who has answered since is skipped."
+          : "";
+      whoNote.classList.toggle("d-none", !whoNote.textContent);
+    }
+    if (!reviewCounts) return;
+    const rows = [];
+    if (sendEmailChk?.checked) rows.push(["Email", `${t.email} ${t.email === 1 ? "person" : "people"}`]);
+    if (sendSmsChk?.checked) {
+      rows.push([
+        "Text",
+        `${t.text} ${t.text === 1 ? "person" : "people"}${t.noText ? ` · ${t.noText} can't be texted (no consent or no text-capable phone) and get the email only` : ""}`,
+      ]);
+    }
+    if (t.skipped.length) {
+      const names = t.skipped.slice(0, 5).join("; ") + (t.skipped.length > 5 ? `; and ${t.skipped.length - 5} more` : "");
+      rows.push(["Skipped", `${t.skipped.length} · nothing to send them on the chosen channels: ${names}`]);
+    }
+    reviewCounts.innerHTML = rows
+      .map(([k, v]) => `<div class="mc-review-row"><dt>${k}</dt><dd>${escapeHtml(v)}</dd></div>`)
+      .join("");
+  }
+
+  /** @type {{ name: string, subject: string, body: string }|null} */
+  let lastPreview = null;
+  /** @type {ReturnType<typeof setTimeout>|undefined} */
+  let previewTimer;
+  let previewSeq = 0;
+
+  /**
+   * Refresh the preview shortly after the last change (debounced).
+   * @returns {void}
+   */
+  function schedulePreview() {
+    clearTimeout(previewTimer);
+    previewTimer = setTimeout(loadPreview, 400);
+  }
+
+  /**
+   * Ask the server for the first selected person's filled-in message and
+   * show it in step 5.
+   * @returns {Promise<void>}
+   */
+  async function loadPreview() {
+    const firstId = selectedIds.values().next().value;
+    const body = bodyInput?.value.trim() || "";
+    if (!previewEl) return;
+    if (!firstId || !body) {
+      lastPreview = null;
+      if (previewLabel) previewLabel.textContent = "Preview";
+      previewEl.innerHTML = '<span class="text-muted">Pick recipients and write a message to see it here.</span>';
+      updateSmsCounter();
+      return;
+    }
+    const seq = ++previewSeq;
+    const { conventionDayId, shiftId } = getSelectedEvent();
+    try {
+      const res = await fetch("/oversight/tools/campaigns/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": getCsrf() },
+        body: JSON.stringify({
+          volunteerId: firstId,
+          subject: subjectInput?.value.trim() || "",
+          body,
+          batchId: contextBatchId(),
+          conventionDayId,
+          shiftId,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (seq !== previewSeq) return;
+      if (!res.ok || !data.success) throw new Error(data.error || "Preview failed");
+      const v = allVolunteers.find((p) => p.id === firstId);
+      const name = v ? `${v.firstName} ${v.lastName}`.trim() : getVolunteerName(firstId);
+      lastPreview = { name, subject: data.subject, body: data.body };
+      if (previewLabel) previewLabel.textContent = `Preview for ${name}`;
+      previewEl.innerHTML =
+        (sendEmailChk?.checked && data.subject ? `<div class="mc-preview-subject">${escapeHtml(data.subject)}</div>` : "") +
+        `<div class="mc-preview-body">${escapeHtml(data.body)}</div>`;
+    } catch (err) {
+      if (seq !== previewSeq) return;
+      console.error("[campaignCenter] preview error:", err);
+      lastPreview = null;
+      previewEl.innerHTML = '<span class="text-muted">The preview couldn\'t be loaded; the message will still be filled in when sent.</span>';
+    }
+    updateSmsCounter();
+  }
+
+  /**
+   * Check everything a send needs, update the Send button, the hint, the
+   * review counts, and schedule a fresh preview. Called after any change.
+   * @returns {void}
+   */
+  function updateSendButton() {
+    const cfg = PURPOSES[purpose];
+    const t = reviewTally();
+    const hasRecipients = selectedIds.size > 0;
+    const hasChannel = !!(sendEmailChk?.checked || sendSmsChk?.checked);
+    const hasBody = (bodyInput?.value.trim().length || 0) > 0;
+    const hasName = !cfg.name || (campaignNameInput?.value.trim().length || 0) > 0;
+    const hasCampaign =
+      cfg.picker === "existing" ? !!existingOption()
+        : cfg.picker === "parent" ? !!parentOption()
+          : true;
+
+    let hint = "";
+    if (!hasCampaign) hint = cfg.picker === "parent" ? "Pick the campaign this follows up (step 1)." : "Pick a campaign (step 1).";
+    else if (!hasName) hint = "Enter a campaign name (step 1).";
+    else if (!hasRecipients) hint = "Select recipients from the list (step 3).";
+    else if (!hasChannel) hint = "Choose Email, Text or both (step 4).";
+    else if (!hasBody) hint = "Write a message (step 4).";
+    else if (t.reached === 0) hint = "No one selected can be reached on the chosen channels.";
+
+    if (sendBtn) {
+      sendBtn.disabled = !!hint;
+      if (!sendBtn.dataset.busy) {
+        sendBtn.innerHTML = `<i class="fa-solid fa-paper-plane me-2" aria-hidden="true"></i>Send to <span id="mcSendBtnCount">${t.reached}</span> <span id="mcSendBtnPlural">${t.reached === 1 ? "person" : "people"}</span>`;
+      }
+    }
+    if (sendHint) sendHint.textContent = hint;
+
+    renderReview(t);
+    updateSmsCounter();
+    schedulePreview();
+  }
+
+  bodyInput?.addEventListener("input", updateSendButton);
+  subjectInput?.addEventListener("input", updateSendButton);
+  campaignNameInput?.addEventListener("input", updateSendButton);
 
   // =========================================================
   // Send — AJAX POST
   // =========================================================
 
+  /**
+   * The answer settings as saved on a new campaign, or null for the default
+   * (Yes / No / Maybe) or when no answer is needed.
+   * @param {boolean} responseNeeded
+   * @returns {object|null}
+   */
+  function buildResponseConfig(responseNeeded) {
+    if (!responseNeeded) return null;
+    const type = responseTypeSelect?.value || "standard";
+    const allowOther = /** @type {HTMLInputElement|null} */ (document.getElementById("mcAllowOther"))?.checked ?? false;
+    const checked = (id) => /** @type {HTMLInputElement|null} */ (document.getElementById(id))?.checked;
+    const lines = () => (/** @type {HTMLTextAreaElement|null} */ (document.getElementById("mcResponseOptions"))?.value || "")
+      .split("\n").map((x) => x.trim()).filter(Boolean);
+
+    if (type === "standard") {
+      const options = [];
+      if (checked("mcOptYes")) options.push("yes");
+      if (checked("mcOptNo")) options.push("no");
+      if (checked("mcOptMaybe")) options.push("maybe");
+      if (options.length === 3 && !allowOther) return null;
+      return { type: "standard", options, allowOther };
+    }
+    if (type === "poll") {
+      const question = /** @type {HTMLInputElement|null} */ (document.getElementById("mcPollQuestion"))?.value.trim() || "";
+      return { type: "poll", question, options: lines(), allowOther };
+    }
+    return { type: "custom", options: lines(), allowOther };
+  }
+
+  /**
+   * Show the Send button as working, or put it back.
+   * @param {boolean} busy
+   * @returns {void}
+   */
+  function setSending(busy) {
+    if (!sendBtn) return;
+    if (busy) {
+      sendBtn.dataset.busy = "1";
+      sendBtn.disabled = true;
+      sendBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Sending…';
+    } else {
+      delete sendBtn.dataset.busy;
+      updateSendButton();
+    }
+  }
+
   sendBtn?.addEventListener("click", async () => {
     if (sendBtn.disabled) return;
-
+    const cfg = PURPOSES[purpose];
+    const messageType = currentMessageType();
     const recipientIds = Array.from(selectedIds);
     const subject = subjectInput?.value.trim() || "";
     const body = bodyInput?.value.trim() || "";
-    const sendEmail = sendEmailChk?.checked || false;
-    const sendSms = sendSmsChk?.checked || false;
-
+    const sendEmail = !!sendEmailChk?.checked;
+    const sendSms = !!sendSmsChk?.checked;
     const { conventionDayId, sessionId, shiftId } = getSelectedEvent();
+    const responseNeeded = cfg.response ? (responseNeededChk?.checked ?? true) : cfg.responseDefault;
+    const isRecruitment = cfg.response && responseNeeded && !!recruitmentChk?.checked;
+    const batchId = contextBatchId();
 
-    const batchName =
-      campaignMode === "add_to" ? null : campaignNameInput?.value.trim() || "";
-    const existingBatchId =
-      campaignMode === "add_to"
-        ? Number(existingBatchSelect?.value) || null
-        : null;
-    const parentBatchId =
-      campaignMode === "followup"
-        ? Number(parentBatchSelect?.value) || null
-        : null;
-    const responseNeeded = responseNeededChk?.checked ?? true;
-    const isRecruitment = responseNeeded && (recruitmentChk?.checked ?? false);
-
-    /**
-     * Build the response_config object from the UI state.
-     * Returns null when response is not needed or type is default standard.
-     * @returns {object|null}
-     */
-    function buildResponseConfig() {
-      if (!responseNeeded) return null;
-      const type       = responseTypeSelect?.value || "standard";
-      const allowOther = document.getElementById("mcAllowOther")?.checked ?? false;
-
-      if (type === "standard") {
-        const options = [];
-        if (document.getElementById("mcOptYes")?.checked)   options.push("yes");
-        if (document.getElementById("mcOptNo")?.checked)    options.push("no");
-        if (document.getElementById("mcOptMaybe")?.checked) options.push("maybe");
-        // If all three checked and no allowOther, no need to store config — use default
-        if (options.length === 3 && !allowOther) return null;
-        return { type: "standard", options, allowOther };
-      }
-
-      if (type === "poll") {
-        const question = document.getElementById("mcPollQuestion")?.value.trim() || "";
-        const raw      = document.getElementById("mcResponseOptions")?.value || "";
-        const options  = raw.split("\n").map(s => s.trim()).filter(Boolean);
-        return { type: "poll", question, options, allowOther };
-      }
-
-      // custom
-      const raw     = document.getElementById("mcResponseOptions")?.value || "";
-      const options = raw.split("\n").map(s => s.trim()).filter(Boolean);
-      return { type: "custom", options, allowOther };
-    }
-
-    const responseConfig = buildResponseConfig();
-
-    /** Whether this send is a reminder — reuse existing tokens rather than INSERT. */
-    const isReminder = campaignMode === "add_to" && (pendingVolIds?.length ?? 0) > 0;
-
-    // Warn if SMS is selected but some recipients can't be texted — no
-    // text-capable phone, or no texting consent (sms_opted_in, cleared by
-    // STOP). The server enforces the same rule; this just sets expectations.
-    if (sendSms) {
-      const noTextCount = recipientIds.filter((id) => {
-        const li = document.querySelector(`.mc-volunteer-item[data-id="${id}"]`);
-        return li?.dataset.smsOptedIn !== "1";
-      }).length;
-      if (noTextCount > 0) {
-        const fallback = sendEmail
-          ? "They'll get the email only, or be skipped if they have no email."
-          : "They'll be skipped because email isn't selected.";
-        const ok = await confirmAction(
-          "Some recipients can't get texts",
-          `${noTextCount} selected volunteer${noTextCount === 1 ? " can't" : "s can't"} be texted (not opted in, or no text-capable phone). ${fallback} Continue?`,
-        );
-        if (!ok) {
-          sendBtn.disabled = false;
-          sendBtn.innerHTML = `<i class="fa-solid fa-paper-plane me-2"></i>Send to <span id="mcSendBtnCount">${selectedIds.size}</span> recipient<span id="mcSendBtnPlural">${selectedIds.size === 1 ? "" : "s"}</span>`;
-          return;
-        }
-      }
-    }
-
-    // Warn if {link} appears in an alert body
-    if (messageType === "alert" && (bodyInput?.value || "").includes("{link}")) {
+    if (messageType === "alert" && body.includes("{link}")) {
       const ok = await confirmAction(
-        "RSVP link in an alert?",
-        "You've included {link} in an alert message. Alerts don't typically require an RSVP response. Send anyway?",
+        "RSVP link in an announcement?",
+        "You've included {link} in an announcement, which doesn't ask for a reply. Send anyway?",
       );
       if (!ok) return;
     }
 
-    sendBtn.disabled = true;
-    sendBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>Sending…`;
+    setSending(true);
 
     /**
-     * @param {boolean} force
+     * @param {boolean} force - Skip the "already invited" check.
      * @returns {Promise<object>}
      */
     async function doSend(force) {
       const res = await fetch("/oversight/tools/campaigns/send", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRF-Token": getCsrf(),
-        },
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": getCsrf() },
         body: JSON.stringify({
           volunteerIds: recipientIds,
           subject,
           body,
           sendEmail,
           sendSms,
-          campaignMode,
-          batchName,
-          existingBatchId,
-          parentBatchId,
+          campaignMode: cfg.mode,
+          batchName: cfg.name ? campaignNameInput?.value.trim() || "" : null,
+          existingBatchId: cfg.picker === "existing" ? batchId : null,
+          parentBatchId: cfg.picker === "parent" ? batchId : null,
           responseNeeded,
           conventionDayId,
           sessionId,
           shiftId,
           force,
-          isReminder,
+          isReminder: purpose === "remind",
           messageType,
-          responseConfig,
+          responseConfig: cfg.response ? buildResponseConfig(responseNeeded) : null,
           isRecruitment,
         }),
       });
@@ -1289,86 +1459,87 @@ function updateSubjectVisibility() {
     try {
       let data = await doSend(false);
 
-      // ── Double-send warning ──────────────────────────────────────
       if (!data.success && data.pendingWarnings?.length) {
         const names = data.pendingWarnings.map((w) => w.name).join(", ");
         const proceed = await confirmAction(
           "Already invited",
           `These volunteers already have an unanswered invite for this event: ${names}. Send again anyway?`,
         );
-        if (!proceed) {
-          sendBtn.disabled = false;
-          sendBtn.innerHTML = `<i class="fa-solid fa-paper-plane me-2"></i>Send to <span id="mcSendBtnCount">${selectedIds.size}</span> recipient<span id="mcSendBtnPlural">${selectedIds.size === 1 ? "" : "s"}</span>`;
-          return;
-        }
+        if (!proceed) return;
         data = await doSend(true);
       }
 
       renderResults(data);
 
-      // After a successful reminder, offer to update the campaign's saved message
-      // via an inline button rather than a blocking confirm() dialog.
-      if (isReminder && data.success && data.batchId && preselectedBatch) {
-        const updatePrompt = document.createElement("div");
-        updatePrompt.className = "d-flex align-items-center gap-2 flex-wrap mt-2";
-        updatePrompt.innerHTML = `
-          <span class="small text-muted">Update this campaign\u2019s saved message with the version just sent?</span>
-          <button type="button" class="btn btn-outline-secondary btn-sm" id="mcUpdateMsgBtn">
-            <i class="fa-solid fa-floppy-disk me-1"></i>Update message
-          </button>`;
-        resultsBody?.appendChild(updatePrompt);
-
-        document.getElementById("mcUpdateMsgBtn")?.addEventListener("click", async () => {
-          const btn = document.getElementById("mcUpdateMsgBtn");
-          if (btn) {
-            btn.disabled = true;
-            btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Saving\u2026`;
-          }
-          try {
-            const putRes = await fetch(
-              `/oversight/tools/campaigns/batches/${data.batchId}`,
-              {
-                method: "PUT",
-                headers: {
-                  "Content-Type": "application/json",
-                  "X-CSRF-Token": getCsrf(),
-                },
-                body: JSON.stringify({
-                  name:           preselectedBatch.name,
-                  messageSubject: subject || null,
-                  messageBody:    body,
-                  parentBatchId:  preselectedBatch.parent_batch_id || null,
-                  responseNeeded: preselectedBatch.response_needed !== false,
-                  active:         preselectedBatch.active !== false,
-                }),
-              }
-            );
-            const putData = await putRes.json().catch(() => ({}));
-            updatePrompt.outerHTML = `<div class="alert ${putData.success ? "alert-success" : "alert-warning"} mt-2 mb-0">
-              <i class="fa-solid fa-${putData.success ? "circle-check" : "triangle-exclamation"} me-1"></i>
-              ${putData.success
-                ? "Campaign message updated."
-                : "Could not update campaign message \u2014 changes were not saved."}
-            </div>`;
-          } catch {
-            updatePrompt.outerHTML = `<div class="alert alert-warning mt-2 mb-0">
-              <i class="fa-solid fa-triangle-exclamation me-1"></i>Network error \u2014 could not update campaign message.
-            </div>`;
-          }
-        });
+      // Add people / Reminder with an edited message: offer to save it as
+      // the campaign's message for later sends (each send keeps its own text
+      // in the tracker either way).
+      const saved = cfg.picker === "existing" ? batchesData.find((b) => b.id === batchId) : null;
+      if (data.success && saved && ((saved.message_body || "").trim() !== body || (saved.message_subject || "").trim() !== subject)) {
+        offerToSaveMessage(saved, subject, body);
       }
-
     } catch (err) {
       console.error("[campaignCenter] send error:", err);
-      renderResults({
-        success: false,
-        error: "Network error — please try again.",
-      });
+      renderResults({ success: false, error: "Network error — please try again." });
     } finally {
-      sendBtn.disabled = false;
-      sendBtn.innerHTML = `<i class="fa-solid fa-paper-plane me-2"></i>Send to <span id="mcSendBtnCount">${selectedIds.size}</span> recipient<span id="mcSendBtnPlural">${selectedIds.size === 1 ? "" : "s"}</span>`;
+      setSending(false);
     }
   });
+
+  /**
+   * After a send with a changed message, offer to make it the campaign's
+   * saved message.
+   *
+   * @param {object} batch - The campaign record from mc-batches-data.
+   * @param {string} subject
+   * @param {string} body
+   * @returns {void}
+   */
+  function offerToSaveMessage(batch, subject, body) {
+    const prompt = document.createElement("div");
+    prompt.className = "d-flex align-items-center gap-2 flex-wrap mt-2";
+    prompt.innerHTML = `
+      <span class="small text-muted">Save the message you just sent as this campaign's message?</span>
+      <button type="button" class="btn btn-outline-secondary btn-sm" id="mcUpdateMsgBtn">
+        <i class="fa-solid fa-floppy-disk me-1" aria-hidden="true"></i>Save message
+      </button>`;
+    resultsBody?.appendChild(prompt);
+
+    document.getElementById("mcUpdateMsgBtn")?.addEventListener("click", async (ev) => {
+      const btn = /** @type {HTMLButtonElement} */ (ev.currentTarget);
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>Saving…';
+      let ok = false;
+      try {
+        const res = await fetch(`/oversight/tools/campaigns/batches/${batch.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", "X-CSRF-Token": getCsrf() },
+          body: JSON.stringify({
+            name: batch.name,
+            messageSubject: subject || null,
+            messageBody: body,
+            parentBatchId: batch.parent_batch_id || null,
+            responseNeeded: batch.response_needed !== false,
+            active: batch.active !== false,
+            messageType: batch.message_type || "invitation",
+          }),
+        });
+        ok = !!(await res.json().catch(() => ({}))).success;
+      } catch {
+        ok = false;
+      }
+      if (ok) {
+        batch.message_subject = subject || null;
+        batch.message_body = body;
+        const opt = existingBatchSelect?.querySelector(`option[value="${batch.id}"]`);
+        if (opt instanceof HTMLOptionElement) {
+          opt.dataset.subject = subject;
+          opt.dataset.body = body;
+        }
+      }
+      prompt.outerHTML = `<div class="alert ${ok ? "alert-success" : "alert-warning"} mt-2 mb-0">${ok ? "Campaign message saved." : "Couldn't save the campaign message."}</div>`;
+    });
+  }
 
   // =========================================================
   // Results log
@@ -1390,7 +1561,7 @@ function updateSubjectVisibility() {
     if (!resultsCard || !resultsBody) return;
 
     if (!data.success || data.error) {
-      resultsBody.innerHTML = `<div class="alert alert-danger mb-0">${data.error || "An unexpected error occurred."}</div>`;
+      resultsBody.innerHTML = `<div class="alert alert-danger mb-0">${escapeHtml(data.error || "An unexpected error occurred.")}</div>`;
       resultsCard.classList.remove("d-none");
       resultsCard.scrollIntoView({ behavior: "smooth", block: "start" });
       return;
@@ -1399,7 +1570,7 @@ function updateSubjectVisibility() {
     let html = `
             <div class="alert alert-success mb-3">
                 <i class="fa-solid fa-circle-check me-2"></i>
-                <strong>${data.sent}</strong> message${data.sent !== 1 ? "s" : ""} sent successfully.
+                Sent to <strong>${data.sent}</strong> ${data.sent === 1 ? "person" : "people"}.
                 ${data.batchId ? `<a href="/oversight/tools/campaigns/tracker?batchId=${data.batchId}" class="alert-link ms-2">View in Tracker →</a>` : ""}
             </div>`;
 
@@ -1443,6 +1614,7 @@ function updateSubjectVisibility() {
 
   /** @returns {void} */
   function renderTemplateList() {
+    renderTemplateSelect();
     if (!templateList) return;
     if (templates.length === 0) {
       templateList.innerHTML = `<p class="text-muted small mb-0">No saved templates yet.</p>`;
@@ -1479,7 +1651,9 @@ function updateSubjectVisibility() {
 
   /** @param {boolean} active @returns {void} */
   function setTemplateEditorFocus(active) {
-    const templatesCard = document.getElementById("mcTemplatesCard");
+    // The template manager sits inside step 4: keep that step bright and
+    // dim the others while a template is being edited.
+    const templatesCard = templateManager?.closest(".mc-card");
     const mcMain = root.querySelector(".mc-main");
     mcMain?.classList.toggle("mc-template-editing", active);
     root.querySelectorAll(".mc-card").forEach((card) => {
@@ -1527,14 +1701,8 @@ function updateSubjectVisibility() {
       // If the template editor is open, ignore load clicks —
       // the user is editing, not browsing.
       if (!templateEditor?.classList.contains("d-none")) return;
-      if (subjectInput) subjectInput.value = loadBtn.dataset.subject || "";
-      if (bodyInput) {
-        bodyInput.value = loadBtn.dataset.body || "";
-        bodyInput.dispatchEvent(new Event("input", { bubbles: true }));
-      }
-      document
-        .getElementById("mcComposeCard")
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      const tpl = templates.find((t) => t.id === Number(loadBtn.dataset.id));
+      if (tpl) loadTemplate(tpl);
       return;
     }
     const editBtn = ev.target.closest(".mc-template-edit");
@@ -1629,10 +1797,11 @@ function updateSubjectVisibility() {
   /**
    * @param {number} id
    * @param {string} name
-   * @returns {void}
+   * @returns {Promise<void>}
    */
-  function confirmDeleteTemplate(id, name) {
-    if (!confirm(`Delete template "${name}"? This cannot be undone.`)) return;
+  async function confirmDeleteTemplate(id, name) {
+    const ok = await confirmAction("Delete template?", `Delete template "${name}"? This cannot be undone.`);
+    if (!ok) return;
     fetch(`/oversight/tools/campaigns/templates/${id}`, {
       method: "DELETE",
       headers: { "X-CSRF-Token": getCsrf() },
@@ -1640,7 +1809,7 @@ function updateSubjectVisibility() {
       .then((r) => r.json().catch(() => ({})))
       .then((data) => {
         if (!data.success) {
-          alert(data.error || "Delete failed.");
+          if (tplStatus) tplStatus.innerHTML = `<div class="alert alert-danger py-1 small">${escapeHtml(data.error || "Delete failed.")}</div>`;
           return;
         }
         templates = templates.filter((t) => t.id !== id);
@@ -1649,7 +1818,7 @@ function updateSubjectVisibility() {
       })
       .catch((err) => {
         console.error("[campaignCenter] template delete error:", err);
-        alert("Network error — delete failed.");
+        if (tplStatus) tplStatus.innerHTML = `<div class="alert alert-danger py-1 small">Network error — delete failed.</div>`;
       });
   }
 
@@ -1661,46 +1830,19 @@ function updateSubjectVisibility() {
 
   applyFilters();
   updateSubjectVisibility();
-  updateSendButton();
+  syncResponseTypeUI();
   updateChipAreaVisibility();
 
-  // If a batch was pre-selected via ?batchId= query param,
-  // switch into add-to mode and select it automatically.
-  if (preselectedBatch && existingBatchSelect) {
-    const opt = existingBatchSelect.querySelector(
-      `option[value="${preselectedBatch.id}"]`,
-    );
-    if (opt) {
-      existingBatchSelect.value = String(preselectedBatch.id);
-      // Set type from the preselected batch before switching mode
-      const batchType = preselectedBatch.message_type || "invitation";
-      if (["invitation","alert","followup"].includes(batchType)) {
-        setMessageType(batchType);
-      }
-      setCampaignMode("add_to");
-      // onExistingBatchChange() is already invoked inside setCampaignMode
-      // when isAddTo is true and a batch value is present — calling it
-      // again here would double-fire applyInviteStatusBadges and duplicate
-      // the invite-status badges on each volunteer row.
-    }
-  }
-
-  // If pending volunteer IDs were passed (via ?selectPending=1),
-  // auto-select those volunteers in the list.
-  if (pendingVolIds?.length > 0) {
-    const pendingSet = new Set(pendingVolIds);
-    getAllItems().forEach((li) => {
-      if (pendingSet.has(Number(li.dataset.id))) {
-        setItemSelected(li, true);
-      }
-    });
-    updateSelectionCount();
-    updateSendButton();
-
-    // Scroll the volunteer list to the first selected item
-    const firstSelected = volunteerList?.querySelector(".mc-selected");
-    if (firstSelected) {
-      firstSelected.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }
+  // Opened from the tracker (?batchId=): "Remind pending" opens a Reminder
+  // with that campaign's pending people selected; "Add people" opens Add
+  // people. Otherwise start on New invitation.
+  const preselectedOpt = preselectedBatch
+    ? existingBatchSelect?.querySelector(`option[value="${preselectedBatch.id}"]`)
+    : null;
+  if (preselectedOpt && existingBatchSelect) {
+    existingBatchSelect.value = String(preselectedBatch.id);
+    setPurpose(selectPending ? "remind" : "add");
+  } else {
+    setPurpose("invite");
   }
 });

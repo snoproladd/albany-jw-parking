@@ -22,7 +22,7 @@
     <%# ── Desktop-only alert ──────────────────────────────────────────────── %>
     <div class="mc-mobile-alert d-flex align-items-center gap-2">
         <i class="fa-solid fa-desktop fa-lg"></i>
-        <span>The Messaging Center is designed for desktop use. Some features may not work well on a touch screen.</span>
+        <span>The Campaign Center is designed for desktop use. Some features may not work well on a touch screen.</span>
     </div>
 
     <%# ── Main layout wrapper ─────────────────────────────────────────────── %>
@@ -200,172 +200,63 @@
                 </div>
             </div>
 
-            <%# ── Send list (recipient chips) ──────────────────────────────── %>
-            <section class="mc-card" id="mcSendListCard">
-                <div class="mc-card-header">
-                    <h2 class="mc-card-title">
-                        <i class="fa-solid fa-list-check me-2"></i>
-                        Send List
-                        <span class="badge bg-primary ms-2" id="mcSendListCount">0</span>
-                    </h2>
-                    <button type="button" class="btn btn-link btn-sm text-danger p-0" id="mcClearSendList">
-                        Clear all
-                    </button>
+            <%# ══ Step 1 — What are you sending? ══════════════════════════════ %>
+            <section class="mc-card mc-step" id="mcStepPurpose" aria-labelledby="mcStepPurposeTitle">
+                <h2 class="mc-step-title" id="mcStepPurposeTitle"><span class="mc-step-num" aria-hidden="true">1</span>What are you sending?</h2>
+                <div class="mc-purposes" role="group" aria-label="What are you sending?">
+                        <button type="button" class="mc-purpose" data-purpose="invite" aria-pressed="false">
+                            <i class="fa-solid fa-envelope-circle-check" aria-hidden="true"></i>
+                            <span class="mc-purpose-title">New invitation</span>
+                            <span class="mc-purpose-desc">Ask people to reply</span>
+                        </button>
+                        <button type="button" class="mc-purpose" data-purpose="add" aria-pressed="false"
+                            <%= batches.length === 0 ? 'disabled' : '' %>>
+                            <i class="fa-solid fa-user-plus" aria-hidden="true"></i>
+                            <span class="mc-purpose-title">Add people</span>
+                            <span class="mc-purpose-desc">Send a campaign to more people</span>
+                        </button>
+                        <button type="button" class="mc-purpose" data-purpose="remind" aria-pressed="false"
+                            <%= batches.length === 0 ? 'disabled' : '' %>>
+                            <i class="fa-solid fa-bell" aria-hidden="true"></i>
+                            <span class="mc-purpose-title">Reminder</span>
+                            <span class="mc-purpose-desc">Re-send to people who haven't answered</span>
+                        </button>
+                        <button type="button" class="mc-purpose" data-purpose="followup" aria-pressed="false"
+                            <%= batches.length === 0 ? 'disabled' : '' %>>
+                            <i class="fa-solid fa-reply" aria-hidden="true"></i>
+                            <span class="mc-purpose-title">Follow-up</span>
+                            <span class="mc-purpose-desc">New message linked to a campaign</span>
+                        </button>
+                        <button type="button" class="mc-purpose" data-purpose="announce" aria-pressed="false">
+                            <i class="fa-solid fa-bullhorn" aria-hidden="true"></i>
+                            <span class="mc-purpose-title">Announcement</span>
+                            <span class="mc-purpose-desc">No reply needed</span>
+                        </button>
                 </div>
-                <div class="mc-chip-area" id="mcChipArea">
-                    <span class="mc-empty-hint" id="mcEmptyHint">
-                        <i class="fa-solid fa-arrow-left me-1"></i>
-                        Select volunteers from the list to add them here.
-                    </span>
-                </div>
-            </section>
+                <% if (batches.length === 0) { %>
+                    <p class="text-muted small mt-2 mb-0">Add people, Reminder and Follow-up open once a campaign has been sent.</p>
+                <% } %>
 
-            <%# ── Templates ────────────────────────────────────────────────── %>
-            <section class="mc-card" id="mcTemplatesCard">
-                <div class="mc-card-header">
-                    <h2 class="mc-card-title">
-                        <i class="fa-solid fa-file-lines me-2"></i>Templates
-                    </h2>
-                    <button type="button" class="btn btn-outline-primary btn-sm" id="mcNewTemplateBtn">
-                        <i class="fa-solid fa-plus me-1"></i>New template
-                    </button>
-                </div>
-
-                <div class="mc-template-list" id="mcTemplateList">
-                    <% if (templates.length === 0) { %>
-                        <p class="text-muted small mb-0" id="mcNoTemplates">No saved templates yet.</p>
-                    <% } else { %>
-                        <% templates.forEach(function(t) { %>
-                            <div class="mc-template-row" data-template-id="<%= t.id %>">
-                                <button
-                                    type="button"
-                                    class="mc-template-load btn btn-link btn-sm p-0 text-start"
-                                    data-id="<%= t.id %>"
-                                    data-name="<%= t.name %>"
-                                    data-subject="<%= t.subject || '' %>"
-                                    data-body="<%= t.body %>"
-                                    title="Load this template into the compose area"
-                                >
-                                    <i class="fa-regular fa-file-lines me-1"></i><%= t.name %>
-                                </button>
-                                <div class="mc-template-actions">
-                                    <button type="button" class="btn btn-link btn-sm p-0 text-secondary mc-template-edit" data-id="<%= t.id %>" aria-label="Edit template <%= t.name %>">
-                                        <i class="fa-solid fa-pencil"></i>
-                                    </button>
-                                    <button type="button" class="btn btn-link btn-sm p-0 text-danger mc-template-delete" data-id="<%= t.id %>" data-name="<%= t.name %>" aria-label="Delete template <%= t.name %>">
-                                        <i class="fa-solid fa-trash"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        <% }); %>
-                    <% } %>
-                </div>
-
-                <div class="mc-template-editor d-none" id="mcTemplateEditor">
-                    <hr class="my-3" />
-                    <div class="mb-2">
-                        <label class="form-label form-label-sm" for="mcTplName">Template name</label>
-                        <input type="text" class="form-control form-control-sm" id="mcTplName" placeholder="e.g. Convention Invite" />
-                    </div>
-                    <div class="mb-2">
-                        <label class="form-label form-label-sm" for="mcTplSubject">Subject <span class="text-muted">(email only)</span></label>
-                        <input type="text" class="form-control form-control-sm" id="mcTplSubject" placeholder="e.g. You're invited — {year} <%= brand.conventionLabel %>" />
-                    </div>
-                    <div class="mb-2">
-                        <label class="form-label form-label-sm" for="mcTplBody">Body</label>
-                        <div class="mc-merge-chips mb-1">
-                            <span class="mc-merge-label">Insert:</span>
-                            <button type="button" class="mc-merge-chip" data-field="{firstName}"       data-target="mcTplBody">First Name</button>
-                            <button type="button" class="mc-merge-chip" data-field="{lastName}"        data-target="mcTplBody">Last Name</button>
-                            <button type="button" class="mc-merge-chip" data-field="{fullName}"        data-target="mcTplBody">Full Name</button>
-                            <button type="button" class="mc-merge-chip mc-link-chip" data-field="{link}"            data-target="mcTplBody">RSVP Link</button>
-                            <button type="button" class="mc-merge-chip" data-field="{year}"            data-target="mcTplBody">Convention Year</button>
-                            <button type="button" class="mc-merge-chip" data-field="{shiftDate}"       data-target="mcTplBody">Shift Date</button>
-                            <button type="button" class="mc-merge-chip" data-field="{shiftDay}"        data-target="mcTplBody">Shift Day</button>
-                            <button type="button" class="mc-merge-chip" data-field="{shiftStart}"      data-target="mcTplBody">Shift Start Time</button>
-                            <button type="button" class="mc-merge-chip" data-field="{shiftEnd}"        data-target="mcTplBody">Shift End Time</button>
-                            <button type="button" class="mc-merge-chip" data-field="{shiftType}"       data-target="mcTplBody">Shift Type</button>
-                            <button type="button" class="mc-merge-chip" data-field="{shiftLabel}"      data-target="mcTplBody">Shift</button>
-                            <button type="button" class="mc-merge-chip" data-field="{locationName}"    data-target="mcTplBody">Location</button>
-                            <button type="button" class="mc-merge-chip" data-field="{locationAddress}" data-target="mcTplBody">Address</button>
-                            <button type="button" class="mc-merge-chip" data-field="{locationMapsUrl}" data-target="mcTplBody">Google Maps Link</button>
+                <div class="mc-purpose-fields mt-3">
+                    <%# Campaign name (New invitation, Follow-up, Announcement) %>
+                    <div class="mb-3" id="mcCampaignNameWrap">
+                        <label class="form-label" for="mcCampaignName">
+                            Campaign name
+                            <span class="text-muted small fw-normal ms-1">— how it's listed in the tracker</span>
+                        </label>
+                        <div class="d-flex gap-2">
+                            <input type="text" class="form-control" id="mcCampaignName"
+                                placeholder="e.g. Friday · Jul 18 · Ingress" maxlength="150" />
+                            <button type="button" class="btn btn-outline-secondary btn-sm text-nowrap" id="mcSuggestNameBtn"
+                                title="Suggest a name from the event in step 2">
+                                <i class="fa-solid fa-wand-magic-sparkles me-1" aria-hidden="true"></i>Suggest
+                            </button>
                         </div>
-                        <textarea class="form-control form-control-sm mc-tpl-body" id="mcTplBody" rows="14" placeholder="Hi {firstName}, …"></textarea>
                     </div>
-                    <div class="d-flex gap-2 justify-content-end">
-                        <button type="button" class="btn btn-outline-secondary btn-sm" id="mcTplCancelBtn">Cancel</button>
-                        <button type="button" class="btn btn-primary btn-sm" id="mcTplSaveBtn">Save template</button>
-                    </div>
-                    <div class="mt-2" id="mcTplStatus"></div>
-                </div>
 
-            </section>
-
-            <%# ── Compose ───────────────────────────────────────────────────── %>
-            <section class="mc-card" id="mcComposeCard">
-                <div class="mc-card-header">
-                    <h2 class="mc-card-title">
-                        <i class="fa-solid fa-pen-to-square me-2"></i>Compose
-                    </h2>
-                </div>
-
-                <%# ── Message type ──────────────────────────────────────────── %>
-                <div class="mc-campaign-mode mb-2">
-                    <label class="mc-filter-label mb-2 d-block">Message type</label>
-                    <div class="btn-group btn-group-sm" role="group" aria-label="Message type">
-                        <button type="button" class="btn btn-primary active" id="mcTypeInvitation">
-                            <i class="fa-solid fa-envelope-circle-check me-1"></i>Invitation
-                        </button>
-                        <button type="button" class="btn btn-outline-primary" id="mcTypeAlert">
-                            <i class="fa-solid fa-bell me-1"></i>Alert
-                        </button>
-                        <button type="button" class="btn btn-outline-primary" id="mcTypeFollowup"
-                            <%= batches.length === 0 ? 'disabled title="No existing campaigns yet"' : '' %>>
-                            <i class="fa-solid fa-reply me-1"></i>Follow-up
-                        </button>
-                    </div>
-                    <p class="text-muted small mt-1 mb-0" id="mcTypeDesc">
-                        Invite volunteers to a shift. Includes an RSVP link and response prompt.
-                    </p>
-                </div>
-
-                <%# ── Campaign sub-mode (Invitation type only) ──────────────── %>
-                <div class="mc-campaign-mode mb-3" id="mcModeWrap">
-                    <div class="btn-group btn-group-sm" role="group" aria-label="Campaign mode">
-                        <button type="button" class="btn btn-secondary active" id="mcModeNew">
-                            <i class="fa-solid fa-plus me-1"></i>New Campaign
-                        </button>
-                        <button type="button" class="btn btn-outline-secondary" id="mcModeAddTo"
-                            <%= batches.length === 0 ? 'disabled title="No existing campaigns yet"' : '' %>>
-                            <i class="fa-solid fa-user-plus me-1"></i>Add to Existing
-                        </button>
-                    </div>
-                </div>
-
-                <%# ── New campaign — campaign name ──────────────────────────── %>
-                <div class="mb-3" id="mcCampaignNameWrap">
-                    <label class="form-label" for="mcCampaignName">
-                        Campaign name
-                        <span class="text-muted small fw-normal ms-1">— identifies this send in the tracker</span>
-                    </label>
-                    <div class="d-flex gap-2">
-                        <input
-                            type="text"
-                            class="form-control"
-                            id="mcCampaignName"
-                            placeholder="e.g. Friday · Jul 18 · Ingress"
-                            maxlength="150"
-                        />
-                        <button type="button" class="btn btn-outline-secondary btn-sm text-nowrap" id="mcSuggestNameBtn"
-                            title="Auto-suggest from selected event">
-                            <i class="fa-solid fa-wand-magic-sparkles me-1"></i>Suggest
-                        </button>
-                    </div>
-                </div>
-
-                <%# ── Add-to mode — existing batch picker ───────────────────── %>
-                <div class="mb-3 d-none" id="mcExistingBatchWrap">
-                    <label class="form-label" for="mcExistingBatch">Select existing campaign</label>
+                    <%# Campaign picker (Add people, Reminder) %>
+                    <div class="mb-3 d-none" id="mcExistingBatchWrap">
+                        <label class="form-label" for="mcExistingBatch">Which campaign?</label>
                     <select class="form-select" id="mcExistingBatch">
                         <option value="">— Choose a campaign —</option>
                         <% batches.forEach(function(b) { %>
@@ -375,6 +266,8 @@
                                 data-body="<%= b.message_body || '' %>"
                                 data-day-id="<%= b.convention_day_id || '' %>"
                                 data-shift-id="<%= b.shift_id || '' %>"
+                                data-type="<%= b.message_type || 'invitation' %>"
+                                data-response-needed="<%= b.response_needed ? '1' : '0' %>"
                             >
                                 <%= b.parent_batch_id ? '↳ ' : '' %><%= b.name %>
                                 <% if (b.day_label) { %> — <%= b.day_label %><% } %>
@@ -400,12 +293,10 @@
                     </div>
                 </div>
 
-                <%# ── Follow-up mode — parent campaign picker ───────────────── %>
-                <div class="mb-3 d-none" id="mcParentBatchWrap">
-                    <label class="form-label" for="mcParentBatch">
-                        Follow-up to
-                        <span class="text-muted small fw-normal ms-1">— links this campaign to the original</span>
-                    </label>
+
+                    <%# Parent picker (Follow-up) %>
+                    <div class="mb-3 d-none" id="mcParentBatchWrap">
+                        <label class="form-label" for="mcParentBatch">Follow-up to</label>
                     <select class="form-select" id="mcParentBatch">
                         <option value="">— Choose a parent campaign —</option>
                         <% batches.forEach(function(b) { %>
@@ -414,6 +305,7 @@
                                 data-subject="<%= b.message_subject || '' %>"
                                 data-body="<%= b.message_body || '' %>"
                                 data-name="<%= b.name %>"
+                                data-day-id="<%= b.convention_day_id || '' %>"
                             >
                                 <%= b.parent_batch_id ? '↳ ' : '' %><%= b.name %>
                                 <% if (b.day_label) { %> — <%= b.day_label %><% } %>
@@ -422,6 +314,7 @@
                         <% }); %>
                     </select>
                 </div>
+
 
                 <%# ── Response needed (new + follow-up modes only) ──────────── %>
                 <div class="mb-3" id="mcResponseNeededWrap">
@@ -498,28 +391,14 @@
 
                 </div>
 
-                <%# ── Channel toggles ───────────────────────────────────────── %>
-                <div class="mc-channel-toggles mb-3">
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="checkbox" id="mcSendEmail" checked />
-                        <label class="form-check-label" for="mcSendEmail">
-                            <i class="fa-solid fa-envelope me-1"></i>Email
-                        </label>
-                    </div>
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="checkbox" id="mcSendSms" />
-                        <label class="form-check-label" for="mcSendSms">
-                            <i class="fa-solid fa-comment-sms me-1"></i>SMS
-                        </label>
-                    </div>
                 </div>
+            </section>
 
-                <%# ── Event picker (new campaign only) ──────────────────────── %>
-                <div class="mc-event-picker mb-3" id="mcEventPickerWrap">
-                    <label class="mc-filter-label mb-1">
-                        <i class="fa-regular fa-calendar-days me-1"></i>
-                        Link to event <span class="text-muted fw-normal">(optional)</span>
-                    </label>
+            <%# ══ Step 2 — Which event? ═══════════════════════════════════════ %>
+            <section class="mc-card mc-step" id="mcStepEvent" aria-labelledby="mcStepEventTitle">
+                <h2 class="mc-step-title" id="mcStepEventTitle"><span class="mc-step-num" aria-hidden="true">2</span>Which event? <span class="mc-step-optional">optional</span></h2>
+                <p class="text-muted small mb-0 d-none" id="mcEventInherited"></p>
+                <div class="mc-event-picker" id="mcEventPickerWrap">
                     <% if (conventionDays.length === 0) { %>
                         <p class="text-muted small mb-0">
                             <i class="fa-solid fa-triangle-exclamation me-1 text-warning"></i>
@@ -548,10 +427,140 @@
                         </div>
                     <% } %>
                 </div>
+            </section>
 
-                <%# ── Subject ───────────────────────────────────────────────── %>
+            <%# ══ Step 3 — Who gets it? ═══════════════════════════════════════ %>
+            <section class="mc-card mc-step" id="mcSendListCard" aria-labelledby="mcStepWhoTitle">
+                <div class="mc-card-header">
+                    <h2 class="mc-step-title mb-0" id="mcStepWhoTitle"><span class="mc-step-num" aria-hidden="true">3</span>Who gets it?
+                        <span class="badge bg-primary ms-2" id="mcSendListCount">0</span>
+                    </h2>
+                    <button type="button" class="btn btn-link btn-sm text-danger p-0" id="mcClearSendList">
+                        Clear all
+                    </button>
+                </div>
+                <div class="mc-chip-area" id="mcChipArea">
+                    <span class="mc-empty-hint" id="mcEmptyHint">
+                        <i class="fa-solid fa-arrow-left me-1" aria-hidden="true"></i>
+                        Select volunteers from the list to add them here.
+                    </span>
+                </div>
+                <p class="text-muted small mt-2 mb-0" id="mcWhoNote"></p>
+            </section>
+
+            <%# ══ Step 4 — Message ════════════════════════════════════════════ %>
+            <section class="mc-card mc-step" id="mcComposeCard" aria-labelledby="mcStepMessageTitle">
+                <h2 class="mc-step-title" id="mcStepMessageTitle"><span class="mc-step-num" aria-hidden="true">4</span>Message</h2>
+
+                <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <label class="visually-hidden" for="mcTemplateSelect">Start from a template</label>
+                        <select class="form-select form-select-sm mc-template-select" id="mcTemplateSelect">
+                            <option value="">Start from a template…</option>
+                            <% templates.forEach(function(t) { %>
+                                <option value="<%= t.id %>"><%= t.name %></option>
+                            <% }); %>
+                        </select>
+                        <button type="button" class="btn btn-link btn-sm p-0 text-nowrap" id="mcManageTemplatesBtn"
+                            aria-expanded="false" aria-controls="mcTemplatesCard">Manage templates</button>
+                    </div>
+                    <div class="mc-channel-toggles ms-auto">
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" id="mcSendEmail" checked />
+                            <label class="form-check-label" for="mcSendEmail">
+                                <i class="fa-solid fa-envelope me-1" aria-hidden="true"></i>Email
+                            </label>
+                        </div>
+                        <div class="form-check form-check-inline me-0">
+                            <input class="form-check-input" type="checkbox" id="mcSendSms" />
+                            <label class="form-check-label" for="mcSendSms">
+                                <i class="fa-solid fa-comment-sms me-1" aria-hidden="true"></i>Text
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <%# Template manager (collapsed until "Manage templates") %>
+                <div class="mc-template-manager d-none" id="mcTemplatesCard">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="fw-semibold small">Saved templates</span>
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="mcNewTemplateBtn">
+                            <i class="fa-solid fa-plus me-1" aria-hidden="true"></i>New template
+                        </button>
+                    </div>
+                <div class="mc-template-list" id="mcTemplateList">
+                    <% if (templates.length === 0) { %>
+                        <p class="text-muted small mb-0" id="mcNoTemplates">No saved templates yet.</p>
+                    <% } else { %>
+                        <% templates.forEach(function(t) { %>
+                            <div class="mc-template-row" data-template-id="<%= t.id %>">
+                                <button
+                                    type="button"
+                                    class="mc-template-load btn btn-link btn-sm p-0 text-start"
+                                    data-id="<%= t.id %>"
+                                    data-name="<%= t.name %>"
+                                    data-subject="<%= t.subject || '' %>"
+                                    data-body="<%= t.body %>"
+                                    title="Load this template into the compose area"
+                                >
+                                    <i class="fa-regular fa-file-lines me-1"></i><%= t.name %>
+                                </button>
+                                <div class="mc-template-actions">
+                                    <button type="button" class="btn btn-link btn-sm p-0 text-secondary mc-template-edit" data-id="<%= t.id %>" aria-label="Edit template <%= t.name %>">
+                                        <i class="fa-solid fa-pencil"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-link btn-sm p-0 text-danger mc-template-delete" data-id="<%= t.id %>" data-name="<%= t.name %>" aria-label="Delete template <%= t.name %>">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        <% }); %>
+                    <% } %>
+                </div>
+
+                <div class="mc-template-editor d-none" id="mcTemplateEditor">
+                    <hr class="my-3" />
+                    <div class="mb-2">
+                        <label class="form-label form-label-sm" for="mcTplName">Template name</label>
+                        <input type="text" class="form-control form-control-sm" id="mcTplName" placeholder="e.g. Convention Invite" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label form-label-sm" for="mcTplSubject">Subject <span class="text-muted">(email only)</span></label>
+                        <input type="text" class="form-control form-control-sm" id="mcTplSubject" placeholder="e.g. You're invited — {year} <%= brand.conventionLabel %>" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label form-label-sm" for="mcTplBody">Body</label>
+                        <div class="mc-merge-chips mb-1">
+                            <span class="mc-merge-label">Insert:</span>
+                            <button type="button" class="mc-merge-chip" data-field="{firstName}"       data-target="mcTplBody">First Name</button>
+                            <button type="button" class="mc-merge-chip" data-field="{lastName}"        data-target="mcTplBody">Last Name</button>
+                            <button type="button" class="mc-merge-chip" data-field="{fullName}"        data-target="mcTplBody">Full Name</button>
+                            <button type="button" class="mc-merge-chip mc-link-chip" data-field="{link}"            data-target="mcTplBody">RSVP Link</button>
+                            <button type="button" class="mc-merge-chip" data-field="{year}"            data-target="mcTplBody">Convention Year</button>
+                            <button type="button" class="mc-merge-chip" data-field="{shiftDate}"       data-target="mcTplBody">Shift Date</button>
+                            <button type="button" class="mc-merge-chip" data-field="{shiftDay}"        data-target="mcTplBody">Shift Day</button>
+                            <button type="button" class="mc-merge-chip" data-field="{shiftStart}"      data-target="mcTplBody">Shift Start Time</button>
+                            <button type="button" class="mc-merge-chip" data-field="{shiftEnd}"        data-target="mcTplBody">Shift End Time</button>
+                            <button type="button" class="mc-merge-chip" data-field="{shiftType}"       data-target="mcTplBody">Shift Type</button>
+                            <button type="button" class="mc-merge-chip" data-field="{shiftLabel}"      data-target="mcTplBody">Shift</button>
+                            <button type="button" class="mc-merge-chip" data-field="{locationName}"    data-target="mcTplBody">Location</button>
+                            <button type="button" class="mc-merge-chip" data-field="{locationAddress}" data-target="mcTplBody">Address</button>
+                            <button type="button" class="mc-merge-chip" data-field="{locationMapsUrl}" data-target="mcTplBody">Google Maps Link</button>
+                        </div>
+                        <textarea class="form-control form-control-sm mc-tpl-body" id="mcTplBody" rows="14" placeholder="Hi {firstName}, …"></textarea>
+                    </div>
+                    <div class="d-flex gap-2 justify-content-end">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="mcTplCancelBtn">Cancel</button>
+                        <button type="button" class="btn btn-primary btn-sm" id="mcTplSaveBtn">Save template</button>
+                    </div>
+                    <div class="mt-2" id="mcTplStatus"></div>
+                </div>
+
+                </div>
+
+                <%# Subject (email only) %>
                 <div class="mb-3" id="mcSubjectWrap">
-                    <label class="form-label" for="mcSubject">Subject</label>
+                    <label class="form-label" for="mcSubject">Subject <span class="text-muted small fw-normal">(email)</span></label>
                     <div class="mc-merge-chips mb-1">
                         <span class="mc-merge-label">Insert:</span>
                         <button type="button" class="mc-merge-chip" data-field="{firstName}" data-target="mcSubject">First Name</button>
@@ -562,8 +571,8 @@
                     <input type="text" class="form-control" id="mcSubject" placeholder="e.g. You're invited — {year} <%= brand.conventionLabel %>" />
                 </div>
 
-                <%# ── Body ──────────────────────────────────────────────────── %>
-                <div class="mb-3">
+                <%# Body %>
+                <div class="mb-1">
                     <label class="form-label" for="mcBody">Message</label>
                     <div class="mc-merge-chips mb-1">
                         <span class="mc-merge-label">Insert:</span>
@@ -572,28 +581,41 @@
                         <button type="button" class="mc-merge-chip" data-field="{fullName}"        data-target="mcBody">Full Name</button>
                         <button type="button" class="mc-merge-chip mc-link-chip" data-field="{link}"            data-target="mcBody">RSVP Link</button>
                         <button type="button" class="mc-merge-chip" data-field="{year}"            data-target="mcBody">Convention Year</button>
-                        <button type="button" class="mc-merge-chip" data-field="{shiftDate}"       data-target="mcBody">Shift Date</button>
-                        <button type="button" class="mc-merge-chip" data-field="{shiftDay}"        data-target="mcBody">Shift Day</button>
-                        <button type="button" class="mc-merge-chip" data-field="{shiftStart}"      data-target="mcBody">Shift Start Time</button>
-                        <button type="button" class="mc-merge-chip" data-field="{shiftEnd}"        data-target="mcBody">Shift End Time</button>
-                        <button type="button" class="mc-merge-chip" data-field="{shiftType}"       data-target="mcBody">Shift Type</button>
-                        <button type="button" class="mc-merge-chip" data-field="{shiftLabel}"      data-target="mcBody">Shift</button>
-                        <button type="button" class="mc-merge-chip" data-field="{locationName}"    data-target="mcBody">Location</button>
-                        <button type="button" class="mc-merge-chip" data-field="{locationAddress}" data-target="mcBody">Address</button>
-                        <button type="button" class="mc-merge-chip" data-field="{locationMapsUrl}" data-target="mcBody">Google Maps Link</button>
+                        <button type="button" class="mc-merge-chip mc-event-chip" data-field="{shiftDate}"       data-target="mcBody">Shift Date</button>
+                        <button type="button" class="mc-merge-chip mc-event-chip" data-field="{shiftDay}"        data-target="mcBody">Shift Day</button>
+                        <button type="button" class="mc-merge-chip mc-event-chip" data-field="{shiftStart}"      data-target="mcBody">Shift Start Time</button>
+                        <button type="button" class="mc-merge-chip mc-event-chip" data-field="{shiftEnd}"        data-target="mcBody">Shift End Time</button>
+                        <button type="button" class="mc-merge-chip mc-event-chip" data-field="{shiftType}"       data-target="mcBody">Shift Type</button>
+                        <button type="button" class="mc-merge-chip mc-event-chip" data-field="{shiftLabel}"      data-target="mcBody">Shift</button>
+                        <button type="button" class="mc-merge-chip mc-event-chip" data-field="{locationName}"    data-target="mcBody">Location</button>
+                        <button type="button" class="mc-merge-chip mc-event-chip" data-field="{locationAddress}" data-target="mcBody">Address</button>
+                        <button type="button" class="mc-merge-chip mc-event-chip" data-field="{locationMapsUrl}" data-target="mcBody">Google Maps Link</button>
                     </div>
-                    <textarea class="form-control" id="mcBody" rows="8" placeholder="Hi {firstName}, …"></textarea>
+                    <textarea class="form-control" id="mcBody" rows="8" placeholder="Hi {firstName}, …" aria-describedby="mcSmsCounter"></textarea>
+                </div>
+                <p class="mc-sms-counter small text-muted mb-0 d-none" id="mcSmsCounter" aria-live="polite"></p>
+            </section>
+
+            <%# ══ Step 5 — Review and send ════════════════════════════════════ %>
+            <section class="mc-card mc-step" id="mcStepReview" aria-labelledby="mcStepReviewTitle">
+                <h2 class="mc-step-title" id="mcStepReviewTitle"><span class="mc-step-num" aria-hidden="true">5</span>Review and send</h2>
+
+                <div class="mc-preview-wrap mb-3">
+                    <div class="text-muted small mb-1" id="mcPreviewLabel">Preview</div>
+                    <div class="mc-preview" id="mcPreview" aria-live="polite">
+                        <span class="text-muted">Pick recipients and write a message to see it here.</span>
+                    </div>
                 </div>
 
-                <%# ── Send bar ──────────────────────────────────────────────── %>
+                <dl class="mc-review-counts mb-3" id="mcReviewCounts"></dl>
+
                 <div class="mc-send-bar">
                     <button type="button" class="btn btn-primary" id="mcSendBtn" disabled>
-                        <i class="fa-solid fa-paper-plane me-2"></i>
-                        Send to <span id="mcSendBtnCount">0</span> recipient<span id="mcSendBtnPlural">s</span>
+                        <i class="fa-solid fa-paper-plane me-2" aria-hidden="true"></i>
+                        Send to <span id="mcSendBtnCount">0</span> <span id="mcSendBtnPlural">people</span>
                     </button>
                     <span class="mc-send-hint text-muted small" id="mcSendHint">Select recipients and compose a message to send.</span>
                 </div>
-
             </section>
 
             <%# ── Results log ───────────────────────────────────────────────── %>
@@ -618,22 +640,25 @@
 
     <%# ── Embedded JSON data ────────────────────────────────────────────────── %>
     <script id="mc-volunteer-data" type="application/json" nonce="<%= nonce %>">
-        <%- JSON.stringify(volunteers) %>
+        <%- jsonForScript(volunteers) %>
     </script>
     <script id="mc-template-data" type="application/json" nonce="<%= nonce %>">
-        <%- JSON.stringify(templates) %>
+        <%- jsonForScript(templates) %>
     </script>
     <script id="mc-convention-days-data" type="application/json" nonce="<%= nonce %>">
-        <%- JSON.stringify(conventionDays) %>
+        <%- jsonForScript(conventionDays) %>
     </script>
     <script id="mc-batches-data" type="application/json" nonce="<%= nonce %>">
-        <%- JSON.stringify(batches) %>
+        <%- jsonForScript(batches) %>
     </script>
     <script id="mc-preselected-batch" type="application/json" nonce="<%= nonce %>">
-        <%- JSON.stringify(preselectedBatch) %>
+        <%- jsonForScript(preselectedBatch) %>
     </script>
     <script id="mc-pending-volunteer-ids" type="application/json" nonce="<%= nonce %>">
-        <%- JSON.stringify(pendingVolunteerIds) %>
+        <%- jsonForScript(pendingVolunteerIds) %>
+    </script>
+    <script id="mc-select-pending" type="application/json" nonce="<%= nonce %>">
+        <%- jsonForScript(!!selectPending) %>
     </script>
 
     <%# ── Type / behavior confirmation modal ───────────────────────────────── %>
@@ -641,7 +666,7 @@
         <div class="modal-dialog modal-sm modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header py-2">
-                    <h5 class="modal-title h6" id="mcConfirmTitle">Heads up</h5>
+                    <h2 class="modal-title h6" id="mcConfirmTitle">Heads up</h2>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body small" id="mcConfirmBody"></div>
