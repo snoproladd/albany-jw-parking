@@ -680,7 +680,7 @@ let mapsSyncHandle = null;
         const year = await getActiveYear();
         const [volunteer, conventionDay, rawOversightStructure, allDays] =
           await Promise.all([
-            db.getVolunteerById(req.session.userId),
+            db.getOwnVolunteerRecord(req.session.userId),
             db.getVolunteerDashboardDay(year),
             db.getOversightStructure(),
             db.getConventionDays(year),

@@ -20,6 +20,7 @@ import {
   updateUserPassword,
   getCongregations,
   getVolunteerById,
+  getOwnVolunteerRecord,
   getActiveVolunteers,
   updateVolunteerCrews,
   getIncompleteDraftVolunteers,
@@ -385,7 +386,7 @@ export function oversightRouter({
         ] = await Promise.all([
           getVolunteerById(targetUserId),
           getActiveVolunteers({}),
-          getVolunteerById(req.session.userId),
+          getOwnVolunteerRecord(req.session.userId),
           getCongregations(),
           getVolunteerRsvpHistory(targetUserId, await getActiveYear()),
           getConventionDays(await getActiveYear()),
@@ -430,7 +431,7 @@ export function oversightRouter({
       try {
         const volunteers =
           (await getActiveVolunteers({ includeDeleted })) || [];
-        const user = await getVolunteerById(id);
+        const user = await getOwnVolunteerRecord(id);
 
         if (!user) {
           req.session.destroy?.(() => {});
@@ -471,13 +472,16 @@ export function oversightRouter({
     csrfProtection,
     async (req, res) => {
       const { targetUserId } = req.body;
-
-      if (!targetUserId) {
-        return res.redirect("/editVolunteer");
-      }
-
       const includeDeleted =
         req.body.includeDeleted === "1" || req.query.includeDeleted === "1";
+
+      // No volunteer picked (e.g. the "Show deleted" box resubmits the
+      // picker with the selection cleared): back to the picker, keeping
+      // the "show deleted" setting.
+      if (!targetUserId) {
+        return res.redirect(includeDeleted ? "/editVolunteer?includeDeleted=1" : "/editVolunteer");
+      }
+
       const canDelete = res.locals.can("volunteers.archive");
 
       try {
@@ -485,7 +489,7 @@ export function oversightRouter({
         const [volunteers, editor, congregations, rsvpHistory, conventionDays] =
           await Promise.all([
             getActiveVolunteers({ includeDeleted }),
-            getVolunteerById(req.session.userId),
+            getOwnVolunteerRecord(req.session.userId),
             getCongregations(),
             getVolunteerRsvpHistory(
               Number(targetUserId),

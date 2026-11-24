@@ -8,11 +8,16 @@
  *  - Convention day is today  → auto-poll every 30 seconds
  *  - Convention day is future → manual refresh only (Check-ins button)
  *  - No day selected          → no polling
+ *
+ * The selected day and the pool's search, filters and sort are remembered
+ * for the tab (schedulerState.js) and restored on load; a restored day takes
+ * the place of auto-selecting today's convention day.
  */
 
 import { initDomEvents } from "./schedulerDomEvents.js";
 import { initDomActions, refreshAttendanceBadges } from "./schedulerDomActions.js";
 import { preloadRendezvousForDay, clearRendezvousCache } from "./rendezvous.js";
+import { initSchedulerState, restoreSchedulerState } from "./schedulerState.js";
 
 // ─────────────────────────────────────────────
 //  Attendance poller
@@ -122,6 +127,7 @@ function _autoSelectTodayIfInConvention() {
 
 document.addEventListener("DOMContentLoaded", async () => {
   initDomEvents();
+  initSchedulerState();
   await initDomActions();
-  _autoSelectTodayIfInConvention();
+  if (!restoreSchedulerState()) _autoSelectTodayIfInConvention();
 });

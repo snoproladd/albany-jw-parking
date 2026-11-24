@@ -49,7 +49,7 @@ export function createRegistrationRouter(deps) {
     getDraftByEmail,
     markDraftCompleted,
     upgradeDraftEmailPass,
-    getVolunteerById,
+    getOwnVolunteerRecord,
   } = db;
 
   const router = express.Router();
@@ -188,7 +188,7 @@ export function createRegistrationRouter(deps) {
 
       // Cache miss — load directly from DB using userId
       if (!volunteer && req.session.userId) {
-        volunteer = await getVolunteerById(req.session.userId);
+        volunteer = await getOwnVolunteerRecord(req.session.userId);
       }
 
       if (!volunteer) {

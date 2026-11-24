@@ -32,39 +32,34 @@
     <aside class="scheduler-sidebar">
 
       <div class="scheduler-sidebar-header">
-        <h1 class="h5 mb-0">
-          <i class="fa-regular fa-calendar-days me-2 text-warning"></i>Scheduler
+        <h1 class="h5 mb-0 scheduler-title">
+          <i class="fa-regular fa-calendar-days me-2 text-warning" aria-hidden="true"></i>Scheduler
+          <span class="scheduler-title-year"><%= year %></span>
         </h1>
-        <div class="d-flex align-items-center gap-2">
-          <span class="text-muted small"><%= year %></span>
-          <span id="schedulerPublishSlot"></span>
+        <nav class="scheduler-quick-links" aria-label="Related pages">
           <a href="/oversight/tools/conflict-grid"
              class="scheduler-quick-link"
-             title="Master Conflict Grid"
+             title="Master Conflict Grid" aria-label="Master Conflict Grid"
              data-bs-toggle="tooltip" data-bs-placement="bottom">
-            <i class="fa-solid fa-table-cells"></i>
+            <i class="fa-solid fa-table-cells" aria-hidden="true"></i>
           </a>
+          <% if (can('crews.assign')) { %>
           <a href="/oversight/tools/crew-assignments"
              class="scheduler-quick-link"
-             title="Crew Assignments"
+             title="Crew Assignments" aria-label="Crew Assignments"
              data-bs-toggle="tooltip" data-bs-placement="bottom">
-            <i class="fa-solid fa-people-group"></i>
+            <i class="fa-solid fa-people-group" aria-hidden="true"></i>
           </a>
-          <a href="/oversight/tools/scheduler/report"
-             class="scheduler-quick-link"
-             title="Printable Report"
-             data-bs-toggle="tooltip" data-bs-placement="bottom">
-            <i class="fa-solid fa-print"></i>
-          </a>
+          <% } %>
           <% if (can('positions.view')) { %>
           <a href="/oversight/tools/positions"
              class="scheduler-quick-link"
-             title="Positions"
+             title="Positions" aria-label="Positions"
              data-bs-toggle="tooltip" data-bs-placement="bottom">
-            <i class="fa-solid fa-user-shield"></i>
+            <i class="fa-solid fa-user-shield" aria-hidden="true"></i>
           </a>
           <% } %>
-        </div>
+        </nav>
       </div>
 
       <%#-- Day picker --%>

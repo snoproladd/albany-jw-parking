@@ -228,10 +228,6 @@ export async function initDomActions() {
   );
   document.addEventListener("filter:select", (e) => _onFilterSelect(e.detail));
 
-  if (document.body.dataset.canPublish === "true") {
-      document.getElementById("schedulerPublishSlot")?.appendChild(createPublishButton());
-  }
-
   try {
       const res = await fetch("/api/scheduler/column-prefs");
       const data = await res.json();
@@ -1697,8 +1693,10 @@ export async function initDomActions() {
   // ─────────────────────────────────────────────
 
   /**
-   * Build the day banner containing the day label and one toggle button
-   * per department. Buttons are clickable (show/hide) and draggable (reorder)
+   * Build the day banner: the day label; the action groups (Undo / Redo,
+   * Report / Publish, Check-ins; Publish is shown locked without
+   * scheduler.publish); and one toggle button per department. Toggle
+   * buttons are clickable (show/hide) and draggable (reorder)
    * via pointer events — no HTML5 drag API, which conflicts with
    * agnostic-draggable.
    * Must be called after _deptMeta is populated.
@@ -1714,6 +1712,12 @@ export async function initDomActions() {
     label.classList.add("sched-banner-label");
     label.textContent = dayLabel;
     banner.appendChild(label);
+
+    // Button groups, kept together in the middle of the banner:
+    // editing (Undo / Redo), output (Report / Publish), Check-ins.
+    const actions = document.createElement("div");
+    actions.classList.add("sched-banner-actions");
+    banner.appendChild(actions);
 
     // Undo / Redo buttons
     const historyBtns = document.createElement("div");
@@ -1743,9 +1747,15 @@ export async function initDomActions() {
 
     historyBtns.appendChild(undoBtn);
     historyBtns.appendChild(redoBtn);
-    banner.appendChild(historyBtns);
+    actions.appendChild(historyBtns);
 
     initHistoryButtons(undoBtn, redoBtn);
+
+    // Output group: Report and Publish together (Publish locked without
+    // scheduler.publish).
+    const outputBtns = document.createElement("div");
+    outputBtns.classList.add("sched-history-btns");
+    actions.appendChild(outputBtns);
 
     // Report link
     const reportLink = document.createElement("a");
@@ -1757,7 +1767,15 @@ export async function initDomActions() {
     reportIcon.className = "fa-solid fa-print";
     reportLink.appendChild(reportIcon);
     reportLink.appendChild(document.createTextNode("\u00a0Report"));
-    historyBtns.appendChild(reportLink);
+    outputBtns.appendChild(reportLink);
+    outputBtns.appendChild(
+      createPublishButton({ locked: document.body.dataset.canPublish !== "true" }),
+    );
+
+    // Check-ins group
+    const checkinBtns = document.createElement("div");
+    checkinBtns.classList.add("sched-history-btns");
+    actions.appendChild(checkinBtns);
 
     const refreshBtn = document.createElement("button");
     refreshBtn.type = "button";
@@ -1773,7 +1791,7 @@ export async function initDomActions() {
       await refreshAttendanceBadges();
       refreshBtn.disabled = false;
     });
-    historyBtns.appendChild(refreshBtn);
+    checkinBtns.appendChild(refreshBtn);
 
     const togglesWrap = document.createElement("div");
     togglesWrap.classList.add("sched-dept-toggles-wrap");

@@ -3,7 +3,8 @@
  * @description Publish modal for the volunteer scheduler page.
  *
  * Exports:
- *   createPublishButton()        — builds the toolbar button element
+ *   createPublishButton(opts)    — builds the day-bar button (locked without
+ *                                  scheduler.publish)
  *   setPublishCurrentDayId(id)   — keeps module in sync with the day picker;
  *                                  called by schedulerDomActions on dayChange
  *
@@ -136,12 +137,40 @@ export function attachPublishTrigger(buttonEl) {
 }
 
 /**
- * Build the "Publish" toolbar button element for the scheduler day banner.
+ * Build the "Publish" button for the scheduler day banner, next to Report.
  * The button opens the publish options modal on click.
  *
- * @returns {HTMLButtonElement}
+ * When `locked` (the person lacks scheduler.publish) it is shown disabled
+ * with a lock icon instead. A disabled button gets no hover events, so it is
+ * wrapped in a span that carries the tooltip and the accessible description.
+ *
+ * @param {{ locked?: boolean }} [opts]
+ * @returns {HTMLElement}  The button, or its wrapper when locked.
  */
-export function createPublishButton() {
+export function createPublishButton({ locked = false } = {}) {
+    if (locked) {
+        const wrap = document.createElement('span');
+        wrap.className = 'sched-publish-locked';
+        wrap.title = 'Publishing needs the Publish schedules permission';
+        wrap.tabIndex = 0;
+        wrap.setAttribute('role', 'note');
+        wrap.setAttribute('aria-label', 'Publish (locked): publishing needs the Publish schedules permission');
+
+        const btn = document.createElement('button');
+        btn.type      = 'button';
+        btn.className = 'sched-history-btn sched-publish-btn';
+        btn.disabled  = true;
+        btn.tabIndex  = -1;
+        btn.setAttribute('aria-hidden', 'true');
+
+        const icon = document.createElement('i');
+        icon.className = 'fa-solid fa-lock';
+        btn.appendChild(icon);
+        btn.appendChild(document.createTextNode('\u00a0Publish'));
+        wrap.appendChild(btn);
+        return wrap;
+    }
+
     const btn = document.createElement('button');
     btn.type      = 'button';
     btn.id        = 'schedPublishBtn';

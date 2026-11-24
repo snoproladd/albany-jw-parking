@@ -18,7 +18,7 @@ import {
   markVolunteerCompromised,
   finalizeContinueRegistration,
   getVolunteerByEmailNonArchived,
-  getVolunteerById,
+  getOwnVolunteerRecord,
   getVolunteerRsvpHistory,
   getConventionDays,
   getBlackoutsForVolunteer,
@@ -93,6 +93,8 @@ export function loginRouter({ csrfProtection, logError }) {
   /**
    * Pick the department a signed-in person starts in: their last department
    * when they are still a member of it, otherwise their first membership.
+   * (_establishSession() also returns a convention admin to their last
+   * department when they aren't a member of it.)
    *
    * @param {import("../lib/dbSync.js").DepartmentMembership[]} memberships
    * @param {number|null} lastDepartmentId
@@ -164,7 +166,16 @@ export function loginRouter({ csrfProtection, logError }) {
     // ── Department membership → current department and role ──────────
     const { isConventionAdmin, lastDepartmentId, memberships } =
       await getDepartmentMemberships(user.id);
-    const current = _pickCurrentMembership(memberships, lastDepartmentId);
+    let current = _pickCurrentMembership(memberships, lastDepartmentId);
+
+    // A convention admin may work in any active department, member or not
+    // (the department switcher offers them all), so return them to the last
+    // one they used even when they aren't a member of it.
+    if (isConventionAdmin && lastDepartmentId && current?.departmentId !== lastDepartmentId) {
+      const { options } = await _departmentOptions(user.id);
+      const last = options.find((o) => o.id === lastDepartmentId);
+      if (last) current = { departmentId: last.id, departmentName: last.name };
+    }
 
     if (!current) {
       (logError || console.error)(
@@ -1083,7 +1094,7 @@ export function loginRouter({ csrfProtection, logError }) {
     const pwSuccess = req.query.pwSuccess === "1";
 
     try {
-      const user = await getVolunteerById(id);
+      const user = await getOwnVolunteerRecord(id);
 
       if (!user) {
         // If the record disappeared, force re-login

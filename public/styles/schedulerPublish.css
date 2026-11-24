@@ -16,6 +16,25 @@
     background-color: var(--bs-primary-bg-subtle);
 }
 
+/* Locked Publish (no scheduler.publish): the wrapper carries the tooltip,
+   since a disabled button gets no hover events */
+.sched-publish-locked {
+    display: inline-flex;
+    cursor: not-allowed;
+    border-radius: 0.3rem;
+}
+
+.sched-publish-locked:focus-visible {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: 2px;
+}
+
+.sched-publish-locked .sched-publish-btn {
+    pointer-events: none;
+    color: var(--bs-secondary-color);
+    border-color: var(--bs-border-color);
+}
+
 /* ── Modal sections ────────────────────────────────────────── */
 
 .sched-pub-section {

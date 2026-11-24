@@ -77,6 +77,25 @@
     border-bottom: 2px solid var(--bs-border-color);
 }
 
+/* Title with the year as muted text beside it, quick links on the right */
+.scheduler-title {
+    display: flex;
+    align-items: baseline;
+}
+
+.scheduler-title-year {
+    margin-left: 0.4rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--bs-secondary-color);
+}
+
+.scheduler-quick-links {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
 .scheduler-sidebar-section {
     padding: 0.75rem 1rem;
 }
@@ -957,6 +976,14 @@
     border-top: 1px dashed rgba(0, 0, 0, 0.18);
     background: transparent;
     opacity: 1;
+}
+
+/* Day banner button groups: editing, output (Report / Publish), Check-ins */
+.sched-banner-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
 }
 
 .sched-history-btns {

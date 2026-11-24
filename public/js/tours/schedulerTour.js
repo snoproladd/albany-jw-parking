@@ -119,7 +119,7 @@ function buildSchedulerTour() {
   steps.push({
     id: "sc-report",
     title: "Check your coverage",
-    text: "When you're done assigning, click the <strong>Report</strong> button in the day banner to see a printable summary of every shift — filled counts, gaps, and volunteer lists by department.",
+    text: "When you're done assigning, click the <strong>Report</strong> button in the day banner to see a printable summary of every shift — filled counts, gaps, and volunteer lists by department. <strong>Publish</strong>, beside it, sends the schedule to volunteers (it shows a lock if you don't have permission to publish).",
     buttons: null,
   });
 
