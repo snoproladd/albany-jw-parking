@@ -21,7 +21,6 @@
         class="container py-4 px-3 px-md-4"
         id="notesReportRoot"
         data-actor-id="<%= actorId %>"
-        data-actor-role="<%= actorRole %>"
     >
         <div class="row justify-content-center">
             <div class="col-12 col-xl-11">
@@ -134,7 +133,7 @@
                                 <button class="btn btn-sm nr-pill" data-filter="unread">Unread by me</button>
                                 <button class="btn btn-sm nr-pill" data-filter="no-action">No action yet</button>
                             </div>
-                            <% if (isRoleAtLeast(actorRole, 'ASSISTANT_ADMIN')) { %>
+                            <% if (can('notes.analyzeAll')) { %>
                             <button type="button" class="btn btn-sm nr-ai-batch-btn ms-auto" id="analyzeAllBtn">
                                 <i class="fa-solid fa-wand-magic-sparkles me-1"></i>Analyze All
                             </button>
@@ -505,4 +504,4 @@
     <script src="/js/notesReport.js" type="module"></script>
     <script type="module" src="/js/tours/notesReportTour.js"></script>
 </body>
-</html>
+</html>

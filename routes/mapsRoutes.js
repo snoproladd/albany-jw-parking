@@ -91,7 +91,6 @@ export function mapsRouter({ csrfProtection, logError, graphConfig }) {
         requirePermission("maps.view"),
         csrfProtection,
         async (req, res) => {
-            const role = req.session?.userRole || "NON_REGISTERED";
             const canSync = res.locals.can("maps.sync");
 
             let sections = [];
@@ -113,8 +112,6 @@ export function mapsRouter({ csrfProtection, logError, graphConfig }) {
 
             return res.render("maps", {
                 nav: res.locals.nav,
-                userRole: role,
-                userPermissions: res.locals.userPermissions,
                 appVersion: res.locals.appVersion,
                 csrfToken: req.csrfToken(),
                 sections,

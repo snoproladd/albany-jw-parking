@@ -156,7 +156,6 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
         (req, res) => {
             return res.render('lessonsLearned', {
                 csrfToken:  req.csrfToken(),
-                userRole:   req.session.userRole || '',
                 userId:     req.session.userId   || null,
                 isOverseer: isOverseer(req),
             });
@@ -879,7 +878,6 @@ export function lessonsLearnedRouter({ csrfProtection, logError, serverPort, gra
                 const report = await getLessonsLearnedReport(year);
                 return res.render('lessonsLearnedResources', {
                     csrfToken:  req.csrfToken(),
-                    userRole:   req.session.userRole || '',
                     // "Generate report" follows its route (lessons.publish,
                     // Overseer and up; phase 3d-6, decided).
                     isAdmin:    res.locals.can('lessons.publish'),

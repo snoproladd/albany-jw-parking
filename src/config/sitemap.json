@@ -10,7 +10,6 @@
           "path": "/",
           "description": "Landing page and authenticated user dashboard with convention day overview.",
           "icon": "fa-solid fa-house",
-          "minRole": null,
           "permission": null
         },
         {
@@ -18,7 +17,6 @@
           "path": "/login",
           "description": "Sign in to your volunteer account.",
           "icon": "fa-solid fa-right-to-bracket",
-          "minRole": null,
           "permission": null
         },
         {
@@ -26,7 +24,6 @@
           "path": "/create-profile",
           "description": "Register as a new volunteer for the Albany JW Regional Convention parking team.",
           "icon": "fa-solid fa-user-plus",
-          "minRole": null,
           "permission": null
         },
         {
@@ -34,7 +31,6 @@
           "path": "/privacy",
           "description": "How your personal data is collected, stored, and used on this platform.",
           "icon": "fa-solid fa-shield-halved",
-          "minRole": null,
           "permission": null
         },
         {
@@ -42,7 +38,6 @@
           "path": "/terms",
           "description": "Terms and conditions governing use of this platform.",
           "icon": "fa-solid fa-file-contract",
-          "minRole": null,
           "permission": null
         },
         {
@@ -50,7 +45,6 @@
           "path": "/sitemap",
           "description": "Full index of all pages available on this platform, filtered to your access level.",
           "icon": "fa-solid fa-sitemap",
-          "minRole": null,
           "permission": null
         }
       ]
@@ -65,8 +59,7 @@
           "path": "/maps",
           "description": "Convention parking maps, pedestrian routes, sign placement guides, and other reference materials.",
           "icon": "fa-solid fa-map",
-          "minRole": "REGISTERED",
-          "permission": "viewMaps",
+          "permission": "maps.view",
           "tourId": "maps"
         },
         {
@@ -74,8 +67,7 @@
           "path": "/schedules",
           "description": "Published convention day shift schedules for all departments.",
           "icon": "fa-solid fa-calendar-check",
-          "minRole": "REGISTERED",
-          "permission": "viewSchedules",
+          "permission": "schedules.view",
           "tourId": "schedules"
         }
       ]
@@ -90,8 +82,7 @@
           "path": "/signs",
           "description": "Browse sign templates and their placements around the convention area.",
           "icon": "fa-solid fa-table-list",
-          "minRole": null,
-          "permission": "viewSigns",
+          "permission": "signs.view",
           "tourId": "signsList"
         },
         {
@@ -99,8 +90,7 @@
           "path": "/signs/builder",
           "description": "Create and edit reusable sign templates with text and arrow direction.",
           "icon": "fa-solid fa-pen-to-square",
-          "minRole": null,
-          "permission": "manageSigns",
+          "permission": "signs.manage",
           "tourId": "signsBuilder"
         },
         {
@@ -108,8 +98,7 @@
           "path": "/signs/map",
           "description": "Place sign templates on a satellite map. Drag to reposition, edit status and mount type.",
           "icon": "fa-solid fa-map-location-dot",
-          "minRole": null,
-          "permission": "viewSigns",
+          "permission": "signs.view",
           "tourId": "signsMap"
         }
       ]
@@ -124,8 +113,7 @@
           "path": "/my-account",
           "description": "View and update your personal information, contact details, congregation, and password.",
           "icon": "fa-solid fa-id-card",
-          "minRole": "REGISTERED",
-          "permission": null,
+          "permission": "self.editProfile",
           "tourId": "myAccount"
         },
         {
@@ -133,8 +121,7 @@
           "path": "/my-schedule",
           "description": "View your personal shift assignments for all convention days.",
           "icon": "fa-solid fa-calendar-check",
-          "minRole": "REGISTERED",
-          "permission": "viewSchedules",
+          "permission": "self.viewSchedule",
           "tourId": "volunteerSchedule"
         },
         {
@@ -142,7 +129,6 @@
           "path": "/continue-registration/auto",
           "description": "Resume an incomplete registration from where you left off.",
           "icon": "fa-solid fa-forward-step",
-          "minRole": "NON_REGISTERED",
           "permission": null
         }
       ]
@@ -157,9 +143,9 @@
           "path": "/oversight/tools",
           "description": "Oversight dashboard showing all tools available based on your role and permissions.",
           "icon": "fa-solid fa-table-cells-large",
-          "minRole": "KEYMAN",
           "permission": null,
-          "tourId": "oversightTools"
+          "tourId": "oversightTools",
+          "signedIn": true
         }
       ]
     },
@@ -173,8 +159,7 @@
           "path": "/oversight/tools/campaigns",
           "description": "Send convention invitations via email or SMS. Manage campaigns, templates, and track RSVP responses.",
           "icon": "fa-solid fa-envelope-open-text",
-          "minRole": null,
-          "permission": "accessAdminConsole",
+          "permission": "campaigns.send",
           "tourId": "campaign"
         },
         {
@@ -182,8 +167,7 @@
           "path": "/oversight/tools/campaigns/tracker",
           "description": "View sent invitations, filter by campaign or response status, and identify non-responders.",
           "icon": "fa-solid fa-chart-gantt",
-          "minRole": null,
-          "permission": "accessAdminConsole",
+          "permission": "campaigns.send",
           "tourId": "invitationTracker"
         },
         {
@@ -191,8 +175,7 @@
           "path": "/oversight/tools/send-reset",
           "description": "Send password reset or account completion links to volunteers with incomplete registrations.",
           "icon": "fa-solid fa-link",
-          "minRole": null,
-          "permission": "accessAdminConsole",
+          "permission": "volunteers.sendSignInLinks",
           "tourId": "sendReset"
         }
       ]
@@ -207,8 +190,7 @@
           "path": "/editVolunteer",
           "description": "View and edit volunteer account details including contact, congregation, and spiritual information.",
           "icon": "fa-solid fa-id-card",
-          "minRole": null,
-          "permission": "editVolunteerInfo",
+          "permission": "volunteers.view",
           "tourId": "volunteers"
         },
         {
@@ -216,8 +198,7 @@
           "path": "/oversight/tools/create-volunteer",
           "description": "Manually create a new volunteer account. A temporary password is assigned automatically.",
           "icon": "fa-solid fa-user-plus",
-          "minRole": null,
-          "permission": "createVolunteerAccounts",
+          "permission": "volunteers.create",
           "tourId": "createVolunteer"
         },
         {
@@ -225,8 +206,7 @@
           "path": "/oversight/tools/lessons-learned",
           "description": "Submit lessons learned from convention operations. OVERSEER+ can approve and publish entries, generating a PDF report for convention oversight.",
           "icon": "fa-solid fa-book-open",
-          "minRole": "KEYMAN",
-          "permission": null,
+          "permission": "lessons.submit",
           "tourId": "lessonsLearned"
         },
         {
@@ -234,8 +214,7 @@
           "path": "/oversight/tools/notes-report",
           "description": "Review intake notes submitted by volunteers during registration. Acknowledge notes, create action items, and track resolutions.",
           "icon": "fa-solid fa-note-sticky",
-          "minRole": "OVERSEER",
-          "permission": null,
+          "permission": "notes.view",
           "tourId": "notesReport"
         },
         {
@@ -243,8 +222,7 @@
           "path": "/oversight/tools/contacts",
           "description": "Email and phone number for every volunteer with a completed registration.",
           "icon": "fa-solid fa-address-book",
-          "minRole": null,
-          "permission": "viewVolunteerInfo"
+          "permission": "volunteers.view"
         }
       ]
     },
@@ -258,8 +236,7 @@
           "path": "/oversight/tools/reports",
           "description": "View all volunteers with their registration status and identify accounts with missing information.",
           "icon": "fa-solid fa-clipboard-list",
-          "minRole": "OVERSEER",
-          "permission": null,
+          "permission": "volunteers.viewReports",
           "tourId": "reports"
         }
       ]
@@ -274,8 +251,7 @@
           "path": "/oversight/tools/timelines",
           "description": "Define convention days, sessions, and event shifts. Mark shifts as invitable and attach locations.",
           "icon": "fa-regular fa-clock",
-          "minRole": null,
-          "permission": "manageShifts",
+          "permission": "shifts.manage",
           "tourId": "timelines"
         },
         {
@@ -283,8 +259,7 @@
           "path": "/oversight/tools/locationsAndTasks",
           "description": "Define parking locations and zones for the current year used in building shift assignments.",
           "icon": "fa-solid fa-map-pin",
-          "minRole": null,
-          "permission": "manageShifts",
+          "permission": "locations.manage",
           "tourId": "locations"
         },
         {
@@ -292,8 +267,7 @@
           "path": "/oversight/tools/timelines/event-types",
           "description": "Manage shift categories used in scheduling — Ingress, Egress, Security, and more.",
           "icon": "fa-solid fa-tags",
-          "minRole": null,
-          "permission": "accessAdminConsole",
+          "permission": "eventTypes.manage",
           "tourId": "timelines"
         },
         {
@@ -301,8 +275,7 @@
           "path": "/oversight/tools/crew-assignments",
           "description": "Assign volunteers to parking crews. Controls which shifts each volunteer is eligible for in the Scheduler.",
           "icon": "fa-solid fa-people-group",
-          "minRole": null,
-          "permission": "createAssignments",
+          "permission": "crews.assign",
           "tourId": "crewMatrix"
         },
         {
@@ -310,8 +283,7 @@
           "path": "/oversight/tools/rendezvous",
           "description": "View and manage meeting point details for shift assignments. Includes GPS, photo, and floor info sent with shift alerts.",
           "icon": "fa-solid fa-location-dot",
-          "minRole": null,
-          "permission": "editRendezvous",
+          "permission": "rendezvous.manage",
           "tourId": "rendezvous"
         },
         {
@@ -319,8 +291,7 @@
           "path": "/oversight/tools/scheduler",
           "description": "Assign volunteers to shift slots. Filter by rank or department and enforce role eligibility automatically.",
           "icon": "fa-solid fa-calendar-days",
-          "minRole": null,
-          "permission": "createAssignments",
+          "permission": "scheduler.use",
           "tourId": "scheduler"
         },
         {
@@ -328,8 +299,7 @@
           "path": "/oversight/tools/scheduler/report",
           "description": "Printable schedule report for a convention day, organized by department, shift, and location. Publish to generate a PDF and notify volunteers.",
           "icon": "fa-solid fa-print",
-          "minRole": null,
-          "permission": "createAssignments",
+          "permission": "scheduler.use",
           "tourId": "schedulerReport"
         },
         {
@@ -337,8 +307,7 @@
           "path": "/oversight/tools/conflict-grid",
           "description": "View a master grid of all volunteer shift assignments to identify scheduling conflicts and coverage gaps.",
           "icon": "fa-solid fa-table-cells",
-          "minRole": null,
-          "permission": "createAssignments",
+          "permission": "scheduler.use",
           "tourId": "conflictGrid"
         },
         {
@@ -346,8 +315,7 @@
           "path": "/oversight/tools/schedule-rules",
           "description": "Manage standing policy rules injected into the AI schedule analysis. Rules influence how violations are assessed and suggested for resolution.",
           "icon": "fa-solid fa-list-check",
-          "minRole": "ADMIN",
-          "permission": "deleteVolunteer",
+          "permission": "scheduler.manageRules",
           "tourId": "scheduleRules"
         },
         {
@@ -355,8 +323,7 @@
           "path": "/oversight/tools/volunteer-schedule",
           "description": "Look up any volunteer's shift assignments across all convention days. Print or send via SMS/email.",
           "icon": "fa-solid fa-calendar-check",
-          "minRole": null,
-          "permission": "createAssignments",
+          "permission": "scheduler.use",
           "tourId": "volunteerSchedule"
         },
         {
@@ -364,17 +331,15 @@
           "path": "/oversight/tools/shift-alerts",
           "description": "Schedule and send SMS shift reminders. Manage burst alerts, rolling T-15 notifications, and the send log.",
           "icon": "fa-solid fa-bell",
-          "minRole": null,
-          "permission": "accessAdminConsole",
+          "permission": "alerts.manageShiftAlerts",
           "tourId": "shiftAlerts"
         },
-    {
+        {
           "title": "Capacity Alerts",
           "path": "/oversight/tools/capacity-alerts",
           "description": "Define SMS alert thresholds per location and choose who gets notified when a lot crosses a threshold.",
           "icon": "fa-solid fa-warehouse",
-          "minRole": null,
-          "permission": "accessAdminConsole",
+          "permission": "alerts.manageCapacityAlerts",
           "tourId": "capacityAlerts"
         }
       ]
@@ -389,8 +354,7 @@
           "path": "/oversight/tools/attendance/checkin",
           "description": "Log volunteer attendance shift by shift. Mark arrivals, add walk-ins, and record notes in real time.",
           "icon": "fa-solid fa-clipboard-check",
-          "minRole": null,
-          "permission": "logAttendance",
+          "permission": "attendance.checkIn",
           "tourId": "attendanceCheckin"
         },
         {
@@ -398,8 +362,7 @@
           "path": "/oversight/tools/attendance/report",
           "description": "View attendance across all shifts for a convention day. See invited, RSVP, attended, and no-show counts.",
           "icon": "fa-solid fa-chart-bar",
-          "minRole": null,
-          "permission": "viewAttendance",
+          "permission": "attendance.viewReports",
           "tourId": "attendanceReport"
         }
       ]
@@ -414,8 +377,7 @@
           "path": "/oversight/tools/decently-export",
           "description": "Download a CSV of volunteers not yet exported and mark them as exported in the system.",
           "icon": "fa-solid fa-file-export",
-          "minRole": null,
-          "permission": "accessAdminConsole",
+          "permission": "decently.run",
           "tourId": "decentlyExport"
         },
         {
@@ -423,8 +385,7 @@
           "path": "/oversight/tools/decently-import",
           "description": "Upload an approved volunteer CSV from Decently. Matches records, sets active status, and flags new entries.",
           "icon": "fa-solid fa-file-import",
-          "minRole": null,
-          "permission": "accessAdminConsole",
+          "permission": "decently.run",
           "tourId": "decentlyImport"
         }
       ]
@@ -439,8 +400,12 @@
           "path": "/oversight/tools/positions",
           "description": "Each position and what it allows, which positions have a permission, and each person's positions and individual permissions.",
           "icon": "fa-solid fa-user-shield",
-          "minRole": "OVERSEER",
-          "permission": null,
+          "permission": [
+            "positions.view",
+            "positions.assign",
+            "positions.manage",
+            "departments.assignPositions"
+          ],
           "tourId": null
         },
         {
@@ -448,8 +413,7 @@
           "path": "/oversight/tools/oversightstructure",
           "description": "Configure the reporting structure displayed on volunteer home pages.",
           "icon": "fa-solid fa-sitemap",
-          "minRole": null,
-          "permission": "manageCampaigns",
+          "permission": "structure.manage",
           "tourId": "oversightStructure"
         },
         {
@@ -457,8 +421,7 @@
           "path": "/oversight/tools/system-variables",
           "description": "Manage dynamic lists used throughout the application (location types, sub-location labels, and more).",
           "icon": "fa-solid fa-database",
-          "minRole": null,
-          "permission": "accessAdminConsole",
+          "permission": "systemVariables.manage",
           "tourId": "systemVariables"
         },
         {
@@ -466,25 +429,24 @@
           "path": "/oversight/tools/magic-links",
           "description": "View and revoke passwordless login tokens for shared accounts, such as printed QR codes for COUNTER stations.",
           "icon": "fa-solid fa-qrcode",
-          "minRole": "ADMIN",
-          "permission": "accessAdminConsole"
+          "permission": "volunteers.sendSignInLinks"
         }
       ]
     },
-  {
-    "id": "counts",
-    "label": "Counts",
-    "icon": "fa-solid fa-car",
-    "pages": [
-      {
-        "title": "Parking Counter",
-        "path": "/counts",
-        "description": "Phone-first tally tool for counting cars at your assigned parking location.",
-        "icon": "fa-solid fa-hand-pointer",
-        "permission": "logParkingCount",
-        "tourId": "counts"
-      }
-    ]
-  }
-]
+    {
+      "id": "counts",
+      "label": "Counts",
+      "icon": "fa-solid fa-car",
+      "pages": [
+        {
+          "title": "Parking Counter",
+          "path": "/counts",
+          "description": "Phone-first tally tool for counting cars at your assigned parking location.",
+          "icon": "fa-solid fa-hand-pointer",
+          "permission": "counts.log",
+          "tourId": "counts"
+        }
+      ]
+    }
+  ]
 }

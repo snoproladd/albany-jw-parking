@@ -201,7 +201,6 @@ import {
   decentlyDepartmentIfImport,
   decentlyDepartmentOptions,
 } from "../middleware/decentlyDepartment.js";
-import { canViewAllPeople } from "../lib/departmentAccess.js";
 import multer from "multer";
 
 /**
@@ -1020,9 +1019,6 @@ export function oversightRouter({
     (req, res) => {
       res.render("authentication_and_accounts/oversightTools", {
         csrfToken: req.csrfToken(),
-        userRole: req.session.userRole || "NON_REGISTERED",
-        userPermissions: req.session.permissions || {},
-        canManageAllDepartments: canViewAllPeople(req.session),
       });
     },
   );
@@ -3689,8 +3685,6 @@ export function oversightRouter({
           year,
           days,
           currentYear: await getActiveYear(),
-          userPermissions: req.session.permissions || {},
-          userRole: req.session.userRole || "NON_REGISTERED",
         });
       } catch (err) {
         (logError || console.error)("rendezvous landing GET error:", err);
@@ -7517,11 +7511,11 @@ export function oversightRouter({
       try {
         const targetId = Number(req.params.volunteerId);
         const senderId = req.session.userId;
-        const perms = req.session.permissions ?? {};
         const channel = req.body.channel;
 
-        // Non-oversight users can only send their own schedule
-        if (!perms.createAssignments && targetId !== senderId) {
+        // Only schedulers may send someone else's schedule (phase 3d-8:
+        // scheduler.use replaces the old createAssignments matrix check).
+        if (!res.locals.can("scheduler.use") && targetId !== senderId) {
           return res.status(403).json({
             success: false,
             error: "You can only send your own schedule.",
@@ -7691,7 +7685,6 @@ export function oversightRouter({
       try {
         return res.render("notesReport", {
           actorId: req.session.userId,
-          actorRole: req.session.userRole || "NON_REGISTERED",
         });
       } catch (err) {
         (logError || console.error)(

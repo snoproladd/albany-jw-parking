@@ -65,8 +65,6 @@ export function systemVariablesRouter({ csrfProtection, logError }) {
         (req, res) => {
             res.render('systemVariables', {
                 nav:             res.locals.nav,
-                userRole:        req.session.userRole,
-                userPermissions: res.locals.userPermissions,
                 appVersion:      res.locals.appVersion,
                 csrfToken:       req.csrfToken(),
             });

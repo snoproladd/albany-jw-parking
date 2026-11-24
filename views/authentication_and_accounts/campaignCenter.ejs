@@ -18,13 +18,6 @@
 
     <%- include('../partials/header') %>
 
-    <%
-        const _role       = typeof userRole        !== 'undefined' ? userRole        : 'NON_REGISTERED';
-        const _perms      = typeof userPermissions !== 'undefined' ? userPermissions : {};
-        const roleLevel   = roleLevelOf(_role);
-        const isAtLeast   = (r) => isRoleAtLeast(_role, r);
-        const can         = (permission) => !!(_perms[_role] && _perms[_role][permission]);
-    %>
 
     <%# ── Desktop-only alert ──────────────────────────────────────────────── %>
     <div class="mc-mobile-alert d-flex align-items-center gap-2">
@@ -659,4 +652,4 @@
     <script type="module" src="/js/tours/campaignTour.js"></script>
 
 </body>
-</html>
+</html>

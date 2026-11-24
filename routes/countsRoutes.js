@@ -72,8 +72,6 @@ export function countsRouter({ csrfProtection, logError, twilioAccountSid, twili
       }
       res.render("counts", {
         nav: res.locals.nav,
-        userRole: req.session.userRole,
-        userPermissions: res.locals.userPermissions,
         appVersion: res.locals.appVersion,
         forceSelection,
       });

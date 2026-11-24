@@ -18,13 +18,6 @@
 <body class="min-vh-100 bg-body-tertiary page-fill" data-authed="true">
     <%- include('../partials/header') %>
 
-    <%
-        const _role       = typeof userRole        !== 'undefined' ? userRole        : 'NON_REGISTERED';
-        const _perms      = typeof userPermissions !== 'undefined' ? userPermissions : {};
-        const roleLevel   = roleLevelOf(_role);
-        const isAtLeast   = (r) => isRoleAtLeast(_role, r);
-        const can         = (permission) => !!(_perms[_role] && _perms[_role][permission]);
-    %>
 
     <%# ── Toast container ──────────────────────────────────────── %>
     <div class="toast-container position-fixed bottom-0 end-0 p-3 sa-toast-container"
@@ -305,4 +298,4 @@
     <script type="module" src="/js/shiftAlerts.js"></script>
     <script type="module" src="/js/tours/shiftAlertsTour.js"></script>
 </body>
-</html>
+</html>

@@ -440,8 +440,8 @@
 
           <!-- ══ Garage Capacity ══ -->
           <%
-            const _gcPerms = userPermissions && userRole && userPermissions[userRole];
-            const canResetCounts = !!(_gcPerms && _gcPerms.accessAdminConsole);
+            // Resetting garage counts (phase 3d-8: was the old accessAdminConsole key).
+            const canResetCounts = can('counts.manageLocations');
           %>
           <div
             class="tab-pane fade"

@@ -29,7 +29,7 @@ import { isCountingAccount as isCountingAccountSession, expireGrants } from "./l
 import { requirePermission } from "./middleware/requirePermission.js";
 import { publicRoute, signedInRoute } from "./middleware/publicRoute.js";
 import { INCOMPATIBILITIES } from "./src/config/privilegeRules.js";
-import { ROLE_HIERARCHY, roleLevel, isRoleAtLeast } from "./src/config/roles.js";
+import { ROLE_HIERARCHY } from "./src/config/roles.js";
 
 const require = createRequire(import.meta.url);
 const { version: APP_VERSION } = require("./package.json");
@@ -79,13 +79,11 @@ const __dirname = dirname(__filename);
 
 const app = express();
 
-// Role helpers for every view (source: src/config/roles.js). Templates call
-// roleLevelOf(role) / isRoleAtLeast(role, minRole) instead of keeping their
-// own copy of the role order; partials/roleData.ejs hands the order to
-// client JS (public/js/roles.js).
+// Role order for partials/roleData.ejs, which hands it to the scheduler's
+// client JS (public/js/roles.js). Views check permissions with
+// res.locals.can() instead (phase 3d); this goes in phase 3d-8c, when the
+// scheduler moves to position tiers.
 app.locals.ROLE_HIERARCHY = ROLE_HIERARCHY;
-app.locals.roleLevelOf = roleLevel;
-app.locals.isRoleAtLeast = isRoleAtLeast;
 const isProd = config.NODE_ENV === "production";
 const PORT = process.env.PORT || config.PORT || (isProd ? 80 : 3000);
 const HOST = "0.0.0.0";
@@ -593,8 +591,6 @@ let mapsSyncHandle = null;
         hasDraftRegistration && !registrationCompleted;
 
       const userInitials = s.userInitials || null;
-      const userRole = s.userRole || "REGISTERED";
-
       // Department switcher: shown to people in more than one department
       // and to convention admins (who can work in any department).
       const memberships = Array.isArray(s.memberships) ? s.memberships : [];
@@ -603,8 +599,6 @@ let mapsSyncHandle = null;
       const registrationStatus = s.registrationStatus || null;
       const showDraftBanner = isLoggedIn && registrationStatus === "draft";
 
-      res.locals.userRole = userRole;
-      res.locals.userPermissions = s.permissions || {};
       res.locals.appVersion = APP_VERSION;
 
       // Counting: anyone holding counts.log (a position such as Parking
@@ -620,7 +614,6 @@ let mapsSyncHandle = null;
         showContinueRegistration,
         canUpgrade: !isLoggedIn,
         userInitials,
-        userRole,
         showDraftBanner,
         canLogParkingCount,
         isCountingAccount,

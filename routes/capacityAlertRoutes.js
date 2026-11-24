@@ -84,8 +84,6 @@ export function capacityAlertRouter({ csrfProtection, logError }) {
         ]);
         res.render("capacityAlerts", {
           nav: res.locals.nav,
-          userRole: req.session.userRole,
-          userPermissions: res.locals.userPermissions,
           appVersion: res.locals.appVersion,
           csrfToken: req.csrfToken(),
           locations,

@@ -19,7 +19,6 @@ import {
   finalizeContinueRegistration,
   getVolunteerByEmailNonArchived,
   getVolunteerById,
-  loadMergedPermissions,
   getVolunteerRsvpHistory,
   getConventionDays,
   getBlackoutsForVolunteer,
@@ -132,10 +131,11 @@ export function loginRouter({ csrfProtection, logError }) {
    * by both password login and magic-link login so the two paths
    * can never drift out of sync.
    *
-   * Multi-department (phase 2b-2): the role comes from the person's
-   * membership in the current department (convention admins are ADMIN).
-   * Someone with no membership is signed in as REGISTERED in department 1
-   * so they are never locked out; that is logged.
+   * Multi-department (phase 2b-2): the person works in one department at a
+   * time; their access there comes from their positions (_loadPositions,
+   * phase 3d). Since 3d-8 the old role, permission matrix and extra_* flags
+   * are no longer put in the session. Someone with no membership is signed
+   * in to department 1 so they are never locked out; that is logged.
    *
    * @param {import("express").Request} req
    * @param {{
@@ -180,10 +180,6 @@ export function loginRouter({ csrfProtection, logError }) {
       name: m.departmentName,
       slug: m.departmentSlug,
     }));
-    req.session.userRole = isConventionAdmin
-      ? "ADMIN"
-      : current?.role || "REGISTERED";
-
     // This request started signed out (system scope); switch its context
     // now so the rest of the login runs in the person's department.
     if (req.requestContext) {
@@ -191,15 +187,8 @@ export function loginRouter({ csrfProtection, logError }) {
       req.requestContext.scope = "department";
     }
 
-    req.session.permissions = await loadMergedPermissions();
     req.session.registrationStatus = user.registration_status || null;
 
-    // Build the delegated extra-permissions array from per-volunteer flags.
-    // Add a new entry here whenever a new extra_* column is added.
-    const extraPermissions = [];
-    if (user.extra_signs_placement) extraPermissions.push("manageSigns");
-    if (user.extra_parking_count) extraPermissions.push("logParkingCount");
-    req.session.extraPermissions = extraPermissions;
 
     // Restricted scheduler category access (session.sensitiveCategories) is
     // set with the permissions below, from crews.viewRestricted (phase 3d-4).
@@ -945,7 +934,7 @@ export function loginRouter({ csrfProtection, logError }) {
    * @returns {Promise<{
    *   isConventionAdmin: boolean,
    *   memberships: import("../lib/dbSync.js").DepartmentMembership[],
-   *   options: Array<{ id: number, name: string, role: string|null }>,
+   *   options: Array<{ id: number, name: string }>,
    * }>}
    */
   async function _departmentOptions(volunteerId) {
@@ -959,14 +948,11 @@ export function loginRouter({ csrfProtection, logError }) {
       options = all.map((d) => ({
         id: d.id,
         name: d.name,
-        role:
-          memberships.find((m) => m.departmentId === d.id)?.role ?? null,
       }));
     } else {
       options = memberships.map((m) => ({
         id: m.departmentId,
         name: m.departmentName,
-        role: m.role,
       }));
     }
     return { isConventionAdmin, memberships, options };
@@ -1028,10 +1014,6 @@ export function loginRouter({ csrfProtection, logError }) {
         name: m.departmentName,
         slug: m.departmentSlug,
       }));
-      req.session.userRole = isConventionAdmin
-        ? "ADMIN"
-        : target.role || "REGISTERED";
-
       // The rest of this request runs in the new department
       if (req.requestContext) {
         req.requestContext.departmentId = target.id;

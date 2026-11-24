@@ -51,7 +51,6 @@ export function schedulesRouter({ csrfProtection, logError, graphConfig }) {
     requirePermission("schedules.view"),
     csrfProtection,
     async (req, res) => {
-      const role = req.session?.userRole || "NON_REGISTERED";
 
       let sections = [];
       let loadError = null;
@@ -83,8 +82,6 @@ export function schedulesRouter({ csrfProtection, logError, graphConfig }) {
 
       return res.render("schedules", {
         nav: res.locals.nav,
-        userRole: role,
-        userPermissions: res.locals.userPermissions,
         appVersion: res.locals.appVersion,
         csrfToken: req.csrfToken(),
         sections,

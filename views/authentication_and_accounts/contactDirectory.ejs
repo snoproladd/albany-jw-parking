@@ -19,8 +19,8 @@
   <%- include('../partials/header') %>
 
   <%
-    const _cdPerms  = userPermissions && userRole && userPermissions[userRole];
-    const canPrint  = !!(_cdPerms && _cdPerms.printUserData);
+    // Printing volunteers' personal data (phase 3d-8: was the old printUserData key).
+    const canPrint  = can('volunteers.exportData');
   %>
 
   <main class="container-fluid py-4 px-4" id="contactDirectoryRoot" data-can-print="<%= canPrint ? '1' : '0' %>">

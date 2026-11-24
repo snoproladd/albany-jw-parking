@@ -1,6 +1,6 @@
 /**
  * @file routes/sitemapRoutes.js
- * @description Route for the public, role-filtered site map page.
+ * @description Route for the public, permission-filtered site map page.
  *
  * Loads sitemap.json once at module startup. On each request, filters
  * groups and pages server-side to only include entries the current user
@@ -9,10 +9,10 @@
 
 import express from "express";
 import { publicRoute } from "../middleware/publicRoute.js";
+import { isKnownPermission } from "../src/config/permissions.js";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
-import { ROLE_HIERARCHY } from "../src/config/roles.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -23,8 +23,9 @@ const __dirname = dirname(__filename);
  * @property {string}      path
  * @property {string}      description
  * @property {string}      icon
- * @property {string|null} minRole     - Minimum role required, or null for public.
- * @property {string|null} permission  - Required permission key, or null for role-only check.
+ * @property {string|string[]|null} permission - Catalogue key(s) that open the page
+ *                                     (any one is enough), or null.
+ * @property {boolean} [signedIn]      - With no permission: shown to anyone signed in.
  */
 
 /**
@@ -43,6 +44,19 @@ const SITEMAP = JSON.parse(
   readFileSync(join(__dirname, "../src/config/sitemap.json"), "utf-8"),
 );
 
+// Every permission named in sitemap.json must be a catalogue key, so a typo
+// stops the app at startup instead of quietly hiding a page.
+for (const group of SITEMAP.groups) {
+  for (const page of group.pages) {
+    const keys = Array.isArray(page.permission) ? page.permission : (page.permission ? [page.permission] : []);
+    for (const key of keys) {
+      if (!isKnownPermission(key)) {
+        throw new Error(`sitemap.json: unknown permission "${key}" on ${page.path}`);
+      }
+    }
+  }
+}
+
 /**
  * Factory: build the sitemap router.
  * No injected dependencies required — reads only session and res.locals.
@@ -55,28 +69,28 @@ export function sitemapRouter() {
   /**
    * GET /sitemap
    * Public page — no authentication required.
-   * Renders a role-filtered index of all app pages.
-   * Guests see public pages only; logged-in users see pages for their role.
+   * Renders a permission-filtered index of all app pages.
+   * Guests see public pages only; signed-in people see the pages their
+   * permissions open.
    */
   router.get("/sitemap", publicRoute("site map (filters its links itself)"), (req, res) => {
-    const role = req.session?.userRole || "NON_REGISTERED";
-    const permissions = req.session?.permissions || {};
-    const roleLevel = ROLE_HIERARCHY.indexOf(role);
+    const isLoggedIn = Boolean(req.session?.userId);
+    const can = typeof res.locals.can === "function" ? res.locals.can : () => false;
 
     /**
-     * Return true if the current user should see this page entry.
+     * Return true if the current user should see this page entry: they
+     * hold one of its catalogue keys (phase 3d-8; was minRole and the old
+     * role matrix), or it only needs a sign-in, or it is public.
      *
      * @param {SitemapPage} page
      * @returns {boolean}
      */
     function isVisible(page) {
-      if (page.minRole !== null) {
-        const minLevel = ROLE_HIERARCHY.indexOf(page.minRole);
-        if (minLevel === -1 || roleLevel < minLevel) return false;
+      if (page.permission) {
+        const keys = Array.isArray(page.permission) ? page.permission : [page.permission];
+        return keys.some((k) => can(k));
       }
-      if (page.permission !== null) {
-        if (!permissions[role]?.[page.permission]) return false;
-      }
+      if (page.signedIn) return isLoggedIn;
       return true;
     }
 
@@ -90,8 +104,6 @@ export function sitemapRouter() {
     return res.render("sitemap", {
       groups: filteredGroups,
       nav: res.locals.nav,
-      userRole: role,
-      userPermissions: res.locals.userPermissions,
       appVersion: res.locals.appVersion,
     });
   });

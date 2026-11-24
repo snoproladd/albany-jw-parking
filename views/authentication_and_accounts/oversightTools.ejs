@@ -777,7 +777,7 @@
                 </div>
                 <% } %>
 
-                <% if (typeof canManageAllDepartments !== 'undefined' && canManageAllDepartments) { %>
+                <% if (can('departments.viewAllPeople')) { %>
                   <div class="col-12 col-sm-6 col-lg-4">
                     <div class="admin-tool-card h-100">
                       <div class="admin-tool-icon text-primary">
