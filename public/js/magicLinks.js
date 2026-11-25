@@ -93,7 +93,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const created = document.createElement("td");
         created.className = "small";
-        created.textContent = new Date(t.created_at).toLocaleString();
+        created.textContent = window.ConventionTime?.formatMoment(t.created_at) || new Date(t.created_at).toLocaleString();
 
         const used = document.createElement("td");
         used.className = "small";

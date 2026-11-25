@@ -347,7 +347,7 @@ document.addEventListener("DOMContentLoaded", () => {
           ? `<span class="at-badge-walkin"><i class="fa-solid fa-person-walking-arrow-right me-1"></i>Walk-In</span>`
           : `<span class="text-muted small">Invited</span>`;
         const recordedTxt = v.recorded_at
-          ? `<span class="text-muted" style="font-size:0.75rem">${new Date(v.recorded_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} · ${escAttr(v.recorded_by || "")}</span>`
+          ? `<span class="text-muted" style="font-size:0.75rem">${(window.ConventionTime?.formatMoment(v.recorded_at, "short") || "")} · ${escAttr(v.recorded_by || "")}</span>`
           : `<span class="text-muted small">—</span>`;
 
         return `

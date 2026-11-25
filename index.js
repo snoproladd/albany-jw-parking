@@ -75,7 +75,7 @@ import {
   getShiftRendezvous,
 } from "./lib/dbSync.js";
 import { getActiveYear, distributionFolderPath } from "./lib/conventionYear.js";
-import { getConventionTimeZone, conventionToday } from "./lib/conventionTime.js";
+import { getConventionTimeZone, conventionToday, momentTag } from "./lib/conventionTime.js";
 import { conventionYearStateMiddleware } from "./middleware/conventionYearState.js";
 import { closedYearGuard } from "./middleware/closedYearGuard.js";
 import { conventionYearRouter } from "./routes/conventionYearRoutes.js";
@@ -641,6 +641,10 @@ let mapsSyncHandle = null;
       } catch {
         res.locals.conventionTimeZone = "America/New_York";
       }
+      // Templates print moments with <%- momentTag(value, style) %>: the
+      // browser shows them in the viewer's own zone, labelled.
+      res.locals.momentTag = (value, style = "datetime") =>
+        momentTag(value, style, res.locals.conventionTimeZone);
       next();
     });
 

@@ -705,11 +705,13 @@ async function loadPreview(id, panel) {
         hour: "numeric",
         minute: "2-digit",
         hour12: true,
-        timeZone: "America/New_York",
+        // Fire times are convention times, labelled (EST/EDT, CST…).
+        timeZone: window.ConventionTime?.timeZone || "America/New_York",
+        timeZoneName: "short",
       };
       fireHtml = `<div class="sa-preview-fire mb-2">
           <i class="fa-solid fa-clock me-1"></i>
-          <strong>Fires:</strong> ${fireDate.toLocaleString("en-US", opts)} EDT
+          <strong>Fires:</strong> ${fireDate.toLocaleString("en-US", opts)}
       </div>`;
     } else if (isT15) {
       fireHtml = `<div class="sa-preview-fire mb-2">
@@ -1008,11 +1010,10 @@ function renderLogTable(rows, container) {
           ? '<span class="sa-badge-sent"><i class="fa-solid fa-check me-1"></i>Sent</span>'
           : '<span class="sa-badge-failed"><i class="fa-solid fa-xmark me-1"></i>Failed</span>';
 
+      // In the viewer's own zone, labelled (public/js/conventionTime.js).
       const sentAt = r.sent_at
-        ? new Date(r.sent_at).toLocaleString("en-US", {
-            dateStyle: "short",
-            timeStyle: "short",
-          })
+        ? window.ConventionTime?.formatMoment(r.sent_at, "short") ||
+          new Date(r.sent_at).toLocaleString("en-US", { dateStyle: "short", timeStyle: "short" })
         : "\u2014";
 
       const catLabel = CAT_LABELS[r.alert_category] ?? r.alert_category;

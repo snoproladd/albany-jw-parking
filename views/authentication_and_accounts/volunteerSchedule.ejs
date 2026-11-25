@@ -200,7 +200,7 @@
         </h1>
         <p class="vs-subtitle">
           <%= brand.siteName %> &mdash;
-          Generated <%= new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) %>
+          Generated <%- momentTag(new Date()) %>
         </p>
       </div>
 

@@ -305,7 +305,7 @@
                         <ul class="list-unstyled small pos-history">
                           <% peopleData.person.history.forEach(function (h) { %>
                             <li>
-                              <time datetime="<%= h.createdAt %>"><%= new Date(h.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %></time>
+                              <%- momentTag(h.createdAt, 'date') %>
                               · <span class="fw-semibold"><%= actionText[h.action] || h.action %></span>
                               <% if (h.positionName) { %>"<%= h.positionName %>"<% } %>
                               <% if (h.permissionKey) { %>"<%= labelOf[h.permissionKey] || h.permissionKey %>"<% } %>

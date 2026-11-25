@@ -1,0 +1,10 @@
+<%#
+    views/partials/conventionTimeData.ejs
+    The convention's time zone (System Variables, per convention year) as a
+    JSON data block for public/js/conventionTime.js, which the header loads
+    straight after it. res.locals.conventionTimeZone is set for every
+    request in index.js. A JSON block is data, not script: it needs no nonce
+    and runs nothing; "<" is escaped so it can never close the tag.
+%>
+<script type="application/json" id="convention-time-data"><%- JSON.stringify({ timeZone: locals.conventionTimeZone || 'America/New_York' }).replace(/</g, '\\u003c') %></script>
+<script src="/js/conventionTime.js"></script>

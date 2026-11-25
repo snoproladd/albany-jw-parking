@@ -38,20 +38,25 @@ function _stopPoller() {
 }
 
 /**
- * Compare an ISO date string (YYYY-MM-DD) to today's local calendar date.
+ * Compare an ISO date string (YYYY-MM-DD) to today's date at the convention
+ * (its time zone, window.ConventionTime).
  *
  * @param {string|null} isoDate  e.g. "2026-08-07"
  * @returns {boolean}
  */
 function _isToday(isoDate) {
   if (!isoDate) return false;
-  const d = new Date();
-  const today = [
-    d.getFullYear(),
-    String(d.getMonth() + 1).padStart(2, "0"),
-    String(d.getDate()).padStart(2, "0"),
-  ].join("-");
-  return isoDate.slice(0, 10) === today;
+  return isoDate.slice(0, 10) === _conventionToday();
+}
+
+/**
+ * Today's date at the convention, "YYYY-MM-DD" (the convention's time zone;
+ * the browser's own date if the helper is missing).
+ *
+ * @returns {string}
+ */
+function _conventionToday() {
+  return window.ConventionTime?.today() ?? new Date().toLocaleDateString("en-CA");
 }
 
 // Cancel the poller whenever the user switches days
@@ -109,7 +114,7 @@ function _autoSelectTodayIfInConvention() {
         return;
     }
 
-    const todayIso = new Date().toISOString().slice(0, 10);
+    const todayIso = _conventionToday();
     const todayDay = days.find(
         (d) =>
             d.convention_date &&

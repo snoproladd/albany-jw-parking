@@ -13,8 +13,6 @@
 //  Constants
 // ─────────────────────────────────────────────
 
-/** EDT offset in hours (UTC-4) — matches alertScheduler.js. */
-const EDT_OFFSET_HOURS = 4;
 
 /** Minutes after shift start beyond which editing is locked. */
 const LOCK_AFTER_MINUTES = 15;
@@ -47,18 +45,18 @@ function _csrf() {
 
 /**
  * Compute minutes until (positive) or since (negative) a shift starts.
- * Uses the same EDT conversion as alertScheduler.js.
+ * The shift's date and start time are convention clock times; they become
+ * a real moment in the convention's time zone (window.ConventionTime,
+ * public/js/conventionTime.js, loaded by the shared header).
  *
  * @param {string} conventionDate  "YYYY-MM-DD"
- * @param {string} startTime      "HH:MM" (24-hour Eastern local)
+ * @param {string} startTime      "HH:MM" (24-hour convention time)
  * @returns {number}  Positive = minutes until start, negative = minutes since start.
  */
 function _minutesToShiftStart(conventionDate, startTime) {
   if (!conventionDate || !startTime) return Infinity;
-  const [h, m] = startTime.split(":").map(Number);
-  const utc = new Date(`${conventionDate}T00:00:00Z`);
-  utc.setUTCHours(h + EDT_OFFSET_HOURS, m, 0, 0);
-  return (utc - Date.now()) / (60 * 1000);
+  const mins = window.ConventionTime?.minutesUntil(conventionDate, startTime);
+  return Number.isFinite(mins) ? mins : Infinity;
 }
 
 /**

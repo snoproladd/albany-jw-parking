@@ -137,7 +137,7 @@
                           <%
                             const name = [v.lastName, v.firstName].filter(Boolean).join(', ') || '—';
                             const lastUpdated = v.last_updated
-                              ? new Date(v.last_updated).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                              ? new Date(v.last_updated).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: locals.conventionTimeZone || 'America/New_York' })
                               : '—';
                             const stepLabel = {
                               emailPass:        'Email/password',

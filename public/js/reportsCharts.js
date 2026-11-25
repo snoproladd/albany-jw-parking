@@ -737,7 +737,8 @@ function populateDayPicker(days) {
   );
   if (!sel || !days.length) return;
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  // Today at the convention (its time zone), not UTC's today.
+  const todayStr = window.ConventionTime?.today() ?? new Date().toLocaleDateString("en-CA");
   let todayIdx = -1;
 
   sel.innerHTML = "";

@@ -115,6 +115,7 @@
         day: "numeric",
         hour: "numeric",
         minute: "2-digit",
+        timeZoneName: "short",
     });
     const shortDateFormat = new Intl.DateTimeFormat("en-US", {
         month: "short",

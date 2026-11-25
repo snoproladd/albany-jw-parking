@@ -167,7 +167,7 @@
                                         ? `${r.lastName}, ${r.firstName}`
                                         : `Volunteer #${r.volunteer_id}`;
                                     const createdDate = new Date(r.created_at).toLocaleDateString('en-US', {
-                                        month: 'short', day: 'numeric', year: 'numeric'
+                                        month: 'short', day: 'numeric', year: 'numeric', timeZone: locals.conventionTimeZone || 'America/New_York'
                                     });
                                     const fixedDate = r.fixed_at
                                         ? new Date(r.fixed_at).toISOString().slice(0,10)
@@ -240,7 +240,7 @@
                                         <% } %>
                                         <% if (r.fixed_at) { %>
                                             <div class="br-meta">
-                                                <%= new Date(r.fixed_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) %>
+                                                <%= new Date(r.fixed_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric', timeZone: locals.conventionTimeZone || 'America/New_York' }) %>
                                             </div>
                                         <% } %>
                                     </td>

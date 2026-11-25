@@ -96,13 +96,15 @@ function seriesColor(index) {
 // ── Time formatting ───────────────────────────────────────────────────────────
 
 /**
- * Format a UTC bucket timestamp as a short Eastern Time string (e.g. "9:00 AM").
+ * Format a UTC bucket timestamp as a short convention clock time (e.g.
+ * "9:00 AM"). Counts follow the convention day, so the chart is in the
+ * convention's time zone (window.ConventionTime), like shift times.
  * @param {string | Date} bucket  UTC datetime value from the API.
  * @returns {string}
  */
 function formatBucket(bucket) {
   return new Date(bucket).toLocaleTimeString("en-US", {
-    timeZone: "America/New_York",
+    timeZone: window.ConventionTime?.timeZone || "America/New_York",
     hour:     "numeric",
     minute:   "2-digit",
     hour12:   true,
@@ -651,7 +653,7 @@ async function loadDays() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = window.ConventionTime?.today() ?? new Date().toLocaleDateString("en-CA");
 
     reportDaySelect.innerHTML =
       '<option value="">Select a day\u2026</option>' +

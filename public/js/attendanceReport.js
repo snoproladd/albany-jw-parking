@@ -429,7 +429,7 @@ document.addEventListener("DOMContentLoaded", () => {
             : "";
         const rsvpHtml = rsvpBadgeHtml(v.rsvp_response, v.walk_in);
         const recTxt = v.recorded_at
-          ? `<span class="text-muted" style="font-size:0.75rem">${new Date(v.recorded_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>`
+          ? `<span class="text-muted" style="font-size:0.75rem">${(window.ConventionTime?.formatMoment(v.recorded_at, "short") || "")}</span>`
           : `<span class="text-muted small">—</span>`;
 
         return `

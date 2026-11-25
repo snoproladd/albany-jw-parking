@@ -227,7 +227,7 @@
                                                class="alert alert-danger py-2 small mb-2 <%= _parkNo ? '' : 'd-none' %>" role="status">
                                             <i class="fa-solid fa-ban me-1" aria-hidden="true"></i>
                                             <strong>Not approved for parking — <%= _parkYear %>.</strong>
-                                            <span id="disapprovedMeta"><% if (_parkNo && targetUser.disapproved_by) { %>Marked by <%= targetUser.disapproved_by %><% if (targetUser.disapproved_at) { %> on <%= new Date(targetUser.disapproved_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %><% } %>.<% } %></span>
+                                            <span id="disapprovedMeta"><% if (_parkNo && targetUser.disapproved_by) { %>Marked by <%= targetUser.disapproved_by %><% if (targetUser.disapproved_at) { %> on <%- momentTag(targetUser.disapproved_at, 'date') %><% } %>.<% } %></span>
                                             Decently imports and recruitment replies will keep them inactive this year.
                                           </div>
                                           <p class="text-muted small mb-2 <%= _parkNo ? 'd-none' : '' %>" id="disapproveHelp">
@@ -264,7 +264,7 @@
                                         <div>
                                           <strong class="text-danger small d-block">This volunteer has been deleted.</strong>
                                           <span class="text-muted small">
-                                            Deleted <%= targetUser.deleted_at ? new Date(targetUser.deleted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '' %><% if (targetUser.deleted_by) { %> by <%= targetUser.deleted_by %><% } %>.
+                                            Deleted <%- targetUser.deleted_at ? momentTag(targetUser.deleted_at, 'date') : '' %><% if (targetUser.deleted_by) { %> by <%= targetUser.deleted_by %><% } %>.
                                           </span>
                                         </div>
                                         <button type="button" class="btn btn-outline-success btn-sm ms-auto" id="reinstateVolunteerBtn">
@@ -750,7 +750,7 @@
                                                   ? new Date(inv.convention_date).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', timeZone:'UTC' })
                                                   : '';
                                                 const sentFmt = inv.last_sent_at
-                                                  ? new Date(inv.last_sent_at).toLocaleDateString('en-US', { month:'short', day:'numeric' })
+                                                  ? new Date(inv.last_sent_at).toLocaleDateString('en-US', { month:'short', day:'numeric', timeZone: locals.conventionTimeZone || 'America/New_York' })
                                                   : '—';
                                                 const where = [inv.day_label, dateFmt, inv.shift_label].filter(Boolean).join(' · ');
                                                 const current = inv.responded_at ? (inv.response || '') : '';
@@ -795,7 +795,7 @@
                                                       </div>
                                                       <% } %>
                                                       <% if (inv.previousText) { %>
-                                                        <div class="text-muted mt-1 rsvp-changed">Changed from <%= inv.previousText %> · <%= new Date(inv.response_changed_at).toLocaleDateString('en-US', { month:'short', day:'numeric' }) %><%= inv.response_source ? ' · via ' + (rsvpSources[inv.response_source] || inv.response_source) : '' %></div>
+                                                        <div class="text-muted mt-1 rsvp-changed">Changed from <%= inv.previousText %> · <%= new Date(inv.response_changed_at).toLocaleDateString('en-US', { month:'short', day:'numeric', timeZone: locals.conventionTimeZone || 'America/New_York' }) %><%= inv.response_source ? ' · via ' + (rsvpSources[inv.response_source] || inv.response_source) : '' %></div>
                                                       <% } %>
                                                       <div class="rsvp-status mt-1" role="status"></div>
                                                     </div>

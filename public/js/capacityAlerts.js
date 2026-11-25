@@ -182,7 +182,7 @@
       return;
     }
     const when = state.enabledAt
-      ? new Date(state.enabledAt).toLocaleString()
+      ? window.ConventionTime?.formatMoment(state.enabledAt) || new Date(state.enabledAt).toLocaleString()
       : "unknown time";
     killSwitchStatus.textContent = `All alerts are paused (enabled ${when}). No SMS will send until this is turned back off.`;
     killSwitchStatus.classList.remove("d-none");
@@ -232,7 +232,8 @@
     logTbody.innerHTML = "";
     log.forEach((row) => {
       const tr = document.createElement("tr");
-      const sentAt = new Date(row.sent_at).toLocaleString();
+      // In the viewer's own zone, labelled (public/js/conventionTime.js).
+      const sentAt = window.ConventionTime?.formatMoment(row.sent_at) || new Date(row.sent_at).toLocaleString();
       const statusClass =
         row.status === "sent" ? "text-success" : "text-danger";
       tr.innerHTML = `

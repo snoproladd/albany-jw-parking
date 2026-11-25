@@ -126,6 +126,7 @@
           year: "numeric",
           hour: "numeric",
           minute: "2-digit",
+          timeZoneName: "short",
         })
       : "—";
     var triggeredBy = _run.triggered_by_name

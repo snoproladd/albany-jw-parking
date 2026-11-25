@@ -118,9 +118,9 @@
                             <div class="small text-muted"><%= t.email || '—' %></div>
                           </td>
                           <td><%= t.label || '—' %></td>
-                          <td class="small"><%= new Date(t.created_at).toLocaleString() %></td>
+                          <td class="small"><%- momentTag(t.created_at) %></td>
                           <td class="small">
-                            <%= t.last_used_at ? new Date(t.last_used_at).toLocaleString() : 'Never' %>
+                            <% if (t.last_used_at) { %><%- momentTag(t.last_used_at) %><% } else { %>Never<% } %>
                           </td>
                           <td>
                             <% if (t.revoked_at) { %>
