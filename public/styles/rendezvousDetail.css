@@ -1,0 +1,31 @@
+/**
+ * @file rendezvousDetail.css
+ * @description Styles for the public meet-up details page (GET /rv/:saId,
+ * views/authentication_and_accounts/rendezvousDetail.ejs), opened from the
+ * link in shift reminder and meet-up change texts. Moved out of an inline
+ * <style> block in the template.
+ */
+
+.rv-detail {
+    max-width: 480px;
+    margin: 2rem auto;
+}
+
+.rv-detail-photo {
+    width: 100%;
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.rv-detail-field {
+    margin-bottom: 0.75rem;
+}
+
+.rv-detail-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--bs-secondary-color);
+    margin-bottom: 0.15rem;
+}

@@ -1,3 +1,9 @@
+<%#
+  Public meet-up details page (GET /rv/:saId, token-gated, no sign-in).
+  Linked from shift reminder and meet-up change texts. The Open Graph tags
+  let phones that preview links show the meet-up photo under the link.
+  Styles: public/styles/rendezvousDetail.css.
+%>
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -5,16 +11,23 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <%- include('../partials/metaDescription') %>
+    <meta name="robots" content="noindex, nofollow" />
+    <% if (typeof og !== 'undefined' && og) { %>
+      <meta property="og:type" content="website" />
+      <meta property="og:site_name" content="<%= brand.siteName %>" />
+      <meta property="og:title" content="<%= og.title %>" />
+      <meta property="og:description" content="<%= og.description %>" />
+      <meta property="og:url" content="<%= og.url %>" />
+      <% if (og.image) { %>
+        <meta property="og:image" content="<%= og.image %>" />
+        <meta property="og:image:alt" content="Photo of the meet-up point" />
+        <meta name="twitter:card" content="summary_large_image" />
+      <% } %>
+    <% } %>
     <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="/styles/fontawesome/css/all.css" />
     <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
-    <style>
-      .rv-detail { max-width: 480px; margin: 2rem auto; }
-      .rv-detail-photo { width: 100%; border-radius: 0.5rem; margin-bottom: 1rem; }
-      .rv-detail-field { margin-bottom: 0.75rem; }
-      .rv-detail-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
-        letter-spacing: 0.04em; color: var(--bs-secondary-color); margin-bottom: 0.15rem; }
-    </style>
+    <link rel="stylesheet" href="/styles/rendezvousDetail.css" />
   </head>
 
   <body class="bg-body-tertiary">

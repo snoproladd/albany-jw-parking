@@ -1048,6 +1048,10 @@ app.use(
      * GET /rv/:scheduleAssignmentId
      * Public page showing rendezvous point details + photo.
      * Access is gated by an HMAC token in the ?t= query parameter.
+     *
+     * The page carries Open Graph tags (og:title, og:description and, with a
+     * photo, og:image pointing at the token-gated /rv/photo/ address), so a
+     * phone that previews links shows the meet-up photo under the texted link.
      */
     app.get("/rv/:saId", publicRoute("rendezvous link (token checked in handler)"), async (req, res) => {
       const saId = Number(req.params.saId);
@@ -1063,11 +1067,28 @@ app.use(
           return res.status(404).send("Rendezvous point not found.");
         }
 
+        // Absolute addresses for the link preview (Open Graph), built from
+        // the address the page was opened at.
+        const base = getBaseUrl(req);
+        const t = encodeURIComponent(token);
+        const where = [
+          rv.location_name,
+          rv.floor_number ? `Floor ${rv.floor_number}` : null,
+        ].filter(Boolean).join(", ");
+
         return res.render("authentication_and_accounts/rendezvousDetail", {
           rv,
           token,
           shiftLabel: `${rv.event_type_name || "Shift"} — ${rv.shift_label || ""}`,
           locationName: rv.location_name || "",
+          og: {
+            title: `Meet-up: ${where || "your shift"}`,
+            description: rv.description || rv.address || "Where to meet for your shift.",
+            url: `${base}/rv/${saId}?t=${t}`,
+            image: rv.photo_blob_name
+              ? `${base}/rv/photo/${encodeURIComponent(rv.photo_blob_name)}?a=${saId}&t=${t}`
+              : null,
+          },
         });
       } catch (err) {
         logError("rv/:saId GET error:", err);

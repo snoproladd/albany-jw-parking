@@ -31,12 +31,22 @@
             </header>
 
             <div class="card-body">
-              <%# Event type filter %>
-              <div class="mb-3">
-                <label for="rvEventFilter" class="form-label small fw-semibold">Filter by shift type</label>
-                <select id="rvEventFilter" class="form-select form-select-sm" style="max-width:280px;">
-                  <option value="">All types</option>
-                </select>
+              <%# Filters: shift type and meet-up point %>
+              <div class="rv-filters mb-3">
+                <div>
+                  <label for="rvEventFilter" class="form-label small fw-semibold">Filter by shift type</label>
+                  <select id="rvEventFilter" class="form-select form-select-sm rv-filter-select">
+                    <option value="">All types</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="rvPointFilter" class="form-label small fw-semibold">Meet-up point</label>
+                  <select id="rvPointFilter" class="form-select form-select-sm rv-filter-select">
+                    <option value="">All shifts</option>
+                    <option value="missing">No meet-up point yet</option>
+                    <option value="set">Has a meet-up point</option>
+                  </select>
+                </div>
               </div>
 
               <%# Day accordions — content populated client-side %>

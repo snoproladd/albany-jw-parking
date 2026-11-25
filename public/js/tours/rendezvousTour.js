@@ -74,9 +74,17 @@ function buildRendezvousTour() {
     });
 
     steps.push({
+        id: "rv-point-filter",
+        title: "Find shifts without a meet-up point",
+        text: "Choose <strong>No meet-up point yet</strong> to list only the shifts that still need one — handy for checking nothing is missed before the convention. <strong>Has a meet-up point</strong> shows the ones already set.",
+        attachTo: { element: "#rvPointFilter", on: "bottom" },
+        buttons: null,
+    });
+
+    steps.push({
         id: "rv-days",
         title: "Convention days",
-        text: "Click a day to expand it. Every scheduled shift assignment for that day loads on first click, and the badge on the header updates with a live count once it's loaded.",
+        text: "Click a day to expand it. Every scheduled shift and location for that day loads on first click. The badge on the header shows how many of them have a meet-up point, for example <strong>3/12</strong>; it turns yellow while any are missing.",
         attachTo: { element: "#rvDaysContainer", on: "top" },
         beforeShowPromise: openFirstRendezvousDay,
         buttons: null,
@@ -85,21 +93,21 @@ function buildRendezvousTour() {
     steps.push({
         id: "rv-cards",
         title: "Rendezvous cards",
-        text: "Each card is one shift-and-location pairing. Click a card to open the editor panel where you can view or set that meet-up's details.",
+        text: "Each card is one shift-and-location pairing. A green dot means it has a meet-up point; a grey dot and <strong>No meet-up point yet</strong> mean it still needs one. Click a card to open the editor panel and view, add or change its details.",
         buttons: null,
     });
 
     steps.push({
         id: "rv-panel",
         title: "The editor panel",
-        text: "Fields cover <strong>Description</strong>, <strong>Address</strong>, <strong>Floor</strong>, and <strong>GPS coordinates</strong> — the GPS button captures your current device location directly into the lat/lng fields. You can attach a photo, and clear it later if needed. Creating a point requires <strong>Overseer+</strong>, editing requires <strong>Keyman+</strong>, and deleting requires <strong>Overseer+</strong>.",
+        text: "Fields cover <strong>Description</strong>, <strong>Address</strong>, <strong>Floor</strong>, and <strong>GPS coordinates</strong> — the GPS button captures your current device location directly into the lat/lng fields. You can attach a photo, and clear it later if needed. Creating, editing and deleting a point all need the permission to manage rendezvous points, which comes with your position.",
         buttons: null,
     });
 
     steps.push({
         id: "rv-guard",
         title: "The T-15 time guard",
-        text: "Editing locks entirely once a shift is well underway. In the window right before a shift starts, saving a change triggers a confirmation and sends an update alert SMS to every volunteer already assigned — so nobody misses a last-minute change to where they're meeting.",
+        text: "Editing locks entirely once a shift is well underway. In the window right before a shift starts, saving a change triggers a confirmation and sends an update alert SMS to every assigned volunteer who has texts and shift reminders turned on — so nobody misses a last-minute change to where they're meeting. After saving, the status line follows the alert's delivery for a couple of minutes, for example <strong>3 of 3 delivered</strong>, and names anyone it did not reach and why.",
         buttons: null,
     });
 
