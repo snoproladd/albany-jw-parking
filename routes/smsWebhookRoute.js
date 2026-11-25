@@ -5,10 +5,11 @@
  * Routing decision tree (in order):
  *  1. Validate the Twilio signature — reject spoofed requests.
  *  2. Keywords (whole message only): opt-out (STOP, QUIT, …) and opt-in
- *     (START, UNSTOP, YES) update the volunteer's consent through
+ *     (START, UNSTOP) update the volunteer's consent through
  *     handleSmsOptOutWebhook; HELP / INFO are left to Twilio's own reply.
  *  3. Unknown phone number — reply asking for name, alert overseers.
- *  3b. A single digit (1–9) from a known volunteer answers only the newest
+ *  3b. A number (1–9) or the answer in words ("yes", "no", "maybe", a
+ *     custom choice) from a known volunteer answers only the newest
  *     invitation texted to them in the last 7 days (lib/rsvp.js
  *     matchTextReply): not yet answered, it is recorded and confirmed;
  *     already answered, they get the link to change it. Answers are only
@@ -77,6 +78,7 @@ import {
 import { runAsDepartment, getRequestContext } from "../lib/sql.js";
 import {
   matchTextReply,
+  mightBeTextAnswer,
   recordAnswer,
   answerLabel,
   parseAnswerConfig,
@@ -144,10 +146,11 @@ const OPT_OUT_KEYWORDS = new Set([
 ]);
 
 /**
- * Opt-in keywords (Twilio's defaults: START, UNSTOP, YES). Twilio lifts its
- * block and replies itself; here the volunteer record gets consent back.
+ * Opt-in keywords (the Messaging Service's list: START, UNSTOP). Twilio
+ * lifts its block and replies itself; here the volunteer record gets
+ * consent back. YES is not one: it answers an invitation (step 5b).
  */
-const OPT_IN_KEYWORDS = new Set(["START", "UNSTOP", "YES"]);
+const OPT_IN_KEYWORDS = new Set(["START", "UNSTOP"]);
 
 /**
  * Help keywords. Twilio sends the help reply itself; the webhook only
@@ -442,12 +445,14 @@ export function smsWebhookRouter({
         return;
       }
 
-      // ── 5b. A texted first answer to an invitation (reply 1, 2, 3 …) ─
-      // A number only answers the newest invitation texted in the last
-      // week. Changing an answer is done with the link. Another invitation
-      // still waiting is sent again, so it becomes the newest
-      // (lib/rsvp.js matchTextReply).
-      if (/^\s*[1-9]\s*$/.test(bodyRaw)) {
+      // ── 5b. A texted first answer to an invitation (1, 2, 3 … or the
+      // answer in words: "yes", "no", "maybe", a custom choice) ──────
+      // Only answers the newest invitation texted in the last week.
+      // Changing an answer is done with the link. Another invitation still
+      // waiting is sent again as a follow-up, so it becomes the newest
+      // (lib/rsvp.js matchTextReply). Words that aren't an answer carry on
+      // as an ordinary message.
+      if (mightBeTextAnswer(bodyRaw)) {
         const match = matchTextReply(bodyRaw, await getTextReplyInvitations(volunteer.id));
         const linkFor = (inv) => `${getBaseUrl(req)}/invite/respond/${encodeURIComponent(inv.token)}`;
         const deptOf = (inv) => inv.department_name || "Convention";
