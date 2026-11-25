@@ -41,6 +41,8 @@ import {
     getMeetingT15Candidates,
 } from "../lib/dbSync.js";
 import { getActiveYear } from "../lib/conventionYear.js";
+import { getConventionTimeZone } from "../lib/conventionTime.js";
+import { scheduleFireAt } from "../lib/alertScheduler.js";
 
 const isDemo = process.argv.includes("--demo");
 
@@ -135,16 +137,20 @@ function addDays(date, days) {
 
 /**
  * Describe when a burst schedule fires relative to now, the way the
- * scheduler tick decides (it sends only within 5 minutes after the time).
+ * scheduler tick decides (scheduleFireAt; it sends only within 5 minutes
+ * after the time).
  *
- * @param {object} s  Schedule row
+ * @param {object} s   Schedule row
+ * @param {string} tz  Convention time zone (IANA name)
  * @returns {string}
  */
-function fireStatus(s) {
-    if (!s.fire_date || !s.fire_time_utc) return "no fire date/time set: never fires on its own";
-    const fireUtc = new Date(`${ymd(s.fire_date)}T${hhmm(s.fire_time_utc)}:00Z`);
-    if (Number.isNaN(fireUtc.getTime())) return "fire time unreadable: never fires on its own";
-    const eastern = fireUtc.toLocaleString("en-US", { timeZone: "America/New_York", dateStyle: "medium", timeStyle: "short" });
+function fireStatus(s, tz) {
+    if (!s.fire_date || (!s.fire_time_local && !s.fire_time_utc)) {
+        return "no fire date/time set: never fires on its own";
+    }
+    const fireUtc = scheduleFireAt(s, tz);
+    if (!fireUtc) return "fire time unreadable: never fires on its own";
+    const local = fireUtc.toLocaleString("en-US", { timeZone: tz, dateStyle: "medium", timeStyle: "short", timeZoneName: "short" });
     const mins = Math.round((fireUtc.getTime() - Date.now()) / 60000);
     let when;
     if (mins > 0) {
@@ -154,7 +160,10 @@ function fireStatus(s) {
     } else {
         when = `time passed ${Math.round(-mins / 60)} h ago (fired, or missed if the server was off)`;
     }
-    return `${ymd(s.fire_date)} ${hhmm(s.fire_time_utc)} UTC = ${eastern} Eastern; ${when}`;
+    const stored = s.fire_time_local
+        ? `${ymd(s.fire_date)} ${hhmm(s.fire_time_local)} convention time`
+        : `${ymd(s.fire_date)} ${hhmm(s.fire_time_utc)} UTC (old column; run shift_alert_fire_time_local.sql)`;
+    return `${stored} = ${local}; ${when}`;
 }
 
 /**
@@ -306,6 +315,7 @@ function printLeftOut(all, sending, filter) {
 async function inspectDepartment(departmentId) {
     const dept = (await query("SELECT name FROM dbo.departments WHERE id = @id;", (r) => r.input("id", sql.Int, departmentId))).recordset[0];
     const year = await getActiveYear();
+    const tz = await getConventionTimeZone();
     out(`\n=== Department ${departmentId} (${dept?.name ?? "?"}), convention year ${year} ===`);
 
     const days = (await query(
@@ -324,7 +334,7 @@ async function inspectDepartment(departmentId) {
             out("      rolling 15-minute reminders: see the section below");
             continue;
         }
-        out(`      ${fireStatus(s)}`);
+        out(`      ${fireStatus(s, tz)}`);
         const fireDate = s.fire_date ? ymd(s.fire_date) : new Date().toISOString().slice(0, 10);
         const range = categoryRange(s.alert_category, fireDate);
         out(`      covers: ${range.text}`);

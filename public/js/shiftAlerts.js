@@ -173,12 +173,32 @@ function fmtDate(iso) {
 }
 
 import {
-  utcToEdtCard,
-  utcToEdtDisplay,
-  localToUtc,
+  fmtTimeInput,
   bindTimeInput,
   validateTimeInput,
 } from './timeUtils.js';
+
+/**
+ * Format a schedule's fire time for its card: the convention clock time
+ * with the convention zone's abbreviation, e.g. "7:00 PM EDT". Fire times
+ * are convention times (fire_time_local on fire_date), the same as shifts.
+ *
+ * @param {object} s  Schedule row (fire_date, fire_time_local)
+ * @returns {string}  e.g. "7:00 PM EDT", or "\u2014" when there is no time
+ */
+function fmtFireTime(s) {
+  const hhmm = fmtTimeInput(s.fire_time_local);
+  if (!hhmm || !s.fire_date) return "\u2014";
+  const dateStr = new Date(s.fire_date).toISOString().slice(0, 10);
+  const at = window.ConventionTime?.localToUtc(dateStr, hhmm);
+  if (!at || Number.isNaN(at.getTime())) return hhmm;
+  return at.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: window.ConventionTime.timeZone,
+    timeZoneName: "short",
+  });
+}
 
 /**
  * Parse a JSON-encoded departments string into an array of keys.
@@ -210,7 +230,7 @@ function buildScheduleCard(s) {
 
   const fireDisplay = isT15
     ? '<span class="text-muted fst-italic">auto-rolling</span>'
-    : `${fmtDate(s.fire_date)} at ${utcToEdtCard(s.fire_time_utc)}`;
+    : `${fmtDate(s.fire_date)} at ${fmtFireTime(s)}`;
 
   const depts = parseDepts(s.departments);
   const deptHtml = depts.length
@@ -348,8 +368,9 @@ function openForm(schedule) {
     document.getElementById("saFormFireDate").value = schedule.fire_date
       ? new Date(schedule.fire_date).toISOString().slice(0, 10)
       : "";
-    document.getElementById("saFormFireTime").value = utcToEdtDisplay(
-      schedule.fire_time_utc,
+    // Convention clock time, shown as entered.
+    document.getElementById("saFormFireTime").value = fmtTimeInput(
+      schedule.fire_time_local,
     );
     document.getElementById("saFormIncludeNull").checked =
       !!schedule.include_null_dept;
@@ -511,13 +532,14 @@ async function saveSchedule() {
     return;
   }
 
-  const parsedEdtTime = category !== "t15min" ? validateTimeInput("saFormFireTime") : null;
+  // Fire time is entered in convention time (like shifts), stored as is.
+  const parsedTime = category !== "t15min" ? validateTimeInput("saFormFireTime") : null;
 
   if (category !== "t15min" && !fireDate) {
     showToast("Fire date is required for this category.", "warning");
     return;
   }
-  if (category !== "t15min" && !parsedEdtTime) {
+  if (category !== "t15min" && !parsedTime) {
     showToast("Please correct the highlighted time field.", "warning");
     return;
   }
@@ -526,7 +548,7 @@ async function saveSchedule() {
     name,
     alert_category: category,
     fire_date: category !== "t15min" ? fireDate : null,
-    fire_time_utc: parsedEdtTime ? localToUtc(parsedEdtTime) : null,
+    fire_time_local: parsedTime || null,
     departments: checkedDepts.length ? JSON.stringify(checkedDepts) : null,
     include_null_dept: inclNull,
     message_override: override || null,
@@ -600,15 +622,13 @@ async function toggleSchedule(id, currentlyActive) {
         return;
       }
 
-      // Normalize fire_time_utc back to "HH:MM" before sending. The schedule
-      // in memory has whatever shape the GET returned (typically an ISO
-      // datetime string from the mssql TIME column, e.g.
-      // "1970-01-01T23:30:00.000Z"), which the server's parseTimeString
-      // validator rejects. Round-tripping through utcToEdtDisplay → localToUtc
-      // produces the clean "HH:MM" form that the form-save path emits.
-      const normalizedFireTime = schedule.fire_time_utc
-        ? localToUtc(utcToEdtDisplay(schedule.fire_time_utc))
-        : null;
+      // Normalize fire_time_local back to "HH:MM" before sending. The
+      // schedule in memory has whatever shape the GET returned (typically an
+      // ISO datetime string from the mssql TIME column, e.g.
+      // "1970-01-01T19:30:00.000Z"), which the server's parseTimeString
+      // validator rejects. fmtTimeInput gives the clean "HH:MM" form that the
+      // form-save path sends.
+      const normalizedFireTime = fmtTimeInput(schedule.fire_time_local) || null;
 
       const res = await fetch(`/oversight/tools/shift-alerts/schedules/${id}`, {
         method: "PUT",
@@ -618,7 +638,7 @@ async function toggleSchedule(id, currentlyActive) {
         },
         body: JSON.stringify({
           ...schedule,
-          fire_time_utc: normalizedFireTime,
+          fire_time_local: normalizedFireTime,
           active: true,
         }),
       });

@@ -189,7 +189,7 @@ import {
   updateSchedulerColumnPrefs,
 } from "../lib/dbSync.js";
 import { getActiveYear, distributionFolderPath } from "../lib/conventionYear.js";
-import { conventionToday, formatMoment } from "../lib/conventionTime.js";
+import { conventionToday, formatMoment, getConventionTimeZone } from "../lib/conventionTime.js";
 import { fillMergeFields } from "../lib/campaignMerge.js";
 import {
   textReplyHint,
@@ -218,7 +218,7 @@ import {
 
 import { PDF_SECRET, publishDays } from "../lib/publishSchedule.js";
 import { startPublishJob, getPublishJob, publishJobView } from "../lib/publishJobs.js";
-import { buildAlertMessage, sendAlertSms, sendRows } from "../lib/alertScheduler.js";
+import { buildAlertMessage, sendAlertSms, sendRows, scheduleFireAt } from "../lib/alertScheduler.js";
 import { getBrand } from "../lib/branding.js";
 import {
   buildTrackerRows,
@@ -6551,13 +6551,11 @@ export function oversightRouter({
             .status(404)
             .json({ success: false, error: "Schedule not found." });
 
-        const easternToday = new Date(Date.now() - 4 * 60 * 60 * 1000)
-          .toISOString()
-          .slice(0, 10);
+        const tz = await getConventionTimeZone();
 
         const fireDate = schedule.fire_date
           ? new Date(schedule.fire_date).toISOString().slice(0, 10)
-          : easternToday;
+          : conventionToday(new Date(), tz);
 
         const shifts = await getSchedulePreview({
           scheduleId: schedule.id,
@@ -6568,47 +6566,12 @@ export function oversightRouter({
           year: schedule.year,
         });
 
-        // Build human-readable fire time for the response.
-        // fire_time_utc may come back from the mssql TIME column as either a
-        // clean "HH:MM:SS" string or an epoch-anchored ISO datetime (e.g.
-        // "1970-01-01T23:30:00.000Z"). Extract the time portion explicitly so
-        // the concatenated ISO string is always parseable on the client.
+        // When the schedule fires: its convention clock time on fire_date,
+        // as a real moment (the client shows it in the convention zone).
         let fireAt = null;
-        if (
-          schedule.alert_category !== "t15min" &&
-          schedule.fire_date &&
-          schedule.fire_time_utc
-        ) {
-          const fireDateStr = new Date(schedule.fire_date)
-            .toISOString()
-            .slice(0, 10);
-
-          let timePart = null;
-          const raw = schedule.fire_time_utc;
-          if (raw instanceof Date && !isNaN(raw.valueOf())) {
-            timePart =
-              String(raw.getUTCHours()).padStart(2, "0") + ":" +
-              String(raw.getUTCMinutes()).padStart(2, "0") + ":" +
-              String(raw.getUTCSeconds()).padStart(2, "0");
-          } else {
-            const s = String(raw).trim();
-            const m = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
-            if (m) {
-              timePart = `${m[1].padStart(2, "0")}:${m[2]}:${m[3] || "00"}`;
-            } else {
-              const d = new Date(s);
-              if (!isNaN(d.valueOf())) {
-                timePart =
-                  String(d.getUTCHours()).padStart(2, "0") + ":" +
-                  String(d.getUTCMinutes()).padStart(2, "0") + ":" +
-                  String(d.getUTCSeconds()).padStart(2, "0");
-              }
-            }
-          }
-
-          if (timePart) {
-            fireAt = `${fireDateStr}T${timePart}Z`;
-          }
+        if (schedule.alert_category !== "t15min") {
+          const at = scheduleFireAt(schedule, tz);
+          if (at) fireAt = at.toISOString();
         }
 
         return res.json({ success: true, shifts, fireAt });
@@ -7383,8 +7346,9 @@ export function oversightRouter({
    * POST /oversight/tools/shift-alerts/schedules
    * Create a new alert schedule.
    *
-   * Body (JSON): { year, name, fire_date?, fire_time_utc?, alert_category,
+   * Body (JSON): { year, name, fire_date?, fire_time_local?, alert_category,
    *               departments?, include_null_dept, message_override? }
+   * fire_time_local is the convention clock time ("HH:MM") on fire_date.
    * Response: { success: true, id: number }
    *
    * @requires accessAdminConsole permission
@@ -7399,7 +7363,7 @@ export function oversightRouter({
         year,
         name,
         fire_date,
-        fire_time_utc,
+        fire_time_local,
         alert_category,
         departments,
         include_null_dept,
@@ -7425,7 +7389,7 @@ export function oversightRouter({
           .json({ success: false, error: "Invalid alert_category." });
       }
 
-      if (fire_time_utc && !parseTimeString(fire_time_utc))
+      if (fire_time_local && !parseTimeString(fire_time_local))
         return res
           .status(400)
           .json({ success: false, error: "Invalid fire time format." });
@@ -7435,7 +7399,7 @@ export function oversightRouter({
           year: Number(year),
           name: name.trim(),
           fire_date: fire_date || null,
-          fire_time_utc: fire_time_utc ? parseTimeString(fire_time_utc) : null,
+          fire_time_local: fire_time_local ? parseTimeString(fire_time_local) : null,
           alert_category,
           departments: departments || null,
           include_null_dept:
@@ -7455,8 +7419,9 @@ export function oversightRouter({
    * PUT /oversight/tools/shift-alerts/schedules/:id
    * Update an existing alert schedule.
    *
-   * Body (JSON): { name, fire_date?, fire_time_utc?, alert_category,
+   * Body (JSON): { name, fire_date?, fire_time_local?, alert_category,
    *               departments?, include_null_dept, message_override?, active }
+   * fire_time_local is the convention clock time ("HH:MM") on fire_date.
    * Response: { success: true }
    *
    * @requires accessAdminConsole permission
@@ -7474,7 +7439,7 @@ export function oversightRouter({
       const {
         name,
         fire_date,
-        fire_time_utc,
+        fire_time_local,
         alert_category,
         departments,
         include_null_dept,
@@ -7489,7 +7454,7 @@ export function oversightRouter({
         });
       }
 
-      if (fire_time_utc && !parseTimeString(fire_time_utc))
+      if (fire_time_local && !parseTimeString(fire_time_local))
         return res
           .status(400)
           .json({ success: false, error: "Invalid fire time format." });
@@ -7498,7 +7463,7 @@ export function oversightRouter({
         const ok = await updateAlertSchedule(id, {
           name: name.trim(),
           fire_date: fire_date || null,
-          fire_time_utc: fire_time_utc ? parseTimeString(fire_time_utc) : null,
+          fire_time_local: fire_time_local ? parseTimeString(fire_time_local) : null,
           alert_category,
           departments: departments || null,
           include_null_dept:
@@ -7598,7 +7563,7 @@ export function oversightRouter({
   /**
    * POST /oversight/tools/shift-alerts/schedules/:id/send
    * Manually trigger a burst send for a specific schedule, bypassing the
-   * fire_date/fire_time_utc window. Useful for retries and missed sends.
+   * fire date and time window. Useful for retries and missed sends.
    *
    * Body (JSON): { force?: boolean } — if true, re-sends even to already-alerted pairs
    * Response: { success: true, sent: number, failed: number, skipped: number }

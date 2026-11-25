@@ -124,7 +124,7 @@ function buildShiftAlertsTour() {
     steps.push({
         id: "sa-fire-time",
         title: "Fire date and time",
-        text: "Set when the burst alert goes out, in Eastern time — it's converted to UTC automatically. This row hides itself for T-15 Rolling schedules since those fire relative to each shift instead of a fixed time.",
+        text: "Set when the burst alert goes out, in convention time (the convention's time zone, set on System Variables), the same as shift times. This row hides itself for T-15 Rolling schedules since those fire relative to each shift instead of a fixed time.",
         attachTo: { element: "#saFireDateWrap", on: "top" },
         beforeShowPromise: () => activateTab("sa-schedules-tab").then(openShiftAlertsForm),
         buttons: null,

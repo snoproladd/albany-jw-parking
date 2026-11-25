@@ -44,6 +44,11 @@ Schema highlights:
   `status = 'active'` allows one active year. Read through
   `lib/conventionYear.js` (`getActiveYear()`); written by
   `startConventionYear()` in one transaction.
+- `shift_alert_schedules` fire time — `fire_time_local TIME(0)` is the
+  burst alert's fire time as a convention clock time on `fire_date` (like
+  shift times); `alertScheduler.scheduleFireAt()` turns it into a moment in
+  the convention's time zone. The old `fire_time_utc` is left NULL on save
+  and goes once 3.0 has shipped.
 - `volunteer_year_status` — per-volunteer snapshot taken when a year closes.
   PK `(volunteer_id, year)`; `was_active`, `recruitment_response`,
   `response_other`, `response_batch_id`, `responded_at`,
