@@ -144,8 +144,9 @@ Schema highlights:
   `threshold_type` (`percent` | `count`), `threshold_value INT`, `direction` (`above` |
   `below`), `recipient_role` (minimum role tier notified), `message_override NVARCHAR(500)
   NULL`, `is_armed BIT` (edge-trigger state — set to 0 on fire, back to 1 once the count
-  returns to the safe side), `active BIT`, `created_by FK`. Editing a rule always resets
-  `is_armed` to 1.
+  returns to the safe side), `last_sent_at DATETIME2 NULL` (last fire; a rule cannot
+  fire again within 5 minutes of it, added by `capacity_alert_last_sent.sql` in 2.89.2),
+  `active BIT`, `created_by FK`. Editing a rule always resets `is_armed` to 1.
 - `capacity_alert_log` — send-attempt audit log for Capacity Alerts. Fields: `rule_id FK`,
   `location_task_id`, `triggered_count`, `recipient_count`, `status` (`sent` | `failed`),
   `error_msg NVARCHAR(500) NULL`, `sent_at`.
