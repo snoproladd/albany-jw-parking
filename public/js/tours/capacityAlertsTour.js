@@ -1,7 +1,8 @@
 /**
  * @fileoverview capacityAlertsTour.js
  * Shepherd.js tour for the Capacity Alerts page (/oversight/tools/capacity-alerts).
- * Walks through the New Rule form (modal), the rules table, and the send log.
+ * Walks through the New Rule form (modal), the rules table, and the send log
+ * with its delivery column.
  *
  * @module capacityAlertsTour
  */
@@ -64,7 +65,7 @@ function buildCapacityAlertsTour() {
     steps.push({
         id: "ca-welcome",
         title: "Capacity Alerts",
-        text: "Capacity Alerts sends an SMS to the selected role tier the moment a location's parking count crosses a threshold. Once a rule fires, it re-arms automatically only after the count returns to the safe side — so you won't get spammed while a lot hovers near the line.",
+        text: "Capacity Alerts texts the people in the positions you choose the moment a location's parking count crosses a threshold. Once a rule fires, it re-arms only after the count returns to the safe side, and never within 5 minutes of the last alert, so you won't get spammed while a lot hovers near the line.",
         buttons: null,
     });
 
@@ -104,8 +105,8 @@ function buildCapacityAlertsTour() {
     steps.push({
         id: "ca-notify",
         title: "Notify",
-        text: "Choose the minimum role tier that should receive this alert. The message goes to every active volunteer at or above the selected role — <strong>Admin only</strong> is the narrowest option, <strong>Overseer and above</strong> the widest.",
-        attachTo: { element: "#ca-recipient-role", on: "right" },
+        text: "Tick the positions that should receive this alert. Everyone holding a ticked position who is active this year, has a phone number and has texts turned on gets the text. If anyone in a position has texts off, they are named under it as <strong>Texts off, won't be texted</strong>.",
+        attachTo: { element: "#ca-positions", on: "right" },
         buttons: null,
     });
 
@@ -139,7 +140,7 @@ function buildCapacityAlertsTour() {
     steps.push({
         id: "ca-log",
         title: "Recent Sends",
-        text: "This log shows every capacity alert actually sent — when, which location, the count that triggered it, how many recipients, and delivery status. Use it to confirm a rule fired as expected.",
+        text: "This log shows every time a rule fired: when, which location, the count that triggered it, how many people were texted, and whether the send worked. <strong>Delivered</strong> shows what the phone carriers reported back, for example <strong>3 of 4 delivered</strong>, with anyone still pending and who it did not reach and why (such as an opted-out or unreachable number). Older sends show a dash.",
         attachTo: { element: "#ca-log-table", on: "top" },
         buttons: null,
     });

@@ -2,7 +2,7 @@
  * @fileoverview shiftAlertsTour.js
  * Shepherd.js tour for the Shift Alerts page (/oversight/tools/shift-alerts).
  * Walks through the Schedules/Send Log tabs, the new-schedule form (offcanvas),
- * schedule card actions, and the send log filters.
+ * schedule card actions, and the send log with its delivery column.
  *
  * @module shiftAlertsTour
  */
@@ -91,7 +91,7 @@ function buildShiftAlertsTour() {
     steps.push({
         id: "sa-welcome",
         title: "Shift Alerts",
-        text: "Shift Alerts sends automated SMS reminders to scheduled volunteers. There are two kinds: timed <strong>burst</strong> alerts (Next Day, Same Day, All Upcoming) that fire once at a scheduled time, and the <strong>T-15 Rolling</strong> alert that fires automatically 15 minutes before every shift.",
+        text: "Shift Alerts sends automated SMS reminders to scheduled volunteers. There are two kinds: timed <strong>burst</strong> alerts (Next Day, Same Day, All Upcoming) that fire once at a scheduled time, and the <strong>T-15 Rolling</strong> alert that fires automatically 15 minutes before every shift. Reminders only go to volunteers who have texts turned on and shift reminders switched on in My Account.",
         buttons: null,
     });
 
@@ -194,7 +194,7 @@ function buildShiftAlertsTour() {
     steps.push({
         id: "sa-log-tab",
         title: "Send Log",
-        text: "Switch to this tab to see every message actually sent, filterable by status and by schedule. Each row shows the volunteer, shift, day, category, delivery status, and the Twilio message SID for troubleshooting.",
+        text: "Switch to this tab to see every message sent, filterable by status and by schedule. <strong>Status</strong> says whether the text was sent. <strong>Delivery</strong> shows what the phone carrier reported back: <strong>Delivered</strong>, <strong>Pending</strong>, or <strong>Not delivered</strong> with the reason (such as an opted-out or unreachable number). Texts sent before delivery tracking show <strong>Not tracked</strong>. Press Refresh to see updates. The Twilio message SID helps with troubleshooting.",
         attachTo: { element: "#sa-log-tab", on: "bottom" },
         beforeShowPromise: () => activateTab("sa-log-tab"),
         buttons: null,
