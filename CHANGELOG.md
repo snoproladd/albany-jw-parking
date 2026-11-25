@@ -3,6 +3,22 @@
 All notable changes to this project will be documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.89.2] — 2026-11-25
+
+Database fix only: one missing column. No code, route or dependency changes.
+
+### Fixed
+- **Capacity alerts could never fire** (since 2.81.0, 2026-07-03). The resend
+  cooldown added in 2.81.0 reads and writes `capacity_alert_rules.last_sent_at`
+  (`getActiveCapacityAlertRulesForLocation()` and `disarmCapacityAlertRule()`
+  in `lib/dbSync.js`), but no migration ever created the column. Every count
+  then failed to load its location's rules ("Invalid column name
+  'last_sent_at'", logged as `[capacityAlerter] failed to load rules`), so no
+  alert was sent or logged. With the kill switch seeded on in 2.86.3, it went unnoticed. New
+  migration `scripts/migrations/capacity_alert_last_sent.sql` (both schemas;
+  run on production 2026-11-25). Found while testing the multi-department
+  branch on a local copy of the database.
+
 ## [2.89.1] — 2026-11-20
 
 Bug fixes. No schema, route or dependency changes.
