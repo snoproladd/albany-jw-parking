@@ -90,7 +90,7 @@ function buildCampaignTour() {
     steps.push({
         id: 'mc-review',
         title: '5. Review and send',
-        text: 'The preview is the message the first person on the list will get, filled in. The counts say who gets an email, who gets a text, and who can\'t be reached. <strong>Send</strong> shows how many people will get it; results appear below, and the send shows up in the Invitation Tracker.',
+        text: 'The preview is the message the first person on the list will get, filled in. The counts say who gets an email, who gets a text, and who can\'t be reached. <strong>Send</strong> shows how many people will get it; results appear below, with texts and emails delivered filling in over the next minute or two, and the send shows up in the Invitation Tracker.',
         attachTo: { element: '#mcStepReview', on: 'top' },
         buttons: null,
     });

@@ -327,5 +327,13 @@
 /** Replaces style="width:min(500px,100vw)" on #saOffcanvas */
 .sa-offcanvas          { width: min(500px, 100vw); }
 
-/** Replaces style="font-size:.72rem" on EDT label and style="font-size:.75rem" on optional label */
+/** Small label text (fire time zone note, "optional") */
 .sa-label-sm           { font-size: 0.72rem; }
+
+/** Small text sizes for card and preview details (no inline styles: CSP) */
+.sa-text-xs            { font-size: 0.75rem; }
+.sa-text-sm            { font-size: 0.8rem; }
+.sa-text-md            { font-size: 0.85rem; }
+
+/** The Send / Edit / Pause / Delete column on a schedule card */
+.sa-card-actions       { min-width: 110px; }

@@ -280,10 +280,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const collapseId = `arCollapse-${sh.shift_id}`;
         const isFirst = itemIndex === 0;
 
-        const dotStyle = sh.event_type_color
-          ? `style="background:${sh.event_type_color}"`
-          : "";
-
         const item = document.createElement("div");
         item.className = "accordion-item mb-2 shadow-sm";
         item.innerHTML = `
@@ -295,7 +291,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                 aria-expanded="${isFirst ? "true" : "false"}"
                                 aria-controls="${collapseId}">
                             <span class="d-flex align-items-center gap-2 w-100 me-2 flex-wrap">
-                                ${sh.event_type_color ? `<span class="it-event-dot" ${dotStyle}></span>` : ""}
+                                ${sh.event_type_color ? '<span class="it-event-dot"></span>' : ""}
                                 <span class="fw-semibold">${sh.shift_label || sh.event_type_name || "Shift"}</span>
                                 <span class="text-muted small">${fmtTime(sh.shift_start)}–${fmtTime(sh.shift_end)}</span>
                                 <span class="ms-auto d-flex gap-3 me-1" id="arStats-${sh.shift_id}">
@@ -320,6 +316,12 @@ document.addEventListener("DOMContentLoaded", () => {
                         </div>
                     </div>`;
 
+        // Event-type colour on the dot, set through the DOM (no inline style
+        // attribute: CSP) and only if it's a real CSS colour.
+        const dot = item.querySelector(".it-event-dot");
+        if (dot && CSS.supports("color", sh.event_type_color)) {
+          dot.style.backgroundColor = sh.event_type_color;
+        }
         accordion.appendChild(item);
         itemIndex++;
 
@@ -429,7 +431,7 @@ document.addEventListener("DOMContentLoaded", () => {
             : "";
         const rsvpHtml = rsvpBadgeHtml(v.rsvp_response, v.walk_in);
         const recTxt = v.recorded_at
-          ? `<span class="text-muted" style="font-size:0.75rem">${(window.ConventionTime?.formatMoment(v.recorded_at, "short") || "")}</span>`
+          ? `<span class="text-muted at-recorded">${(window.ConventionTime?.formatMoment(v.recorded_at, "short") || "")}</span>`
           : `<span class="text-muted small">—</span>`;
 
         return `

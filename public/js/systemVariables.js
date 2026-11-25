@@ -48,16 +48,24 @@ const pageError   = document.getElementById('sv-page-error');
 
 // ── API helpers ───────────────────────────────────────────────────────────────
 
+/** CSRF token from the page's meta tag; the write routes check it. */
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
 /**
- * Wrapper around fetch that parses JSON and throws on non-2xx.
+ * Wrapper around fetch that parses JSON and throws on non-2xx. Every call
+ * carries the CSRF token.
  * @param {string} url
  * @param {RequestInit} [options]
  * @returns {Promise<any>}
  */
 async function apiFetch(url, options = {}) {
     const res  = await fetch(url, {
-        headers: { 'Content-Type': 'application/json', ...options.headers },
         ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken,
+            ...options.headers,
+        },
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);

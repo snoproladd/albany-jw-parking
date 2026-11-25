@@ -1487,6 +1487,7 @@ function updateChipAreaVisibility() {
       }
 
       renderResults(data);
+      if (data.success && data.runId) followSendDelivery(data.runId);
 
       // Add people / Reminder with an edited message: offer to save it as
       // the campaign's message for later sends (each send keeps its own text
@@ -1567,6 +1568,7 @@ function updateChipAreaVisibility() {
    *   success?: boolean,
    *   sent?: number,
    *   batchId?: number,
+   *   runId?: string|null,
    *   skipped?: Array<{name:string,reason:string}>,
    *   emailOnly?: Array<{name:string,reason:string}>,
    *   errors?: Array<{name:string,reason:string}>,
@@ -1576,6 +1578,7 @@ function updateChipAreaVisibility() {
    */
   function renderResults(data) {
     if (!resultsCard || !resultsBody) return;
+    deliveryWatch++; // stop following any earlier send's delivery
 
     if (!data.success || data.error) {
       resultsBody.innerHTML = `<div class="alert alert-danger mb-0">${escapeHtml(data.error || "An unexpected error occurred.")}</div>`;
@@ -1590,6 +1593,12 @@ function updateChipAreaVisibility() {
                 Sent to <strong>${data.sent}</strong> ${data.sent === 1 ? "person" : "people"}.
                 ${data.batchId ? `<a href="/oversight/tools/campaigns/tracker?batchId=${data.batchId}" class="alert-link ms-2">View in Tracker →</a>` : ""}
             </div>`;
+
+    if (data.runId) {
+      html += `<div class="mc-delivery" id="mcDeliveryStatus" role="status" aria-live="polite">
+                <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Checking delivery…
+            </div>`;
+    }
 
     if (data.skipped?.length) {
       html += `<p class="fw-semibold text-warning mb-1"><i class="fa-solid fa-triangle-exclamation me-1"></i>Skipped (${data.skipped.length}):</p><ul class="small mb-3">`;
@@ -1620,7 +1629,123 @@ function updateChipAreaVisibility() {
     resultsCard.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  // =========================================================
+  // Delivery (live, after a send)
+  // =========================================================
+
+  /** Milliseconds between delivery checks. */
+  const DELIVERY_POLL_MS = 4000;
+
+  /** Checks before giving up (4 s × 30 = 2 minutes). */
+  const DELIVERY_POLL_LIMIT = 30;
+
+  /**
+   * Bumped by each new result and by Dismiss, so an older send's checks
+   * stop on their own.
+   */
+  let deliveryWatch = 0;
+
+  /**
+   * Follow a send's delivery: every few seconds ask
+   * GET /oversight/tools/campaigns/send-delivery/:runId and write the result
+   * into the results card. Stops when no text is pending, after
+   * DELIVERY_POLL_LIMIT checks, or when another send or Dismiss replaces
+   * the card.
+   *
+   * @param {string} runId - The send's run id from the send response.
+   * @returns {void}
+   */
+  function followSendDelivery(runId) {
+    const watch = deliveryWatch;
+    let checks = 0;
+
+    /**
+     * One delivery check; schedules the next while texts are pending.
+     *
+     * @returns {Promise<void>}
+     */
+    const check = async () => {
+      if (watch !== deliveryWatch) return;
+      checks++;
+      let delivery = null;
+      try {
+        const res = await fetch(`/oversight/tools/campaigns/send-delivery/${encodeURIComponent(runId)}`);
+        const data = await res.json().catch(() => ({}));
+        if (data.success) delivery = data.delivery;
+      } catch {
+        /* try again on the next check */
+      }
+      if (watch !== deliveryWatch) return;
+      const statusEl = document.getElementById("mcDeliveryStatus");
+      if (!statusEl) return;
+      const pending = delivery ? delivery.sms.pending : 1;
+      const more = pending > 0 && checks < DELIVERY_POLL_LIMIT;
+      if (delivery) renderDelivery(statusEl, delivery, more);
+      if (more) {
+        setTimeout(check, DELIVERY_POLL_MS);
+      } else if (!delivery) {
+        statusEl.textContent = "Delivery couldn't be checked. The Invitation Tracker shows it for each send.";
+      }
+    };
+    setTimeout(check, DELIVERY_POLL_MS);
+  }
+
+  /**
+   * Write a send's delivery into the results card: one line for texts, one
+   * for emails, then anyone it did not reach and why. Built with DOM nodes
+   * (names and reasons are never treated as HTML).
+   *
+   * @param {HTMLElement} statusEl
+   * @param {{ sms: { delivered: number, pending: number, failed: number, untracked: number },
+   *           email: { sent: number, failed: number },
+   *           failures: Array<{ name: string, channel: string, reason: string }> }} d
+   * @param {boolean} stillChecking - Whether another check is coming.
+   * @returns {void}
+   */
+  function renderDelivery(statusEl, d, stillChecking) {
+    const lines = [];
+    const smsTotal = d.sms.delivered + d.sms.pending + d.sms.failed + d.sms.untracked;
+    if (smsTotal) {
+      const parts = [`${d.sms.delivered} of ${smsTotal} delivered`];
+      if (d.sms.pending) parts.push(`${d.sms.pending} pending`);
+      if (d.sms.failed) parts.push(`${d.sms.failed} not delivered`);
+      if (d.sms.untracked) parts.push(`${d.sms.untracked} not tracked`);
+      lines.push(`Texts: ${parts.join(", ")}.`);
+    }
+    const emailTotal = d.email.sent + d.email.failed;
+    if (emailTotal) {
+      lines.push(`Emails: ${d.email.sent} of ${emailTotal} sent${d.email.failed ? `, ${d.email.failed} failed` : ""}.`);
+    }
+    if (!lines.length) lines.push("Nothing to track yet.");
+
+    statusEl.replaceChildren();
+    const variant = d.failures.length ? "warning" : d.sms.pending > 0 ? "pending" : "done";
+    statusEl.className = `mc-delivery mc-delivery--${variant}`;
+
+    const head = document.createElement("div");
+    if (stillChecking) {
+      const spin = document.createElement("span");
+      spin.className = "spinner-border spinner-border-sm me-2";
+      spin.setAttribute("aria-hidden", "true");
+      head.appendChild(spin);
+    }
+    head.appendChild(document.createTextNode(lines.join(" ")));
+    statusEl.appendChild(head);
+
+    if (d.failures.length) {
+      const list = document.createElement("ul");
+      list.className = "mc-delivery-list";
+      for (const f of d.failures) {
+        const li = document.createElement("li");
+        li.textContent = `${f.name} (${f.channel === "email" ? "email" : "text"}): ${f.reason}`;
+        list.appendChild(li);
+      }
+      statusEl.appendChild(list);
+    }
+  }
+
   resultsDismiss?.addEventListener("click", () => {
+    deliveryWatch++;
     resultsCard?.classList.add("d-none");
     if (resultsBody) resultsBody.innerHTML = "";
   });

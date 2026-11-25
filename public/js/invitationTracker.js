@@ -12,7 +12,8 @@
  *    status. Loaded on first open from
  *    GET /oversight/tools/campaigns/batches/:id/sends.
  *  - People: everyone in the campaign, one row each, with their response and
- *    Revoke / Reinstate.
+ *    Remind (pending people: opens the Campaign Center's Reminder with only
+ *    them selected), Set answer, Revoke / Reinstate.
  *
  * Data: the server embeds every invitation (#it-rows-data, one row per
  * volunteer per campaign family; lib/trackerPayload.js) and the year's
@@ -372,7 +373,12 @@
         const setAnswer = row.responseNeeded && campaignById.get(row.batchId)?.answers
             ? `<button type="button" class="btn btn-outline-secondary btn-sm it-answer-btn" data-id="${row.id}" title="Set answer" aria-label="Set answer for ${name}"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></button>`
             : "";
-        return `<div class="it-row-actions">${setAnswer}<button type="button" class="btn btn-outline-danger btn-sm it-revoke-btn" data-id="${row.id}" data-name="${name}" title="Revoke invitation" aria-label="Revoke invitation for ${name}"><i class="fa-solid fa-ban" aria-hidden="true"></i></button></div>`;
+        // Remind just this person: opens the Campaign Center's Reminder with
+        // only them selected (same rule as "Remind pending").
+        const remind = row.responseNeeded && responseOf(row) === "pending" && row.volStatus === "completed" && row.volunteerId != null
+            ? `<a class="btn btn-outline-warning btn-sm it-remind-one-btn" href="/oversight/tools/campaigns?batchId=${encodeURIComponent(row.batchId)}&selectPending=1&volunteerId=${encodeURIComponent(row.volunteerId)}" title="Remind" aria-label="Send ${name} a reminder"><i class="fa-solid fa-bell" aria-hidden="true"></i></a>`
+            : "";
+        return `<div class="it-row-actions">${remind}${setAnswer}<button type="button" class="btn btn-outline-danger btn-sm it-revoke-btn" data-id="${row.id}" data-name="${name}" title="Revoke invitation" aria-label="Revoke invitation for ${name}"><i class="fa-solid fa-ban" aria-hidden="true"></i></button></div>`;
     }
 
     /**

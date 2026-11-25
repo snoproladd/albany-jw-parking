@@ -305,3 +305,8 @@
     border-radius: 0.5rem;
     padding: 2.5rem 1rem;
 }
+
+/* Recorded-at time beside a check-in (no inline styles: CSP) */
+.at-recorded {
+    font-size: 0.75rem;
+}

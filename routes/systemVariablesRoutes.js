@@ -297,6 +297,7 @@ export function systemVariablesRouter({ csrfProtection, logError, googleServerAp
     router.post(
         '/api/system-variables',
         requirePermission("systemVariables.manage"),
+        csrfProtection,
         async (req, res) => {
             try {
                 const { category, displayName, parentId, displayOrder } = req.body;
@@ -334,6 +335,7 @@ export function systemVariablesRouter({ csrfProtection, logError, googleServerAp
     router.put(
         '/api/system-variables/:id',
         requirePermission("systemVariables.manage"),
+        csrfProtection,
         async (req, res) => {
             try {
                 const id = Number(req.params.id);
@@ -369,6 +371,7 @@ export function systemVariablesRouter({ csrfProtection, logError, googleServerAp
     router.delete(
         '/api/system-variables/:id',
         requirePermission("systemVariables.manage"),
+        csrfProtection,
         async (req, res) => {
             try {
                 const id = Number(req.params.id);
@@ -410,6 +413,7 @@ export function systemVariablesRouter({ csrfProtection, logError, googleServerAp
     router.put(
         '/api/locations/:locationTaskId/classification',
         requirePermission("locations.manage"),
+        csrfProtection,
         async (req, res) => {
             try {
                 const locationTaskId   = Number(req.params.locationTaskId);
@@ -470,6 +474,7 @@ export function systemVariablesRouter({ csrfProtection, logError, googleServerAp
     router.post(
         '/api/locations/:locationTaskId/sub-locations',
         requirePermission("locations.manage"),
+        csrfProtection,
         async (req, res) => {
             try {
                 const locationTaskId = Number(req.params.locationTaskId);
@@ -507,6 +512,7 @@ export function systemVariablesRouter({ csrfProtection, logError, googleServerAp
     router.put(
         '/api/locations/sub-locations/:id',
         requirePermission("locations.manage"),
+        csrfProtection,
         async (req, res) => {
             try {
                 const id = Number(req.params.id);
@@ -541,6 +547,7 @@ export function systemVariablesRouter({ csrfProtection, logError, googleServerAp
     router.delete(
         '/api/locations/sub-locations/:id',
         requirePermission("locations.manage"),
+        csrfProtection,
         async (req, res) => {
             try {
                 const id = Number(req.params.id);
@@ -565,6 +572,7 @@ export function systemVariablesRouter({ csrfProtection, logError, googleServerAp
     router.put(
         '/api/locations/:locationTaskId/sub-locations/reorder',
         requirePermission("locations.manage"),
+        csrfProtection,
         async (req, res) => {
             try {
                 const locationTaskId = Number(req.params.locationTaskId);

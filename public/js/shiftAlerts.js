@@ -240,7 +240,7 @@ function buildScheduleCard(s) {
             `<span class="sa-dept-chip">${escHtml(DEPT_LABELS[d] ?? d)}</span>`,
         )
         .join(" ")
-    : '<span class="text-muted" style="font-size:.8rem">All departments</span>';
+    : '<span class="text-muted sa-text-sm">All departments</span>';
 
   const activeBadge = s.active
     ? '<span class="badge text-bg-success">Active</span>'
@@ -290,7 +290,7 @@ function buildScheduleCard(s) {
                         : ""
                     }
                 </div>
-                <div class="d-flex flex-column gap-1 flex-shrink-0" style="min-width:110px">
+                <div class="d-flex flex-column gap-1 flex-shrink-0 sa-card-actions">
                     ${sendBtn}
                     <button class="btn btn-outline-secondary btn-sm"
                             data-action="edit" data-id="${s.id}">
@@ -316,7 +316,7 @@ function buildScheduleCard(s) {
             </div>
             <div class="collapse" id="${previewId}" data-preview-loaded="false">
                 <div class="sa-preview-body mt-2">
-                    <div class="sa-preview-loading text-muted" style="font-size:.8rem">
+                    <div class="sa-preview-loading text-muted sa-text-sm">
                         <i class="fa-solid fa-spinner fa-spin me-1"></i>Loading…
                     </div>
                 </div>
@@ -336,7 +336,7 @@ function renderSchedules() {
             <div class="sa-empty">
                 <div class="sa-empty-icon"><i class="fa-solid fa-bell-slash"></i></div>
                 <div>No alert schedules yet for ${saYear}.</div>
-                <div class="mt-2 text-muted" style="font-size:.85rem">
+                <div class="mt-2 text-muted sa-text-md">
                     Click <strong>New Schedule</strong> to create one.
                 </div>
             </div>`;
@@ -705,7 +705,7 @@ async function loadPreview(id, panel) {
     const data = await res.json();
 
     if (!data.success || !data.shifts?.length) {
-      body.innerHTML = `<p class="text-muted mb-0" style="font-size:.8rem">
+      body.innerHTML = `<p class="text-muted mb-0 sa-text-sm">
           <i class="fa-solid fa-circle-info me-1"></i>
           No eligible recipients found — either no shifts match the criteria or all have already been alerted.
       </p>`;
@@ -798,7 +798,7 @@ async function loadPreview(id, panel) {
       return `
           <div class="sa-preview-day mb-2">
             <div class="sa-preview-day-label">${escHtml(dayLabel)}
-              <span class="ms-2 text-muted fw-normal" style="font-size:.75rem">${escHtml(date)}</span>
+              <span class="ms-2 text-muted fw-normal sa-text-xs">${escHtml(date)}</span>
             </div>
             <table class="sa-preview-table w-100">
               <thead>
@@ -810,7 +810,7 @@ async function loadPreview(id, panel) {
               <tbody>${shiftRows}</tbody>
               <tfoot>
                 <tr>
-                  <td colspan="4" class="ps-3 pt-1 text-muted" style="font-size:.75rem">Total</td>
+                  <td colspan="4" class="ps-3 pt-1 text-muted sa-text-xs">Total</td>
                   <td class="text-end pe-2 pt-1">
                     <span class="badge text-bg-primary">${totalRecipients}</span>
                   </td>
@@ -822,7 +822,7 @@ async function loadPreview(id, panel) {
 
     body.innerHTML = fireHtml + dayRows;
   } catch (err) {
-    body.innerHTML = `<p class="text-muted mb-0" style="font-size:.8rem">
+    body.innerHTML = `<p class="text-muted mb-0 sa-text-sm">
         <i class="fa-solid fa-triangle-exclamation me-1"></i>Failed to load preview.
     </p>`;
     console.error("loadPreview error:", err);

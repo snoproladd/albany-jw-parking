@@ -418,7 +418,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const res = await fetch(`/api/locations/${locationId}/classification`, {
         method:  "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
         body:    JSON.stringify({ classificationId }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -526,7 +526,7 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
           const res = await fetch(`/api/locations/sub-locations/${id}`, {
             method:  "PUT",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
             body:    JSON.stringify({ name, subTypeId: null, displayOrder: 0, active: !isActive }),
           });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -547,6 +547,7 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
           const res = await fetch(`/api/locations/sub-locations/${btn.dataset.id}`, {
             method: "DELETE",
+            headers: { "X-CSRF-Token": csrfToken },
           });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const fresh = await fetchSubTypes();
@@ -632,7 +633,7 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         const res = await fetch(`/api/locations/${locationId}/sub-locations`, {
           method:  "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
           body:    JSON.stringify({ name, subTypeId }),
         });
         const data = await res.json();
@@ -681,7 +682,7 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         const res = await fetch("/api/system-variables", {
           method:  "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
           body:    JSON.stringify({
             category:    "location_sub_type",
             displayName: typeName,

@@ -3979,8 +3979,11 @@ export function oversightRouter({
    * and active invitation batches for the current year.
    *
    * Optional ?batchId= query param pre-selects a batch in add-to-campaign mode.
+   * ?selectPending=1 (the tracker's "Remind pending") opens a Reminder with
+   * the campaign's pending people selected; adding ?volunteerId= (the
+   * tracker's per-person Remind) selects only that person, if still pending.
    *
-   * @requires accessAdminConsole permission
+   * @requires campaigns.send permission
    */
   router.get(
     "/oversight/tools/campaigns",
@@ -3992,6 +3995,9 @@ export function oversightRouter({
         const year = await getActiveYear();
         const batchId = req.query.batchId ? Number(req.query.batchId) : null;
         const selectPending = req.query.selectPending === "1";
+        // Per-person Remind from the tracker: only this volunteer, and only
+        // if they are still pending.
+        const onlyVolunteerId = req.query.volunteerId ? Number(req.query.volunteerId) : null;
 
         const [volunteers, templates, conventionDays, batches] =
           await Promise.all([
@@ -4051,7 +4057,8 @@ export function oversightRouter({
                     ([vid, s]) =>
                       s.pendingInParent &&
                       !s.responded &&
-                      messageableIds.has(vid),
+                      messageableIds.has(vid) &&
+                      (!onlyVolunteerId || vid === onlyVolunteerId),
                   )
                   .map(([vid]) => vid),
               ),
@@ -4671,10 +4678,60 @@ export function oversightRouter({
         sent,
         batchId,
         sendId,
+        // For following delivery (GET .../campaigns/send-delivery/:runId);
+        // null when nothing went out.
+        runId: sendRecipients.length ? runId : null,
         skipped,
         emailOnly,
         errors,
       });
+    },
+  );
+
+  /**
+   * GET /oversight/tools/campaigns/send-delivery/:runId
+   * Delivery of one campaign send's texts and emails (message_deliveries,
+   * source 'campaign'), for the Campaign Center's results card to follow
+   * after a send. Read-only; rows are department-scoped by row-level
+   * security, so another department's run id returns nothing.
+   *
+   * Response: { success: true, delivery: null | {
+   *   sms:   { delivered: number, pending: number, failed: number, untracked: number },
+   *   email: { sent: number, failed: number },
+   *   failures: Array<{ name: string, channel: "sms"|"email", reason: string }> } }
+   *
+   * @requires campaigns.send permission
+   */
+  router.get(
+    "/oversight/tools/campaigns/send-delivery/:runId",
+    requireAuth,
+    requirePermission("campaigns.send"),
+    async (req, res) => {
+      const runId = String(req.params.runId || "");
+      if (!/^[0-9a-f-]{36}$/i.test(runId)) {
+        return res.status(400).json({ success: false, error: "Invalid run id." });
+      }
+      try {
+        const s = (await getDeliverySummaries([runId]))[runId];
+        const delivery = s
+          ? {
+              sms: s.sms,
+              email: s.email,
+              failures: s.failures.map((f) => ({
+                name: f.name,
+                channel: f.channel === "email" ? "email" : "sms",
+                reason:
+                  f.channel === "email"
+                    ? f.errorMessage || "The email could not be sent."
+                    : describeSmsError(f.errorCode),
+              })),
+            }
+          : null;
+        return res.json({ success: true, delivery });
+      } catch (err) {
+        (logError || console.error)("campaigns send-delivery GET error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
     },
   );
 

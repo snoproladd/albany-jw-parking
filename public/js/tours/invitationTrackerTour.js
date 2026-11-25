@@ -112,8 +112,8 @@ function buildInvitationTrackerTour() {
   if (hasRevoke) {
     steps.push({
       id: "it-revoke",
-      title: "Revoke or reinstate",
-      text: "The <strong>ban icon</strong> revokes someone's invitation so their RSVP link stops working; the <strong>rotate-left icon</strong> brings it back. Check <strong>Show revoked</strong> to see revoked people.",
+      title: "Remind, revoke or reinstate",
+      text: "The <strong>bell</strong> (people who haven't answered) opens Campaign Center with just that person selected for a reminder. The <strong>ban icon</strong> revokes someone's invitation so their RSVP link stops working; the <strong>rotate-left icon</strong> brings it back. Check <strong>Show revoked</strong> to see revoked people.",
       attachTo: { element: ".it-revoke-btn", on: "left" },
       buttons: null,
     });

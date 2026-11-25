@@ -800,3 +800,31 @@
     font-size: 0.85rem;
     color: var(--bs-secondary-color, #6c757d);
 }
+
+/* Send Results: live delivery after a send (texts and emails) */
+.mc-delivery {
+    margin-bottom: 1rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem;
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    font-size: 0.9rem;
+}
+
+.mc-delivery--done {
+    border-color: var(--bs-success-border-subtle, #a3cfbb);
+    background: var(--bs-success-bg-subtle, #d1e7dd);
+    color: var(--bs-success-text-emphasis, #0a3622);
+}
+
+.mc-delivery--warning {
+    border-color: var(--bs-warning-border-subtle, #ffe69c);
+    background: var(--bs-warning-bg-subtle, #fff3cd);
+    color: var(--bs-warning-text-emphasis, #664d03);
+}
+
+.mc-delivery-list {
+    margin: 0.35rem 0 0;
+    padding-left: 1.25rem;
+    font-size: 0.85rem;
+}
