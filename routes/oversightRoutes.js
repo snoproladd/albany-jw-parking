@@ -3637,6 +3637,13 @@ export function oversightRouter({
                   twilioAccountSid,
                   twilioAuthToken,
                   twilioMsgSid,
+                  {
+                    source: "rendezvous_alert",
+                    runId: `rendezvous:${id}:${Date.now()}`,
+                    volunteerId: vol.volunteer_id,
+                    recipientName:
+                      `${vol.firstName || ""} ${vol.lastName || ""}`.trim() || null,
+                  },
                 );
                 sent++;
               } catch (smsErr) {
@@ -7781,7 +7788,9 @@ export function oversightRouter({
 
   /**
    * GET /oversight/tools/shift-alerts/log
-   * Return the alert log, optionally filtered.
+   * Return the alert log, optionally filtered. Each row also has the
+   * text's delivery state (delivery_status, delivery_error_code) and, when
+   * Twilio reported a failure, delivery_reason in plain words.
    *
    * Query params: scheduleId, volunteerId, shiftId, status, year
    * Response: { success: true, log: Array }
@@ -7805,6 +7814,12 @@ export function oversightRouter({
           status: req.query.status || null,
           year: req.query.year ? Number(req.query.year) : null,
         });
+        for (const row of log) {
+          row.delivery_reason =
+            row.delivery_status === "failed" || row.delivery_status === "undelivered"
+              ? describeSmsError(row.delivery_error_code)
+              : null;
+        }
         return res.json({ success: true, log });
       } catch (err) {
         (logError || console.error)("shift-alerts/log GET error:", err);

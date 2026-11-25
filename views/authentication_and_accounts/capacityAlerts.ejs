@@ -78,10 +78,11 @@
                   <th>Count</th>
                   <th>Recipients</th>
                   <th>Status</th>
+                  <th>Delivered</th>
                 </tr>
               </thead>
               <tbody id="ca-log-tbody">
-                <tr><td colspan="5" class="text-center text-muted py-3">Loading…</td></tr>
+                <tr><td colspan="6" class="text-center text-muted py-3">Loading…</td></tr>
               </tbody>
             </table>
           </div>
@@ -145,7 +146,7 @@
             <fieldset class="mb-3" id="ca-positions" aria-describedby="ca-positions-help">
               <legend class="form-label fs-6 mb-1">Notify</legend>
               <div id="ca-positions-help" class="form-text mt-0 mb-2">
-                Everyone holding a ticked position (active this year, with a phone number) gets the text.
+                Everyone holding a ticked position (active this year, with a phone number and texts turned on) gets the text.
               </div>
               <% if (positions && positions.length) { %>
                 <% positions.forEach((p) => { %>
@@ -153,6 +154,12 @@
                     <input class="form-check-input ca-position-checkbox" type="checkbox"
                            id="ca-position-<%= p.id %>" value="<%= p.id %>" />
                     <label class="form-check-label" for="ca-position-<%= p.id %>"><%= p.name %></label>
+                    <% const off = (typeof textsOff !== 'undefined' && textsOff[p.id]) || []; %>
+                    <% if (off.length) { %>
+                      <div class="ca-texts-off">
+                        <i class="fa-solid fa-comment-slash me-1" aria-hidden="true"></i>Texts off, won't be texted: <%= off.join(', ') %>
+                      </div>
+                    <% } %>
                   </div>
                 <% }) %>
               <% } else { %>

@@ -34,7 +34,10 @@ import {
   getCapacityAlertLog,
   getCapacityAlertKillSwitch,
   setCapacityAlertKillSwitch,
+  getCapacityAlertTextsOff,
+  getDeliverySummaries,
 } from "../lib/dbSync.js";
+import { describeSmsError } from "../lib/messaging.js";
 import { getActiveYear } from "../lib/conventionYear.js";
 
 /**
@@ -69,7 +72,8 @@ export function capacityAlertRouter({ csrfProtection, logError }) {
   /**
    * GET /oversight/tools/capacity-alerts
    * Capacity Alerts management page. Requires alerts.manageCapacityAlerts.
-   * Passes the department's positions for the "Notify" checkboxes (phase 3d-5).
+   * Passes the department's positions for the "Notify" checkboxes (phase 3d-5)
+   * and, per position, the members whose texts are off (they are skipped).
    */
   router.get(
     "/oversight/tools/capacity-alerts",
@@ -78,9 +82,10 @@ export function capacityAlertRouter({ csrfProtection, logError }) {
     async (req, res) => {
       try {
         const year = await getActiveYear();
-        const [locations, positions] = await Promise.all([
+        const [locations, positions, textsOff] = await Promise.all([
           getActiveLocationsForYear(year),
           listDepartmentPositions(),
+          getCapacityAlertTextsOff(),
         ]);
         res.render("capacityAlerts", {
           nav: res.locals.nav,
@@ -88,6 +93,7 @@ export function capacityAlertRouter({ csrfProtection, logError }) {
           csrfToken: req.csrfToken(),
           locations,
           positions,
+          textsOff,
         });
       } catch (err) {
         logError("[GET /oversight/tools/capacity-alerts]", err);
@@ -342,7 +348,10 @@ export function capacityAlertRouter({ csrfProtection, logError }) {
 
   /**
    * GET /api/capacity-alerts/log
-   * Returns the most recent capacity alert send attempts.
+   * Returns the most recent capacity alert send attempts. Rows sent with
+   * delivery tracking also carry `delivery`: text counts (delivered,
+   * pending, failed, untracked) and who it did not reach, with the reason
+   * in plain words. Older rows have `delivery: null`.
    *
    * @returns {{ log: Array }}
    */
@@ -352,6 +361,19 @@ export function capacityAlertRouter({ csrfProtection, logError }) {
     async (req, res) => {
       try {
         const log = await getCapacityAlertLog(100);
+        const summaries = await getDeliverySummaries(log.map((r) => r.run_id));
+        for (const row of log) {
+          const s = row.run_id ? summaries[row.run_id] : null;
+          row.delivery = s
+            ? {
+                ...s.sms,
+                failures: s.failures.map((f) => ({
+                  name: f.name,
+                  reason: describeSmsError(f.errorCode),
+                })),
+              }
+            : null;
+        }
         res.json({ log });
       } catch (err) {
         logError("[GET /api/capacity-alerts/log]", err);

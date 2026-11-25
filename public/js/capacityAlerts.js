@@ -189,6 +189,34 @@
   }
 
   /**
+   * HTML for a send's Delivered cell, from row.delivery (texts tracked
+   * through Twilio's status callbacks): "3 of 4 delivered", how many are
+   * still pending or untracked, and who it did not reach and why.
+   * Sends from before delivery tracking (delivery null) show a dash.
+   *
+   * @param {{ delivered: number, pending: number, failed: number, untracked: number,
+   *           failures: Array<{ name: string, reason: string }> }|null} d
+   * @returns {string}
+   */
+  function deliveryCell(d) {
+    if (!d) return '<span class="text-muted">\u2014</span>';
+    const total = d.delivered + d.pending + d.failed + d.untracked;
+    if (total === 0) return '<span class="text-muted">\u2014</span>';
+    const parts = [
+      `<span class="${d.failed ? "text-danger" : "text-success"} fw-semibold">${d.delivered} of ${total} delivered</span>`,
+    ];
+    if (d.pending) parts.push(`<span class="ca-delivery-note">${d.pending} pending</span>`);
+    if (d.untracked) parts.push(`<span class="ca-delivery-note">${d.untracked} not tracked</span>`);
+    if (d.failures && d.failures.length) {
+      const items = d.failures
+        .map((f) => `<li>${escapeHtml(f.name)}: ${escapeHtml(f.reason)}</li>`)
+        .join("");
+      parts.push(`<ul class="ca-delivery-failures">${items}</ul>`);
+    }
+    return parts.join("");
+  }
+
+  /**
    * Render the send history table.
    *
    * @param {Array} log
@@ -197,7 +225,7 @@
   function renderLog(log) {
     if (log.length === 0) {
       logTbody.innerHTML =
-        '<tr><td colspan="5" class="text-center text-muted py-3">No alerts sent yet.</td></tr>';
+        '<tr><td colspan="6" class="text-center text-muted py-3">No alerts sent yet.</td></tr>';
       return;
     }
 
@@ -208,11 +236,12 @@
       const statusClass =
         row.status === "sent" ? "text-success" : "text-danger";
       tr.innerHTML = `
-                <td>${sentAt}</td>
-                <td>${row.location_name}</td>
-                <td>${row.triggered_count}</td>
-                <td>${row.recipient_count}</td>
-                <td class="${statusClass}">${row.status}</td>
+                <td>${escapeHtml(sentAt)}</td>
+                <td>${escapeHtml(row.location_name)}</td>
+                <td>${escapeHtml(row.triggered_count)}</td>
+                <td>${escapeHtml(row.recipient_count)}</td>
+                <td class="${statusClass}">${escapeHtml(row.status)}</td>
+                <td>${deliveryCell(row.delivery)}</td>
             `;
       logTbody.appendChild(tr);
     });

@@ -41,3 +41,23 @@
 #ca-bulk-toolbar {
     align-items: center;
 }
+
+/* Send history: Delivered column (Twilio status callbacks) */
+.ca-delivery-note {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+.ca-delivery-failures {
+    margin: 0.15rem 0 0;
+    padding-left: 1rem;
+    font-size: 0.8rem;
+    color: var(--bs-danger-text-emphasis, #58151c);
+}
+
+/* Rule editor: members of a position who have texts turned off */
+.ca-texts-off {
+    font-size: 0.8rem;
+    color: var(--bs-secondary-color, #6c757d);
+}

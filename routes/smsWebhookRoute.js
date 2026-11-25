@@ -28,8 +28,8 @@
  *          create action item, notify overseers via SMS and email.
  *
  * Also POST /webhook/sms/status: Twilio's delivery status callbacks for
- * texts the app sends with a statusCallback (schedule publishes; see
- * lib/publishSchedule.js). Updates dbo.message_deliveries; on error 21610
+ * texts the app sends with a statusCallback (schedule publishes, campaign
+ * texts, shift reminders, capacity alerts and meet-up alerts). Updates dbo.message_deliveries; on error 21610
  * (the number replied STOP) also sets the volunteer's sms_opted_in to 0.
  *
  * Security:

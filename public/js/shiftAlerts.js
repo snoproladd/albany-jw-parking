@@ -957,6 +957,35 @@ async function loadLog() {
 }
 
 /**
+ * Badge for a text's delivery state, from the log row's delivery_status
+ * (Twilio's status callbacks, via message_deliveries):
+ *   - not sent at all (status 'failed')  → a dash; the Status column says why
+ *   - no delivery row (sent before tracking) or 'not_tracked' → "Not tracked"
+ *   - 'delivered'                        → "Delivered"
+ *   - 'failed' / 'undelivered'           → "Not delivered" with the reason
+ *   - anything else (queued … sent)      → "Pending"
+ *
+ * @param {object} r  Log row from GET /oversight/tools/shift-alerts/log
+ * @returns {string}  HTML
+ */
+function deliveryBadge(r) {
+  if (r.status !== "sent") return '<span class="text-muted">\u2014</span>';
+  const d = r.delivery_status;
+  if (!d || d === "not_tracked") {
+    return '<span class="sa-badge-untracked" title="Sent before delivery tracking, or without a public callback address">Not tracked</span>';
+  }
+  if (d === "delivered") {
+    return '<span class="sa-badge-sent"><i class="fa-solid fa-check-double me-1" aria-hidden="true"></i>Delivered</span>';
+  }
+  if (d === "failed" || d === "undelivered") {
+    const reason = r.delivery_reason || "not delivered";
+    return `<span class="sa-badge-failed"><i class="fa-solid fa-triangle-exclamation me-1" aria-hidden="true"></i>Not delivered</span>
+            <span class="sa-delivery-reason">${escHtml(reason)}</span>`;
+  }
+  return '<span class="sa-badge-pending"><i class="fa-regular fa-clock me-1" aria-hidden="true"></i>Pending</span>';
+}
+
+/**
  * Build and insert the send log HTML table into the given container.
  *
  * @param {Array<object>} rows       Log rows from the server.
@@ -996,7 +1025,8 @@ function renderLogTable(rows, container) {
                 <td>${escHtml(r.day_label ?? "\u2014")}</td>
                 <td>${escHtml(catLabel)}</td>
                 <td>${statusBadge}</td>
-                <td class="text-muted" style="font-size:.75rem">
+                <td>${deliveryBadge(r)}</td>
+                <td class="text-muted sa-log-sid">
                     ${r.twilio_sid ? escHtml(r.twilio_sid) : "\u2014"}
                 </td>
             </tr>`;
@@ -1014,13 +1044,14 @@ function renderLogTable(rows, container) {
                         <th>Day</th>
                         <th>Category</th>
                         <th>Status</th>
+                        <th>Delivery</th>
                         <th>Twilio SID</th>
                     </tr>
                 </thead>
                 <tbody>${rowsHtml}</tbody>
             </table>
         </div>
-        <p class="text-secondary mt-1 mb-0" style="font-size:.8rem">
+        <p class="text-secondary mt-1 mb-0 sa-log-count">
             ${rows.length} ${rows.length === 1 ? "entry" : "entries"}
         </p>`;
 }
