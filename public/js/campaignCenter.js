@@ -76,6 +76,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const responseStandardWrap = document.getElementById("mcResponseStandardWrap");
   const responsePollWrap = document.getElementById("mcResponsePollWrap");
   const responseOptionsWrap = document.getElementById("mcResponseOptionsWrap");
+  const respondByInput = /** @type {HTMLInputElement|null} */ (document.getElementById("mcRespondBy"));
 
   // Step 2 — event
   const eventPickerWrap = document.getElementById("mcEventPickerWrap");
@@ -706,6 +707,7 @@ function updateChipAreaVisibility() {
     updateSendButton();
   });
   responseTypeSelect?.addEventListener("change", syncResponseTypeUI);
+  respondByInput?.addEventListener("change", updateSendButton);
 
   /**
    * Fill the message in from a campaign's saved text, unless someone has
@@ -1122,7 +1124,7 @@ function updateChipAreaVisibility() {
    */
   function updateSmsCounter() {
     if (!smsCounter) return;
-    const text = lastPreview?.body ?? bodyInput?.value ?? "";
+    const text = lastPreview?.smsBody ?? bodyInput?.value ?? "";
     const show = !!sendSmsChk?.checked && text.trim().length > 0;
     smsCounter.classList.toggle("d-none", !show);
     if (!show) return;
@@ -1243,7 +1245,7 @@ function updateChipAreaVisibility() {
       .join("");
   }
 
-  /** @type {{ name: string, subject: string, body: string }|null} */
+  /** @type {{ name: string, subject: string, body: string, smsBody: string, smsReplyLine: string }|null} */
   let lastPreview = null;
   /** @type {ReturnType<typeof setTimeout>|undefined} */
   let previewTimer;
@@ -1287,6 +1289,17 @@ function updateChipAreaVisibility() {
           batchId: contextBatchId(),
           conventionDayId,
           shiftId,
+          respondBy: PURPOSES[purpose].response && responseNeededChk?.checked ? respondByInput?.value || null : null,
+          // New campaigns: the answer settings on the form (they set the
+          // "Reply 1 for Yes, …" line texts get)
+          ...(PURPOSES[purpose].response
+            ? {
+                responseNeeded: currentMessageType() !== "alert" && !!responseNeededChk?.checked,
+                responseConfig: buildResponseConfig(!!responseNeededChk?.checked),
+              }
+            : purpose === "announce"
+              ? { responseNeeded: false }
+              : {}),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -1294,11 +1307,14 @@ function updateChipAreaVisibility() {
       if (!res.ok || !data.success) throw new Error(data.error || "Preview failed");
       const v = allVolunteers.find((p) => p.id === firstId);
       const name = v ? `${v.firstName} ${v.lastName}`.trim() : getVolunteerName(firstId);
-      lastPreview = { name, subject: data.subject, body: data.body };
+      lastPreview = { name, subject: data.subject, body: data.body, smsBody: data.smsBody || data.body, smsReplyLine: data.smsReplyLine || "" };
       if (previewLabel) previewLabel.textContent = `Preview for ${name}`;
       previewEl.innerHTML =
         (sendEmailChk?.checked && data.subject ? `<div class="mc-preview-subject">${escapeHtml(data.subject)}</div>` : "") +
-        `<div class="mc-preview-body">${escapeHtml(data.body)}</div>`;
+        `<div class="mc-preview-body">${escapeHtml(data.body)}</div>` +
+        (sendSmsChk?.checked && data.smsReplyLine
+          ? `<div class="mc-preview-sms-line"><i class="fa-solid fa-comment-sms me-1" aria-hidden="true"></i>Texts also end with: ${escapeHtml(data.smsReplyLine)}</div>`
+          : "");
     } catch (err) {
       if (seq !== previewSeq) return;
       console.error("[campaignCenter] preview error:", err);
@@ -1451,6 +1467,7 @@ function updateChipAreaVisibility() {
           messageType,
           responseConfig: cfg.response ? buildResponseConfig(responseNeeded) : null,
           isRecruitment,
+          respondBy: cfg.response && responseNeeded ? respondByInput?.value || null : null,
         }),
       });
       return res.json().catch(() => ({}));

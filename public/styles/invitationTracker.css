@@ -290,6 +290,12 @@
     color: var(--bs-secondary-color, #6c757d);
 }
 
+/* Set answer and Revoke side by side */
+.it-row-actions {
+    display: inline-flex;
+    gap: 0.25rem;
+}
+
 /* A revoke / reinstate that failed keeps its button, outlined to show it */
 .it-action-failed {
     outline: 2px solid var(--bs-danger, #dc3545);
@@ -380,4 +386,14 @@
     .it-send-body {
         padding-left: 0;
     }
+}
+
+/* "Changed from Yes · Nov 25 · via text" under a changed answer */
+.it-changed {
+    margin-top: 0.15rem;
+    color: var(--bs-warning-text-emphasis, #664d03);
+}
+
+.it-respond-by {
+    max-width: 12rem;
 }

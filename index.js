@@ -20,8 +20,17 @@ import {
     touchSqlActivity,
     runAsSystem,
     runAsDepartment,
+    withScope,
     DEFAULT_DEPARTMENT_ID,
 } from "./lib/sql.js";
+import {
+    answerWindow,
+    parseAnswerConfig,
+    answerLabel,
+    formatDay,
+    isOfferedAnswer,
+    recordAnswer,
+} from "./lib/rsvp.js";
 import { demoContextMiddleware } from "./middleware/demoContext.js";
 import { resolveDepartmentMiddleware } from "./middleware/resolveDepartment.js";
 import { permissionStampMiddleware } from "./middleware/permissionStamp.js";
@@ -1095,20 +1104,65 @@ app.use(
       }
     });
     /**
-     * Show the RSVP response page for an invite link.
+     * The settings change alerts are sent with (lib/rsvp.js).
+     * @type {import("./lib/rsvp.js").AlertSenders}
+     */
+    const rsvpAlertSenders = {
+      twilioAccountSid: config.TWILIO_ACCOUNT_SID,
+      twilioAuthToken: config.TWILIO_AUTH_TOKEN,
+      twilioMsgSid: config.TWILIO_MSG_SID,
+      smtpConfig: {
+        host: config.IONOS_SMTP_HOST,
+        port: config.IONOS_SMTP_PORT,
+        user: config.IONOS_SMTP_USER_INFO,
+        pass: config.IONOS_SMTP_PASS,
+      },
+    };
+
+    /**
+     * Look an invitation up by its link token in every department (system
+     * scope): the person opening it may be signed in to another department,
+     * or not at all.
+     *
+     * @param {string} token
+     * @returns {Promise<object|null>}
+     */
+    function findInvitationByToken(token) {
+      return withScope("system", () => db.getInvitationByToken(token));
+    }
+
+    /**
+     * GET /invite/respond/:token
+     * The RSVP page for an invitation link: the answer buttons, or the
+     * answer on file with "Change my answer" while a change is allowed
+     * (lib/rsvp.js answerWindow), and next steps after a Yes.
+     *
+     * Query: responded=1 | changed=1 after a POST, change=1 to show the
+     * answer buttons again, error=invalid | closed.
      */
     app.get("/invite/respond/:token", publicRoute("invitation reply link (token checked in handler)"), csrfProtection, async (req, res) => {
       const { token } = req.params;
       try {
-        const invitation = await db.getInvitationByToken(token);
+        const invitation = await findInvitationByToken(token);
         if (!invitation) {
           return res.status(404).render("404", { url: req.originalUrl });
         }
+        const window = answerWindow(invitation);
+        const wantsChange = req.query.change === "1" && window.canChange;
         return res.render("authentication_and_accounts/inviteRespond", {
           csrfToken: req.csrfToken(),
           invitation,
-          alreadyResponded: !!invitation.responded_at && !invitation.revoked,
+          answer: {
+            ...window,
+            config: parseAnswerConfig(invitation.response_config),
+            label: answerLabel(invitation.response, invitation.response_other),
+            respondByText: formatDay(window.respondBy),
+            changeUntilText: formatDay(window.changeUntil),
+            showForm: window.canAnswer || wantsChange,
+          },
+          departmentName: invitation.department_name || "Convention",
           responded: req.query.responded === "1",
+          changed: req.query.changed === "1",
           error: req.query.error || null,
         });
       } catch (err) {
@@ -1119,66 +1173,50 @@ app.use(
 
     /**
      * POST /invite/respond/:token
-     * Record a volunteer's RSVP response.
-     * Revoked invitations cannot be responded to.
+     * Record or change a volunteer's answer. A first answer is always taken
+     * (marked late after the Respond-by date); a change only while
+     * answerWindow() allows it. A change alerts the campaign department
+     * (lib/rsvp.js). Answering an invitation that came by text records text
+     * consent, unless the person texted STOP.
      */
     app.post("/invite/respond/:token", publicRoute("invitation reply (token checked in handler)"), csrfProtection, async (req, res) => {
       const { token } = req.params;
-      const { response, response_other } = req.body || {};
+      const back = (query) => res.redirect(`/invite/respond/${encodeURIComponent(token)}${query}`);
+      const response = String(req.body?.response || "");
+      const other = String(req.body?.response_other || "").trim();
 
       try {
-        const invitation = await db.getInvitationByToken(token);
+        const invitation = await findInvitationByToken(token);
         if (!invitation) {
           return res.status(404).render("404", { url: req.originalUrl });
         }
-        if (invitation.revoked) {
-          return res.redirect(`/invite/respond/${encodeURIComponent(token)}`);
-        }
-        if (invitation.responded_at) {
-          return res.redirect(
-            `/invite/respond/${encodeURIComponent(token)}?responded=1`,
-          );
-        }
+        if (invitation.revoked) return back("");
 
-        // Build valid options from response_config, fall back to standard
-        const config = invitation.response_config
-          ? JSON.parse(invitation.response_config)
-          : null;
-        const validOptions = config?.options ?? ["yes", "no", "maybe"];
-        const allowOther = config?.allowOther ?? false;
+        const window = answerWindow(invitation);
+        if (!window.canAnswer && !window.canChange) return back("?error=closed");
 
-        // Accept 'other' as a valid choice if allowOther is enabled
-        const isOther = allowOther && response === "other";
-        const isValid = validOptions.includes(response) || isOther;
-
-        if (!isValid) {
-          return res.redirect(
-            `/invite/respond/${encodeURIComponent(token)}?error=invalid`,
-          );
+        const config = parseAnswerConfig(invitation.response_config);
+        if (!isOfferedAnswer(config, response, other)) {
+          return back(window.answered ? "?change=1&error=invalid" : "?error=invalid");
         }
 
-        // For 'other' responses, store the label as the response value
-        // and the free-text input in response_other
-        const responseValue = isOther
-          ? response_other?.trim()
-            ? "other"
-            : null
-          : response;
-
-        if (!responseValue) {
-          return res.redirect(
-            `/invite/respond/${encodeURIComponent(token)}?error=invalid`,
-          );
-        }
-
-        await db.markInvitationResponded(
-          token,
-          responseValue,
-          isOther ? response_other?.trim() || null : null,
+        const result = await withScope("system", () =>
+          recordAnswer({
+            invitation,
+            response,
+            responseOther: response === "other" ? other.slice(0, 500) : null,
+            source: "link",
+            senders: rsvpAlertSenders,
+          }),
         );
-        return res.redirect(
-          `/invite/respond/${encodeURIComponent(token)}?responded=1`,
-        );
+
+        if (invitation.channel === "sms" || invitation.channel === "both") {
+          await withScope("system", () => db.setVolunteerSmsOptIn(invitation.volunteer_id, "rsvp")).catch((err) =>
+            logError("invite/respond opt-in stamp error:", err),
+          );
+        }
+
+        return back(result.changed ? "?changed=1" : "?responded=1");
       } catch (err) {
         logError("invite/respond POST error:", err);
         return res.status(500).send("Server error");

@@ -4,8 +4,19 @@
  *
  * Routing decision tree (in order):
  *  1. Validate the Twilio signature — reject spoofed requests.
- *  2. Route opt-out keywords (STOP/QUIT/etc.) to handleSmsOptOutWebhook.
+ *  2. Keywords (whole message only): opt-out (STOP, QUIT, …) and opt-in
+ *     (START, UNSTOP, YES) update the volunteer's consent through
+ *     handleSmsOptOutWebhook; HELP / INFO are left to Twilio's own reply.
  *  3. Unknown phone number — reply asking for name, alert overseers.
+ *  3b. A single digit (1–9) from a known volunteer answers only the newest
+ *     invitation texted to them in the last 7 days (lib/rsvp.js
+ *     matchTextReply): not yet answered, it is recorded and confirmed;
+ *     already answered, they get the link to change it. Answers are only
+ *     changed with the link. If another invitation is still waiting, the
+ *     reply says so, and FOLLOW_UP_DELAY_MS later it is sent again as a
+ *     follow-up (tracked in message_deliveries), so it becomes the newest
+ *     and the next number answers it. With no recent text invitation, the
+ *     message carries on below.
  *  4. Known volunteer + valid shift code + T-15 sent — existing check-in path.
  *  5. Known volunteer who receives volunteer-text alerts
  *       (alerts.receiveVolunteerTexts) — suppress freeform pipeline
@@ -43,6 +54,9 @@ import {
   handleSmsOptOutWebhook,
   getOverseerContacts,
   getSystemActorId,
+  getTextReplyInvitations,
+  remindInvitation,
+  recordMessageDelivery,
   logInboundSmsMessage,
   createVolunteerAction,
   resolveBlackoutHints,
@@ -53,7 +67,21 @@ import {
   markVolunteerSmsOptedOut,
 } from "../lib/dbSync.js";
 import { analyzeSms } from "../lib/smsInboundAnalyzer.js";
-import { sendResetSms, sendResetEmail } from "../lib/messaging.js";
+import {
+  sendResetSms,
+  sendResetEmail,
+  getBaseUrl,
+  sendTrackedSms,
+  smsStatusCallbackUrl,
+} from "../lib/messaging.js";
+import { runAsDepartment, getRequestContext } from "../lib/sql.js";
+import {
+  matchTextReply,
+  recordAnswer,
+  answerLabel,
+  parseAnswerConfig,
+  textReplyHint,
+} from "../lib/rsvp.js";
 import { getActiveYear } from "../lib/conventionYear.js";
 
 /**
@@ -101,14 +129,31 @@ function routeToDepartment(req, departmentId) {
 
 const EMPTY_TWIML = `<?xml version="1.0" encoding="UTF-8"?><Response></Response>`;
 
-/** Keywords Twilio intercepts automatically — may still arrive as webhook. */
+/**
+ * Opt-out keywords (the Messaging Service's list). Twilio blocks the number
+ * and replies itself; the webhook still arrives, so the volunteer record is
+ * updated here too.
+ */
 const OPT_OUT_KEYWORDS = new Set([
   "STOP",
+  "STOPALL",
   "QUIT",
   "UNSUBSCRIBE",
   "CANCEL",
   "END",
 ]);
+
+/**
+ * Opt-in keywords (Twilio's defaults: START, UNSTOP, YES). Twilio lifts its
+ * block and replies itself; here the volunteer record gets consent back.
+ */
+const OPT_IN_KEYWORDS = new Set(["START", "UNSTOP", "YES"]);
+
+/**
+ * Help keywords. Twilio sends the help reply itself; the webhook only
+ * keeps them out of the AI pipeline so oversight isn't alerted.
+ */
+const HELP_KEYWORDS = new Set(["HELP", "INFO"]);
 
 /** Base URL shown in overseer alert messages. */
 const DASHBOARD_URL = "albanyjwparking.org";
@@ -149,14 +194,26 @@ function escapeXml(str) {
 }
 
 /**
- * Build a TwiML response string, optionally containing a reply message.
+ * How long after the reply to a texted answer the follow-up (another
+ * invitation still waiting) is sent, so it arrives after the reply.
+ */
+const FOLLOW_UP_DELAY_MS = 10_000;
+
+/**
+ * Build a TwiML response string, optionally containing reply messages.
  *
- * @param {string|null} [msg]  If provided, wraps in a <Message> element.
+ * @param {string|string[]|null} [msg]  One reply, or several sent in order;
+ *   each becomes its own <Message> element.
  * @returns {string}
  */
 function buildTwiml(msg) {
-  if (!msg) return EMPTY_TWIML;
-  return `<?xml version="1.0" encoding="UTF-8"?><Response><Message>${escapeXml(msg)}</Message></Response>`;
+  const msgs = (Array.isArray(msg) ? msg : [msg]).filter(Boolean);
+  if (!msgs.length) return EMPTY_TWIML;
+  return (
+    `<?xml version="1.0" encoding="UTF-8"?><Response>` +
+    msgs.map((m) => `<Message>${escapeXml(m)}</Message>`).join("") +
+    `</Response>`
+  );
 }
 
 /**
@@ -207,6 +264,9 @@ export function smsWebhookRouter({
   const log = logError || console.error;
   const router = express.Router();
 
+  /** Messaging settings for answer-change alerts (lib/rsvp.js). */
+  const alertSenders = { twilioAccountSid, twilioAuthToken, twilioMsgSid, smtpConfig };
+
   // Twilio posts URL-encoded form bodies
   router.use(express.urlencoded({ extended: false }));
 
@@ -220,9 +280,9 @@ export function smsWebhookRouter({
   router.post("/incoming", publicRoute("Twilio inbound SMS (signature checked in handler)"), async (req, res) => {
     /**
      * Send a TwiML response and end the HTTP transaction.
-     * Accepts an optional reply body to include in a <Message> element.
+     * Accepts an optional reply body (or several, sent in order).
      *
-     * @param {string|null} [msg]
+     * @param {string|string[]|null} [msg]
      */
     const reply = (msg = null) => {
       res.setHeader("Content-Type", "text/xml");
@@ -274,14 +334,28 @@ export function smsWebhookRouter({
       // ── 3. Normalize body — uppercase alphanumeric only (for code lookup)
       const code = bodyRaw.replace(/[^A-Z0-9]/gi, "").toUpperCase();
 
-      // ── 4. Route opt-out keywords ──────────────────────────────────
-      if (OPT_OUT_KEYWORDS.has(code)) {
+      // ── 4. Route opt-out, opt-in and help keywords ─────────────────
+      // Twilio answers these itself (the replies set on the Messaging
+      // Service), so the webhook sends no reply of its own. Only the whole
+      // message counts as a keyword ("STOP", not "please stop").
+      const keyword = bodyRaw.trim().toUpperCase();
+      if (OPT_OUT_KEYWORDS.has(keyword) || OPT_IN_KEYWORDS.has(keyword)) {
         try {
-          await handleSmsOptOutWebhook(phoneDigits);
-          log("[smsWebhook] Opt-out processed for %s", phoneDigits);
+          const optVolunteer = await findVolunteerByPhoneOrEmail(phoneDigits, null);
+          await handleSmsOptOutWebhook({
+            phone: phoneDigits,
+            eventType: OPT_OUT_KEYWORDS.has(keyword) ? "STOP" : "UNSTOP",
+            rawPayload: JSON.stringify(req.body || {}),
+            volunteerId: optVolunteer?.id ?? null,
+          });
+          log(`[smsWebhook] ${keyword} processed for ${phoneDigits} (volunteer ${optVolunteer?.id ?? "not found"})`);
         } catch (err) {
-          log("[smsWebhook] Opt-out error:", err);
+          log("[smsWebhook] Opt-out / opt-in error:", err);
         }
+        return reply();
+      }
+      if (HELP_KEYWORDS.has(keyword)) {
+        log(`[smsWebhook] ${keyword} from ${phoneDigits} (Twilio replies)`);
         return reply();
       }
 
@@ -366,6 +440,125 @@ export function smsWebhookRouter({
         });
 
         return;
+      }
+
+      // ── 5b. A texted first answer to an invitation (reply 1, 2, 3 …) ─
+      // A number only answers the newest invitation texted in the last
+      // week. Changing an answer is done with the link. Another invitation
+      // still waiting is sent again, so it becomes the newest
+      // (lib/rsvp.js matchTextReply).
+      if (/^\s*[1-9]\s*$/.test(bodyRaw)) {
+        const match = matchTextReply(bodyRaw, await getTextReplyInvitations(volunteer.id));
+        const linkFor = (inv) => `${getBaseUrl(req)}/invite/respond/${encodeURIComponent(inv.token)}`;
+        const deptOf = (inv) => inv.department_name || "Convention";
+
+        /**
+         * "You have 1 more invitation waiting for your answer. We'll send it
+         * in a moment." — added to the reply when another is waiting.
+         *
+         * @param {number} waiting
+         * @returns {string}
+         */
+        const waitingNote = (waiting) =>
+          waiting > 0
+            ? `\n\nYou have ${waiting === 1 ? "1 more invitation" : `${waiting} more invitations`} ` +
+              `waiting for your answer. We'll send ${waiting === 1 ? "it" : "the next one"} in a moment.`
+            : "";
+
+        /**
+         * Send the waiting invitation again as a follow-up, FOLLOW_UP_DELAY_MS
+         * after the reply: a follow-up heading, the invitation as first sent,
+         * its link and the reply line. It is marked as texted now (a
+         * reminder by "text reply") so the next number answers it, and the
+         * text is tracked in message_deliveries under its department.
+         *
+         * @param {object|null} next - From matchTextReply.
+         * @returns {void}
+         */
+        const sendFollowUp = (next) => {
+          if (!next || !fromRaw) return;
+          const link = linkFor(next);
+          const body = String(next.message_body || "").trim();
+          const hint = textReplyHint(parseAnswerConfig(next.response_config));
+          const text = [
+            `${deptOf(next)} — Follow-up: an invitation still waiting for your answer`,
+            next.batch_name,
+            body,
+            body.includes(link) ? "" : `Answer here: ${link}`,
+            hint,
+          ].filter(Boolean).join("\n\n");
+          const statusCallback = smsStatusCallbackUrl(req);
+          const isDemo = getRequestContext()?.isDemo === true;
+          const name = [volunteer.firstName, volunteer.lastName].filter(Boolean).join(" ");
+
+          setTimeout(() => {
+            runAsDepartment(next.department_id, async () => {
+              const result = await sendTrackedSms({
+                to: fromRaw,
+                body: text,
+                accountSid: twilioAccountSid,
+                authToken: twilioAuthToken,
+                messagingServiceSid: twilioMsgSid,
+                statusCallback,
+              });
+              if (result.ok) {
+                await remindInvitation({ id: next.id, channel: "sms", remindedBy: "text reply" });
+              }
+              await recordMessageDelivery({
+                source: "campaign",
+                runId: null,
+                volunteerId: volunteer.id,
+                recipientName: name || null,
+                channel: "sms",
+                address: fromRaw,
+                providerSid: result.sid,
+                status: !result.ok
+                  ? "failed"
+                  : statusCallback
+                    ? ["queued", "accepted", "sending", "sent", "delivered"].includes(result.status)
+                      ? result.status
+                      : "queued"
+                    : "not_tracked",
+                errorCode: result.errorCode,
+                errorMessage: result.errorMessage,
+              });
+              log(`[smsWebhook] texted answer: follow-up for invitation ${next.id} to vol ${volunteer.id} ${result.ok ? "sent" : "failed"}`);
+            }, { isDemo }).catch((err) => log("[smsWebhook] texted answer follow-up error:", err));
+          }, FOLLOW_UP_DELAY_MS);
+        };
+
+        if (match.kind === "answered") {
+          const inv = match.invitation;
+          sendFollowUp(match.next);
+          return reply(
+            `${deptOf(inv)}: You've already answered ${inv.batch_name}. To change your answer, use your link: ${linkFor(inv)}` +
+              waitingNote(match.waiting),
+          );
+        }
+        if (match.kind === "unknown") {
+          const inv = match.invitation;
+          return reply(`${deptOf(inv)}: Please reply with a number from 1 to ${match.count} to answer ${inv.batch_name}.`);
+        }
+        if (match.kind === "one") {
+          const inv = match.invitation;
+          const result = await recordAnswer({
+            invitation: inv,
+            response: match.response,
+            source: "text",
+            senders: alertSenders,
+          });
+          if (!result.found) {
+            log(`[smsWebhook] texted answer: invitation ${inv.id} not updated`);
+            return reply(`${deptOf(inv)}: Sorry, we couldn't save your answer. Please use the link in the invitation.`);
+          }
+          log(`[smsWebhook] texted answer: vol ${volunteer.id} invitation ${inv.id} = ${match.response}`);
+          sendFollowUp(match.next);
+          return reply(
+            `${deptOf(inv)}: Thanks, ${volunteer.firstName || "there"}! We've recorded "${answerLabel(match.response)}" ` +
+              `for ${inv.batch_name}. To change it later, use your link: ${linkFor(inv)}` +
+              waitingNote(match.waiting),
+          );
+        }
       }
 
       /** Whether a department has been chosen for this message yet. */

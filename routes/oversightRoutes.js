@@ -88,8 +88,7 @@ import {
   getInvitationsForTracker,
   getVolunteersWithPendingInvites,
   getVolunteersWithPendingInvitesDeep,
-  getVolunteerRsvpHistory,
-  setInvitationResponseById,
+  getVolunteerCampaignAnswers,
   getInvitationBatches,
   getInvitationBatch,
   createInvitationBatch,
@@ -189,6 +188,13 @@ import {
 } from "../lib/dbSync.js";
 import { getActiveYear, distributionFolderPath } from "../lib/conventionYear.js";
 import { fillMergeFields } from "../lib/campaignMerge.js";
+import {
+  textReplyHint,
+  parseAnswerConfig,
+  answerChoices,
+  answerLabel,
+  setAnswerForVolunteer,
+} from "../lib/rsvp.js";
 
 import { verifyPassword, hashPassword } from "../lib/passwordVer.js";
 
@@ -200,6 +206,7 @@ import {
   sendResetEmail,
   sendResetSms,
   sendTrackedSms,
+  smsStatusCallbackUrl,
   normalizeToE164,
   getBaseUrl,
   describeSmsError,
@@ -291,23 +298,21 @@ function _fmtTimeShort(val) {
 }
 
 /**
- * The Twilio delivery status callback URL for texts sent during this
- * request, or null when there is no public https address to give Twilio
- * (texts are then sent untracked and recorded as 'not_tracked').
+ * Add what Edit Volunteer's Convention Invitations panel shows for each
+ * invitation: the campaign's answers (answerChoices) and labels for the
+ * answer given and the one it replaced.
  *
- * Production uses its own address; locally TWILIO_STATUS_CALLBACK_BASE is
- * set to the ngrok address (npm run webhook:dev).
- *
- * @param {import("express").Request} req
- * @returns {string|null}
+ * @param {Array<object>} rows - From getVolunteerCampaignAnswers.
+ * @returns {Array<object>} The rows with answers, answerText and
+ *   previousText added.
  */
-function smsStatusCallbackUrl(req) {
-  const base = String(
-    process.env.TWILIO_STATUS_CALLBACK_BASE ||
-      process.env.APP_BASE_URL ||
-      `${req.protocol}://${req.get("host")}`,
-  ).replace(/\/+$/, "");
-  return /^https:\/\//i.test(base) ? `${base}/webhook/sms/status` : null;
+function withAnswerChoices(rows) {
+  return rows.map((row) => ({
+    ...row,
+    answers: answerChoices(row.response_config),
+    answerText: row.responded_at ? answerLabel(row.response, row.response_other) : null,
+    previousText: row.response_changed_at ? answerLabel(row.previous_response) : null,
+  }));
 }
 
 /**
@@ -429,7 +434,7 @@ export function oversightRouter({
           getActiveVolunteers({}),
           getOwnVolunteerRecord(req.session.userId),
           getCongregations(),
-          getVolunteerRsvpHistory(targetUserId, await getActiveYear()),
+          getVolunteerCampaignAnswers(targetUserId, await getActiveYear()).then(withAnswerChoices),
           getConventionDays(await getActiveYear()),
         ]);
 
@@ -532,10 +537,10 @@ export function oversightRouter({
             getActiveVolunteers({ includeDeleted }),
             getOwnVolunteerRecord(req.session.userId),
             getCongregations(),
-            getVolunteerRsvpHistory(
+            getVolunteerCampaignAnswers(
               Number(targetUserId),
               await getActiveYear(),
-            ),
+            ).then(withAnswerChoices),
             getConventionDays(await getActiveYear()),
           ]);
 
@@ -4042,6 +4047,7 @@ export function oversightRouter({
         messageType = "invitation",
         responseConfig = null,
         isRecruitment = false,
+        respondBy = null,
       } = req.body || {};
 
       const sentBy = req.session.userEmail || "admin";
@@ -4205,6 +4211,7 @@ export function oversightRouter({
               : "invitation",
             responseConfig: responseConfig || null,
             isRecruitment: isRecruitment === true,
+            respondBy: /^\d{4}-\d{2}-\d{2}$/.test(String(respondBy || "")) ? String(respondBy) : null,
           });
         }
       } catch (err) {
@@ -4289,6 +4296,13 @@ export function oversightRouter({
           // Non-fatal — merge fields will resolve to empty strings
         }
       }
+
+      // "Reply 1 for Yes, …" for texts of a campaign that asks for a reply
+      // (not alerts). Empty when the answers can't be numbered.
+      const textReplyLine =
+        shiftContext?.response_needed && shiftContext?.message_type !== "alert"
+          ? textReplyHint(parseAnswerConfig(shiftContext.response_config))
+          : "";
 
       // ── Per-volunteer send loop ─────────────────────────────────────────
       for (const vol of volunteers) {
@@ -4386,6 +4400,9 @@ export function oversightRouter({
         };
         const resolvedSubject = fillMergeFields(subject || "", mergeValues);
         const resolvedBody = fillMergeFields(body, mergeValues);
+        // Texts that ask for a reply end with "Reply 1 for Yes, …" so the
+        // person can answer by text (routes/smsWebhookRoute.js).
+        const smsBody = textReplyLine ? `${resolvedBody}\n\n${textReplyLine}` : resolvedBody;
         const channel =
           willEmail && willSms ? "both" : willEmail ? "email" : "sms";
 
@@ -4495,7 +4512,7 @@ export function oversightRouter({
           } else {
             const result = await sendTrackedSms({
               to: phoneE164,
-              body: resolvedBody,
+              body: smsBody,
               accountSid: twilioAccountSid,
               authToken: twilioAuthToken,
               messagingServiceSid: twilioMsgSid,
@@ -4584,7 +4601,10 @@ export function oversightRouter({
    *   conventionDayId?: number|null   event picked for a new campaign
    *   shiftId?:         number|null
    * }
-   * Response: { success: true, subject: string, body: string }
+   * Response: { success: true, subject: string, body: string,
+   *             smsBody: string, smsReplyLine: string }
+   *   smsBody is the text version: body plus "Reply 1 for Yes, …" when the
+   *   campaign asks for a reply.
    *
    * @requires campaigns.send permission
    */
@@ -4596,6 +4616,9 @@ export function oversightRouter({
     async (req, res) => {
       const { volunteerId, subject = "", body = "" } = req.body || {};
       const batchId = Number(req.body?.batchId) || null;
+      const respondBy = /^\d{4}-\d{2}-\d{2}$/.test(String(req.body?.respondBy || ""))
+        ? String(req.body.respondBy)
+        : null;
       const dayId = Number(req.body?.conventionDayId) || null;
       const shiftId = Number(req.body?.shiftId) || null;
       if (!Number(volunteerId))
@@ -4620,12 +4643,26 @@ export function oversightRouter({
           lastName: vol.lastName,
           rsvpUrl: `${getBaseUrl(req)}/invite/respond/${"0".repeat(8)}-${"0".repeat(4)}-${"0".repeat(4)}-${"0".repeat(4)}-${"0".repeat(12)}`,
           year,
-          context,
+          // A new campaign's date comes from the form; otherwise the
+          // campaign's own (Add people, Reminder).
+          context: respondBy ? { ...(context || {}), respond_by: respondBy } : context,
         };
+        // What a text adds at the end: the form's answer settings for a new
+        // campaign, otherwise the campaign's own.
+        const filledBody = fillMergeFields(String(body), values);
+        const fromForm = typeof req.body?.responseNeeded === "boolean";
+        const asksReply = fromForm
+          ? req.body.responseNeeded
+          : !!(context?.response_needed && context?.message_type !== "alert");
+        const replyLine = asksReply
+          ? textReplyHint(parseAnswerConfig(fromForm ? req.body.responseConfig ?? null : context?.response_config ?? null))
+          : "";
         return res.json({
           success: true,
           subject: fillMergeFields(String(subject), values),
-          body: fillMergeFields(String(body), values),
+          body: filledBody,
+          smsBody: replyLine ? `${filledBody}\n\n${replyLine}` : filledBody,
+          smsReplyLine: replyLine,
         });
       } catch (err) {
         (logError || console.error)("campaigns/preview error:", err);
@@ -4959,6 +4996,46 @@ export function oversightRouter({
   );
 
   /**
+   * POST /oversight/tools/campaigns/invitations/:id/answer
+   * Set a volunteer's answer from the Invitation Tracker, for someone who
+   * answered another way (in person, by phone). Must be one of the
+   * campaign's answers; null or "" clears it. Kept with source 'oversight'
+   * (lib/rsvp.js setAnswerForVolunteer). The volunteer isn't messaged.
+   *
+   * Body (JSON): { response: string|null, responseOther?: string }
+   * Response:    { success: boolean, changed?: boolean, error?: string }
+   *
+   * @requires campaigns.send permission
+   */
+  router.post(
+    "/oversight/tools/campaigns/invitations/:id/answer",
+    requireAuth,
+    requirePermission("campaigns.send"),
+    csrfProtection,
+    async (req, res) => {
+      const id = Number(req.params.id);
+      if (!Number.isInteger(id) || id <= 0)
+        return res.status(400).json({ success: false, error: "Invalid id." });
+
+      try {
+        const result = await setAnswerForVolunteer({
+          invitationId: id,
+          response: req.body?.response ?? null,
+          responseOther: req.body?.responseOther ?? null,
+        });
+        if (!result.ok)
+          return res
+            .status(result.status)
+            .json({ success: false, error: result.error });
+        return res.json({ success: true, changed: result.changed });
+      } catch (err) {
+        (logError || console.error)("invitations/answer POST error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
    * PUT /oversight/tools/campaigns/batches/:id
    * Update an existing invitation batch's editable fields.
    * Restricted to users with the manageCampaigns permission (ADMIN by default).
@@ -4997,6 +5074,7 @@ export function oversightRouter({
         messageType,
         responseConfig,
         isRecruitment,
+        respondBy,
       } = req.body || {};
       const hasResponseConfig = Object.prototype.hasOwnProperty.call(
         req.body || {},
@@ -5038,6 +5116,11 @@ export function oversightRouter({
           responseConfig: hasResponseConfig ? responseConfig || null : undefined,
           isRecruitment:
             typeof isRecruitment === "boolean" ? isRecruitment : undefined,
+          // Omitted = keep; "" clears the date
+          respondBy:
+            respondBy === undefined
+              ? undefined
+              : /^\d{4}-\d{2}-\d{2}$/.test(String(respondBy)) ? String(respondBy) : null,
         });
 
         if (!ok)
@@ -5108,7 +5191,13 @@ export function oversightRouter({
           invitations,
           trackerRowsJson: jsonForScript(buildTrackerRows(invitations)),
           campaignsJson: jsonForScript(
-            buildTrackerCampaigns(batches, sendSummaries),
+            buildTrackerCampaigns(
+              batches.map((b) => ({
+                ...b,
+                answers: answerChoices(b.response_config),
+              })),
+              sendSummaries,
+            ),
           ),
           batchesJson: jsonForScript(batches),
           conventionDays,
@@ -5749,13 +5838,15 @@ export function oversightRouter({
 
   /**
    * POST /edit-volunteer/set-rsvp
-   * Directly set the RSVP response on an invitation by ID.
-   * Used by the oversight tool to record verbal RSVPs.
+   * Set the answer on one of a volunteer's invitations, for a volunteer who
+   * answered another way (in person, by phone). Must be one of the
+   * campaign's answers; null or "" clears it back to no answer. Kept with
+   * source 'oversight' (lib/rsvp.js setAnswerForVolunteer).
    *
-   * Body: { invitationId: number, response: 'yes'|'no'|'maybe'|null }
-   * Response: { success: boolean }
+   * Body: { invitationId: number, response: string|null, responseOther?: string }
+   * Response: { success: boolean, changed?: boolean, error?: string }
    *
-   * @requires editVolunteerInfo permission
+   * @requires volunteers.edit permission
    */
   router.post(
     "/edit-volunteer/set-rsvp",
@@ -5763,25 +5854,26 @@ export function oversightRouter({
     requirePermission("volunteers.edit"),
     csrfProtection,
     async (req, res) => {
-      const { invitationId, response } = req.body || {};
+      const { invitationId, response, responseOther } = req.body || {};
       const id = Number(invitationId);
-      const validResponses = ["yes", "no", "maybe", null];
-      const normalised = response === "" || response == null ? null : response;
-
-      if (!id || !validResponses.includes(normalised)) {
+      if (!Number.isInteger(id) || id <= 0) {
         return res
           .status(400)
           .json({ success: false, error: "Invalid parameters." });
       }
 
       try {
-        const updated = await setInvitationResponseById(id, normalised);
-        if (!updated) {
+        const result = await setAnswerForVolunteer({
+          invitationId: id,
+          response,
+          responseOther,
+        });
+        if (!result.ok) {
           return res
-            .status(404)
-            .json({ success: false, error: "Invitation not found." });
+            .status(result.status)
+            .json({ success: false, error: result.error });
         }
-        return res.json({ success: true });
+        return res.json({ success: true, changed: result.changed });
       } catch (err) {
         (logError || console.error)("set-rsvp POST error:", err);
         return res.status(500).json({ success: false, error: "Server error." });

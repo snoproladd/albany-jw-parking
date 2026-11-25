@@ -337,6 +337,13 @@
                 <%# ── Response config builder (shown when response needed is checked) ── %>
                 <div class="mb-3 ms-3 ps-2 border-start border-2" id="mcResponseConfigWrap">
 
+                    <%# Respond-by date (optional) %>
+                    <div class="mb-2">
+                        <label class="mc-filter-label mb-1" for="mcRespondBy">Respond by <span class="text-muted fw-normal">(optional)</span></label>
+                        <input type="date" class="form-control form-control-sm mc-respond-by" id="mcRespondBy" aria-describedby="mcRespondByHelp" />
+                        <div class="form-text" id="mcRespondByHelp">Shown on the RSVP page. Volunteers can change their answer until this date; later answers are still taken.</div>
+                    </div>
+
                     <%# Response type selector %>
                     <div class="mb-2">
                         <label class="mc-filter-label mb-1" for="mcResponseType">Response type</label>
@@ -452,8 +459,24 @@
             <section class="mc-card mc-step" id="mcComposeCard" aria-labelledby="mcStepMessageTitle">
                 <h2 class="mc-step-title" id="mcStepMessageTitle"><span class="mc-step-num" aria-hidden="true">4</span>Message</h2>
 
-                <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
-                    <div class="d-flex align-items-center gap-2">
+                <%# Channels first, on their own line, so they are seen %>
+                <fieldset class="mc-channel-row mb-3">
+                    <legend class="mc-channel-legend">Send by</legend>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" id="mcSendEmail" checked />
+                        <label class="form-check-label" for="mcSendEmail">
+                            <i class="fa-solid fa-envelope me-1" aria-hidden="true"></i>Email
+                        </label>
+                    </div>
+                    <div class="form-check form-check-inline me-0">
+                        <input class="form-check-input" type="checkbox" id="mcSendSms" />
+                        <label class="form-check-label" for="mcSendSms">
+                            <i class="fa-solid fa-comment-sms me-1" aria-hidden="true"></i>Text
+                        </label>
+                    </div>
+                </fieldset>
+
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
                         <label class="visually-hidden" for="mcTemplateSelect">Start from a template</label>
                         <select class="form-select form-select-sm mc-template-select" id="mcTemplateSelect">
                             <option value="">Start from a template…</option>
@@ -464,21 +487,6 @@
                         <button type="button" class="btn btn-link btn-sm p-0 text-nowrap" id="mcManageTemplatesBtn"
                             aria-expanded="false" aria-controls="mcTemplatesCard">Manage templates</button>
                     </div>
-                    <div class="mc-channel-toggles ms-auto">
-                        <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="checkbox" id="mcSendEmail" checked />
-                            <label class="form-check-label" for="mcSendEmail">
-                                <i class="fa-solid fa-envelope me-1" aria-hidden="true"></i>Email
-                            </label>
-                        </div>
-                        <div class="form-check form-check-inline me-0">
-                            <input class="form-check-input" type="checkbox" id="mcSendSms" />
-                            <label class="form-check-label" for="mcSendSms">
-                                <i class="fa-solid fa-comment-sms me-1" aria-hidden="true"></i>Text
-                            </label>
-                        </div>
-                    </div>
-                </div>
 
                 <%# Template manager (collapsed until "Manage templates") %>
                 <div class="mc-template-manager d-none" id="mcTemplatesCard">
@@ -536,6 +544,7 @@
                             <button type="button" class="mc-merge-chip" data-field="{lastName}"        data-target="mcTplBody">Last Name</button>
                             <button type="button" class="mc-merge-chip" data-field="{fullName}"        data-target="mcTplBody">Full Name</button>
                             <button type="button" class="mc-merge-chip mc-link-chip" data-field="{link}"            data-target="mcTplBody">RSVP Link</button>
+                            <button type="button" class="mc-merge-chip mc-link-chip" data-field="{respondBy}"       data-target="mcTplBody">Respond By</button>
                             <button type="button" class="mc-merge-chip" data-field="{year}"            data-target="mcTplBody">Convention Year</button>
                             <button type="button" class="mc-merge-chip" data-field="{shiftDate}"       data-target="mcTplBody">Shift Date</button>
                             <button type="button" class="mc-merge-chip" data-field="{shiftDay}"        data-target="mcTplBody">Shift Day</button>
@@ -580,6 +589,7 @@
                         <button type="button" class="mc-merge-chip" data-field="{lastName}"        data-target="mcBody">Last Name</button>
                         <button type="button" class="mc-merge-chip" data-field="{fullName}"        data-target="mcBody">Full Name</button>
                         <button type="button" class="mc-merge-chip mc-link-chip" data-field="{link}"            data-target="mcBody">RSVP Link</button>
+                        <button type="button" class="mc-merge-chip mc-link-chip" data-field="{respondBy}"       data-target="mcBody">Respond By</button>
                         <button type="button" class="mc-merge-chip" data-field="{year}"            data-target="mcBody">Convention Year</button>
                         <button type="button" class="mc-merge-chip mc-event-chip" data-field="{shiftDate}"       data-target="mcBody">Shift Date</button>
                         <button type="button" class="mc-merge-chip mc-event-chip" data-field="{shiftDay}"        data-target="mcBody">Shift Day</button>

@@ -712,7 +712,9 @@
                                   </div>
 
                                 </div>
-<%# ── Convention Invitations (RSVP override) ── %>
+<%# ── Convention Invitations: this year's campaigns and their answers.
+     Set answer is for someone who answered another way (in person, by
+     phone); see initRsvpPanel in public/js/volunteerAccountOversight.js. ── %>
                                   <% if (typeof rsvpHistory !== 'undefined' && rsvpHistory && rsvpHistory.length > 0) { %>
                                   <div class="accordion-item">
                                     <h2 class="accordion-header">
@@ -727,52 +729,76 @@
                                     <div id="collapseInvitations" class="accordion-collapse collapse"
                                       data-bs-parent="#accountAccordion">
                                       <div class="accordion-body p-0">
+                                        <p class="small text-muted px-3 pt-2 mb-2">Set an answer for someone who answered another way, like in person or by phone. They aren't messaged.</p>
                                         <div class="table-responsive">
                                           <table class="table table-sm table-hover mb-0 small">
                                             <thead class="table-light">
                                               <tr>
-                                                <th>Day / Shift</th>
-                                                <th>Sent</th>
-                                                <th>RSVP</th>
+                                                <th scope="col">Campaign</th>
+                                                <th scope="col">Sent</th>
+                                                <th scope="col">Answer</th>
                                               </tr>
                                             </thead>
                                             <tbody>
+                                              <%
+                                                /** Button colours by answer; custom answers use primary. */
+                                                const rsvpTones = { yes: 'success', no: 'danger', maybe: 'warning', '': 'secondary' };
+                                                const rsvpSources = { link: 'RSVP page', text: 'text', oversight: 'oversight' };
+                                              %>
                                               <% rsvpHistory.forEach(function(inv) {
                                                 const dateFmt = inv.convention_date
                                                   ? new Date(inv.convention_date).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', timeZone:'UTC' })
-                                                  : '—';
+                                                  : '';
                                                 const sentFmt = inv.last_sent_at
                                                   ? new Date(inv.last_sent_at).toLocaleDateString('en-US', { month:'short', day:'numeric' })
                                                   : '—';
-                                                const shiftLabel = inv.shift_label || 'Full Day';
+                                                const where = [inv.day_label, dateFmt, inv.shift_label].filter(Boolean).join(' · ');
+                                                const current = inv.responded_at ? (inv.response || '') : '';
+                                                const options = inv.answers.choices
+                                                  .concat(inv.answers.allowOther ? [{ value: 'other', label: 'Other…' }] : [])
+                                                  .concat([{ value: '', label: 'No answer' }]);
                                               %>
                                               <tr>
                                                 <td>
-                                                  <div class="fw-semibold"><%= inv.day_label ? inv.day_label + ' — ' : '' %><%= dateFmt %></div>
-                                                  <div class="text-muted"><%= shiftLabel %></div>
+                                                  <div class="fw-semibold"><%= inv.batch_name || 'Campaign' %></div>
+                                                  <% if (inv.parent_name) { %><div class="text-muted">Follow-up to <%= inv.parent_name %></div><% } %>
+                                                  <% if (where) { %><div class="text-muted"><%= where %></div><% } %>
                                                 </td>
                                                 <td class="text-nowrap"><%= sentFmt %></td>
                                                 <td>
                                                   <% if (inv.revoked) { %>
                                                     <span class="badge bg-secondary">Revoked</span>
+                                                  <% } else if (!inv.response_needed) { %>
+                                                    <span class="text-muted">No reply needed</span>
                                                   <% } else { %>
-                                                    <div class="btn-group btn-group-sm rsvp-toggle-group"
-                                                         role="group"
-                                                         data-invitation-id="<%= inv.invitation_id %>">
-                                                      <button type="button"
-                                                        class="btn btn-sm rsvp-btn <%= inv.response === 'yes' ? 'btn-success' : 'btn-outline-success' %>"
-                                                        data-response="yes">Yes</button>
-                                                      <button type="button"
-                                                        class="btn btn-sm rsvp-btn <%= inv.response === 'no' ? 'btn-danger' : 'btn-outline-danger' %>"
-                                                        data-response="no">No</button>
-                                                      <button type="button"
-                                                        class="btn btn-sm rsvp-btn <%= inv.response === 'maybe' ? 'btn-warning' : 'btn-outline-warning' %>"
-                                                        data-response="maybe">Maybe</button>
-                                                      <button type="button"
-                                                        class="btn btn-sm rsvp-btn <%= !inv.response ? 'btn-secondary' : 'btn-outline-secondary' %>"
-                                                        data-response="">Pending</button>
+                                                    <div class="rsvp-answer" data-invitation-id="<%= inv.invitation_id %>">
+                                                      <div class="btn-group btn-group-sm flex-wrap rsvp-toggle-group"
+                                                           role="group"
+                                                           aria-label="Answer for <%= inv.batch_name || 'this campaign' %>">
+                                                        <% options.forEach(function(opt) {
+                                                          const tone = rsvpTones[opt.value] || 'primary';
+                                                          const on = opt.value === current;
+                                                        %>
+                                                        <button type="button"
+                                                          class="btn btn-sm rsvp-btn <%= on ? 'btn-' + tone : 'btn-outline-' + tone %>"
+                                                          data-response="<%= opt.value %>"
+                                                          data-tone="<%= tone %>"
+                                                          aria-pressed="<%= on ? 'true' : 'false' %>"><%= opt.label %></button>
+                                                        <% }); %>
+                                                      </div>
+                                                      <% if (inv.answers.allowOther) { %>
+                                                      <div class="input-group input-group-sm mt-1 rsvp-other<%= current === 'other' ? '' : ' d-none' %>">
+                                                        <input type="text" class="form-control rsvp-other-input" maxlength="500"
+                                                          aria-label="Other answer for <%= inv.batch_name || 'this campaign' %>"
+                                                          value="<%= current === 'other' ? (inv.response_other || '') : '' %>" />
+                                                        <button type="button" class="btn btn-outline-primary rsvp-other-save">Save</button>
+                                                      </div>
+                                                      <% } %>
+                                                      <% if (inv.previousText) { %>
+                                                        <div class="text-muted mt-1 rsvp-changed">Changed from <%= inv.previousText %> · <%= new Date(inv.response_changed_at).toLocaleDateString('en-US', { month:'short', day:'numeric' }) %><%= inv.response_source ? ' · via ' + (rsvpSources[inv.response_source] || inv.response_source) : '' %></div>
+                                                      <% } %>
+                                                      <div class="rsvp-status mt-1" role="status"></div>
                                                     </div>
-                                                    <div class="rsvp-status mt-1"></div>
                                                   <% } %>
                                                 </td>
                                               </tr>

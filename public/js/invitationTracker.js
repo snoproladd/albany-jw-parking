@@ -336,8 +336,28 @@
         return row.response ? `<span class="badge bg-info text-dark">${esc(row.response)}</span>` : "";
     }
 
+    /** @type {Record<string, string>} Where an answer came from, for people. */
+    const SOURCE_LABELS = { link: "RSVP page", text: "text", oversight: "oversight" };
+
     /**
-     * Revoke button, or Reinstate for a revoked invitation.
+     * The response badge plus, when the answer changed, "was Yes · Nov 25"
+     * and where the latest answer came from.
+     *
+     * @param {InvitationRow|undefined} row
+     * @returns {string}
+     */
+    function responseCellHtml(row) {
+        const badge = responseBadgeHtml(row);
+        if (!row || !row.changedAt || row.revoked) return badge;
+        const was = { yes: "Yes", no: "No", maybe: "Maybe", other: "Other" }[row.previousResponse || ""] || row.previousResponse || "no answer";
+        const times = row.changeCount > 1 ? ` (${row.changeCount} changes)` : "";
+        const via = row.responseSource ? ` · via ${SOURCE_LABELS[row.responseSource] || row.responseSource}` : "";
+        return `${badge}<div class="it-changed small">Changed from ${esc(was)} · ${esc(row.changedAt)}${esc(times)}${esc(via)}</div>`;
+    }
+
+    /**
+     * The row's buttons: Set answer (when its campaign asks for one) and
+     * Revoke, or Reinstate for a revoked invitation.
      *
      * @param {InvitationRow|undefined} row
      * @returns {string}
@@ -345,9 +365,13 @@
     function rowActionHtml(row) {
         if (!row) return "";
         const name = esc(row.name);
-        return row.revoked
-            ? `<button type="button" class="btn btn-outline-success btn-sm it-reinstate-btn" data-id="${row.id}" data-name="${name}" title="Reinstate invitation" aria-label="Reinstate invitation for ${name}"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i></button>`
-            : `<button type="button" class="btn btn-outline-danger btn-sm it-revoke-btn" data-id="${row.id}" data-name="${name}" title="Revoke invitation" aria-label="Revoke invitation for ${name}"><i class="fa-solid fa-ban" aria-hidden="true"></i></button>`;
+        if (row.revoked) {
+            return `<button type="button" class="btn btn-outline-success btn-sm it-reinstate-btn" data-id="${row.id}" data-name="${name}" title="Reinstate invitation" aria-label="Reinstate invitation for ${name}"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i></button>`;
+        }
+        const setAnswer = row.responseNeeded && campaignById.get(row.batchId)?.answers
+            ? `<button type="button" class="btn btn-outline-secondary btn-sm it-answer-btn" data-id="${row.id}" title="Set answer" aria-label="Set answer for ${name}"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></button>`
+            : "";
+        return `<div class="it-row-actions">${setAnswer}<button type="button" class="btn btn-outline-danger btn-sm it-revoke-btn" data-id="${row.id}" data-name="${name}" title="Revoke invitation" aria-label="Revoke invitation for ${name}"><i class="fa-solid fa-ban" aria-hidden="true"></i></button></div>`;
     }
 
     /**
@@ -553,7 +577,7 @@
                 <td class="text-center">${channelIconsHtml(row.channel)}</td>
                 <td class="text-muted small text-nowrap">${esc(row.sentAt)}</td>
                 <td class="text-muted small text-nowrap">${remindedHtml(row)}</td>
-                <td>${responseBadgeHtml(row)}</td>
+                <td>${responseCellHtml(row)}</td>
                 <td class="text-muted small text-nowrap">${esc(row.respondedAt || "—")}</td>
                 <td class="text-end">${rowActionHtml(row)}</td>
             </tr>`).join("");
@@ -711,7 +735,7 @@
                     <tr>
                         <td class="fw-semibold">${esc(r.name)}</td>
                         <td class="small">${deliveryHtml(r, send.isBackfill)}</td>
-                        <td>${r.outcome === "skipped" ? "" : responseBadgeHtml(row)}</td>
+                        <td>${r.outcome === "skipped" ? "" : responseCellHtml(row)}</td>
                         <td class="text-end">${r.outcome === "skipped" ? "" : rowActionHtml(row)}</td>
                     </tr>`;
             }).join("");
@@ -935,6 +959,12 @@
         const card = target.closest(".it-campaign");
         const rootId = card?.getAttribute("data-root") || "";
 
+        const answerBtn = target.closest(".it-answer-btn");
+        if (answerBtn instanceof HTMLElement) {
+            openAnswerModal(Number(answerBtn.dataset.id), rootId);
+            return;
+        }
+
         const actionBtn = target.closest(".it-revoke-btn, .it-reinstate-btn");
         if (actionBtn instanceof HTMLButtonElement) {
             if (!actionBtn.disabled) handleRowAction(actionBtn, rootId);
@@ -1102,6 +1132,140 @@
     }
 
     // =========================================================
+    // Set answer
+    // =========================================================
+
+    /** Formats "Nov 25, 2026" like the server's tracker dates. */
+    const rowDateFormat = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+    /** @type {{ id: number, rootId: string }|null} Invitation open in the Set answer modal. */
+    let answering = null;
+
+    /**
+     * Open the Set answer modal for one invitation, offering its campaign's
+     * own answers, plus Other (when the campaign allows it) and No answer.
+     *
+     * @param {number} id - Invitation id.
+     * @param {string} rootId - The card it is in.
+     * @returns {void}
+     */
+    function openAnswerModal(id, rootId) {
+        const row = trackerRows.find((r) => r.id === id);
+        const answers = row ? campaignById.get(row.batchId)?.answers : null;
+        const modalEl = document.getElementById("itAnswerModal");
+        const listEl = document.getElementById("itAnswerChoices");
+        if (!row || !answers || !modalEl || !listEl || typeof bootstrap === "undefined") return;
+        answering = { id, rootId };
+
+        const whoEl = document.getElementById("itAnswerWho");
+        if (whoEl) whoEl.textContent = `${row.name} · ${campaignById.get(row.batchId)?.name || "this campaign"}`;
+
+        const current = row.respondedAt ? row.response || "" : "";
+        const options = [
+            ...answers.choices,
+            ...(answers.allowOther ? [{ value: "other", label: "Other…" }] : []),
+            { value: "", label: "No answer yet" },
+        ];
+        listEl.innerHTML = options.map((opt, i) => `
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="itAnswer" id="itAnswerOpt${i}" value="${esc(opt.value)}"${opt.value === current ? " checked" : ""}>
+                <label class="form-check-label" for="itAnswerOpt${i}">${esc(opt.label)}</label>
+            </div>`).join("");
+
+        const otherEl = /** @type {HTMLInputElement|null} */ (document.getElementById("itAnswerOther"));
+        if (otherEl) otherEl.value = current === "other" ? row.responseOther || "" : "";
+        syncAnswerOther();
+        document.getElementById("itAnswerError")?.classList.add("d-none");
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
+
+    /**
+     * Show the Other text box only while Other is picked.
+     *
+     * @returns {void}
+     */
+    function syncAnswerOther() {
+        const picked = /** @type {HTMLInputElement|null} */ (document.querySelector('input[name="itAnswer"]:checked'));
+        const wrap = document.getElementById("itAnswerOtherWrap");
+        if (wrap) wrap.classList.toggle("d-none", picked?.value !== "other");
+    }
+
+    document.getElementById("itAnswerChoices")?.addEventListener("change", syncAnswerOther);
+
+    /**
+     * Save the picked answer, update the row and re-render the page so
+     * counts, filters and the card follow.
+     *
+     * @returns {Promise<void>}
+     */
+    async function saveAnswer() {
+        if (!answering) return;
+        const { id, rootId } = answering;
+        const picked = /** @type {HTMLInputElement|null} */ (document.querySelector('input[name="itAnswer"]:checked'));
+        const otherEl = /** @type {HTMLInputElement|null} */ (document.getElementById("itAnswerOther"));
+        const errorEl = document.getElementById("itAnswerError");
+        const saveBtn = /** @type {HTMLButtonElement|null} */ (document.getElementById("itAnswerSaveBtn"));
+
+        /** @param {string} msg */
+        const showError = (msg) => {
+            if (!errorEl) return;
+            errorEl.textContent = msg;
+            errorEl.classList.remove("d-none");
+        };
+        if (!picked) {
+            showError("Pick an answer.");
+            return;
+        }
+        const response = picked.value || null;
+        const responseOther = response === "other" ? (otherEl?.value || "").trim() : null;
+        if (response === "other" && !responseOther) {
+            showError("Type the answer for Other.");
+            otherEl?.focus();
+            return;
+        }
+
+        if (saveBtn) saveBtn.disabled = true;
+        try {
+            const res = await fetch(`${INVITATION_API}/${id}/answer`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "X-CSRF-Token": getCsrf() },
+                body: JSON.stringify({ response, responseOther }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.success) {
+                showError(data.error || "Save failed — please try again.");
+                return;
+            }
+
+            const row = trackerRows.find((r) => r.id === id);
+            if (row) {
+                const today = rowDateFormat.format(new Date());
+                if (data.changed) {
+                    row.previousResponse = row.response;
+                    row.changedAt = today;
+                    row.changeCount = (row.changeCount || 0) + 1;
+                }
+                const wasAnswered = !!row.respondedAt;
+                row.response = response;
+                row.responseOther = responseOther;
+                row.respondedAt = response ? (data.changed || !wasAnswered ? today : row.respondedAt) : null;
+                row.responseSource = response ? "oversight" : null;
+            }
+            const modalEl = document.getElementById("itAnswerModal");
+            if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+            openCards.add(rootId);
+            applyFilters();
+        } catch (err) {
+            console.error("[invitationTracker] set answer error:", err);
+            showError("Network error — please try again.");
+        } finally {
+            if (saveBtn) saveBtn.disabled = false;
+        }
+    }
+
+    document.getElementById("itAnswerSaveBtn")?.addEventListener("click", saveAnswer);
+
+    // =========================================================
     // Edit Campaign (admins only)
     // =========================================================
 
@@ -1149,6 +1313,8 @@
             recruitEl.disabled = !(respEl?.checked ?? true);
         }
         if (activeEl) activeEl.checked = batch.active !== false;
+        const respondByEl = /** @type {HTMLInputElement|null} */ (document.getElementById("itEditRespondBy"));
+        if (respondByEl) respondByEl.value = batch.respond_by ? String(batch.respond_by).slice(0, 10) : "";
         if (msgTypeEl) msgTypeEl.value = batch.message_type || "invitation";
         errorEl?.classList.add("d-none");
 
@@ -1230,6 +1396,7 @@
                     active: checked("itEditActive"),
                     messageType: val("itEditMessageType") || "invitation",
                     isRecruitment: responseNeeded && checked("itEditRecruitment"),
+                    respondBy: responseNeeded ? val("itEditRespondBy") : "",
                 }),
             });
             const data = await res.json().catch(() => ({}));

@@ -1161,19 +1161,20 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("clearDisapprovalBtn")?.addEventListener("click", () => save(false));
   }
   // ---------------------------------------------------------------------
-  // RSVP panel — immediate AJAX toggle
+  // Convention Invitations — set an answer (saved at once)
   // ---------------------------------------------------------------------
 
   /**
-   * Initialise the Convention Invitations RSVP toggle buttons.
-   * Each button group represents one invitation. Clicking a button
-   * PATCHes the response immediately — does not go through finalize.
-   * Clicking the already-active button clears back to Pending.
+   * Initialise the Convention Invitations panel. Each invitation shows its
+   * campaign's own answers, plus Other (when allowed) and No answer.
+   * Clicking an answer saves it at once (not through finalize); Other
+   * opens a text box with its own Save. Saved with source 'oversight'
+   * (POST /edit-volunteer/set-rsvp).
    * @returns {void}
    */
   function initRsvpPanel() {
-    const accordion = root.querySelector("#accountAccordion");
-    if (!accordion) return;
+    const panel = root.querySelector("#collapseInvitations");
+    if (!panel) return;
 
     /** @returns {string} */
     function getCsrf() {
@@ -1181,59 +1182,49 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     /**
-     * Update button visual states within a toggle group.
-     * @param {HTMLElement} group
-     * @param {string|null} activeResponse
+     * Show which answer is saved: the filled button is the current one.
+     * @param {HTMLElement} box - The .rsvp-answer element.
+     * @param {string} active - Answer value ("" for no answer).
      * @returns {void}
      */
-    function syncGroupButtons(group, activeResponse) {
-      const map = {
-        yes: ["btn-success", "btn-outline-success"],
-        no: ["btn-danger", "btn-outline-danger"],
-        maybe: ["btn-warning", "btn-outline-warning"],
-        "": ["btn-secondary", "btn-outline-secondary"],
-      };
-
-      group.querySelectorAll(".rsvp-btn").forEach((btn) => {
-        const resp = btn.dataset.response ?? "";
-        const [active, inactive] = map[resp] ?? [
-          "btn-secondary",
-          "btn-outline-secondary",
-        ];
-        const isActive = (activeResponse ?? "") === resp;
-        btn.classList.toggle(active, isActive);
-        btn.classList.toggle(inactive, !isActive);
+    function syncButtons(box, active) {
+      box.querySelectorAll(".rsvp-btn").forEach((btn) => {
+        const el = /** @type {HTMLElement} */ (btn);
+        const tone = el.dataset.tone || "primary";
+        const on = (el.dataset.response ?? "") === active;
+        el.classList.toggle(`btn-${tone}`, on);
+        el.classList.toggle(`btn-outline-${tone}`, !on);
+        el.setAttribute("aria-pressed", on ? "true" : "false");
       });
     }
 
-    accordion.addEventListener("click", async (ev) => {
-      const btn = ev.target.closest(".rsvp-btn");
-      if (!btn) return;
+    /**
+     * Show a short status under the answer.
+     * @param {HTMLElement} box
+     * @param {string} text
+     * @param {"muted"|"success"|"danger"} tone
+     * @returns {void}
+     */
+    function setStatus(box, text, tone) {
+      const el = box.querySelector(".rsvp-status");
+      if (!el) return;
+      el.textContent = text;
+      el.className = `rsvp-status mt-1 text-${tone}`;
+    }
 
-      const group = btn.closest(".rsvp-toggle-group");
-      if (!group) return;
-
-      const invitationId = Number(group.dataset.invitationId);
+    /**
+     * Save an answer for the invitation in `box`.
+     * @param {HTMLElement} box
+     * @param {string} response - Answer value; "" clears it.
+     * @param {string|null} responseOther - Words for "other".
+     * @returns {Promise<void>}
+     */
+    async function save(box, response, responseOther) {
+      const invitationId = Number(box.dataset.invitationId);
       if (!invitationId) return;
-
-      const statusEl = group.nextElementSibling;
-
-      // Clicking the already-active button clears to pending
-      const currentActive = group.querySelector(
-        ".btn-success, .btn-danger, .btn-warning, .btn-secondary:not(.btn-outline-secondary)",
-      );
-      const clickedResponse = btn.dataset.response;
-      const newResponse = currentActive === btn ? "" : clickedResponse;
-
-      // Disable group while saving
-      group.querySelectorAll(".rsvp-btn").forEach((b) => {
-        b.disabled = true;
-      });
-      if (statusEl) {
-        statusEl.textContent = "Saving…";
-        statusEl.className = "rsvp-status mt-1 text-muted";
-        statusEl.style.fontSize = "0.72rem";
-      }
+      const controls = box.querySelectorAll("button, input");
+      controls.forEach((c) => { /** @type {HTMLButtonElement} */ (c).disabled = true; });
+      setStatus(box, "Saving…", "muted");
 
       try {
         const res = await fetch("/edit-volunteer/set-rsvp", {
@@ -1242,39 +1233,64 @@ document.addEventListener("DOMContentLoaded", () => {
             "Content-Type": "application/json",
             "X-CSRF-Token": getCsrf(),
           },
-          body: JSON.stringify({ invitationId, response: newResponse }),
+          body: JSON.stringify({ invitationId, response, responseOther }),
         });
         const data = await res.json().catch(() => ({}));
-
         if (!res.ok || !data.success) {
-          if (statusEl) {
-            statusEl.textContent = data.error || "Save failed.";
-            statusEl.className = "rsvp-status mt-1 text-danger";
-            statusEl.style.fontSize = "0.72rem";
-          }
-        } else {
-          syncGroupButtons(group, newResponse);
-          if (statusEl) {
-            statusEl.textContent = "Saved.";
-            statusEl.className = "rsvp-status mt-1 text-success";
-            statusEl.style.fontSize = "0.72rem";
-            setTimeout(() => {
-              statusEl.textContent = "";
-            }, 2500);
-          }
+          setStatus(box, data.error || "Save failed.", "danger");
+          return;
         }
+        syncButtons(box, response);
+        if (response !== "other") box.querySelector(".rsvp-other")?.classList.add("d-none");
+        setStatus(box, "Saved.", "success");
+        setTimeout(() => setStatus(box, "", "muted"), 2500);
       } catch (err) {
         console.error("[oversight] set-rsvp error:", err);
-        if (statusEl) {
-          statusEl.textContent = "Network error.";
-          statusEl.className = "rsvp-status mt-1 text-danger";
-          statusEl.style.fontSize = "0.72rem";
-        }
+        setStatus(box, "Network error.", "danger");
       } finally {
-        group.querySelectorAll(".rsvp-btn").forEach((b) => {
-          b.disabled = false;
-        });
+        controls.forEach((c) => { /** @type {HTMLButtonElement} */ (c).disabled = false; });
       }
+    }
+
+    panel.addEventListener("click", (ev) => {
+      const target = ev.target instanceof Element ? ev.target : null;
+      const box = /** @type {HTMLElement|null} */ (target?.closest(".rsvp-answer"));
+      if (!target || !box) return;
+
+      const otherSave = target.closest(".rsvp-other-save");
+      if (otherSave) {
+        const input = /** @type {HTMLInputElement|null} */ (box.querySelector(".rsvp-other-input"));
+        const words = (input?.value || "").trim();
+        if (!words) {
+          setStatus(box, "Type the answer for Other.", "danger");
+          input?.focus();
+          return;
+        }
+        save(box, "other", words);
+        return;
+      }
+
+      const btn = /** @type {HTMLElement|null} */ (target.closest(".rsvp-btn"));
+      if (!btn) return;
+      const response = btn.dataset.response ?? "";
+      if (btn.getAttribute("aria-pressed") === "true" && response !== "other") return;
+
+      // Other needs words first: open the box rather than saving
+      if (response === "other") {
+        const wrap = box.querySelector(".rsvp-other");
+        wrap?.classList.remove("d-none");
+        /** @type {HTMLInputElement|null} */ (wrap?.querySelector("input"))?.focus();
+        return;
+      }
+      save(box, response, null);
+    });
+
+    // Enter in the Other box saves it
+    panel.addEventListener("keydown", (ev) => {
+      const input = ev.target instanceof HTMLInputElement && ev.target.classList.contains("rsvp-other-input") ? ev.target : null;
+      if (!input || ev.key !== "Enter") return;
+      ev.preventDefault();
+      /** @type {HTMLButtonElement|null} */ (input.closest(".rsvp-other")?.querySelector(".rsvp-other-save"))?.click();
     });
   }
   // ─────────────────────────────────────────────────────────────────────────

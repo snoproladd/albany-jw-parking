@@ -155,7 +155,7 @@ const RULES = [
       ] },
     { methods: ["PUT"], path: /^\/oversight\/tools\/campaigns\/batches\/(\d+)$/,
       refs: (req, m) => [["batch", m[1]]] },
-    { methods: ["POST"], path: /^\/oversight\/tools\/campaigns\/invitations\/(\d+)\/(?:revoke|reinstate)$/,
+    { methods: ["POST"], path: /^\/oversight\/tools\/campaigns\/invitations\/(\d+)\/(?:revoke|reinstate|answer)$/,
       refs: (req, m) => [["invitation", m[1]]] },
     { methods: ["POST"], path: /^\/edit-volunteer\/set-rsvp$/,
       refs: (req) => [["invitation", b(req, "invitationId")]] },

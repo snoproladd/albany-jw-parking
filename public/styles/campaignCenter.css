@@ -764,3 +764,39 @@
 .mc-review-row dd {
     margin: 0;
 }
+
+/* Step 1: Respond-by date */
+.mc-respond-by {
+    max-width: 12rem;
+}
+
+/* Step 4: "Send by" Email / Text, on its own line at the left */
+.mc-channel-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.75rem;
+    margin: 0;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 0.5rem;
+    background: var(--bs-tertiary-bg, #f8f9fa);
+}
+
+.mc-channel-legend {
+    float: none;
+    width: auto;
+    margin: 0 0.5rem 0 0;
+    padding: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+/* Step 5: the "Reply 1 for Yes, …" line texts end with */
+.mc-preview-sms-line {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px dashed var(--bs-border-color, #dee2e6);
+    font-size: 0.85rem;
+    color: var(--bs-secondary-color, #6c757d);
+}
