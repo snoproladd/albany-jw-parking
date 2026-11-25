@@ -29,6 +29,9 @@ const _cache = new Map();
 /** @type {HTMLElement|null} Active panel element. */
 let _panelEl = null;
 
+/** @type {string|null} Object URL of the picked-photo preview, if any. */
+let _photoPreviewUrl = null;
+
 // ─────────────────────────────────────────────
 //  Helpers
 // ─────────────────────────────────────────────
@@ -185,6 +188,7 @@ export function updateCache(assignmentId, rvData) {
 export function dismissRendezvousPanel() {
   _panelEl?.remove();
   _panelEl = null;
+  _releasePhotoPreview();
 }
 
 // ─────────────────────────────────────────────
@@ -388,11 +392,20 @@ export async function openRendezvousPanel(opts) {
   photoSection.appendChild(photoLabel);
 
   if (rv?.photo_blob_name) {
+    // The saved photo, whole (not cropped); click opens it full size.
+    const photoUrl = `/api/rendezvous/photo/${encodeURIComponent(rv.photo_blob_name)}`;
     const img = document.createElement("img");
-    img.src = `/api/rendezvous/photo/${encodeURIComponent(rv.photo_blob_name)}`;
+    img.src = photoUrl;
     img.classList.add("rv-photo-preview");
-    img.alt = "Rendezvous photo";
-    photoSection.appendChild(img);
+    img.alt = "Meet-up point photo";
+    const photoLink = document.createElement("a");
+    photoLink.href = photoUrl;
+    photoLink.target = "_blank";
+    photoLink.rel = "noopener";
+    photoLink.title = "Open the photo full size";
+    photoLink.classList.add("rv-photo-link");
+    photoLink.appendChild(img);
+    photoSection.appendChild(photoLink);
 
     if (!readOnly) {
       const clearPhotoBtn = document.createElement("button");
@@ -414,7 +427,7 @@ export async function openRendezvousPanel(opts) {
           const data = await res.json();
           if (data.success) {
             rv.photo_blob_name = null;
-            img.remove();
+            photoLink.remove();
             clearPhotoBtn.remove();
             updateCache(assignmentId, rv);
             if (onUpdate) onUpdate(assignmentId, rv);
@@ -436,6 +449,20 @@ export async function openRendezvousPanel(opts) {
     fileInput.classList.add("form-control", "form-control-sm", "rv-file-input");
     fileInput.id = "rv-photo-file";
     photoSection.appendChild(fileInput);
+
+    // Preview of a newly picked photo, shown before saving.
+    const newPreview = document.createElement("figure");
+    newPreview.classList.add("rv-photo-new", "d-none");
+    const newImg = document.createElement("img");
+    newImg.classList.add("rv-photo-preview");
+    newImg.alt = "New photo, not saved yet";
+    const newCaption = document.createElement("figcaption");
+    newCaption.textContent = rv?.photo_blob_name
+      ? "New photo: replaces the one above when you save."
+      : "New photo: added when you save.";
+    newPreview.append(newImg, newCaption);
+    photoSection.appendChild(newPreview);
+    _bindPhotoPreview(fileInput, newPreview, newImg);
   }
   body.appendChild(photoSection);
 
@@ -677,7 +704,9 @@ async function _showApplyToView(rv, opts) {
 // ─────────────────────────────────────────────
 
 /**
- * Handle the Save/Create button click with time guard logic.
+ * Handle the Save/Create button click with time guard logic. A successful
+ * create (photo included) closes the panel; an edit keeps it open and, when
+ * it sent an alert, follows the alert's delivery in the status line.
  *
  * @param {object|null} rv          Existing RV data or null for create.
  * @param {number}      assignmentId
@@ -786,6 +815,7 @@ async function _handleSave(
       document.getElementById("rv-photo-file")
     );
     const rvId = exists ? rv.id : result.id;
+    let photoOk = true;
 
     if (fileInput?.files?.length > 0) {
       const formData = new FormData();
@@ -797,6 +827,7 @@ async function _handleSave(
       });
       const photoData = await photoRes.json();
       if (!photoData.success) {
+        photoOk = false;
         _flashStatus(
           body,
           photoData.error || "Photo upload failed.",
@@ -815,15 +846,22 @@ async function _handleSave(
       /* non-fatal */
     }
 
+    // A new point closes the panel once it (and any photo) saved; the pin
+    // on the timeline already shows it. Edits stay open: their status line
+    // may be following an alert's delivery.
+    if (!exists && photoOk) {
+      dismissRendezvousPanel();
+      return;
+    }
+
     // Show alert result if applicable
     if (result.alertResult) {
-      const { sent, failed, total } = result.alertResult;
-      _flashStatus(
-        body,
+      const { sent, failed, total, runId } = result.alertResult;
+      const summary =
         `Saved. Alert sent to ${sent}/${total} volunteer${total !== 1 ? "s" : ""}.` +
-          (failed > 0 ? ` ${failed} failed.` : ""),
-        failed > 0 ? "warning" : "success",
-      );
+        (failed > 0 ? ` ${failed} failed.` : "");
+      _flashStatus(body, summary, failed > 0 ? "warning" : "success");
+      if (runId && sent > 0) _followAlertDelivery(body, summary, runId);
     } else {
       _flashStatus(body, "Saved.", "success");
     }
@@ -835,6 +873,126 @@ async function _handleSave(
     _flashStatus(body, "Network error.", "danger");
   }
   saveBtn.disabled = false;
+}
+
+/**
+ * Show a preview of the photo picked in the file input, before it is
+ * uploaded. Uses an object URL (img-src allows blob:), released when the
+ * pick changes or the preview leaves the page.
+ *
+ * @param {HTMLInputElement} fileInput
+ * @param {HTMLElement}      figure     Preview wrapper (hidden while empty)
+ * @param {HTMLImageElement} img
+ * @returns {void}
+ */
+function _bindPhotoPreview(fileInput, figure, img) {
+  fileInput.addEventListener("change", () => {
+    _releasePhotoPreview();
+    const file = fileInput.files?.[0];
+    if (!file || !file.type.startsWith("image/")) {
+      img.removeAttribute("src");
+      figure.classList.add("d-none");
+      return;
+    }
+    _photoPreviewUrl = URL.createObjectURL(file);
+    img.src = _photoPreviewUrl;
+    figure.classList.remove("d-none");
+  });
+}
+
+/**
+ * Release the picked-photo preview's object URL (on a new pick, and when
+ * the panel closes).
+ *
+ * @returns {void}
+ */
+function _releasePhotoPreview() {
+  if (_photoPreviewUrl) URL.revokeObjectURL(_photoPreviewUrl);
+  _photoPreviewUrl = null;
+}
+
+/** How often the editor asks for a meet-up alert's delivery, in ms. */
+const DELIVERY_POLL_MS = 4000;
+
+/** How many times it asks before giving up (4 s × 30 = 2 minutes). */
+const DELIVERY_POLL_LIMIT = 30;
+
+/**
+ * Follow a meet-up alert's delivery after a save: every few seconds, ask
+ * GET /api/rendezvous/alert-delivery/:runId and add the result to the
+ * panel's status line ("Delivery: 2 delivered, 1 pending"), with anyone
+ * it did not reach and why. Stops when nothing is pending, after
+ * DELIVERY_POLL_LIMIT checks, or when the panel is closed.
+ *
+ * @param {HTMLElement} container  Panel body element.
+ * @param {string}      summary    The save message to keep in front.
+ * @param {string}      runId      The alert's run id from the PUT result.
+ * @returns {void}
+ */
+function _followAlertDelivery(container, summary, runId) {
+  const statusEl = container.querySelector(".rv-status");
+  if (!statusEl) return;
+  let checks = 0;
+
+  /**
+   * One delivery check; schedules the next while texts are pending.
+   *
+   * @returns {Promise<void>}
+   */
+  const check = async () => {
+    if (!statusEl.isConnected) return;
+    checks++;
+    let delivery = null;
+    try {
+      const res = await fetch(
+        `/api/rendezvous/alert-delivery/${encodeURIComponent(runId)}`,
+      );
+      const data = await res.json();
+      if (data.success) delivery = data.delivery;
+    } catch {
+      /* try again on the next check */
+    }
+    if (!statusEl.isConnected) return;
+    if (delivery) _renderAlertDelivery(statusEl, summary, delivery);
+    const pending = delivery ? delivery.pending : 1;
+    if (pending > 0 && checks < DELIVERY_POLL_LIMIT) {
+      setTimeout(check, DELIVERY_POLL_MS);
+    }
+  };
+  setTimeout(check, DELIVERY_POLL_MS);
+}
+
+/**
+ * Write a meet-up alert's delivery into the status line: the save summary,
+ * then "Delivery: …", then a list of anyone it did not reach and why.
+ * Built with DOM nodes (names are user data, never HTML).
+ *
+ * @param {HTMLElement} statusEl
+ * @param {string}      summary
+ * @param {{ delivered: number, pending: number, failed: number, untracked: number,
+ *           failures: Array<{ name: string, reason: string }> }} d
+ * @returns {void}
+ */
+function _renderAlertDelivery(statusEl, summary, d) {
+  const total = d.delivered + d.pending + d.failed + d.untracked;
+  const parts = [`${d.delivered} of ${total} delivered`];
+  if (d.pending) parts.push(`${d.pending} pending`);
+  if (d.untracked) parts.push(`${d.untracked} not tracked`);
+
+  statusEl.textContent = `${summary} Delivery: ${parts.join(", ")}.`;
+  const variant = d.failed > 0 ? "warning" : d.pending > 0 ? "secondary" : "success";
+  statusEl.className = `rv-status text-${variant}`;
+
+  if (d.failures && d.failures.length) {
+    const list = document.createElement("ul");
+    list.className = "small mb-0 ps-3";
+    for (const f of d.failures) {
+      const li = document.createElement("li");
+      li.textContent = `Not delivered: ${f.name} (${f.reason})`;
+      list.appendChild(li);
+    }
+    statusEl.appendChild(list);
+  }
 }
 
 /**

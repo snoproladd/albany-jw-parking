@@ -4,7 +4,12 @@
  *
  * Context-sensitive behaviour:
  *  - Pill in pool  → View/Edit · Today's Assignments · Highlight · Copy Name · (stubs)
- *  - Pill in DZ    → Remove from Slot (top) · divider · all pool items
+ *  - Pill in DZ    → Remove from Slot (top) · meet-up point · divider · all pool items
+ *  - Shift block or its drop zone (not on a pill) → meet-up point for that shift
+ *
+ * Meet-up point items say "Add" or "View / edit" from the day's meet-up
+ * points (preloaded on each day change) and follow rendezvous.manage
+ * (public/js/permissions.js): without it a point can only be viewed.
  *
  * All assignment data is read directly from the live grid DOM so this
  * module requires no extra API calls.
@@ -15,7 +20,12 @@
 
 import { unbindDraggable } from './schedulerDraggable.js';
 import { trackAssign, untrackBlackout, getConflicts } from './schedulerConflicts.js';
-import { openRendezvousPanel, dismissRendezvousPanel, getCachedRendezvous } from './rendezvous.js';
+import {
+    openRendezvousPanel,
+    dismissRendezvousPanel,
+    getCachedRendezvous,
+    preloadRendezvousForDay,
+} from './rendezvous.js';
 import { openNotePanel, closeNotePanel } from './schedulerNotePanel.js';
 import { openConstraintPanel, closeConstraintPanel } from './schedulerConstraintPanel.js';
 import BlackoutTimeline from './blackoutTimeline.js';
@@ -55,6 +65,8 @@ export function initContextMenu() {
     // Track current day for the Manage Blackouts panel
     document.addEventListener('scheduler:dayChange', (e) => {
         _currentDayId = e.detail?.dayId || null;
+        // Know which shifts have a meet-up point, for the menu's labels.
+        if (_currentDayId) preloadRendezvousForDay(_currentDayId);
     });
 
     // Dismiss menu (not panel) on outside click
@@ -77,9 +89,9 @@ export function initContextMenu() {
  * @returns {void}
  */
 function _onContextMenu(e) {
-    // ── Shift-block right-click (not on a pill or dropzone) ──
+    // ── Shift-block right-click (block or its drop zone, not on a pill) ──
     const block = e.target.closest('.sched-shift-block');
-    if (block && !e.target.closest('.name-pill') && !e.target.closest('.scheduler-dropzone')) {
+    if (block && !e.target.closest('.name-pill')) {
         e.preventDefault();
         _dismissMenu();
         _dismissPanel();
@@ -236,6 +248,11 @@ function _buildMenu(volId, volName, pill, inDz) {
           }
             }
         }
+
+        // ── This shift's meet-up point ───────────────────────────────
+        const pillBlock = pill.closest('.sched-shift-block');
+        const meetup = pillBlock ? _meetupItem(pillBlock, _lastPos?.x ?? 0, _lastPos?.y ?? 0) : null;
+        if (meetup) menu.appendChild(meetup);
 
         menu.appendChild(_divider());
     }
@@ -481,8 +498,17 @@ async function _showBlackoutsPanel(volId, volName) {
     }
 }
 
-function _showShiftBlockMenu(block, x, y) {
-    const assignmentId = Number(block.dataset.assignmentId);
+/**
+ * What the meet-up editor needs to know about a shift block, read from the
+ * grid: its schedule assignment, label, location (column header), the
+ * selected day's date and the shift's start time.
+ *
+ * @param {HTMLElement} block  .sched-shift-block
+ * @returns {{ assignmentId: number, shiftLabel: string, locationName: string,
+ *             startTime: string, conventionDate: string }}
+ */
+function _shiftBlockInfo(block) {
+    const assignmentId = Number(block.dataset.assignmentId) || 0;
     const shiftLabel = block.querySelector('.sched-shift-header')?.textContent?.trim() || 'Shift';
 
     // Read location name from the column header above this block
@@ -505,28 +531,73 @@ function _showShiftBlockMenu(block, x, y) {
     const startMins = Number(dz?.dataset.shiftStartMins || 0);
     const startHH = String(Math.floor(startMins / 60)).padStart(2, '0');
     const startMM = String(startMins % 60).padStart(2, '0');
-    const startTime = `${startHH}:${startMM}`;
 
-    const hasRv = !!getCachedRendezvous(assignmentId);
+    return { assignmentId, shiftLabel, locationName, startTime: `${startHH}:${startMM}`, conventionDate };
+}
+
+/**
+ * True when the person may add, edit and delete meet-up points
+ * (rendezvous.manage, from public/js/permissions.js). The server checks
+ * every change anyway.
+ *
+ * @returns {boolean}
+ */
+function _canManageRendezvous() {
+    return window.AppPermissions?.can('rendezvous.manage') === true;
+}
+
+/**
+ * The meet-up point item for a shift block: "Add meet-up point" when it has
+ * none (only for people who can manage them), "View / edit meet-up point"
+ * or "View meet-up point" when it has one. Null when there is nothing to
+ * offer (no schedule assignment yet, or no point and no permission).
+ *
+ * @param {HTMLElement} block  .sched-shift-block
+ * @param {number} x  Where the panel opens
+ * @param {number} y
+ * @returns {HTMLElement|null}
+ */
+function _meetupItem(block, x, y) {
+    const info = _shiftBlockInfo(block);
+    if (!info.assignmentId) return null;
+    const canManage = _canManageRendezvous();
+    const hasRv = !!getCachedRendezvous(info.assignmentId);
+    if (!hasRv && !canManage) return null;
+
+    const label = hasRv
+        ? (canManage ? 'View / edit meet-up point' : 'View meet-up point')
+        : 'Add meet-up point';
+    const icon = hasRv ? 'fa-solid fa-location-dot' : 'fa-solid fa-location-crosshairs';
+    return _item(icon, label, [], () => _openRvFromBlock(info, canManage, x, y));
+}
+
+/**
+ * Show the shift-block menu (right-click on a block or its drop zone, not
+ * on a volunteer): the shift's meet-up point.
+ *
+ * @param {HTMLElement} block  .sched-shift-block
+ * @param {number} x
+ * @param {number} y
+ * @returns {void}
+ */
+function _showShiftBlockMenu(block, x, y) {
+    const info = _shiftBlockInfo(block);
 
     const menu = document.createElement('div');
     menu.classList.add('sched-ctx-menu');
 
     const header = document.createElement('div');
     header.classList.add('sched-ctx-header');
-    header.textContent = shiftLabel;
+    header.textContent = info.shiftLabel;
     menu.appendChild(header);
 
-    if (hasRv) {
-        menu.appendChild(_item('fa-solid fa-location-dot', 'View / Edit Rendezvous', [], () => {
-            _openRvFromBlock(assignmentId, shiftLabel, locationName, startTime, conventionDate, x, y);
-        }));
-    } else if (assignmentId) {
-        menu.appendChild(_item('fa-solid fa-location-crosshairs', 'Set Rendezvous', [], () => {
-            _openRvFromBlock(assignmentId, shiftLabel, locationName, startTime, conventionDate, x, y);
-        }));
-    } else {
+    const meetup = _meetupItem(block, x, y);
+    if (meetup) {
+        menu.appendChild(meetup);
+    } else if (!info.assignmentId) {
         menu.appendChild(_item('fa-solid fa-location-dot', 'No assignment', ['muted'], null));
+    } else {
+        menu.appendChild(_item('fa-solid fa-location-dot', 'No meet-up point yet', ['muted'], null));
     }
 
     _menuEl = menu;
@@ -535,31 +606,30 @@ function _showShiftBlockMenu(block, x, y) {
 }
 
 /**
- * Open the RV panel for a shift block.
+ * Open the meet-up editor for a shift block.
  *
- * @param {number} assignmentId
- * @param {string} shiftLabel
- * @param {string} locationName
- * @param {string} startTime
- * @param {string} conventionDate
+ * @param {{ assignmentId: number, shiftLabel: string, locationName: string,
+ *           startTime: string, conventionDate: string }} info  From _shiftBlockInfo
+ * @param {boolean} canManage  May add, edit and delete (rendezvous.manage)
  * @param {number} x
  * @param {number} y
+ * @returns {void}
  */
-function _openRvFromBlock(assignmentId, shiftLabel, locationName, startTime, conventionDate, x, y) {
+function _openRvFromBlock(info, canManage, x, y) {
     openRendezvousPanel({
-        assignmentId,
-        shiftLabel,
-        locationName: locationName || 'Location',
-        startTime,
-        conventionDate,
-        canCreate: true,
-        canEdit:   true,
-        canDelete: true,
+        assignmentId: info.assignmentId,
+        shiftLabel: info.shiftLabel,
+        locationName: info.locationName || 'Location',
+        startTime: info.startTime,
+        conventionDate: info.conventionDate,
+        canCreate: canManage,
+        canEdit:   canManage,
+        canDelete: canManage,
         anchorX:   x,
         anchorY:   y,
-        onUpdate:  (aId, rvData) => {
-            // Cache is updated internally by rendezvous.js
-        },
+        // The editor keeps its own cache current, so the next menu's label
+        // ("Add" or "View / edit") is right without a reload.
+        onUpdate:  () => {},
     });
 }
 
