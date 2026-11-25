@@ -595,7 +595,8 @@ function _showShiftBlockMenu(block, x, y) {
     if (meetup) {
         menu.appendChild(meetup);
     } else if (!info.assignmentId) {
-        menu.appendChild(_item('fa-solid fa-location-dot', 'No assignment', ['muted'], null));
+        // A meet-up point belongs to a shift at a location.
+        menu.appendChild(_item('fa-solid fa-location-dot', 'Give this shift a location first', ['muted'], null));
     } else {
         menu.appendChild(_item('fa-solid fa-location-dot', 'No meet-up point yet', ['muted'], null));
     }

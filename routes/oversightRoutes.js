@@ -67,6 +67,8 @@ import {
   getFullDayTimeline,
   getShiftRendezvous,
   getRendezvousForDay,
+  getRendezvousAssignmentsForDay,
+  getShiftsWithoutLocationForDay,
   createShiftRendezvous,
   updateShiftRendezvous,
   deleteShiftRendezvous,
@@ -210,6 +212,7 @@ import {
   normalizeToE164,
   getBaseUrl,
   describeSmsError,
+  rendezvousDetailsUrl,
 } from "../lib/messaging.js";
 
 import { PDF_SECRET, publishDays } from "../lib/publishSchedule.js";
@@ -3342,6 +3345,41 @@ export function oversightRouter({
   );
 
   /**
+   * GET /api/rendezvous/day/:dayId/assignments
+   * Every crew shift assignment (shift + location) on a convention day,
+   * with its meet-up point when it has one (has_rv), plus the day's crew
+   * shifts with no location yet (they cannot have a point). Used by the
+   * Rendezvous Points page to list set and missing points.
+   *
+   * Response: { success: true, rows: Array, unlocated: Array }
+   *
+   * @requires schedules.view permission
+   */
+  router.get(
+    "/api/rendezvous/day/:dayId/assignments",
+    requireAuth,
+    requirePermission("schedules.view"),
+    async (req, res) => {
+      const dayId = Number(req.params.dayId);
+      if (!dayId) {
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid day id." });
+      }
+      try {
+        const [rows, unlocated] = await Promise.all([
+          getRendezvousAssignmentsForDay(dayId),
+          getShiftsWithoutLocationForDay(dayId),
+        ]);
+        return res.json({ success: true, rows, unlocated });
+      } catch (err) {
+        (logError || console.error)("rendezvous/day/assignments GET error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
    * GET /api/rendezvous/photo/:blobName
    * Stream a rendezvous photo to the client (authenticated proxy).
    *
@@ -3623,13 +3661,20 @@ export function oversightRouter({
             );
             const desc =
               (description ?? existing.description) || "updated meeting point";
+            // Always link the details page: a new photo is uploaded after
+            // this save, and the page shows the point as it is when opened.
+            const detailsUrl = rendezvousDetailsUrl(existing.schedule_assignment_id);
+            // One run id for the whole alert, so its texts are grouped in
+            // message_deliveries and the editor can follow their delivery.
+            const runId = `rendezvous:${id}:${Date.now()}`;
             let sent = 0;
             let failed = 0;
             for (const vol of vols) {
               const body =
                 `${getBrand().siteName}: Updated meet-up for your ` +
                 `${vol.event_type_name} shift at ` +
-                `${_fmtTimeShort(vol.start_time)}: ${desc}`;
+                `${_fmtTimeShort(vol.start_time)}: ${desc}` +
+                (detailsUrl ? `\nDetails: ${detailsUrl}` : "");
               try {
                 await sendAlertSms(
                   vol.phone,
@@ -3639,7 +3684,7 @@ export function oversightRouter({
                   twilioMsgSid,
                   {
                     source: "rendezvous_alert",
-                    runId: `rendezvous:${id}:${Date.now()}`,
+                    runId,
                     volunteerId: vol.volunteer_id,
                     recipientName:
                       `${vol.firstName || ""} ${vol.lastName || ""}`.trim() || null,
@@ -3654,7 +3699,7 @@ export function oversightRouter({
                 failed++;
               }
             }
-            alertResult = { sent, failed, total: vols.length };
+            alertResult = { sent, failed, total: vols.length, runId: vols.length ? runId : null };
           } catch (alertErr) {
             (logError || console.error)("RV ad-hoc alert error:", alertErr);
             alertResult = { error: "Alert send failed." };
@@ -3664,6 +3709,46 @@ export function oversightRouter({
         return res.json({ success: true, alertResult });
       } catch (err) {
         (logError || console.error)("rendezvous PUT error:", err);
+        return res.status(500).json({ success: false, error: "Server error." });
+      }
+    },
+  );
+
+  /**
+   * GET /api/rendezvous/alert-delivery/:runId
+   * Delivery of one meet-up alert's texts (message_deliveries, source
+   * 'rendezvous_alert'), for the editor to follow after a save that sent
+   * an alert. Read-only; only `rendezvous:` run ids are accepted.
+   *
+   * Response: { success: true, delivery: null | {
+   *   delivered: number, pending: number, failed: number, untracked: number,
+   *   failures: Array<{ name: string, reason: string }> } }
+   *
+   * @requires rendezvous.manage permission
+   */
+  router.get(
+    "/api/rendezvous/alert-delivery/:runId",
+    requireAuth,
+    requirePermission("rendezvous.manage"),
+    async (req, res) => {
+      const runId = String(req.params.runId || "");
+      if (!/^rendezvous:\d+:\d+$/.test(runId)) {
+        return res.status(400).json({ success: false, error: "Invalid run id." });
+      }
+      try {
+        const s = (await getDeliverySummaries([runId]))[runId];
+        const delivery = s
+          ? {
+              ...s.sms,
+              failures: s.failures.map((f) => ({
+                name: f.name,
+                reason: describeSmsError(f.errorCode),
+              })),
+            }
+          : null;
+        return res.json({ success: true, delivery });
+      } catch (err) {
+        (logError || console.error)("rendezvous alert-delivery GET error:", err);
         return res.status(500).json({ success: false, error: "Server error." });
       }
     },

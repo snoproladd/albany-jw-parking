@@ -228,6 +228,56 @@
     background: var(--bs-tertiary-bg);
 }
 
+/* Cards are buttons when they open the editor: full width, left aligned. */
+button.rv-landing-card {
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+}
+
+button.rv-landing-card:focus-visible {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: 1px;
+}
+
+/* A shift with no point, for someone who cannot add one: not clickable. */
+.rv-landing-card--static {
+    cursor: default;
+}
+
+.rv-landing-card--static:hover {
+    background: transparent;
+}
+
+/* Rendezvous Points page: shifts with no location yet (no meet-up point possible). */
+.rv-unlocated {
+    margin-bottom: 0.5rem;
+    padding: 0.45rem 0.65rem;
+    border: 1px solid var(--bs-warning-border-subtle);
+    border-radius: 0.35rem;
+    background: var(--bs-warning-bg-subtle);
+    color: var(--bs-warning-text-emphasis);
+    font-size: 0.8rem;
+}
+
+.rv-unlocated a {
+    color: inherit;
+    font-weight: 600;
+}
+
+/* Rendezvous Points page filters (shift type, meet-up point). */
+.rv-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.25rem;
+}
+
+.rv-filter-select {
+    max-width: 280px;
+}
+
 .rv-landing-card-badge {
     width: 0.5rem;
     height: 0.5rem;
