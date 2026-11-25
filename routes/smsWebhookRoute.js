@@ -85,29 +85,23 @@ import {
   textReplyHint,
 } from "../lib/rsvp.js";
 import { getActiveYear } from "../lib/conventionYear.js";
+import { getConventionTimeZone, conventionToday, zonedParts } from "../lib/conventionTime.js";
 
 /**
- * Convention-local date and time (America/New_York), used to find a
- * volunteer's shift today when routing an inbound SMS.
+ * Convention-local date and time (the convention's time zone, set per year
+ * on System Variables), used to find a volunteer's shift today when routing
+ * an inbound SMS.
  *
- * @returns {{ today: string, nowTime: string }}  YYYY-MM-DD and HH:MM:SS
+ * @returns {Promise<{ today: string, nowTime: string }>}  YYYY-MM-DD and HH:MM:SS
  */
-function easternNow() {
+async function easternNow() {
   const now = new Date();
-  const today = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/New_York",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(now);
-  const nowTime = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "America/New_York",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  }).format(now);
-  return { today, nowTime };
+  const tz = await getConventionTimeZone();
+  const p = zonedParts(now, tz);
+  const nowTime = [p.hour, p.minute, p.second]
+    .map((n) => String(n).padStart(2, "0"))
+    .join(":");
+  return { today: conventionToday(now, tz), nowTime };
 }
 
 /**
@@ -372,7 +366,7 @@ export function smsWebhookRouter({
         // Unknown callers go to Volunteer Services (routing rule 4).
         routeToDepartment(
           req,
-          await resolveSmsDepartment({ volunteerId: null, ...easternNow() }),
+          await resolveSmsDepartment({ volunteerId: null, ...(await easternNow()) }),
         );
 
         reply(
@@ -583,7 +577,7 @@ export function smsWebhookRouter({
             await resolveSmsDepartment({
               volunteerId: volunteer.id,
               shiftId: shift.shift_id,
-              ...easternNow(),
+              ...(await easternNow()),
             }),
           );
           routed = true;
@@ -654,7 +648,7 @@ export function smsWebhookRouter({
       if (!routed) {
         routeToDepartment(
           req,
-          await resolveSmsDepartment({ volunteerId: volunteer.id, ...easternNow() }),
+          await resolveSmsDepartment({ volunteerId: volunteer.id, ...(await easternNow()) }),
         );
         routed = true;
       }

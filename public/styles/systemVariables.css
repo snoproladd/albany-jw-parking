@@ -134,3 +134,70 @@
     color: var(--bs-danger-text-emphasis);
     border-radius: 0 0 var(--bs-border-radius-lg) var(--bs-border-radius-lg);
 }
+
+/* ── Convention venue & time zone card (public/js/conventionVenue.js) ───────── */
+
+.sv-venue-summary {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.25rem 1rem;
+}
+
+.sv-venue-summary dt {
+    font-weight: 600;
+    color: var(--bs-secondary-color);
+}
+
+.sv-venue-summary dd {
+    margin: 0;
+}
+
+.sv-venue-block {
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius);
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.sv-venue-legend {
+    float: none;
+    width: auto;
+    margin-bottom: 0.5rem;
+    padding: 0 0.25rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+}
+
+.sv-venue-fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+}
+
+.sv-venue-city {
+    flex: 1 1 14rem;
+}
+
+.sv-venue-state {
+    flex: 0 1 6rem;
+}
+
+.sv-venue-zip {
+    flex: 0 1 8rem;
+}
+
+.sv-venue-select {
+    max-width: 32rem;
+}
+
+.sv-venue-confirm {
+    margin-top: 0.75rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: var(--bs-border-radius);
+    background: var(--bs-success-bg-subtle);
+    border: 1px solid var(--bs-success-border-subtle);
+}
+
+.sv-venue-status:empty {
+    display: none;
+}

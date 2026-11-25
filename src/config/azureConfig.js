@@ -78,6 +78,7 @@ const SECRET_MAP = Object.freeze({
   GRAPH_CLIENT_ID:     "GraphClientId",
   GRAPH_CLIENT_SECRET: "GraphClientSecret",
   GOOGLE_MAPS_API_KEY: "GoogleMapsApiKey",
+  GOOGLE_SERVER_API_KEY: "GoogleServerApiKey",
   SIGN_PHOTOS_STORAGE_ACCOUNT: "SignPhotosStorageAccount",
   AZURE_OPENAI_ENDPOINT:   "AzureOpenAIEndpoint",
   AZURE_OPENAI_KEY:        "AzureOpenAIKey",
@@ -174,6 +175,11 @@ export async function getConfig() {
     // Google Maps Platform (Maps JavaScript API)
     GOOGLE_MAPS_API_KEY: secrets.GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY,
 
+    // Google Maps Platform server key (Geocoding + Time Zone APIs), for
+    // "Set to convention city" on System Variables. Optional: without it
+    // the time zone is picked from a list.
+    GOOGLE_SERVER_API_KEY: secrets.GOOGLE_SERVER_API_KEY || process.env.GOOGLE_SERVER_API_KEY,
+
     // Azure Blob Storage account for sign placement photos
     SIGN_PHOTOS_STORAGE_ACCOUNT:
       secrets.SIGN_PHOTOS_STORAGE_ACCOUNT || process.env.SIGN_PHOTOS_STORAGE_ACCOUNT,
@@ -204,6 +210,7 @@ export async function getConfig() {
     kickboxConfigured: Boolean(CONFIG.KICKBOX_API_KEY),
     ionosSmtpConfigured: Boolean(CONFIG.IONOS_SMTP_HOST && CONFIG.IONOS_SMTP_USER_INFO),
     googleMapsConfigured:  Boolean(CONFIG.GOOGLE_MAPS_API_KEY),
+    googleServerKeyConfigured: Boolean(CONFIG.GOOGLE_SERVER_API_KEY),
     signPhotosConfigured:  Boolean(CONFIG.SIGN_PHOTOS_STORAGE_ACCOUNT),
     azureOpenAiConfigured: Boolean(CONFIG.AZURE_OPENAI_ENDPOINT && CONFIG.AZURE_OPENAI_KEY),
   });

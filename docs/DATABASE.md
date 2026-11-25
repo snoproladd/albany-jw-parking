@@ -37,7 +37,10 @@ Schema highlights:
     that year's Decently export
 - `convention_years` — one row per year: `year` PK, `status`
   (`active` | `closed`), `first_date`, `last_date`, `started_by`,
-  `started_at`, `closed_by`, `closed_at`. A filtered unique index on
+  `started_at`, `closed_by`, `closed_at`, and the venue and time zone
+  (`venue_city`, `venue_state`, `venue_zip`, `time_zone` IANA name,
+  `time_zone_source`, `time_zone_set_by`, `time_zone_set_at`; set on System
+  Variables, read by `lib/conventionTime.js`). A filtered unique index on
   `status = 'active'` allows one active year. Read through
   `lib/conventionYear.js` (`getActiveYear()`); written by
   `startConventionYear()` in one transaction.

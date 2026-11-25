@@ -13,7 +13,7 @@
     <h1 class="ll-pdf-title"><%= brand.conventionLabel %> Parking</h1>
     <h2 class="ll-pdf-subtitle">Lessons Learned — <%= year %></h2>
     <p class="ll-pdf-meta">
-      Generated <%= new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) %>
+      Generated <%= new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: locals.conventionTimeZone || 'America/New_York' }) %>
       &nbsp;&bull;&nbsp; <%= lessons.length %> published <%= lessons.length === 1 ? 'entry' : 'entries' %>
     </p>
   </header>
@@ -35,7 +35,7 @@
         <span class="ll-pdf-divider">·</span>
         <span class="ll-pdf-submitter">
           Submitted by <%= l.submitted_by_name %>
-          on <%= new Date(l.submitted_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) %>
+          on <%= new Date(l.submitted_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: locals.conventionTimeZone || 'America/New_York' }) %>
         </span>
         <% if (l.approved_by_name) { %>
           <span class="ll-pdf-divider">·</span>

@@ -75,6 +75,7 @@ import {
   getShiftRendezvous,
 } from "./lib/dbSync.js";
 import { getActiveYear, distributionFolderPath } from "./lib/conventionYear.js";
+import { getConventionTimeZone, conventionToday } from "./lib/conventionTime.js";
 import { conventionYearStateMiddleware } from "./middleware/conventionYearState.js";
 import { closedYearGuard } from "./middleware/closedYearGuard.js";
 import { conventionYearRouter } from "./routes/conventionYearRoutes.js";
@@ -631,6 +632,18 @@ let mapsSyncHandle = null;
     // Needs the session and res.locals.nav set above.
     app.use(conventionYearStateMiddleware);
 
+    // The convention's time zone (cached 5 minutes) for this request: keeps
+    // the synchronous helpers in lib/conventionTime.js current and gives
+    // templates res.locals.conventionTimeZone.
+    app.use(async (req, res, next) => {
+      try {
+        res.locals.conventionTimeZone = await getConventionTimeZone();
+      } catch {
+        res.locals.conventionTimeZone = "America/New_York";
+      }
+      next();
+    });
+
     // Closed convention years are read-only: refuse writes to their records.
     app.use(closedYearGuard);
 
@@ -906,7 +919,11 @@ app.use("/", countsRouter({
   twilioAuthToken:  config.TWILIO_AUTH_TOKEN,
   twilioMsgSid:     config.TWILIO_MSG_SID,
 }));
-app.use("/", systemVariablesRouter({ csrfProtection, logError }));
+app.use("/", systemVariablesRouter({
+  csrfProtection,
+  logError,
+  googleServerApiKey: config.GOOGLE_SERVER_API_KEY,
+}));
 app.use("/", positionsRouter({ csrfProtection, logError }));
 app.use("/", capacityAlertRouter({ csrfProtection, logError }));
 app.use("/", conventionYearRouter({ csrfProtection, logError }));
@@ -1325,10 +1342,8 @@ app.use(
               );
             }
 
-            // Eastern date helper (UTC-4, valid for August convention)
-            const easternToday = new Date(Date.now() - 4 * 60 * 60 * 1000)
-              .toISOString()
-              .slice(0, 10);
+            // Today in the convention's time zone (lib/conventionTime.js)
+            const easternToday = conventionToday(new Date(), await getConventionTimeZone());
 
             // ── CHECK = arrive / check-in ────────────────────────
             if (bodyText === "CHECK") {
@@ -1705,6 +1720,8 @@ app.use(
     // Load the active convention year now so the SharePoint folder getters
     // (distributionFolderPath) and the Maps sync use it from the first run.
     log(`Active convention year: ${await getActiveYear()}.`);
+    // Warm the convention time zone so synchronous callers have it.
+    log(`Convention time zone: ${await getConventionTimeZone()}.`);
 
     // Background jobs run in a fixed production context for department 1
     // (Parking); their timers keep it. They move to one run per active

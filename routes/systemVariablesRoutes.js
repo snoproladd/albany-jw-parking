@@ -12,6 +12,11 @@
  *   PUT    /api/system-variables/:id          Update an entry
  *   DELETE /api/system-variables/:id          Delete (blocked if referenced)
  *
+ * Convention venue and time zone (active convention year):
+ *   GET  /api/convention-venue          Venue, zone and choices (systemVariables.manage)
+ *   POST /api/convention-venue/lookup   Look up a zone from city, state, ZIP (convention.manageDays)
+ *   PUT  /api/convention-venue          Save venue and zone (convention.manageDays)
+ *
  * Sub-location management API (OVERSEER+ — manageShifts):
  *   GET    /api/locations/:locationTaskId/sub-locations           All sub-locations for a location
  *   POST   /api/locations/:locationTaskId/sub-locations           Create a sub-location
@@ -36,19 +41,77 @@ import {
     updateSubLocation,
     deleteSubLocation,
     reorderSubLocations,
+    getConventionVenue,
+    setConventionVenue,
 } from '../lib/dbSync.js';
+import { getActiveYear } from '../lib/conventionYear.js';
+import {
+    US_TIME_ZONES,
+    isValidTimeZone,
+    describeTimeZone,
+    getConventionTimeZone,
+    invalidateTimeZoneCache,
+} from '../lib/conventionTime.js';
+import { lookupVenueTimeZone } from '../lib/timeZoneLookup.js';
 
 /**
  * Factory: build the system variables + sub-locations router.
  *
  * @param {{
- *   csrfProtection: import('csurf').CsrfRequestHandler,
- *   logError:       (...args: any[]) => void,
+ *   csrfProtection:      import('csurf').CsrfRequestHandler,
+ *   logError:            (...args: any[]) => void,
+ *   googleServerApiKey?: string|null,   Geocoding + Time Zone APIs (optional)
  * }} deps
  * @returns {import('express').Router}
  */
-export function systemVariablesRouter({ csrfProtection, logError }) {
+export function systemVariablesRouter({ csrfProtection, logError, googleServerApiKey = null }) {
     const router = express.Router();
+
+    /**
+     * Read and tidy the venue fields from a request body.
+     *
+     * @param {any} body
+     * @returns {{ city: string, state: string, zip: string, error: string|null }}
+     */
+    function readVenue(body) {
+        const city = String(body?.city ?? '').trim().slice(0, 100);
+        const state = String(body?.state ?? '').trim().slice(0, 50);
+        const zip = String(body?.zip ?? '').trim();
+        let error = null;
+        if (zip && !/^\d{5}(-\d{4})?$/.test(zip)) error = 'ZIP must be 5 digits (or ZIP+4).';
+        return { city, state, zip: zip.slice(0, 10), error };
+    }
+
+    /**
+     * The venue card's data: the active year's venue and zone, the zones
+     * offered for a manual pick, and what the signed-in person may do.
+     *
+     * @param {import('express').Response} res
+     * @returns {Promise<object>}
+     */
+    async function venuePayload(res) {
+        const year = await getActiveYear();
+        const venue = await getConventionVenue(year);
+        const tz = venue?.time_zone || await getConventionTimeZone();
+        return {
+            year,
+            venue: venue
+                ? {
+                    city: venue.venue_city,
+                    state: venue.venue_state,
+                    zip: venue.venue_zip,
+                    timeZone: tz,
+                    source: venue.time_zone_source,
+                    setAt: venue.time_zone_set_at,
+                    setBy: venue.set_by_name,
+                }
+                : null,
+            timeZoneLabel: describeTimeZone(tz),
+            timeZones: US_TIME_ZONES.map((z) => ({ ...z, now: describeTimeZone(z.id) })),
+            canEdit: res.locals.can?.('convention.manageDays') === true,
+            lookupAvailable: Boolean(googleServerApiKey),
+        };
+    }
 
     // ============================================================
     // Page route
@@ -68,6 +131,113 @@ export function systemVariablesRouter({ csrfProtection, logError }) {
                 appVersion:      res.locals.appVersion,
                 csrfToken:       req.csrfToken(),
             });
+        }
+    );
+
+    // ============================================================
+    // Convention venue and time zone
+    // ============================================================
+
+    /**
+     * GET /api/convention-venue
+     * The active convention year's venue and time zone, the US zones for a
+     * manual pick, whether the person may change them (convention.manageDays)
+     * and whether "Set to convention city" is available (server key set).
+     */
+    router.get(
+        '/api/convention-venue',
+        requirePermission("systemVariables.manage"),
+        async (req, res) => {
+            try {
+                res.json({ success: true, ...(await venuePayload(res)) });
+            } catch (err) {
+                logError('[GET /api/convention-venue]', err);
+                res.status(500).json({ success: false, error: 'Failed to load the convention venue.' });
+            }
+        }
+    );
+
+    /**
+     * POST /api/convention-venue/lookup
+     * Look up the time zone of a venue from its city, state and ZIP
+     * (Google Geocoding + Time Zone APIs). Saves nothing: the page shows the
+     * answer for confirmation, then saves with PUT.
+     *
+     * Body: { city, state, zip }
+     * Response: { success: true, timeZone, timeZoneLabel, formattedAddress, inList }
+     */
+    router.post(
+        '/api/convention-venue/lookup',
+        requirePermission("convention.manageDays"),
+        csrfProtection,
+        async (req, res) => {
+            const v = readVenue(req.body);
+            if (v.error) return res.status(400).json({ success: false, error: v.error });
+            if (!v.city || !v.state) {
+                return res.status(400).json({ success: false, error: 'Enter the venue\'s city and state.' });
+            }
+            try {
+                const result = await lookupVenueTimeZone({ ...v, apiKey: googleServerApiKey });
+                if (!result.ok) return res.status(422).json({ success: false, error: result.error });
+                if (!isValidTimeZone(result.timeZone)) {
+                    return res.status(422).json({
+                        success: false,
+                        error: `Google answered "${result.timeZone}", which this server doesn't know. Pick the time zone from the list.`,
+                    });
+                }
+                res.json({
+                    success: true,
+                    timeZone: result.timeZone,
+                    timeZoneLabel: describeTimeZone(result.timeZone),
+                    formattedAddress: result.formattedAddress,
+                    inList: US_TIME_ZONES.some((z) => z.id === result.timeZone),
+                });
+            } catch (err) {
+                logError('[POST /api/convention-venue/lookup]', err);
+                res.status(500).json({ success: false, error: 'Lookup failed.' });
+            }
+        }
+    );
+
+    /**
+     * PUT /api/convention-venue
+     * Save the active convention year's venue and time zone. Takes effect
+     * for every page, text and timer straight away (the zone cache is
+     * dropped and re-read).
+     *
+     * Body: { city, state, zip, timeZone, source: 'city'|'manual' }
+     */
+    router.put(
+        '/api/convention-venue',
+        requirePermission("convention.manageDays"),
+        csrfProtection,
+        async (req, res) => {
+            const v = readVenue(req.body);
+            if (v.error) return res.status(400).json({ success: false, error: v.error });
+            const timeZone = String(req.body?.timeZone ?? '').trim();
+            const source = req.body?.source === 'city' ? 'city' : 'manual';
+            if (!isValidTimeZone(timeZone)) {
+                return res.status(400).json({ success: false, error: 'Choose a time zone.' });
+            }
+            try {
+                const year = await getActiveYear();
+                const ok = await setConventionVenue({
+                    year,
+                    city: v.city || null,
+                    state: v.state || null,
+                    zip: v.zip || null,
+                    timeZone,
+                    source,
+                    setBy: req.session.userId,
+                });
+                if (!ok) return res.status(404).json({ success: false, error: `Convention year ${year} has no record.` });
+                invalidateTimeZoneCache();
+                await getConventionTimeZone();
+                res.json({ success: true, ...(await venuePayload(res)) });
+            } catch (err) {
+                logError('[PUT /api/convention-venue]', err);
+                res.status(500).json({ success: false, error: 'Failed to save the convention venue.' });
+            }
         }
     );
 

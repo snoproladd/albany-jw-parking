@@ -30,6 +30,7 @@ import {
 } from "../lib/dbSync.js";
 import { evaluateCapacityAlerts } from "../lib/capacityAlerter.js";
 import { getActiveYear } from "../lib/conventionYear.js";
+import { getConventionTimeZone, conventionToday } from "../lib/conventionTime.js";
 
 /**
  * Factory: build the counts router.
@@ -156,7 +157,7 @@ export function countsRouter({ csrfProtection, logError, twilioAccountSid, twili
     async (req, res) => {
       try {
         const year = await getActiveYear();
-        const todayIso = new Date().toISOString().slice(0, 10);
+        const todayIso = conventionToday(new Date(), await getConventionTimeZone());
         const day = await getTodayConventionDay(year, todayIso);
         res.json({ day });
       } catch (err) {

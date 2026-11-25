@@ -39,6 +39,14 @@ function buildSystemVariablesTour() {
     });
 
     steps.push({
+        id: "sv-venue",
+        title: "Convention venue & time zone",
+        text: "Every time in the app follows this time zone: when shift reminders go out, what counts as today, and times in texts, emails and PDFs. Convention admins set it once a year: enter the venue's city, state and ZIP and press <strong>Look up time zone</strong>, or choose the zone from the list. Shift and session times are always convention time; pages show other times in your own zone, labelled (for example EST).",
+        attachTo: { element: "#sv-venue-card", on: "bottom" },
+        buttons: null,
+    });
+
+    steps.push({
         id: "sv-classifications",
         title: "Location Classifications",
         text: bt("Categorizes parking locations — Parking Garage, Parking Area, Kingdom Hall, and so on. This list feeds the classification dropdown when creating or editing a location."),

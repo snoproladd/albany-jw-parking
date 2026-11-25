@@ -38,6 +38,7 @@ import { createRateLimiter } from "../middleware/rateLimit.js";
 
 import { INCOMPATIBILITIES } from "../src/config/privilegeRules.js";
 import { getActiveYear } from "../lib/conventionYear.js";
+import { getConventionTimeZoneSync } from "../lib/conventionTime.js";
 
 /**
  * Factory: build router that handles login + my-account.
@@ -301,11 +302,14 @@ export function loginRouter({ csrfProtection, logError }) {
             : `${fmtTime(r.shift_start)} ${startAp}–${fmtTime(r.shift_end)} ${endAp}`;
       }
 
-      // Last sent: "Jul 10"
+      // Last sent: "Jul 10" (the day in the convention's time zone; the
+      // server's own zone is UTC in production)
+      const tz = getConventionTimeZoneSync();
       const lastSentFmt = r.last_sent_at
         ? new Date(r.last_sent_at).toLocaleDateString("en-US", {
             month: "short",
             day: "numeric",
+            timeZone: tz,
           })
         : "—";
 
@@ -314,6 +318,7 @@ export function loginRouter({ csrfProtection, logError }) {
         ? new Date(r.responded_at).toLocaleDateString("en-US", {
             month: "short",
             day: "numeric",
+            timeZone: tz,
           })
         : "—";
 

@@ -37,6 +37,30 @@
             </div>
           </div>
 
+          <%# ── Convention venue and time zone (public/js/conventionVenue.js) ── %>
+          <div class="card shadow-sm sv-card mb-4" id="sv-venue-card">
+            <div class="card-header sv-card-header d-flex align-items-start justify-content-between gap-2">
+              <div>
+                <h2 class="h5 mb-1">
+                  <i class="fa-solid fa-earth-americas me-2 text-primary"></i>Convention venue &amp; time zone
+                </h2>
+                <p class="text-muted small mb-0">
+                  Every time in the app follows the venue's time zone: shift reminders, what "today" is,
+                  and times in texts, emails and PDFs. Shift and session times are always convention time.
+                </p>
+              </div>
+              <span class="badge bg-secondary rounded-pill" id="sv-venue-year"></span>
+            </div>
+            <div class="card-body" id="sv-venue-root">
+              <div class="sv-loading">
+                <div class="spinner-border spinner-border-sm text-secondary me-2" role="status">
+                  <span class="visually-hidden">Loading…</span>
+                </div>
+                Loading…
+              </div>
+            </div>
+          </div>
+
           <%# ── Global error ── %>
           <div id="sv-page-error" class="alert alert-danger d-none mb-4" role="alert"></div>
 
@@ -99,6 +123,7 @@
 
     <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
     <script type="module" src="/js/systemVariables.js"></script>
+    <script type="module" src="/js/conventionVenue.js"></script>
     <script type="module" src="/js/tours/systemVariablesTour.js"></script>
   </body>
 </html>

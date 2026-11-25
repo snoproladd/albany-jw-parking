@@ -189,6 +189,7 @@ import {
   updateSchedulerColumnPrefs,
 } from "../lib/dbSync.js";
 import { getActiveYear, distributionFolderPath } from "../lib/conventionYear.js";
+import { conventionToday, formatMoment } from "../lib/conventionTime.js";
 import { fillMergeFields } from "../lib/campaignMerge.js";
 import {
   textReplyHint,
@@ -1644,7 +1645,7 @@ export function oversightRouter({
             .toLowerCase()
             .replace(/[^a-z0-9]+/g, "-")
             .replace(/^-|-$/g, "") || `department-${departmentId}`;
-        const filename = `DecentlyExport_${deptSlug}_${new Date().toISOString().slice(0, 10)}.csv`;
+        const filename = `DecentlyExport_${deptSlug}_${conventionToday()}.csv`;
 
         // Cache CSV + IDs in session until download or session end
         req.session.decentlyCache = { csv, ids, filename, departmentId };
@@ -2236,12 +2237,12 @@ export function oversightRouter({
   // ===========================
 
   /**
-   * Today's date in Eastern time, as YYYY-MM-DD.
+   * Today's date in the convention's time zone, as YYYY-MM-DD.
    *
    * @returns {string}
    */
   function easternDateString() {
-    return new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
+    return conventionToday();
   }
 
   /**
@@ -6125,7 +6126,7 @@ export function oversightRouter({
               (d) => d.schedulable !== false && d.schedulable !== 0,
           );
           if (!dayId) {
-              const todayIso = new Date().toISOString().slice(0, 10);
+              const todayIso = conventionToday();
               const todayDay = conventionDays.find(
                   (d) =>
                       d.convention_date &&
@@ -7113,9 +7114,7 @@ export function oversightRouter({
         });
 
         if (!started) {
-          const at = new Date(job.startedAt).toLocaleTimeString("en-US", {
-            hour: "numeric", minute: "2-digit", timeZone: "America/New_York",
-          });
+          const at = formatMoment(job.startedAt, "time");
           return res.status(409).json({
             success: false,
             error: `A publish is already running (started by ${job.startedBy} at ${at}).`,
@@ -7633,7 +7632,7 @@ export function oversightRouter({
         const year = schedule.year;
         const fireDate = schedule.fire_date
           ? new Date(schedule.fire_date).toISOString().slice(0, 10)
-          : new Date().toISOString().slice(0, 10);
+          : conventionToday();
 
         let rows;
         if (schedule.alert_category === "t15min") {
