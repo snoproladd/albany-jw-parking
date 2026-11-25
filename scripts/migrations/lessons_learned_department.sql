@@ -149,8 +149,21 @@ BEGIN
         CLOSE dep_cursor;
         DEALLOCATE dep_cursor;
 
-        SET @sql = N'ALTER TABLE ' + QUOTENAME(@schema) + N'.lessons_learned_reports ALTER COLUMN department_id INT NOT NULL;
-                     ALTER TABLE ' + QUOTENAME(@schema) + N'.lessons_learned_reports
+        -- NOT NULL first, in its own batch: SQL Server checks the whole
+        -- batch before running it, so a primary key in the same batch is
+        -- refused while the column is still nullable (Msg 8111; found in
+        -- the 2026-11-25 cutover rehearsal on a production copy). Skipped
+        -- when the column is already NOT NULL: once row-level security is
+        -- on, the policy depends on the column and ALTER COLUMN is refused
+        -- (Msg 5074), which matters only when repairing a database that
+        -- was migrated earlier.
+        IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = @obj AND name = N'department_id' AND is_nullable = 1)
+        BEGIN
+            SET @sql = N'ALTER TABLE ' + QUOTENAME(@schema) + N'.lessons_learned_reports ALTER COLUMN department_id INT NOT NULL;';
+            EXEC sp_executesql @sql;
+        END
+
+        SET @sql = N'ALTER TABLE ' + QUOTENAME(@schema) + N'.lessons_learned_reports
                          ADD CONSTRAINT PK_lessons_learned_reports PRIMARY KEY CLUSTERED (year, department_id);
                      ALTER TABLE ' + QUOTENAME(@schema) + N'.lessons_learned_reports
                          ADD CONSTRAINT df_lessons_learned_reports_department_id

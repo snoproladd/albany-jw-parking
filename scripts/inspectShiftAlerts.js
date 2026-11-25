@@ -150,7 +150,12 @@ function fireStatus(s, tz) {
     }
     const fireUtc = scheduleFireAt(s, tz);
     if (!fireUtc) return "fire time unreadable: never fires on its own";
-    const local = fireUtc.toLocaleString("en-US", { timeZone: tz, dateStyle: "medium", timeStyle: "short", timeZoneName: "short" });
+    // dateStyle/timeStyle can't be combined with timeZoneName ("Invalid
+    // option"), so the fields are spelled out.
+    const local = fireUtc.toLocaleString("en-US", {
+        timeZone: tz, month: "short", day: "numeric", year: "numeric",
+        hour: "numeric", minute: "2-digit", timeZoneName: "short",
+    });
     const mins = Math.round((fireUtc.getTime() - Date.now()) / 60000);
     let when;
     if (mins > 0) {
